@@ -3,6 +3,7 @@ import { SYSTEM_ID, TB } from "../config.mjs";
 import { esc, resolveActor } from "../utils.mjs";
 import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach } from "../scene.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
+import { pickTargetToken } from "../pick.mjs";
 
 const sign = n => (n >= 0 ? "+" : "−") + Math.abs(n);
 
@@ -297,10 +298,17 @@ function weaponOptions(actor, missile) {
   return opts;
 }
 
-/** Lock On!: захват цели в своей или соседней зоне (дальнобойное спецоружие захватывает в любой точке зоны операции). */
+/** Захваченная цель, если её токен ещё на сцене: для Fox Two! без выбранной цели. */
+function lockedTarget(actor) {
+  const a = actor.system.lockUuid ? resolveActor(actor.system.lockUuid) : null;
+  return a ? describeTarget(a, actor.system.lock) : null;
+}
+
+/** Lock On!: цель выбирается щелчком по токену; захват в своей или соседней зоне (дальнобойное спецоружие — в любой точке зоны операции). */
 export async function lockOn(actor) {
-  const t = currentTarget();
-  if (!t) return ui.notifications.warn("Сначала выберите цель (клавиша T над токеном).");
+  const tok = await pickTargetToken(actor, { title: "Lock On!" });
+  if (!tok) return;
+  const t = describeTarget(tok.actor, tok.name, tok);
   const longRange = actor.items.find(i => i.type === "weapon" && i.system.reach >= TB.range.operation && (i.system.unlimited || i.system.ammo.value > 0));
   const { dist, problems } = reachProblems(actor, t, longRange ? TB.range.operation : TB.range.lockOn);
   if (!(await confirmReach(problems, "Lock On!"))) return;
@@ -315,7 +323,7 @@ export async function lockOn(actor) {
 /** Fox Two!: ракета или спецоружие. Без броска: AA/AG + мод оружия − Speed. Improved: d10 + Aim/Deploy + мод − Speed. */
 export async function fireMissile(actor) {
   const s = actor.system;
-  const t = currentTarget();
+  const t = currentTarget() ?? lockedTarget(actor);
   const opts = weaponOptions(actor, true);
   if (!opts.length) return ui.notifications.warn("Ракет нет: система ракет сломана, а спецоружия не осталось.");
   const ground = t ? t.kind !== "air" : false;
@@ -390,7 +398,7 @@ export async function fireMissile(actor) {
 /** Guns, Guns, Guns!: d10 + Strafe − Speed против защиты, урон сразу. */
 export async function fireGuns(actor, { system: sysIndex } = {}) {
   const s = actor.system;
-  const t = currentTarget();
+  const t = currentTarget() ?? lockedTarget(actor);
   if (s.broken === "gu") return ui.notifications.warn("Пушка сломана (метка Structure).");
   if (blocked(actor, "strafe")) return;
   const pods = weaponOptions(actor, false);
