@@ -1,9 +1,11 @@
-# Выпуск версии: git tag v0.1.0 && git push origin v0.1.0
-# Workflow подставляет ссылки manifest/download в system.json, собирает zip и прикладывает оба файла к релизу.
+# Выпуск версии: поднять "version" в system.json и отправить в main.
+# Если релиза v<version> ещё нет, workflow подставляет ссылки manifest/download, собирает zip и создаёт релиз с тегом.
 name: Release
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+    paths: ["system.json"]
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
@@ -11,18 +13,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Версия и ссылки в system.json
+      - name: Версия
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION=$(jq -r .version system.json)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if gh release view "v$VERSION" >/dev/null 2>&1; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Ссылки в system.json
+        if: steps.v.outputs.exists == 'false'
+        run: |
+          TAG="v${{ steps.v.outputs.version }}"
           REPO="https://github.com/${GITHUB_REPOSITORY}"
-          jq --arg v "$VERSION" --arg url "$REPO" \
+          jq --arg url "$REPO" \
              --arg man "$REPO/releases/latest/download/system.json" \
-             --arg dl "$REPO/releases/download/${GITHUB_REF_NAME}/thunderbolt-shtab.zip" \
-             '.version=$v | .url=$url | .manifest=$man | .download=$dl' system.json > system.tmp && mv system.tmp system.json
+             --arg dl "$REPO/releases/download/$TAG/thunderbolt-shtab.zip" \
+             '.url=$url | .manifest=$man | .download=$dl' system.json > system.tmp && mv system.tmp system.json
       - name: Архив системы
+        if: steps.v.outputs.exists == 'false'
         run: zip -r thunderbolt-shtab.zip system.json module templates styles lang data assets packs README.md -x "*/LOCK"
       - uses: softprops/action-gh-release@v2
+        if: steps.v.outputs.exists == 'false'
         with:
+          tag_name: v${{ steps.v.outputs.version }}
+          name: Штаб ВВС Юктобании ${{ steps.v.outputs.version }}
+          target_commitish: ${{ github.sha }}
           files: |
             system.json
             thunderbolt-shtab.zip
