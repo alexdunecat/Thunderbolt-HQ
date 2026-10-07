@@ -35,6 +35,12 @@ export class TBCombat extends Combat {
     return this;
   }
 
+  /** Бой завершается: ракеты последнего раунда всё равно долетают. */
+  async _preDelete(options, user) {
+    if ((await super._preDelete(options, user)) === false) return false;
+    if (this.started && user.id === game.user.id && game.user.isGM) await resolveVolley(this);
+  }
+
   /** Новый раунд: ракеты раунда долетают залпом, заявки сбрасываются, Break! заканчивается. */
   async nextRound() {
     if (game.user.isGM) {

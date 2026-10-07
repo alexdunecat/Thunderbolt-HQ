@@ -11,6 +11,7 @@ import { TBMemoSheet } from "./apps/memo-sheet.mjs";
 import { openAwacs, refreshAwacs, sortieResults } from "./apps/awacs-panel.mjs";
 import { tokenOf, zoneDistance } from "./scene.mjs";
 import { esc } from "./utils.mjs";
+import { initSocket, checkAdjacency, leadership, formUp } from "./squad.mjs";
 
 function applySkin(skin) {
   document.body.dataset.tbSkin = TB.skins[skin] ? skin : "shtab";
@@ -43,12 +44,15 @@ Hooks.once("init", () => {
     choices: TB.skins, default: "shtab", onChange: applySkin
   });
 
-  game.thunderbolt = { importMission, openImportDialog, openAwacs, sortieResults, rolls: R, TB };
+  game.thunderbolt = { importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, rolls: R, TB };
 });
 
 Hooks.once("ready", () => {
   applySkin(game.settings.get(SYSTEM_ID, "skin"));
   // пилоты, созданные до автоматики триггеров: подтянуть HP и Strain к новым максимумам
+  initSocket();
+  // «В строю» читает союзника: после загрузки всех актёров пересчитать тех, кто стоит вплотную
+  for (const a of game.actors) if (a.type === "pilot" && a.getFlag(SYSTEM_ID, "adjacent")?.length) { a.prepareData(); a.sheet?.rendered && a.sheet.render(false); }
   if (game.user.isGM) for (const a of game.actors) if (a.type === "pilot") a.syncPools();
 });
 
@@ -64,7 +68,7 @@ Hooks.on("renderChatMessage", (message, html) => R.decorateCard(message, html));
 Hooks.on("updateToken", (token, change, options, userId) => {
   const moved = "x" in change || "y" in change || "elevation" in change;
   if (moved && token.actor?.sheet?.rendered) token.actor.sheet.render(false);   // погода и защита в новой клетке
-  if (moved && game.users.activeGM?.isSelf) setTimeout(() => checkLocks(token.parent), 50);
+  if (moved && game.users.activeGM?.isSelf) setTimeout(() => { checkLocks(token.parent); checkAdjacency(); }, 50);
   if (userId !== game.user.id || !("elevation" in change) || !token.actor) return;
   const alt = Object.entries(TB.altElevation).find(([, v]) => v === change.elevation)?.[0];
   if (alt && token.actor.system.alt !== alt) token.actor.update({ "system.alt": alt });
@@ -109,6 +113,11 @@ Hooks.on("renderActorDirectory", (app, html) => {
 for (const ev of ["updateActor", "createItem", "updateItem", "deleteItem", "createToken", "updateToken", "deleteToken",
   "updateScene", "canvasReady", "updateCombat", "deleteCombat", "createChatMessage", "updateChatMessage"]) Hooks.on(ev, () => refreshAwacs());
 
+/* Прежний архетип нужен после обновления, чтобы убрать его Core-триггер. */
+Hooks.on("preUpdateActor", (actor, change, options) => {
+  if (actor.type === "pilot" && foundry.utils.hasProperty(change, "system.archetype")) options.tbOldArchetype = actor.system.archetype;
+});
+
 Hooks.on("updateActor", async (actor, change, options, userId) => {
   if (userId !== game.user.id) return;
   const has = p => foundry.utils.hasProperty(change, p);
@@ -122,9 +131,17 @@ Hooks.on("updateActor", async (actor, change, options, userId) => {
     if (flying && !hover) R.rollStall(actor);
   }
 
-  // архетип выбран: добавить его Core-триггер из компендиума
+  // архетип сменился: убрать Core-триггер прежнего архетипа и добавить Core нового из компендиума
   if (actor.type === "pilot" && has("system.archetype")) {
+    const oldCore = TB.archetypes[options.tbOldArchetype]?.core;
     const core = TB.archetypes[actor.system.archetype]?.core;
+    if (oldCore && oldCore !== core) {
+      const stale = actor.items.filter(i => i.type === "trigger" && i.system.key === oldCore).map(i => i.id);
+      if (stale.length) {
+        await actor.deleteEmbeddedDocuments("Item", stale);
+        ui.notifications.info(`Убран Core-триггер прежнего архетипа.`);
+      }
+    }
     if (!core || actor.items.some(i => i.type === "trigger" && i.system.key === core)) return;
     const pack = game.packs.get(`${SYSTEM_ID}.triggers`);
     const idx = await pack?.getIndex({ fields: ["system.key"] });

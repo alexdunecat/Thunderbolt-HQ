@@ -91,7 +91,11 @@
         <button type="button" data-act="break"><i class="fas fa-shuffle"></i> Break!</button>
         <button type="button" data-act="recover"><i class="fas fa-bolt"></i> Вернуть Strain</button>
         <button type="button" data-act="stall"><i class="fas fa-arrow-down"></i> Сваливание</button>
+        <button type="button" data-act="lead"><i class="fas fa-bullhorn"></i> Leadership</button>
+        <button type="button" data-act="formup"><i class="fas fa-people-arrows"></i> Вплотную</button>
       </div>
+      {{#if nextMods.length}}<p class="tb-fx-now tb-small"><span class="tb-muted">К следующему броску:</span> {{#each nextMods as |m|}}<span class="tb-chip">{{m.sval}} {{m.label}} <a data-next-drop="{{m.i}}" title="Убрать">×</a></span>{{/each}}</p>{{/if}}
+      {{#if adjacent.length}}<p class="tb-fx-now tb-small"><span class="tb-muted">Вплотную с:</span> {{#each adjacent as |x|}}<span class="tb-chip">{{x.name}} <a data-adj-drop="{{x.uuid}}" title="Отрыв">×</a></span>{{/each}}</p>{{/if}}
 
       {{#if situational.length}}
       <div class="tb-fx-bar">

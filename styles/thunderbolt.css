@@ -321,3 +321,6 @@ body[data-tb-skin="doc"] {
 .tb-results th { font-size: 11px; text-align: left; }
 .tb-results td { padding: 2px 4px; }
 .tb-results input[type="number"] { width: 52px; }
+.tb-dialog .tb-pick-list { display: grid; gap: 4px; margin: 4px 0 8px; }
+.tb-dialog .tb-pick { display: flex; gap: 6px; align-items: center; }
+.tb-dialog .tb-pick small { color: #777; }

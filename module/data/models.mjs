@@ -1,5 +1,5 @@
 /* Модели данных (TypeDataModel) для пилота, NPC, самолёта, спецоружия и триггера. */
-import { TB } from "../config.mjs";
+import { SYSTEM_ID, TB } from "../config.mjs";
 
 const f = foundry.data.fields;
 const int = (initial = 0, opts = {}) => new f.NumberField({ required: true, nullable: false, integer: true, initial, ...opts });
@@ -81,6 +81,14 @@ export class PilotData extends foundry.abstract.TypeDataModel {
         else push(c.target, t.name, v);
       }
     }
+    // «В строю» у союзника вплотную: + его ранги Lead к Evasion
+    try {
+      for (const uuid of actor.getFlag?.(SYSTEM_ID, "adjacent") ?? []) {
+        const ally = fromUuidSync(uuid);
+        if (ally?.items?.some(i => i.type === "trigger" && i.system.key === "inelement") && ally.system.skills?.lead)
+          push("evasion", `В строю: ${ally.name}`, ally.system.skills.lead);
+      }
+    } catch { /* союзник ещё не загружен: пересчёт на ready */ }
     const sum = target => (fx[target] ?? []).reduce((a, m) => a + m.value, 0);
     this.trigFx = fx;
 

@@ -2,6 +2,8 @@
 import { SYSTEM_ID, SYS_PATH, TB } from "../config.mjs";
 import { esc } from "../utils.mjs";
 import { weatherAt, defenseWithWeather } from "../scene.mjs";
+import { leadership, formUp, nextMods, dropNext, adjacentOf, breakAdjacent } from "../squad.mjs";
+import { resolveActor } from "../utils.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -59,6 +61,8 @@ class TBActorSheet extends ActorSheet {
       ctx.defenseWeather = ctx.defenseNow !== s.defense;
     }
     ctx.maxSpeedNow = (s.maxSpeed ?? 0) + w.spd;
+    ctx.nextMods = nextMods(a).map((m, i) => ({ ...m, i, sval: `${m.value >= 0 ? "+" : ""}${m.value}` }));
+    ctx.adjacent = adjacentOf(a).map(uuid => ({ uuid, name: resolveActor(uuid)?.name ?? "?" }));
     return ctx;
   }
 
@@ -83,6 +87,8 @@ class TBActorSheet extends ActorSheet {
         case "unlock": return a.update({ "system.lock": "", "system.lockUuid": "" });
         case "unbreak": return a.update({ "system.breakEv": null });
         case "doom": return a.markDoom();
+        case "lead": return leadership(a);
+        case "formup": return formUp(a);
       }
     });
     on("[data-speed]", d => {
@@ -119,6 +125,8 @@ class TBActorSheet extends ActorSheet {
       if (item) item.update({ "system.stack": Math.max(0, item.system.stack + Number(d.delta)) });
     });
     on("[data-chat-item]", d => this.#itemToChat(this.actor.items.get(d.chatItem)));
+    on("[data-next-drop]", d => dropNext(this.actor, Number(d.nextDrop)));
+    on("[data-adj-drop]", d => breakAdjacent(this.actor, d.adjDrop));
     el.querySelectorAll("[data-item-field]").forEach(n => n.addEventListener("change", ev => {
       const item = this.actor.items.get(n.dataset.itemId);
       item?.update({ [n.dataset.itemField]: n.value });

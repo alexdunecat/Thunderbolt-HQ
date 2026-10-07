@@ -1,20 +1,14 @@
 /* Броски и чат-карточки: проверки, ракеты, пушка, Break!, Strain, урон, сваливание. */
 import { SYSTEM_ID, TB } from "../config.mjs";
-import { esc } from "../utils.mjs";
+import { esc, resolveActor } from "../utils.mjs";
 import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach } from "../scene.mjs";
+import { takeNext, passOutcome } from "../squad.mjs";
 
 const sign = n => (n >= 0 ? "+" : "−") + Math.abs(n);
 
 /* ---------- вспомогательное ---------- */
 
-/** Актёр по UUID, включая синтетических актёров несвязанных токенов (Scene.x.Token.y.Actor.z). */
-export function resolveActor(uuid) {
-  if (!uuid) return null;
-  const m = /^(.*\.Token\.[^.]+)\.Actor\.[^.]+$/.exec(uuid);
-  if (m) return fromUuidSync(m[1])?.actor ?? null;
-  const d = fromUuidSync(uuid);
-  return d?.actor ?? d ?? null;
-}
+export { resolveActor };
 
 /** Первая цель игрока на сцене: { actor, token, name, uuid, defense, kind } или null. */
 export function currentTarget() {
@@ -134,6 +128,10 @@ export function renderCard(card) {
   if (c.type === "recover" && c.success) rows.push(`<div class="tb-note">Вернуть <b>${c.regain}</b> Strain.</div>`);
 
   const btn = [];
+  if (c.rolled && c.perk && !c.perkPassed) btn.push(`<button type="button" data-tb-action="perk-next" class="tb-owner">Perk: +1 к следующей</button>`);
+  if (c.rolled && c.comp && !c.compPassed) btn.push(`<button type="button" data-tb-action="comp-next" class="tb-owner">Complication: −1 к следующей</button>`);
+  if (c.perkPassed) rows.push(`<div class="tb-note">Perk: +1 к следующей проверке, ${esc(c.perkPassed)}.</div>`);
+  if (c.compPassed) rows.push(`<div class="tb-note">Complication: −1 к следующей проверке, ${esc(c.compPassed)}.</div>`);
   if (c.rolled && c.strainable && !c.resolved) btn.push(`<button type="button" data-tb-action="strain" class="tb-owner"><i class="fas fa-bolt"></i> +1 Strain</button>`);
   if (c.type === "break" && !c.speedApplied) btn.push(`<button type="button" data-tb-action="break-speed" class="tb-owner">Speed −${c.speedDrop} после атак</button>`);
   if (c.type === "recover" && c.success && !c.applied) btn.push(`<button type="button" data-tb-action="recover" class="tb-owner">Вернуть ${c.regain} Strain</button>`);
@@ -209,6 +207,7 @@ export async function rollCheck(actor, skill, { dc = TB.difficulty, label } = {}
   const dice = await rollDice(actor, data.practiced);
   const parts = skillParts(actor, skill, sk.label);
   if (skill === "push") parts.push(...weatherParts(weatherAt(actor), "push"));
+  parts.push(...await takeNext(actor));
   if (data.mod) parts.push(["мод.", data.mod]);
   const card = {
     type: "check", label: label ?? `Проверка ${sk.label} (${sk.en})`, rolled: true, d10: dice.d10, d4: dice.d4,
@@ -226,6 +225,7 @@ export async function rollRecover(actor) {
   const dice = await rollDice(actor, data.practiced);
   const parts = skillParts(actor, "push", "Форсаж");
   parts.push(...weatherParts(weatherAt(actor), "push"));
+  parts.push(...await takeNext(actor));
   if (data.mod) parts.push(["мод.", data.mod]);
   const card = {
     type: "recover", label: "Восстановление Strain", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: 7,
@@ -239,7 +239,7 @@ export async function rollRecover(actor) {
 export async function rollStall(actor) {
   const dice = await rollDice(actor, false);
   const w = weatherAt(actor);
-  const parts = [...skillParts(actor, "push", "Форсаж"), ...weatherParts(w, "push")];
+  const parts = [...skillParts(actor, "push", "Форсаж"), ...weatherParts(w, "push"), ...await takeNext(actor)];
   const card = {
     type: "stall", label: "Сваливание: Push против 7", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: 7,
     strainable: actor.type === "pilot" || actor.system.tier === "ace", alt: actor.system.alt, ...thresholds(actor, "push", w.comp2),
@@ -259,6 +259,7 @@ export async function rollBreak(actor) {
   const dice = await rollDice(actor, data.practiced);
   const parts = skillParts(actor, "dodge", "Уклонение");
   if (data.lead) parts.push(["Lead", data.lead]);
+  parts.push(...await takeNext(actor));
   if (data.mod) parts.push(["мод.", data.mod]);
   const tvc = actor.system.planeProps?.has?.("tvc") || actor.system.props?.some?.(p => p.key === "tvc");
   const card = {
@@ -350,6 +351,7 @@ export async function fireMissile(actor) {
     parts.push(...skillParts(actor, skill));
     const m = air ? ws?.aim : ws?.dep;
     if (m) parts.push([`мод ${w.name}`, m]);
+    parts.push(...await takeNext(actor));
   } else {
     let base = air ? s.aa : s.ag;
     if (actor.type === "npc" && actor.system.kind === "ground") base = s.ground.ga ?? 0;
@@ -417,6 +419,7 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
   const pod = data.pod ? actor.items.get(data.pod) : null;
   if (pod?.system.key === "MGP") { parts.push(["MGP", 1]); gun += 3; label += " (MGP)"; }
   if (pod?.system.key === "PLSL") { parts.push(["PLSL", 1]); gun = 6; label = "Импульсный лазер"; }
+  parts.push(...await takeNext(actor));
   const speed = actor.type === "npc" && s.kind !== "air" ? 0 : (s.speed ?? 0);
   if (speed) parts.push(["Speed", -speed]);
   if (data.mod) parts.push(["мод.", data.mod]);
@@ -570,6 +573,14 @@ export async function onCardAction(message, action, button) {
       card.dmgApplied = true;
       await save();
       return target.applyDamage(c.dmg ?? card.dmg, { source: card.actorName, sourceUuid: card.actorUuid });
+    }
+    case "perk-next":
+    case "comp-next": {
+      if (!actor?.isOwner) return;
+      const who = await passOutcome(actor, action === "perk-next" ? "perk" : "comp");
+      if (!who) return;
+      card[action === "perk-next" ? "perkPassed" : "compPassed"] = who.name;
+      return save();
     }
     case "volley-damage": {
       if (!game.user.isGM || card.applied) return;

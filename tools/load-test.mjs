@@ -11,7 +11,7 @@ Object.assign(globalThis, {
   Actors: { unregisterSheet() {}, registerSheet(s, c, o) { console.log("sheet", s, c.name, o.label); } },
   Items: { unregisterSheet() {}, registerSheet(s, c, o) { console.log("sheet", s, c.name, o.label); } },
   DocumentSheetConfig: { registerSheet(d, s, c, o) { console.log("sheet", s, c.name, o.label); } },
-  game: { settings: { register() {}, get: () => "shtab" }, i18n: { localize: x => x }, actors: [], user: { isGM: true }, users: { activeGM: null } },
+  game: { settings: { register() {}, get: () => "shtab" }, i18n: { localize: x => x }, actors: [], user: { isGM: true }, users: { activeGM: null }, socket: { on() {}, emit() {} } },
   CONST: { TOKEN_DISPOSITIONS: {}, GRID_TYPES: {}, DRAWING_FILL_TYPES: {}, TOKEN_DISPLAY_MODES: {} },
   document: { body: { dataset: {} } }, ui: { windows: {} }
 });
