@@ -1,8 +1,9 @@
 /* Токены в зоне: самолёты и цели меньше клетки, в одной зоне помещается несколько.
    Новый или передвинутый токен сам встаёт на свободное место своей клетки.
    Foundry v12 не даёт токену быть меньше половины клетки, поэтому при размере 1/3 токен остаётся в полклетки,
-   а картинка уменьшается до трети и встаёт в центр своего места. */
-import { SYSTEM_ID } from "./config.mjs";
+   а картинка уменьшается до трети и встаёт в центр своего места.
+   Большие цели (стратегические бомбардировщики, летающие крейсеры, подводные авианосцы) занимают несколько клеток. */
+import { SYSTEM_ID, footprintOf, footprintTexture } from "./config.mjs";
 
 export const SIZE_CHOICES = { "0.5": "1/2 клетки: до 4 токенов в зоне", "0.33": "1/3 клетки: до 9 токенов в зоне", "1": "Вся клетка: 1 токен в зоне" };
 
@@ -73,8 +74,29 @@ const busyOnScene = (scene, ignoreId) => (s, step) => claimed.has(slotKey(scene,
 /** Верхний левый угол токена шириной w, чтобы его центр встал в центр места. */
 const topLeft = (s, w, gs) => ({ x: Math.round(s.x - (w * gs) / 2), y: Math.round(s.y - (w * gs) / 2) });
 
+/** Верхний левый угол большого токена w×h, чтобы он лёг по клеткам вокруг клетки точки c. */
+function bigTopLeft(c, w, h, gs) {
+  const o = canvas.grid.getTopLeftPoint(c);
+  return { x: o.x - Math.floor((w - 1) / 2) * gs, y: o.y - Math.floor((h - 1) / 2) * gs };
+}
+
+/** Новый токен большой цели: размер по таблице, вид сверху, клетки вокруг места, куда бросили. */
+function createBig(doc, fp) {
+  const scene = doc.parent, upd = {};
+  const [w, h] = doc.width === 1 && doc.height === 1 ? fp : [doc.width, doc.height];
+  if (w !== doc.width || h !== doc.height) {
+    Object.assign(upd, { width: w, height: h, texture: { scaleX: 1, scaleY: 1 } });
+    const src = footprintTexture(doc.texture?.src);
+    if (src !== doc.texture?.src) upd.texture.src = src;
+  }
+  if (squareScene(scene)) Object.assign(upd, bigTopLeft(center(doc, scene.grid.size), w, h, scene.grid.size));
+  if (Object.keys(upd).length) doc.updateSource(upd);
+}
+
 function onPreCreate(doc, data, options) {
   if (options.tbKeep || !ours(doc)) return;
+  const fp = footprintOf(doc.actor?.system);
+  if (fp) return createBig(doc, fp);
   const scene = doc.parent;
   const upd = {};
   let w = doc.width, scale = doc.texture?.scaleX ?? 1;
@@ -119,6 +141,13 @@ export async function arrangeSceneTokens() {
   const key = s => `${Math.round(s.x)},${Math.round(s.y)}`;
   for (const t of scene.tokens.filter(ours)) {
     const c = center(t, gs);
+    const fp = footprintOf(t.actor?.system);
+    if (fp) {
+      const p = bigTopLeft(c, fp[0], fp[1], gs), src = footprintTexture(t.texture.src);
+      if (t.width !== fp[0] || t.height !== fp[1] || t.x !== p.x || t.y !== p.y || t.texture.scaleX !== 1 || src !== t.texture.src)
+        updates.push({ _id: t.id, width: fp[0], height: fp[1], ...p, "texture.scaleX": 1, "texture.scaleY": 1, "texture.src": src });
+      continue;
+    }
     // все места зоны заняты: встать поверх, в первое место
     const s = nearestSlot(scene, c, c, n, s => taken.has(key(s))) ?? nearestSlot(scene, c, { x: -1e9, y: -1e9 }, n, () => false);
     taken.add(key(s));

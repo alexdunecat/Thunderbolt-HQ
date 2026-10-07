@@ -53,6 +53,9 @@ export const TB = {
   difficulty: 7,
   /* Дальность в зонах: 0 своя, 1 соседние, 2 обычная ракета (захват держится до двух зон), 99 вся зона операции. */
   range: { lockOn: 1, lockHold: 2, missile: 2, guns: 0, operation: 99 },
+  /** Большие цели: размер токена в клетках [ширина, длина]. Вид сверху для вытянутых токенов, если значок нарисован сбоку. */
+  footprints: { strategic: [2, 2], aerialCruiser: [6, 2], superSub: [1, 3] },
+  topViews: { "assets/targets/superSub.svg": "assets/targets/superSub-top.svg" },
   weaponRange: { RCL: 0, MGP: 0, PLSL: 1, XAGM: 1, "4AAM": 1, ESM: 1, XLAA: 99, LAAM: 99, LACM: 99 },
   rangeOptions: { "": "по умолчанию для этого оружия", 0: "своя зона", 1: "своя и соседние", 2: "до двух зон", 99: "вся зона операции" },
 
@@ -107,3 +110,19 @@ export const TB = {
     byside: "защищаешь своего союзника", advevasion: "снизился на уровень высоты", divebomb: "снизился перед атакой"
   }
 };
+
+/** Размер токена большой цели [ширина, длина] по данным NPC или null: стратегические бомбардировщики, летающие крейсеры, подводные авианосцы. */
+export function footprintOf(sys) {
+  if (!sys) return null;
+  const props = [...(sys.props ?? []), ...(sys.rules ?? [])].map(p => p?.key ?? p);
+  if (/стратегическ/i.test(sys.cls ?? "") || sys.key === "b2a") return TB.footprints.strategic;
+  if (props.includes("aerialship") || sys.key === "arkbird") return TB.footprints.aerialCruiser;
+  if (props.includes("superdive")) return TB.footprints.superSub;
+  return null;
+}
+
+/** Картинка токена для большой цели: вид сверху вместо вида сбоку, если он есть. */
+export function footprintTexture(src) {
+  const hit = Object.keys(TB.topViews).find(k => src?.endsWith(k));
+  return hit ? src.slice(0, -hit.length) + TB.topViews[hit] : src;
+}

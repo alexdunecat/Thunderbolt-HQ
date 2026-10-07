@@ -1,6 +1,7 @@
 /* Перевод записей data/catalog.json в данные документов Foundry.
    Без обращений к Foundry: тот же код используют сборщик компендиумов (Node) и импорт миссий (браузер). */
 
+import { footprintOf, footprintTexture } from "../config.mjs";
 const WEAPON_ICON = { air: "icons/svg/target.svg", ground: "icons/svg/fire.svg", gun: "icons/svg/sword.svg", util: "icons/svg/lightning.svg", line: "icons/svg/lightning.svg" };
 export const TRIGGER_ICON = "icons/svg/upgrade.svg";
 
@@ -51,8 +52,10 @@ export function npcActor(n, { tier = "conscript", bonus = 0, name } = {}) {
     sys.systems = n.systems.map(y => ({ name: y.name, occ: y.occ ?? 4, hp: y.hp ?? 3, value: y.hp ?? 3, ga: y.ga, gg: y.gg, gun: y.gun, note: y.note ?? "" }));
     sys.speed = 0;
   }
+  const fp = footprintOf(sys);
   return {
     name: name ?? n.name, type: "npc", img: n.img, system: sys,
-    prototypeToken: { name: name ?? n.name, texture: { src: n.img }, actorLink: false, disposition: -1 }
+    prototypeToken: { name: name ?? n.name, texture: { src: fp ? footprintTexture(n.img) : n.img }, actorLink: false, disposition: -1,
+      ...(fp ? { width: fp[0], height: fp[1] } : {}) }
   };
 }

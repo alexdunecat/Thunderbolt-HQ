@@ -1,5 +1,5 @@
 /* Импорт миссии из Планшета AWACS (кнопка «JSON» в планшете): сцена с клетками местности, токены NPC и журнал брифинга. */
-import { SYSTEM_ID, SYS_PATH, TB } from "../config.mjs";
+import { SYSTEM_ID, SYS_PATH, TB, footprintOf } from "../config.mjs";
 import { npcActor } from "../data/catalog-docs.mjs";
 import { esc } from "../utils.mjs";
 
@@ -120,9 +120,12 @@ export async function importMission(input) {
     const actor = await Actor.create(data);
     const elevation = TB.altElevation[actor.system.alt] ?? 1;
     const count = Math.max(1, Number(u.count) || 1);
+    const fp = footprintOf(actor.system);
     for (let i = 0; i < count; i++) {
-      const p = place(u.c, u.r);
-      const td = await actor.getTokenDocument({ x: p.x, y: p.y, width: 0.5, height: 0.5, elevation,
+      // большая цель ложится по клеткам вокруг своей, остальные — по местам в клетке
+      const p = fp ? { x: (u.c - Math.floor((fp[0] - 1) / 2)) * S, y: (u.r - Math.floor((fp[1] - 1) / 2)) * S } : place(u.c, u.r);
+      const size = fp ? { width: fp[0], height: fp[1] } : { width: 0.5, height: 0.5 };
+      const td = await actor.getTokenDocument({ x: p.x, y: p.y, ...size, elevation,
         name: count > 1 ? `${actor.name} ${i + 1}` : actor.name });
       tokens.push(td.toObject());
     }

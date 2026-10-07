@@ -28,15 +28,32 @@ export function cellOf(token) {
 
 function isAir(actor) { return actor?.type === "pilot" || actor?.system.kind === "air"; }
 
-/** Расстояние в зонах. Между воздушными целями соседний уровень высоты тоже считается соседней зоной. null — проверить нельзя. */
+/** Клетки токена: { c0, r0, c1, r1 }. Токен не больше клетки — клетка его центра, большой — все клетки под ним. */
+function cellsOf(token) {
+  const d = token.document;
+  if ((d?.width ?? 1) <= 1 && (d?.height ?? 1) <= 1) { const c = cellOf(token); return c && { c0: c.col, c1: c.col, r0: c.row, r1: c.row }; }
+  const gs = canvas.grid.size;
+  const a = canvas.grid.getOffset({ x: d.x + 1, y: d.y + 1 }), b = canvas.grid.getOffset({ x: d.x + d.width * gs - 1, y: d.y + d.height * gs - 1 });
+  return { c0: a.j, r0: a.i, c1: b.j, r1: b.i };
+}
+
+/** Расстояние в зонах. Между воздушными целями соседний уровень высоты тоже считается соседней зоной.
+    Большой токен стоит во всех своих клетках: считается до ближайшей. null — проверить нельзя. */
 export function zoneDistance(a, b) {
   if (!a || !b || !canvas?.ready || canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return null;
   if (a.document?.parent !== b.document?.parent) return null;
   let dh;
-  try { dh = Math.round(canvas.grid.measurePath([a.center, b.center]).spaces); }
-  catch {
-    const p = cellOf(a), q = cellOf(b);
-    dh = Math.max(Math.abs(p.col - q.col), Math.abs(p.row - q.row));
+  const big = t => (t.document?.width ?? 1) > 1 || (t.document?.height ?? 1) > 1;
+  if (big(a) || big(b)) {
+    const p = cellsOf(a), q = cellsOf(b);
+    if (!p || !q) return null;
+    dh = Math.max(0, p.c0 - q.c1, q.c0 - p.c1, p.r0 - q.r1, q.r0 - p.r1);
+  } else {
+    try { dh = Math.round(canvas.grid.measurePath([a.center, b.center]).spaces); }
+    catch {
+      const p = cellOf(a), q = cellOf(b);
+      dh = Math.max(Math.abs(p.col - q.col), Math.abs(p.row - q.row));
+    }
   }
   const da = isAir(a.actor) && isAir(b.actor) ? Math.abs(ALT_ORDER.indexOf(altOf(a)) - ALT_ORDER.indexOf(altOf(b))) : 0;
   return Math.max(dh, da);
