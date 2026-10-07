@@ -615,7 +615,7 @@
    },
    "desc": "Истребитель с крылом изменяемой стреловидности. На прямой быстр, в вираже тяжёл: пилоты говорят, что он прощает всё, кроме ближнего боя.",
    "service": "Старый парк: стоит в резерве и в полках второй линии. Много машин ушло союзникам, но на складах их ещё хватает.",
-   "img": "systems/thunderbolt-shtab/assets/planes/swing.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig23.svg"
   },
   {
    "key": "mig25",
@@ -1074,7 +1074,7 @@
    },
    "desc": "Ударный потомок МиГ-23 с бронированной кабиной, упрощёнными воздухозаборниками и шестиствольной 30-мм пушкой.",
    "service": "Его пушку побаиваются даже свои: после длинной очереди трясёт весь планер. Старый парк, но на штурмовке ещё хорош.",
-   "img": "systems/thunderbolt-shtab/assets/planes/swing.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig23.svg"
   },
   {
    "key": "su24",
@@ -6312,7 +6312,7 @@
    "sig": [
     "SAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/swing.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig23.svg"
   },
   {
    "key": "mig25",
@@ -6631,7 +6631,7 @@
    "sig": [
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/swing.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig23.svg"
   },
   {
    "key": "su24",
