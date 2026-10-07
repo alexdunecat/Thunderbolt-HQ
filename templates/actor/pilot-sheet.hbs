@@ -1,0 +1,226 @@
+<form class="tb-sheet {{cssClass}}" autocomplete="off">
+  <header class="tb-head">
+    <img class="tb-portrait" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" alt="">
+    <div class="tb-head-main">
+      <div class="tb-kicker">Личное дело пилота · ВВС Юктобании</div>
+      <input class="tb-name" type="text" name="name" value="{{actor.name}}" placeholder="Имя пилота">
+      <div class="tb-head-row">
+        <label>Позывной <input type="text" name="system.callsign" value="{{system.callsign}}"></label>
+        <label>Звание <input type="text" name="system.rank" value="{{system.rank}}"></label>
+        <label>Архетип
+          <select name="system.archetype">{{selectOptions archOptions selected=system.archetype blank="— не выбран —"}}</select>
+        </label>
+      </div>
+      <div class="tb-head-plane">
+        {{#if plane}}<b>{{plane.name}}</b> · {{plane.cls}}{{#if plane.carrier}} · палубный{{/if}}{{else}}<span class="tb-muted">Самолёт не назначен: перетащите машину из компендиума «Ангар: самолёты».</span>{{/if}}
+      </div>
+    </div>
+  </header>
+
+  <nav class="tb-tabs" data-group="primary">
+    <a class="item" data-tab="combat">Боевая карточка</a>
+    <a class="item" data-tab="plane">Самолёт</a>
+    <a class="item" data-tab="triggers">Триггеры</a>
+    <a class="item" data-tab="file">Личное дело</a>
+    <a class="item" data-tab="notes">Заметки</a>
+  </nav>
+
+  <section class="tb-body">
+    {{!-- ================= БОЕВАЯ КАРТОЧКА ================= --}}
+    <div class="tab" data-group="primary" data-tab="combat">
+      <div class="tb-grid2">
+        <fieldset class="tb-box">
+          <legend>Навыки <span class="tb-budget {{#if pointsOver}}over{{/if}}">{{system.pointsUsed}} из {{system.pointsBudget}}</span></legend>
+          <ol class="tb-skills">
+            {{#each skills as |sk|}}
+            <li class="tb-skill {{#if sk.blocked}}blocked{{/if}}">
+              <a class="tb-roll" data-roll-skill="{{sk.key}}" title="Проверка {{sk.label}}: d10 + {{sk.total}}"><i class="fas fa-dice-d10"></i></a>
+              <span class="tb-skill-name"><b>{{sk.label}}</b> <small>{{sk.en}} · {{sk.hint}}</small></span>
+              <input type="number" name="system.skills.{{sk.key}}" value="{{sk.value}}" min="0" max="10">
+              <span class="tb-skill-total" title="с триггерами">{{#if sk.mod}}{{sk.total}}{{/if}}</span>
+              <span class="tb-skill-flags">{{#if sk.perk3}}<em title="Perk на 3–4">P3</em>{{/if}}{{#if sk.comp2}}<em class="c" title="Complication на 1–2">C2</em>{{/if}}{{#if sk.blocked}}<em class="c">Grit</em>{{/if}}</span>
+            </li>
+            {{/each}}
+          </ol>
+          <div class="tb-row tb-small">
+            <label>Доп. очки навыков <input type="number" name="system.bonusPoints" value="{{system.bonusPoints}}"></label>
+            <span class="tb-muted">Старт 6, у новичка 3. +1 после каждого вылета.</span>
+          </div>
+        </fieldset>
+
+        <fieldset class="tb-box tb-flight">
+          <legend>В воздухе</legend>
+          <div class="tb-dials">
+            <div class="tb-dial {{#if alertSpeed}}alert{{/if}}">
+              <span class="tb-dial-label">Speed</span>
+              <div class="tb-dial-row"><a data-speed="-1">−</a><input type="number" name="system.speed" value="{{system.speed}}"><a data-speed="1">+</a></div>
+              <span class="tb-dial-sub">макс. {{system.maxSpeed}}</span>
+            </div>
+            <div class="tb-dial">
+              <span class="tb-dial-label">Defense</span>
+              <div class="tb-dial-big">{{system.defense}}</div>
+              <span class="tb-dial-sub">Evasion {{system.evasion}}{{#if system.breakEv}} · Break {{system.breakEv}} <a data-act="unbreak" title="Сбросить Break!">×</a>{{/if}} + Speed</span>
+            </div>
+            <div class="tb-dial">
+              <span class="tb-dial-label">HP</span>
+              <div class="tb-dial-row"><a data-step="system.hp.value" data-delta="-1">−</a><input type="number" name="system.hp.value" value="{{system.hp.value}}"><a data-step="system.hp.value" data-delta="1" data-max="{{system.hp.max}}">+</a></div>
+              <span class="tb-dial-sub">из {{system.hp.max}}</span>
+            </div>
+            <div class="tb-dial">
+              <span class="tb-dial-label">Strain</span>
+              <div class="tb-dial-row"><a data-step="system.strain.value" data-delta="-1">−</a><input type="number" name="system.strain.value" value="{{system.strain.value}}"><a data-step="system.strain.value" data-delta="1" data-max="{{system.strain.max}}">+</a></div>
+              <span class="tb-dial-sub">из {{system.strain.max}}</span>
+            </div>
+          </div>
+          <div class="tb-row">
+            <label>Высота <select name="system.alt">{{selectOptions altOptions selected=system.alt}}</select></label>
+            <label class="tb-check"><input type="checkbox" name="system.twist" {{checked system.twist}}> Поворот был</label>
+          </div>
+          <div class="tb-row tb-small">
+            <span>Air-Air <b>{{system.aa}}</b></span><span>Air-Gnd <b>{{system.ag}}</b></span><span>Gun DMG <b>{{system.gun}}</b></span>
+            <span>Захват: {{#if system.lock}}<b>{{system.lock}}</b> <a data-act="unlock" title="Снять захват">×</a>{{else}}<span class="tb-muted">нет</span>{{/if}}</span>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="tb-actions-bar">
+        <button type="button" data-act="lock"><i class="fas fa-crosshairs"></i> Lock On!</button>
+        <button type="button" data-act="missile"><i class="fas fa-rocket"></i> Fox Two!</button>
+        <button type="button" data-act="guns"><i class="fas fa-burst"></i> Guns, Guns, Guns!</button>
+        <button type="button" data-act="break"><i class="fas fa-shuffle"></i> Break!</button>
+        <button type="button" data-act="recover"><i class="fas fa-bolt"></i> Вернуть Strain</button>
+        <button type="button" data-act="stall"><i class="fas fa-arrow-down"></i> Сваливание</button>
+      </div>
+
+      <div class="tb-grid2">
+        <fieldset class="tb-box tb-markers">
+          <legend>Метки урона <span class="tb-muted">не больше одной за раунд</span></legend>
+          <div class="tb-marker {{#if system.markers.grit}}on{{/if}}">
+            <label class="tb-check"><input type="checkbox" name="system.markers.grit" {{checked system.markers.grit}}> <b>Grit</b></label>
+            <select name="system.markers.gritSkill">{{selectOptions skillOptions selected=system.markers.gritSkill blank="навык…"}}</select>
+          </div>
+          <div class="tb-marker {{#if system.markers.structure}}on{{/if}}">
+            <label class="tb-check"><input type="checkbox" name="system.markers.structure" {{checked system.markers.structure}}> <b>Structure</b></label>
+            <select name="system.markers.sys">{{selectOptions sysOptions selected=system.markers.sys blank="система…"}}</select>
+          </div>
+          <div class="tb-marker doom {{#if system.markers.doom}}on{{/if}}">
+            <label class="tb-check"><input type="checkbox" name="system.markers.doom" {{checked system.markers.doom}}> <b>Doom</b></label>
+            <span class="tb-muted">катапульта или последние слова</span>
+          </div>
+          <button type="button" class="tb-wide" data-act="sortie"><i class="fas fa-plane-departure"></i> Перед вылетом: всё до максимума</button>
+        </fieldset>
+
+        <fieldset class="tb-box">
+          <legend>Спецоружие {{#if plane}}<span class="tb-budget {{#if weaponsOver}}over{{/if}}">{{weapons.length}} из {{system.hardpoints}} узлов</span>{{/if}}</legend>
+          {{#if weapons.length}}
+          <ul class="tb-list">
+            {{#each weapons as |w|}}
+            <li class="tb-item" data-item-id="{{w.id}}">
+              <span class="tb-item-name"><a data-chat-item="{{w.id}}" title="В чат">{{w.name}}</a><small>урон {{w.dmg}}{{#if w.mods}} · {{w.mods}}{{/if}}</small></span>
+              {{#if w.unlimited}}<span class="tb-ammo">∞</span>{{else}}
+              <span class="tb-ammo"><a data-ammo="{{w.id}}" data-delta="-1">−</a>{{w.ammo}}/{{w.max}}<a data-ammo="{{w.id}}" data-delta="1">+</a></span>{{/if}}
+              <a class="tb-icon" data-item-edit="{{w.id}}" title="Открыть"><i class="fas fa-pen"></i></a>
+              <a class="tb-icon" data-item-delete="{{w.id}}" title="Убрать"><i class="fas fa-trash"></i></a>
+            </li>
+            {{/each}}
+          </ul>
+          {{else}}<p class="tb-muted">Перетащите спецоружие из компендиума. Узлов подвески: {{system.hardpoints}}.</p>{{/if}}
+          {{#if plane.sigNames}}<p class="tb-small tb-muted">Штатное для этой машины: {{plane.sigNames}}.</p>{{/if}}
+        </fieldset>
+      </div>
+    </div>
+
+    {{!-- ================= САМОЛЁТ ================= --}}
+    <div class="tab" data-group="primary" data-tab="plane">
+      {{#if plane}}
+      <div class="tb-plane">
+        <img class="tb-plane-img" src="{{plane.img}}" alt="">
+        <div>
+          <h2>{{plane.name}} <small>{{plane.nato}}</small></h2>
+          <p class="tb-muted">{{plane.cls}}{{#if plane.tierName}} · {{plane.tierName}}{{/if}} · шаблон {{plane.base}}{{#if plane.est}} · оценка{{/if}}</p>
+          <table class="tb-stats"><tr>{{#each plane.statRows as |r|}}<th title="{{r.ru}}">{{r.en}}</th>{{/each}}</tr>
+            <tr>{{#each plane.statRows as |r|}}<td>{{r.value}}</td>{{/each}}</tr></table>
+          <div class="tb-row">
+            <a class="tb-btn" data-item-edit="{{plane.id}}"><i class="fas fa-pen"></i> Открыть карточку</a>
+            <a class="tb-btn" data-item-delete="{{plane.id}}"><i class="fas fa-trash"></i> Снять машину</a>
+          </div>
+        </div>
+      </div>
+      {{#if plane.props.length}}<h3>Особенности</h3>
+      <ul class="tb-props">{{#each plane.props as |p|}}<li><b>{{p.name}}.</b> {{p.text}}</li>{{/each}}</ul>{{/if}}
+      {{#if plane.desc}}<p>{{plane.desc}}</p>{{/if}}
+      {{#if plane.service}}<p class="tb-muted">{{plane.service}}</p>{{/if}}
+      <div class="tb-row"><label>WSO во второй кабине <input type="text" name="system.wso" value="{{system.wso}}" placeholder="имя игрока-штурмана"></label></div>
+      {{else}}
+      <p class="tb-empty">Самолёт не назначен. Откройте компендиум «Ангар: самолёты» и перетащите машину на этот лист. Новая машина заменит старую.</p>
+      {{/if}}
+    </div>
+
+    {{!-- ================= ТРИГГЕРЫ ================= --}}
+    <div class="tab" data-group="primary" data-tab="triggers">
+      {{#if triggers.length}}
+      <ul class="tb-triggers">
+        {{#each triggers as |t|}}
+        <li class="tb-item tb-trigger {{#if t.used}}used{{/if}}" data-item-id="{{t.id}}">
+          <div class="tb-trigger-head">
+            <a data-chat-item="{{t.id}}" title="В чат"><b>{{t.name}}</b></a> <small>{{t.en}}</small>
+            <span class="tb-tags">{{t.typeText}}</span>
+            <label class="tb-check" title="Использован в этом вылете"><input type="checkbox" data-item-toggle="{{t.id}}" {{checked t.used}}> исп.</label>
+            <a class="tb-icon" data-item-edit="{{t.id}}"><i class="fas fa-pen"></i></a>
+            <a class="tb-icon" data-item-delete="{{t.id}}"><i class="fas fa-trash"></i></a>
+          </div>
+          <p>{{t.text}}</p>
+          {{#if t.needsSkill}}<div class="tb-row tb-small">
+            <label>Навык <select data-item-id="{{t.id}}" data-item-field="system.skill">{{selectOptions @root.skillOptions selected=t.skill blank="—"}}</select></label>
+            {{#if t.needsTwo}}<label>Второй <select data-item-id="{{t.id}}" data-item-field="system.skill2">{{selectOptions @root.skillOptions selected=t.skill2 blank="—"}}</select></label>{{/if}}
+          </div>{{/if}}
+        </li>
+        {{/each}}
+      </ul>
+      {{else}}<p class="tb-empty">Перетащите триггеры из компендиума «Триггеры». Core-триггер архетипа берётся при создании пилота.</p>{{/if}}
+    </div>
+
+    {{!-- ================= ЛИЧНОЕ ДЕЛО ================= --}}
+    <div class="tab" data-group="primary" data-tab="file">
+      <div class="tb-grid3">
+        <label>Фамилия <input type="text" name="system.lastName" value="{{system.lastName}}"></label>
+        <label>Имя <input type="text" name="system.firstName" value="{{system.firstName}}"></label>
+        <label>Отчество <input type="text" name="system.patronymic" value="{{system.patronymic}}"></label>
+        <label>Звено <input type="text" name="system.flight" value="{{system.flight}}"></label>
+        <label>Эскадрилья <input type="text" name="system.squadron" value="{{system.squadron}}"></label>
+        <label>База <input type="text" name="system.base" value="{{system.base}}"></label>
+        <label>Год рождения <input type="text" name="system.birth" value="{{system.birth}}"></label>
+        <label>Состояние <select name="system.service.status">{{selectOptions statusOptions selected=system.service.status}}</select></label>
+      </div>
+      <h3>Вопросы при зачислении</h3>
+      <label class="tb-q">Почему этот позывной тебе подходит? <textarea name="system.questions.callsign" rows="2">{{system.questions.callsign}}</textarea></label>
+      <label class="tb-q">В чём ты силён на земле? <textarea name="system.questions.ground" rows="2">{{system.questions.ground}}</textarea></label>
+      <label class="tb-q">Чего ты боишься? <textarea name="system.questions.fear" rows="2">{{system.questions.fear}}</textarea></label>
+      <label class="tb-q">Что заставит тебя ослушаться начальства? <textarea name="system.questions.defy" rows="2">{{system.questions.defy}}</textarea></label>
+      <h3>Досье <small class="tb-muted">старое зачёркивается, не стирается</small></h3>
+      <ol class="tb-dossier">
+        {{#each dossier as |d|}}
+        <li class="{{#if d.struck}}struck{{/if}}">
+          <input type="text" data-dossier="{{d.i}}" value="{{d.text}}">
+          <a class="tb-icon" data-dossier-strike="{{d.i}}" title="{{#if d.struck}}Вернуть{{else}}Зачеркнуть{{/if}}"><i class="fas fa-strikethrough"></i></a>
+        </li>
+        {{/each}}
+      </ol>
+      <a class="tb-btn" data-dossier-add><i class="fas fa-plus"></i> Новая запись</a>
+      <h3>Послужной список</h3>
+      <div class="tb-grid3">
+        <label>Вылетов <input type="number" name="system.service.sorties" value="{{system.service.sorties}}"></label>
+        <label>Операций <input type="number" name="system.service.ops" value="{{system.service.ops}}"></label>
+        <label>Воздушных побед <input type="number" name="system.service.air" value="{{system.service.air}}"></label>
+        <label>Наземных целей <input type="number" name="system.service.ground" value="{{system.service.ground}}"></label>
+        <label>Катапультирований <input type="number" name="system.service.eject" value="{{system.service.eject}}"></label>
+      </div>
+      <label class="tb-q">Награды <textarea name="system.service.awards" rows="2">{{system.service.awards}}</textarea></label>
+    </div>
+
+    {{!-- ================= ЗАМЕТКИ ================= --}}
+    <div class="tab" data-group="primary" data-tab="notes">
+      {{editor enrichedNotes target="system.notes" button=true editable=editable engine="prosemirror"}}
+    </div>
+  </section>
+</form>

@@ -1,0 +1,29 @@
+<form class="tb-sheet {{cssClass}}" autocomplete="off">
+  <header class="tb-head">
+    <img class="tb-portrait" src="{{item.img}}" data-edit="img" alt="">
+    <div class="tb-head-main">
+      <div class="tb-kicker">Спецоружие · {{system.key}}{{#if system.group}} · {{system.group}}{{/if}}</div>
+      <input class="tb-name" type="text" name="name" value="{{item.name}}">
+      <div class="tb-head-row">
+        <label>Цели <select name="system.target">{{selectOptions targetOptions selected=system.target}}</select></label>
+        <label>Откуда <select name="system.kind">{{selectOptions kindOptions selected=system.kind}}</select></label>
+      </div>
+    </div>
+  </header>
+  <section class="tb-body tb-pad">
+    <table class="tb-stats tb-edit">
+      <tr><th>Ammo</th><th>из</th><th>Урон</th><th>AA Mod</th><th>AG Mod</th><th>Aim Mod</th><th>Deploy Mod</th></tr>
+      <tr>
+        <td><input type="number" name="system.ammo.value" value="{{system.ammo.value}}" placeholder="∞"></td>
+        <td><input type="number" name="system.ammo.max" value="{{system.ammo.max}}" placeholder="∞"></td>
+        <td><input type="text" name="system.dmg" value="{{system.dmg}}"></td>
+        <td><input type="number" name="system.aa" value="{{system.aa}}" placeholder="—"></td>
+        <td><input type="number" name="system.ag" value="{{system.ag}}" placeholder="—"></td>
+        <td><input type="number" name="system.aim" value="{{system.aim}}" placeholder="—"></td>
+        <td><input type="number" name="system.dep" value="{{system.dep}}" placeholder="—"></td>
+      </tr>
+    </table>
+    <p class="tb-small tb-muted">Пустое поле боезапаса: боезапас не считается. AA/AG Mod прибавляется к атаке без броска, Aim/Deploy Mod к Improved Fox Two!</p>
+    <label class="tb-q">Действие <textarea name="system.fx" rows="4">{{system.fx}}</textarea></label>
+  </section>
+</form>

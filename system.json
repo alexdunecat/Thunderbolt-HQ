@@ -1,0 +1,132 @@
+{
+  "id": "thunderbolt-shtab",
+  "title": "Thunderbolt: Штаб ВВС Юктобании",
+  "description": "Система для Thunderbolt: An Aerial Knight RPG v1.3 с правилами стола, ангаром ВВС Юктобании, NPC и целями, памяткой пилота и импортом миссий из Планшета AWACS.",
+  "version": "0.1.0",
+  "compatibility": {
+    "minimum": "12",
+    "verified": "12.343",
+    "maximum": "12"
+  },
+  "authors": [
+    {
+      "name": "Alex"
+    }
+  ],
+  "esmodules": [
+    "module/thunderbolt.mjs"
+  ],
+  "styles": [
+    "styles/thunderbolt.css"
+  ],
+  "languages": [
+    {
+      "lang": "ru",
+      "name": "Русский",
+      "path": "lang/ru.json"
+    },
+    {
+      "lang": "en",
+      "name": "English (интерфейс системы на русском)",
+      "path": "lang/en.json"
+    }
+  ],
+  "documentTypes": {
+    "Actor": {
+      "pilot": {
+        "htmlFields": [
+          "notes"
+        ]
+      },
+      "npc": {
+        "htmlFields": [
+          "notes"
+        ]
+      }
+    },
+    "Item": {
+      "plane": {},
+      "weapon": {},
+      "trigger": {}
+    }
+  },
+  "packs": [
+    {
+      "name": "planes",
+      "label": "Ангар: самолёты",
+      "path": "packs/planes",
+      "type": "Item",
+      "system": "thunderbolt-shtab",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "weapons",
+      "label": "Спецоружие",
+      "path": "packs/weapons",
+      "type": "Item",
+      "system": "thunderbolt-shtab",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "triggers",
+      "label": "Триггеры",
+      "path": "packs/triggers",
+      "type": "Item",
+      "system": "thunderbolt-shtab",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "npcs",
+      "label": "NPC и цели",
+      "path": "packs/npcs",
+      "type": "Actor",
+      "system": "thunderbolt-shtab",
+      "ownership": {
+        "PLAYER": "NONE",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "rules",
+      "label": "Памятка пилота",
+      "path": "packs/rules",
+      "type": "JournalEntry",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    }
+  ],
+  "packFolders": [
+    {
+      "name": "Штаб ВВС Юктобании",
+      "sorting": "m",
+      "packs": [
+        "rules",
+        "planes",
+        "weapons",
+        "triggers",
+        "npcs"
+      ]
+    }
+  ],
+  "grid": {
+    "distance": 1,
+    "units": ""
+  },
+  "primaryTokenAttribute": "hp",
+  "secondaryTokenAttribute": "strain",
+  "socket": false,
+  "url": "https://github.com/alexdunecat/Thunderbolt-HQ",
+  "manifest": "https://github.com/alexdunecat/Thunderbolt-HQ/releases/latest/download/system.json",
+  "download": "https://github.com/alexdunecat/Thunderbolt-HQ/releases/download/v0.1.0/thunderbolt-shtab.zip"
+}

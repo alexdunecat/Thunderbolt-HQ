@@ -1,0 +1,169 @@
+/* Актёр: пилот в самолёте или NPC. Урон, метки, высота, подготовка к вылету. */
+import { SYSTEM_ID, TB } from "../config.mjs";
+import * as R from "../dice/rolls.mjs";
+import { esc } from "../utils.mjs";
+
+
+export class TBActor extends Actor {
+  async _preCreate(data, options, user) {
+    if ((await super._preCreate(data, options, user)) === false) return false;
+    const pilot = this.type === "pilot";
+    const proto = {
+      actorLink: pilot,
+      disposition: pilot ? CONST.TOKEN_DISPOSITIONS.FRIENDLY : CONST.TOKEN_DISPOSITIONS.HOSTILE,
+      displayBars: CONST.TOKEN_DISPLAY_MODES.OWNER_HOVER,
+      displayName: CONST.TOKEN_DISPLAY_MODES.HOVER,
+      bar1: { attribute: "hp" },
+      bar2: { attribute: pilot ? "strain" : null }
+    };
+    if (data.img && !data.prototypeToken?.texture?.src) proto.texture = { src: data.img };
+    this.updateSource({ prototypeToken: foundry.utils.mergeObject(proto, data.prototypeToken ?? {}) });
+  }
+
+  /* ---------- броски (обёртки для листов и макросов) ---------- */
+  rollSkill(skill) { return R.rollCheck(this, skill); }
+  rollBreak() { return R.rollBreak(this); }
+  rollRecover() { return R.rollRecover(this); }
+  rollStall() { return R.rollStall(this); }
+  fireMissile() { return R.fireMissile(this); }
+  fireGuns(opts) { return R.fireGuns(this, opts); }
+  fireSam(i) { return R.fireSam(this, i); }
+  lockOn() { return R.lockOn(this); }
+
+  /* ---------- высота ---------- */
+  async setAltitude(alt) {
+    if (!TB.altitudes[alt]) return;
+    return this.update({ "system.alt": alt });
+  }
+
+  /** Подтянуть высоту токенов к полю alt (1 = Low, 2 = Medium, 3 = High). */
+  async syncElevation() {
+    const elev = TB.altElevation[this.system.alt];
+    if (!elev) return;
+    const tokens = this.isToken ? [this.token] : this.getActiveTokens(false, true);
+    for (const t of tokens) if (t && t.elevation !== elev && t.isOwner) await t.update({ elevation: elev });
+  }
+
+  /* ---------- урон ---------- */
+  get roundKey() {
+    const c = game.combat;
+    return c?.started ? `${c.id}:${c.round}` : "";
+  }
+
+  /** Нанести урон с учётом меток: не больше одной метки за раунд, лишний урон сгорает. */
+  async applyDamage(amount, { source } = {}) {
+    amount = Number(amount) || 0;
+    if (amount <= 0) return;
+    const s = this.system;
+    if (this.type === "npc" && s.kind === "ship") return this.#damageShip(amount);
+    if (this.type === "npc" && s.kind === "ground") {
+      const hp = s.hp.value - amount;
+      await this.update({ "system.hp.value": Math.max(0, hp) });
+      if (hp <= 0) {
+        await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
+        return this.#say(`<b>${esc(this.name)}</b> уничтожена.`);
+      }
+      return this.#say(`<b>${esc(this.name)}</b>: −${amount} HP, осталось ${hp}.`);
+    }
+
+    const hp = s.hp.value - amount;
+    if (hp > 0) {
+      await this.update({ "system.hp.value": hp });
+      return this.#say(`<b>${esc(this.name)}</b>: −${amount} HP, осталось ${hp} из ${s.hp.max}.`);
+    }
+    const key = this.roundKey;
+    if (key && s.markers.lastRound === key) {
+      await this.update({ "system.hp.value": 1 });
+      return this.#say(`<b>${esc(this.name)}</b>: HP до нуля, но метку в этом раунде уже ставили. Лишний урон сгорает, HP 1.`);
+    }
+    const full = this.type === "pilot" || this.system.fullMarkers;
+    if (!full) {
+      await this.update({ "system.hp.value": 0 });
+      return this.markDoom("одна метка у конскриптов и дуэлянтов");
+    }
+    const choice = await this.#chooseMarker();
+    const upd = { "system.hp.value": s.hp.max, "system.markers.lastRound": key };
+    if (!choice) {
+      await this.update(upd);
+      return this.#say(`<b>${esc(this.name)}</b>: HP до нуля. Метку выберите на листе, HP восстановлен до ${s.hp.max}.`);
+    }
+    if (choice.marker === "doom") { await this.update(upd); return this.markDoom(); }
+    if (choice.marker === "grit") Object.assign(upd, { "system.markers.grit": true, "system.markers.gritSkill": choice.skill });
+    if (choice.marker === "structure") Object.assign(upd, { "system.markers.structure": true, "system.markers.sys": choice.sys });
+    await this.update(upd);
+    const what = choice.marker === "grit" ? `Grit: недоступен навык «${TB.skills[choice.skill]?.label}»`
+      : `Structure: сломано «${TB.systems[choice.sys]?.label}» (${TB.systems[choice.sys]?.hint})`;
+    return this.#say(`<b>${esc(this.name)}</b> получает метку ${what}. HP восстановлен до ${s.hp.max}.${this.system.markerCount >= 2 ? " После двух меток пора уходить из боя." : ""}`);
+  }
+
+  async markDoom(reason) {
+    await this.update({ "system.markers.doom": true, "system.markers.lastRound": this.roundKey });
+    if (this.type === "npc" && !this.system.fullMarkers)
+      await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
+    const pilot = this.type === "pilot";
+    return this.#say(`<b>${esc(this.name)}</b>: метка <b>Doom</b>${reason ? ` (${esc(reason)})` : ""}. ${pilot
+      ? "Катапультироваться или последние слова. Если пилот погибнет, стол выбирает: «Победа любой ценой» или «Достойное отступление»."
+      : "Машина сбита."}`);
+  }
+
+  #chooseMarker() {
+    const m = this.system.markers;
+    const skills = Object.entries(TB.skills).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join("");
+    const systems = Object.entries(TB.systems).map(([k, v]) => `<option value="${k}">${v.label}: ${v.hint}</option>`).join("");
+    const radio = (v, label, extra, disabled) => `<div class="form-group"><label><input type="radio" name="marker" value="${v}" ${disabled ? "disabled" : ""}> ${label}</label>${extra}</div>`;
+    return R.formDialog(`${this.name}: HP до нуля`, `
+      <p class="tb-hint">Отметьте одну метку. HP восстановится до максимума.</p>
+      ${radio("grit", "Grit: навык недоступен", `<select name="skill">${skills}</select>`, m.grit)}
+      ${radio("structure", "Structure: сломана система", `<select name="sys">${systems}</select>`, m.structure)}
+      ${radio("doom", "Doom: катапульта или смерть", "", m.doom)}`, { ok: "Отметить" })
+      .then(d => (d?.marker ? d : null));
+  }
+
+  async #damageShip(amount) {
+    const systems = foundry.utils.deepClone(this.system.systems);
+    const alive = systems.map((y, i) => ({ y, i })).filter(o => o.y.value > 0);
+    if (!alive.length) return this.#say(`${esc(this.name)}: все системы уже уничтожены.`);
+    const data = await R.formDialog(`${this.name}: куда попали`, `
+      <div class="form-group"><label>Система</label><select name="i">${alive.map(o => `<option value="${o.i}">${esc(o.y.name)} · Occ ${o.y.occ} · HP ${o.y.value}/${o.y.hp}</option>`).join("")}</select></div>`, { ok: "Нанести" });
+    if (!data) return;
+    const y = systems[Number(data.i)];
+    y.value = Math.max(0, y.value - amount);
+    await this.update({ "system.systems": systems });
+    const left = systems.filter(s => s.value > 0).length;
+    if (!left) {
+      await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
+      return this.#say(`<b>${esc(this.name)}</b>: уничтожена последняя система. Цель потоплена.`);
+    }
+    return this.#say(`<b>${esc(this.name)}</b>: «${esc(y.name)}» −${amount} HP${y.value ? `, осталось ${y.value}` : ", система уничтожена"}. Целых систем: ${left}.`);
+  }
+
+  #say(text) {
+    return ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="tb-card tb-card-damage"><div class="tb-note">${text}</div></div>`
+    });
+  }
+
+  /* ---------- вылет ---------- */
+  /** Перед вылетом: Strain и HP до максимума, Speed 1, метки сняты, боезапас полный. */
+  async prepareSortie() {
+    const s = this.system;
+    await this.update({
+      "system.hp.value": s.hp.max, "system.strain.value": s.strain.max, "system.speed": 1, "system.breakEv": null,
+      "system.lock": "", "system.twist": false,
+      "system.markers": { grit: false, gritSkill: "", structure: false, sys: "", doom: false, lastRound: "" }
+    });
+    // после снятия меток максимумы пересчитаны: выровнять ещё раз
+    await this.update({ "system.hp.value": this.system.hp.max, "system.strain.value": this.system.strain.max });
+    const items = [];
+    for (const i of this.items) {
+      if (i.type === "trigger" && i.system.used) items.push({ _id: i.id, "system.used": false });
+      if (i.type === "weapon" && i.system.ammo.max !== null) items.push({ _id: i.id, "system.ammo.value": i.system.ammo.max });
+    }
+    if (items.length) await this.updateEmbeddedDocuments("Item", items);
+    await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: false }).catch(() => null);
+    return this.#say(`<b>${esc(this.name)}</b> готов к вылету: Speed 1, Strain ${this.system.strain.max}, HP ${this.system.hp.max}.`);
+  }
+}
+
+export class TBItem extends Item {}

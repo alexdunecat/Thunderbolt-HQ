@@ -1,0 +1,23 @@
+<form class="tb-sheet {{cssClass}}" autocomplete="off">
+  <header class="tb-head">
+    <img class="tb-portrait" src="{{item.img}}" data-edit="img" alt="">
+    <div class="tb-head-main">
+      <div class="tb-kicker">Триггер{{#if system.en}} · {{system.en}}{{/if}}</div>
+      <input class="tb-name" type="text" name="name" value="{{item.name}}">
+      <div class="tb-head-row">
+        <label>Архетип <select name="system.archetype">{{selectOptions archOptions selected=system.archetype blank="любой"}}</select></label>
+        <label>Типы <input type="text" name="typesText" value="{{typeText}}" placeholder="General, Passive…"></label>
+      </div>
+    </div>
+  </header>
+  <section class="tb-body tb-pad">
+    <label class="tb-q">Текст <textarea name="system.text" rows="6">{{system.text}}</textarea></label>
+    <div class="tb-row tb-small">
+      <label>Навыков на выбор <input class="tb-inline" type="number" name="system.skills" value="{{system.skills}}" min="0" max="2"></label>
+      <label>Навык <select name="system.skill">{{selectOptions skillOptions selected=system.skill blank="—"}}</select></label>
+      <label>Второй <select name="system.skill2">{{selectOptions skillOptions selected=system.skill2 blank="—"}}</select></label>
+      <label class="tb-check"><input type="checkbox" name="system.used" {{checked system.used}}> использован в вылете</label>
+    </div>
+    <p class="tb-small tb-muted">Типы: General — раз за вылет в любой момент; Twist — после Поворота; Nemesis — когда появился Nemesis; Death — после гибели; Passive — всегда.</p>
+  </section>
+</form>

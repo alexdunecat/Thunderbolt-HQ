@@ -1,0 +1,28 @@
+# Выпуск версии: git tag v0.1.0 && git push origin v0.1.0
+# Workflow подставляет ссылки manifest/download в system.json, собирает zip и прикладывает оба файла к релизу.
+name: Release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Версия и ссылки в system.json
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          REPO="https://github.com/${GITHUB_REPOSITORY}"
+          jq --arg v "$VERSION" --arg url "$REPO" \
+             --arg man "$REPO/releases/latest/download/system.json" \
+             --arg dl "$REPO/releases/download/${GITHUB_REF_NAME}/thunderbolt-shtab.zip" \
+             '.version=$v | .url=$url | .manifest=$man | .download=$dl' system.json > system.tmp && mv system.tmp system.json
+      - name: Архив системы
+        run: zip -r thunderbolt-shtab.zip system.json module templates styles lang data assets packs README.md -x "*/LOCK"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            system.json
+            thunderbolt-shtab.zip

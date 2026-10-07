@@ -1,0 +1,29 @@
+<form class="tb-sheet {{cssClass}}" autocomplete="off">
+  <header class="tb-head">
+    <img class="tb-portrait wide" src="{{item.img}}" data-edit="img" alt="">
+    <div class="tb-head-main">
+      <div class="tb-kicker">{{#if system.catName}}{{system.catName}}{{else}}Самолёт{{/if}}{{#if system.tierName}} · {{system.tierName}}{{/if}}</div>
+      <input class="tb-name" type="text" name="name" value="{{item.name}}">
+      <div class="tb-head-row">
+        <label>NATO <input type="text" name="system.nato" value="{{system.nato}}"></label>
+        <label>Класс <input type="text" name="system.cls" value="{{system.cls}}"></label>
+      </div>
+    </div>
+  </header>
+  <section class="tb-body tb-pad">
+    <table class="tb-stats tb-edit">
+      <tr>{{#each statRows as |r|}}<th title="{{r.ru}}">{{r.en}}</th>{{/each}}</tr>
+      <tr>{{#each statRows as |r|}}<td><input type="number" name="system.stats.{{r.key}}" value="{{r.value}}"></td>{{/each}}</tr>
+    </table>
+    <div class="tb-row tb-small">
+      <label>Шаблон <input type="text" name="system.base" value="{{system.base}}"></label>
+      <label>Мест <input class="tb-inline" type="number" name="system.seats" value="{{system.seats}}"></label>
+      <label class="tb-check"><input type="checkbox" name="system.carrier" {{checked system.carrier}}> палубный</label>
+    </div>
+    {{#if system.props.length}}<h3>Особенности</h3><ul class="tb-props">{{#each system.props as |p|}}<li><b>{{p.name}}.</b> {{p.text}}</li>{{/each}}</ul>{{/if}}
+    {{#if system.sig.length}}<p class="tb-small">Штатное спецоружие: {{#each system.sig}}<b>{{this}}</b> {{/each}}</p>{{/if}}
+    {{#if ac5}}<p class="tb-small tb-muted">Ace Combat 5: {{#each ac5 as |x|}}{{x.[0]}} {{x.[1]}} · {{/each}}{{system.ac5.sp}}{{#if system.ac5.price}} · {{system.ac5.price}}{{/if}}</p>{{/if}}
+    <label class="tb-q">Описание <textarea name="system.desc" rows="3">{{system.desc}}</textarea></label>
+    <label class="tb-q">Служба <textarea name="system.service" rows="3">{{system.service}}</textarea></label>
+  </section>
+</form>

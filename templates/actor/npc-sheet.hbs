@@ -1,0 +1,140 @@
+<form class="tb-sheet {{cssClass}}" autocomplete="off">
+  <header class="tb-head">
+    <img class="tb-portrait" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" alt="">
+    <div class="tb-head-main">
+      <div class="tb-kicker">{{#if system.grpName}}{{system.grpName}}{{else}}NPC{{/if}}{{#if system.nato}} · {{system.nato}}{{/if}}</div>
+      <input class="tb-name" type="text" name="name" value="{{actor.name}}">
+      <div class="tb-head-row">
+        <label>Тип <select name="system.kind">{{selectOptions kindOptions selected=system.kind}}</select></label>
+        {{#unless isShip}}<label>Уровень <select name="system.tier">{{selectOptions tierOptions selected=system.tier}}</select></label>{{/unless}}
+        <span class="tb-muted">{{system.cls}}</span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tb-tabs" data-group="primary">
+    <a class="item" data-tab="combat">Бой</a>
+    <a class="item" data-tab="info">Справка</a>
+    <a class="item" data-tab="notes">Заметки AWACS</a>
+  </nav>
+
+  <section class="tb-body">
+    <div class="tab" data-group="primary" data-tab="combat">
+      {{#if isAir}}
+      <div class="tb-grid2">
+        <fieldset class="tb-box tb-flight">
+          <legend>В воздухе</legend>
+          <div class="tb-dials">
+            <div class="tb-dial"><span class="tb-dial-label">Speed</span>
+              <div class="tb-dial-row"><a data-speed="-1">−</a><input type="number" name="system.speed" value="{{system.speed}}"><a data-speed="1">+</a></div>
+              <span class="tb-dial-sub">макс. {{system.maxSpeed}}</span></div>
+            <div class="tb-dial"><span class="tb-dial-label">Defense</span><div class="tb-dial-big">{{system.defense}}</div>
+              <span class="tb-dial-sub">Evasion {{system.stats.ev}}{{#if system.breakEv}} · Break {{system.breakEv}} <a data-act="unbreak">×</a>{{/if}} + Speed</span></div>
+            <div class="tb-dial"><span class="tb-dial-label">HP</span>
+              <div class="tb-dial-row"><a data-step="system.hp.value" data-delta="-1">−</a><input type="number" name="system.hp.value" value="{{system.hp.value}}"><a data-step="system.hp.value" data-delta="1" data-max="{{system.hp.max}}">+</a></div>
+              <span class="tb-dial-sub">из <input class="tb-inline" type="number" name="system.hp.max" value="{{system.hp.max}}"></span></div>
+            {{#if isAce}}<div class="tb-dial"><span class="tb-dial-label">Strain</span>
+              <div class="tb-dial-row"><a data-step="system.strain.value" data-delta="-1">−</a><input type="number" name="system.strain.value" value="{{system.strain.value}}"><a data-step="system.strain.value" data-delta="1" data-max="{{system.strain.max}}">+</a></div>
+              <span class="tb-dial-sub">из {{system.strain.max}}</span></div>{{/if}}
+          </div>
+          <div class="tb-row"><label>Высота <select name="system.alt">{{selectOptions altOptions selected=system.alt}}</select></label>
+            <span>Захват: {{#if system.lock}}<b>{{system.lock}}</b> <a data-act="unlock">×</a>{{else}}<span class="tb-muted">нет</span>{{/if}}</span></div>
+          <table class="tb-stats tb-edit">
+            <tr><th>Max Speed</th><th>Evasion</th><th>Air-Air</th><th>Air-Gnd</th><th>Gun DMG</th>{{#if isAce}}<th>Max Strain</th>{{/if}}</tr>
+            <tr><td><input type="number" name="system.stats.spd" value="{{system.stats.spd}}"></td><td><input type="number" name="system.stats.ev" value="{{system.stats.ev}}"></td>
+              <td><input type="number" name="system.stats.aa" value="{{system.stats.aa}}"></td><td><input type="number" name="system.stats.ag" value="{{system.stats.ag}}"></td>
+              <td><input type="number" name="system.stats.gun" value="{{system.stats.gun}}"></td>{{#if isAce}}<td><input type="number" name="system.stats.str" value="{{system.stats.str}}"></td>{{/if}}</tr>
+          </table>
+        </fieldset>
+        <fieldset class="tb-box">
+          <legend>Навыки</legend>
+          {{#if isConscript}}
+          <p class="tb-small">Конскрипт: ко всем навыкам <input class="tb-inline" type="number" name="system.bonus" value="{{system.bonus}}" min="0" max="1"> (книга: +0 или +1).</p>
+          <ol class="tb-skills compact">{{#each skills as |sk|}}<li class="tb-skill"><a class="tb-roll" data-roll-skill="{{sk.key}}"><i class="fas fa-dice-d10"></i></a><span class="tb-skill-name"><b>{{sk.label}}</b> <small>{{sk.en}}</small></span><span class="tb-skill-total">{{sk.total}}</span></li>{{/each}}</ol>
+          {{else}}
+          <ol class="tb-skills compact">{{#each skills as |sk|}}<li class="tb-skill {{#if sk.blocked}}blocked{{/if}}"><a class="tb-roll" data-roll-skill="{{sk.key}}"><i class="fas fa-dice-d10"></i></a><span class="tb-skill-name"><b>{{sk.label}}</b> <small>{{sk.en}}</small></span><input type="number" name="system.skills.{{sk.key}}" value="{{sk.value}}"></li>{{/each}}</ol>
+          <p class="tb-small tb-muted">{{#if isAce}}Ас: полный лист, может иметь Strain, триггеры и спецоружие.{{else}}Дуэлянты: одна раскладка на 4 очка на всю эскадрилью.{{/if}}</p>
+          {{/if}}
+        </fieldset>
+      </div>
+      <div class="tb-actions-bar">
+        <button type="button" data-act="lock"><i class="fas fa-crosshairs"></i> Lock On!</button>
+        <button type="button" data-act="missile"><i class="fas fa-rocket"></i> Fox Two!</button>
+        {{#if canGun}}<button type="button" data-act="guns"><i class="fas fa-burst"></i> Пушка</button>{{/if}}
+        <button type="button" data-act="break"><i class="fas fa-shuffle"></i> Break!</button>
+        <button type="button" data-act="stall"><i class="fas fa-arrow-down"></i> Сваливание</button>
+      </div>
+      <fieldset class="tb-box tb-markers">
+        <legend>Метки {{#unless isAce}}<span class="tb-muted">одна метка = Doom</span>{{/unless}}</legend>
+        {{#if isAce}}
+        <div class="tb-marker {{#if system.markers.grit}}on{{/if}}"><label class="tb-check"><input type="checkbox" name="system.markers.grit" {{checked system.markers.grit}}> <b>Grit</b></label><select name="system.markers.gritSkill">{{selectOptions skillOptions selected=system.markers.gritSkill blank="навык…"}}</select></div>
+        <div class="tb-marker {{#if system.markers.structure}}on{{/if}}"><label class="tb-check"><input type="checkbox" name="system.markers.structure" {{checked system.markers.structure}}> <b>Structure</b></label><select name="system.markers.sys">{{selectOptions sysOptions selected=system.markers.sys blank="система…"}}</select></div>
+        {{/if}}
+        <div class="tb-marker doom {{#if system.markers.doom}}on{{/if}}"><label class="tb-check"><input type="checkbox" name="system.markers.doom" {{checked system.markers.doom}}> <b>Doom</b></label><span class="tb-muted">сбит</span></div>
+      </fieldset>
+      {{#if weapons.length}}
+      <fieldset class="tb-box"><legend>Спецоружие</legend><ul class="tb-list">
+        {{#each weapons as |w|}}<li class="tb-item" data-item-id="{{w.id}}"><span class="tb-item-name"><a data-chat-item="{{w.id}}">{{w.name}}</a><small>урон {{w.dmg}}{{#if w.mods}} · {{w.mods}}{{/if}}</small></span>
+          <a class="tb-icon" data-item-edit="{{w.id}}"><i class="fas fa-pen"></i></a><a class="tb-icon" data-item-delete="{{w.id}}"><i class="fas fa-trash"></i></a></li>{{/each}}
+      </ul></fieldset>
+      {{/if}}
+      {{#if system.sig.length}}<p class="tb-small tb-muted">Спецоружие, если машиной управляет ас: {{#each system.sig}}{{this}} {{/each}}. Боезапас врагов не считается.</p>{{/if}}
+      {{/if}}
+
+      {{#if isGround}}
+      <fieldset class="tb-box">
+        <legend>Наземная цель</legend>
+        <div class="tb-dials">
+          <div class="tb-dial"><span class="tb-dial-label">Occlusion</span><div class="tb-dial-big"><input type="number" name="system.ground.occ" value="{{system.ground.occ}}"></div><span class="tb-dial-sub">защита</span></div>
+          <div class="tb-dial"><span class="tb-dial-label">HP</span>
+            <div class="tb-dial-row"><a data-step="system.hp.value" data-delta="-1">−</a><input type="number" name="system.hp.value" value="{{system.hp.value}}"><a data-step="system.hp.value" data-delta="1" data-max="{{system.hp.max}}">+</a></div>
+            <span class="tb-dial-sub">из <input class="tb-inline" type="number" name="system.hp.max" value="{{system.hp.max}}"></span></div>
+        </div>
+        <table class="tb-stats tb-edit"><tr><th>G-A</th><th>G-G</th><th>Gun DMG</th><th>Strafe</th></tr>
+          <tr><td><input type="number" name="system.ground.ga" value="{{system.ground.ga}}" placeholder="—"></td><td><input type="number" name="system.ground.gg" value="{{system.ground.gg}}" placeholder="—"></td>
+            <td><input type="number" name="system.ground.gun" value="{{system.ground.gun}}" placeholder="—"></td><td><input type="number" name="system.ground.strafe" value="{{system.ground.strafe}}"></td></tr></table>
+        <div class="tb-actions-bar">
+          {{#if canSam}}<button type="button" data-sam><i class="fas fa-rocket"></i> Пуск ЗРК</button>{{/if}}
+          {{#if canGun}}<button type="button" data-act="guns"><i class="fas fa-burst"></i> Зенитный огонь</button>{{/if}}
+        </div>
+      </fieldset>
+      {{/if}}
+
+      {{#if isShip}}
+      <fieldset class="tb-box">
+        <legend>Системы <span class="tb-budget">HP {{system.hp.value}} из {{system.hp.max}}</span></legend>
+        <table class="tb-systems">
+          <tr><th>Система</th><th>Occ</th><th>HP</th><th>G-A</th><th>Gun</th><th></th></tr>
+          {{#each systems as |y|}}
+          <tr class="{{#if y.dead}}dead{{/if}}">
+            <td><input type="text" data-sys-index="{{y.i}}" data-sys-field="name" value="{{y.name}}"><small>{{y.note}}</small></td>
+            <td><input type="number" data-sys-index="{{y.i}}" data-sys-field="occ" value="{{y.occ}}"></td>
+            <td class="tb-hp"><input type="number" data-sys-index="{{y.i}}" data-sys-field="value" value="{{y.value}}">/<input type="number" data-sys-index="{{y.i}}" data-sys-field="hp" value="{{y.hp}}"></td>
+            <td><input type="number" data-sys-index="{{y.i}}" data-sys-field="ga" value="{{y.ga}}" placeholder="—"></td>
+            <td><input type="number" data-sys-index="{{y.i}}" data-sys-field="gun" value="{{y.gun}}" placeholder="—"></td>
+            <td class="tb-sys-act">
+              {{#if y.ga}}<a data-sys-sam="{{y.i}}" title="Пуск"><i class="fas fa-rocket"></i></a>{{/if}}
+              {{#if y.gun}}<a data-sys-gun="{{y.i}}" title="Огонь"><i class="fas fa-burst"></i></a>{{/if}}
+              <a data-sys-del="{{y.i}}" title="Убрать"><i class="fas fa-trash"></i></a>
+            </td>
+          </tr>
+          {{/each}}
+        </table>
+        <a class="tb-btn" data-sys-add><i class="fas fa-plus"></i> Система</a>
+        <p class="tb-small tb-muted">Корабль тонет, когда уничтожены все системы. Урон по кнопке на карточке атаки спросит, в какую систему попали.</p>
+      </fieldset>
+      {{/if}}
+    </div>
+
+    <div class="tab" data-group="primary" data-tab="info">
+      {{#if system.desc}}<p>{{system.desc}}</p>{{/if}}
+      {{#if system.service}}<p class="tb-muted">{{system.service}}</p>{{/if}}
+      {{#if system.props.length}}<h3>Особенности</h3><ul class="tb-props">{{#each system.props as |p|}}<li><b>{{p.name}}.</b> {{p.text}}</li>{{/each}}</ul>{{/if}}
+      {{#if system.rules.length}}<h3>Правила цели</h3><ul class="tb-props">{{#each system.rules as |p|}}<li><b>{{p.name}}.</b> {{p.text}}</li>{{/each}}</ul>{{/if}}
+    </div>
+
+    <div class="tab" data-group="primary" data-tab="notes">
+      {{editor enrichedNotes target="system.notes" button=true editable=editable engine="prosemirror"}}
+    </div>
+  </section>
+</form>
