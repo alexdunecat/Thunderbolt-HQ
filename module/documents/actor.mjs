@@ -44,6 +44,32 @@ export class TBActor extends Actor {
     for (const t of tokens) if (t && t.elevation !== elev && t.isOwner) await t.update({ elevation: elev });
   }
 
+  /* ---------- HP и Strain ---------- */
+  /** Макс. HP или Strain изменился (триггер, самолёт, поломка): текущее значение сдвигается на ту же разницу. */
+  async syncPools() {
+    if (this.type !== "pilot" || this._tbNoSync || !this.isOwner) return;
+    const s = this.system;
+    const seen = this.getFlag(SYSTEM_ID, "pools");
+    const bare = s.plane?.system.stats;
+    const prev = seen ?? { hp: bare?.hp ?? s.hp.max, strain: bare?.str ?? s.strain.max };
+    const upd = {};
+    for (const k of ["hp", "strain"]) {
+      const d = s[k].max - prev[k];
+      if (d) upd[`system.${k}.value`] = Math.max(0, Math.min(s[k].max, s[k].value + d));
+    }
+    if (!seen || seen.hp !== s.hp.max || seen.strain !== s.strain.max) upd[`flags.${SYSTEM_ID}.pools`] = this.poolsFlag();
+    if (Object.keys(upd).length) await this.update(upd);
+  }
+
+  poolsFlag() { return { hp: this.system.hp.max, strain: this.system.strain.max }; }
+
+  /** Выполнить fn без автосдвига HP и Strain (fn сама выставляет значения и флаг pools). */
+  async withoutPoolSync(fn) {
+    this._tbNoSync = true;
+    try { return await fn(); }
+    finally { this._tbNoSync = false; }
+  }
+
   /* ---------- урон ---------- */
   get roundKey() {
     const c = game.combat;
@@ -145,20 +171,23 @@ export class TBActor extends Actor {
   }
 
   /* ---------- вылет ---------- */
-  /** Перед вылетом: Strain и HP до максимума, Speed 1, метки сняты, боезапас полный. */
+  /** Перед вылетом: Strain и HP до максимума, Speed 1, метки и Поворот сняты, ситуативные триггеры выключены, боезапас полный. */
   async prepareSortie() {
-    const s = this.system;
-    await this.update({
-      "system.hp.value": s.hp.max, "system.strain.value": s.strain.max, "system.speed": 1, "system.breakEv": null,
-      "system.lock": "", "system.twist": false,
-      "system.markers": { grit: false, gritSkill: "", structure: false, sys: "", doom: false, lastRound: "" }
+    await this.withoutPoolSync(async () => {
+      await this.update({
+        "system.speed": 1, "system.breakEv": null, "system.lock": "", "system.twist": false,
+        "system.markers": { grit: false, gritSkill: "", structure: false, sys: "", doom: false, lastRound: "" }
+      });
+      // после снятия меток и Поворота максимумы пересчитаны
+      await this.update({ "system.hp.value": this.system.hp.max, "system.strain.value": this.system.strain.max,
+        [`flags.${SYSTEM_ID}.pools`]: this.poolsFlag() });
     });
-    // после снятия меток максимумы пересчитаны: выровнять ещё раз
-    await this.update({ "system.hp.value": this.system.hp.max, "system.strain.value": this.system.strain.max });
     const items = [];
     for (const i of this.items) {
-      if (i.type === "trigger" && i.system.used) items.push({ _id: i.id, "system.used": false });
-      if (i.type === "weapon" && i.system.ammo.max !== null) items.push({ _id: i.id, "system.ammo.value": i.system.ammo.max });
+      if (i.type === "trigger" && (i.system.used || i.system.active || i.system.stack))
+        items.push({ _id: i.id, "system.used": false, "system.active": false, "system.stack": 0 });
+      if (i.type === "weapon" && i.system.ammo.max !== null)
+        items.push({ _id: i.id, "system.ammo.value": i.system.ammo.max + (this.system.ammoBonus?.[i.id] ?? 0) });
     }
     if (items.length) await this.updateEmbeddedDocuments("Item", items);
     await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: false }).catch(() => null);

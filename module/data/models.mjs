@@ -60,34 +60,49 @@ export class PilotData extends foundry.abstract.TypeDataModel {
     const ps = plane?.system.stats ?? { spd: 1, ev: 0, aa: 0, ag: 0, hp: 1, str: 0, gun: 0, hard: 0 };
     const propKeys = new Set((plane?.system.props ?? []).map(p => p.key));
     const triggers = actor.items.filter(i => i.type === "trigger");
-    const tkeys = new Set(triggers.map(t => t.system.key));
 
-    // навыки: база + триггеры, пороги Perk и Complication
-    this.skillMod = Object.fromEntries(SKILL_KEYS.map(k => [k, 0]));
+    // эффекты триггеров: { цель: [{ name, value }] }
+    const fx = {};
+    const push = (target, name, value) => (fx[target] ??= []).push({ name, value });
+    this.ammoBonus = {};
     this.perkOn = Object.fromEntries(SKILL_KEYS.map(k => [k, 4]));
     this.compOn = Object.fromEntries(SKILL_KEYS.map(k => [k, 1]));
     for (const t of triggers) {
       const s = t.system;
-      if (s.key === "reckless" && s.skill) { this.skillMod[s.skill] += 2; this.compOn[s.skill] = 2; }
-      if (s.key === "cautious_rk" && s.skill) { this.skillMod[s.skill] -= 1; this.perkOn[s.skill] = 3; }
-      if (s.key === "cautious_og") for (const k of [s.skill, s.skill2]) if (k) this.perkOn[k] = 3;
+      const chosen = [s.skill, s.skills > 1 ? s.skill2 : ""].filter(k => SKILL_KEYS.includes(k));
+      for (const c of s.changes) {
+        const n = s.factor(c, this);
+        if (!n || !c.value) continue;
+        const v = c.value * n;
+        if (c.target === "skill.chosen") chosen.forEach(k => push(`skill.${k}`, t.name, v));
+        else if (c.target === "perk.chosen") chosen.forEach(k => { this.perkOn[k] = Math.min(this.perkOn[k], c.value); });
+        else if (c.target === "comp.chosen") chosen.forEach(k => { this.compOn[k] = Math.max(this.compOn[k], c.value); });
+        else if (c.target === "ammo") { if (s.weapon) this.ammoBonus[s.weapon] = (this.ammoBonus[s.weapon] ?? 0) + v; }
+        else push(c.target, t.name, v);
+      }
     }
+    const sum = target => (fx[target] ?? []).reduce((a, m) => a + m.value, 0);
+    this.trigFx = fx;
+
+    // навыки: база + триггеры (по навыку и на все броски)
+    this.skillParts = Object.fromEntries(SKILL_KEYS.map(k => [k, [...(fx[`skill.${k}`] ?? []), ...(fx.allRolls ?? [])]]));
+    this.skillMod = Object.fromEntries(SKILL_KEYS.map(k => [k, this.skillParts[k].reduce((a, m) => a + m.value, 0)]));
     this.skillTotal = Object.fromEntries(SKILL_KEYS.map(k => [k, this.skills[k] + this.skillMod[k]]));
     this.skillBlocked = Object.fromEntries(SKILL_KEYS.map(k => [k, this.markers.grit && this.markers.gritSkill === k]));
     this.pointsUsed = SKILL_KEYS.reduce((s, k) => s + this.skills[k], 0);
-    this.pointsBudget = (this.archetype === "rookie" ? 3 : 6) + this.bonusPoints;
+    this.pointsBudget = (this.archetype === "rookie" ? 3 : 6) + this.bonusPoints + sum("points");
 
     // самолёт с поправками триггеров и поломок
     const broken = this.markers.structure ? this.markers.sys : "";
-    this.maxSpeed = Math.max(1, ps.spd + (tkeys.has("holding") && this.twist ? 1 : 0) - (broken === "en" ? 1 : 0));
-    this.hp.max = ps.hp + (tkeys.has("armor") ? 1 : 0);
-    this.strain.max = broken === "fl" ? 0 : (ps.str ?? 0) + (tkeys.has("heart") ? 3 : 0);
-    let ev = ps.ev;
+    this.maxSpeed = Math.max(1, ps.spd + sum("maxSpeed") - (broken === "en" ? 1 : 0));
+    this.hp.max = Math.max(1, ps.hp + sum("hpMax"));
+    this.strain.max = broken === "fl" ? 0 : Math.max(0, (ps.str ?? 0) + sum("strainMax"));
+    let ev = ps.ev + sum("evasion");
     if (propKeys.has("swing") && this.speed >= this.maxSpeed) ev += 1;
     if (propKeys.has("terrain") && this.alt === "low") ev += 1;
     this.evasion = ev;
     this.defense = airDefense(this, ev);
-    this.aa = ps.aa; this.ag = ps.ag; this.gun = ps.gun; this.hardpoints = ps.hard;
+    this.aa = ps.aa + sum("aa"); this.ag = ps.ag + sum("ag"); this.gun = ps.gun + sum("gun"); this.hardpoints = ps.hard + sum("hardpoints");
     this.planeProps = propKeys;
     this.broken = broken;
     this.markerCount = ["grit", "structure", "doom"].filter(k => this.markers[k]).length;
@@ -177,7 +192,27 @@ export class TriggerData extends foundry.abstract.TypeDataModel {
       types: new f.ArrayField(new f.StringField()),
       text: str(), skills: int(0), mod: int(0), slot: bool(),
       skill: str(), skill2: str(),
-      used: bool()
+      used: bool(),
+      active: bool(), stack: int(0, { min: 0 }), weapon: str(),
+      // null: встроенные эффекты книжного триггера по ключу (TB.triggerEffects), массив: свой список
+      effects: new f.ArrayField(new f.SchemaField({ target: str("hpMax"), value: int(1), when: str("always") }),
+        { required: true, nullable: true, initial: null })
     };
+  }
+
+  /** Эффекты, которые сейчас действуют на чарник. */
+  get changes() { return this.effects ?? TB.triggerEffects[this.key] ?? []; }
+  get hasToggle() { return this.changes.some(c => c.when === "toggle"); }
+  get hasStack() { return this.changes.some(c => c.when === "stack"); }
+  get needsWeapon() { return this.changes.some(c => c.target === "ammo"); }
+
+  /** Множитель эффекта: 0, если условие не выполнено. */
+  factor(change, actorSystem) {
+    switch (change.when) {
+      case "twist": return actorSystem.twist ? 1 : 0;
+      case "toggle": return this.active ? 1 : 0;
+      case "stack": return this.stack;
+      default: return 1;
+    }
   }
 }

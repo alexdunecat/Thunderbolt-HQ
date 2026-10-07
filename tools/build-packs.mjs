@@ -59,7 +59,8 @@ cat.npcs.forEach((n, i) => {
 // памятка пилота
 const jid = id("journal:memo");
 add("rules", "journal", {
-  _id: jid, name: "Памятка пилота", folder: null, sort: 0, flags: {}, _stats: stats, ownership: { default: 2 },
+  _id: jid, name: "Памятка пилота", folder: null, sort: 0, _stats: stats, ownership: { default: 2 },
+  flags: { core: { sheetClass: "thunderbolt-shtab.TBMemoSheet" } },
   pages: memo.map((p, i) => ({
     _id: id("page:" + i + ":" + p.name), _key: `!journal.pages!${jid}.${id("page:" + i + ":" + p.name)}`,
     name: p.name, type: "text", title: { show: true, level: 1 }, text: { format: 1, content: p.html },

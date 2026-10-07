@@ -18,6 +18,34 @@
       <label>Второй <select name="system.skill2">{{selectOptions skillOptions selected=system.skill2 blank="—"}}</select></label>
       <label class="tb-check"><input type="checkbox" name="system.used" {{checked system.used}}> использован в вылете</label>
     </div>
+    <fieldset class="tb-box tb-fx-edit">
+      <legend>Что меняет в чарнике</legend>
+      {{#if fxCustom}}
+      <table class="tb-fx-table">
+        {{#each fxRows as |r|}}
+        <tr>
+          <td><select data-fx-index="{{r.i}}" data-fx-field="target">{{selectOptions @root.targetOptions selected=r.target}}</select></td>
+          <td><input type="number" data-fx-index="{{r.i}}" data-fx-field="value" value="{{r.value}}"></td>
+          <td><select data-fx-index="{{r.i}}" data-fx-field="when">{{selectOptions @root.whenOptions selected=r.when}}</select></td>
+          <td><a class="tb-icon" data-fx-delete="{{r.i}}" title="Убрать"><i class="fas fa-trash"></i></a></td>
+        </tr>
+        {{else}}<tr><td class="tb-muted" colspan="4">Ничего не меняет: эффект только в тексте.</td></tr>
+        {{/each}}
+      </table>
+      <div class="tb-row tb-small">
+        <a data-fx-add><i class="fas fa-plus"></i> Добавить</a>
+        {{#if fxBook}}<a data-fx-reset><i class="fas fa-rotate-left"></i> Как в книге</a>{{/if}}
+      </div>
+      {{else}}
+      <p class="tb-fx-line">{{#if fxText}}<i class="fas fa-gears"></i> {{fxText}}{{else}}<span class="tb-muted">Ничего не меняет: эффект только в тексте.</span>{{/if}}</p>
+      <div class="tb-row tb-small"><a data-fx-edit><i class="fas fa-pen"></i> Настроить</a></div>
+      {{/if}}
+      <div class="tb-row tb-small">
+        <label class="tb-check"><input type="checkbox" name="system.active" {{checked system.active}}> включён (для «пока включён»)</label>
+        <label>Серия <input class="tb-inline" type="number" name="system.stack" value="{{system.stack}}" min="0"></label>
+      </div>
+      <p class="tb-small tb-muted">«Выбранный навык» берётся из полей «Навык» и «Второй» выше. Для Perk и Complication число — порог: Perk от 3 значит на 3–4.</p>
+    </fieldset>
     <p class="tb-small tb-muted">Типы: General — раз за вылет в любой момент; Twist — после Поворота; Nemesis — когда появился Nemesis; Death — после гибели; Passive — всегда.</p>
   </section>
 </form>

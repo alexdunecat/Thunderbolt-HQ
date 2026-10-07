@@ -7,6 +7,7 @@ import { PilotSheet, NpcSheet } from "./sheets/actor-sheets.mjs";
 import { TBItemSheet } from "./sheets/item-sheet.mjs";
 import * as R from "./dice/rolls.mjs";
 import { openImportDialog, importMission } from "./apps/mission-import.mjs";
+import { TBMemoSheet } from "./apps/memo-sheet.mjs";
 
 function applySkin(skin) {
   document.body.dataset.tbSkin = TB.skins[skin] ? skin : "shtab";
@@ -32,6 +33,7 @@ Hooks.once("init", () => {
   Actors.registerSheet(SYSTEM_ID, NpcSheet, { types: ["npc"], makeDefault: true, label: "Лист NPC" });
   Items.unregisterSheet("core", ItemSheet);
   Items.registerSheet(SYSTEM_ID, TBItemSheet, { makeDefault: true, label: "Карточка" });
+  DocumentSheetConfig.registerSheet(JournalEntry, SYSTEM_ID, TBMemoSheet, { makeDefault: false, label: "Памятка пилота (оформление Штаба)" });
 
   game.settings.register(SYSTEM_ID, "skin", {
     name: "TB.SkinName", hint: "TB.SkinHint", scope: "client", config: true, type: String,
@@ -41,7 +43,17 @@ Hooks.once("init", () => {
   game.thunderbolt = { importMission, openImportDialog, rolls: R, TB };
 });
 
-Hooks.once("ready", () => applySkin(game.settings.get(SYSTEM_ID, "skin")));
+Hooks.once("ready", () => {
+  applySkin(game.settings.get(SYSTEM_ID, "skin"));
+  // пилоты, созданные до автоматики триггеров: подтянуть HP и Strain к новым максимумам
+  if (game.user.isGM) for (const a of game.actors) if (a.type === "pilot") a.syncPools();
+});
+
+/* Триггер или самолёт добавлен, изменён, убран: максимумы пересчитаны, текущие HP и Strain сдвигаются следом. */
+for (const ev of ["createItem", "updateItem", "deleteItem"]) Hooks.on(ev, (item, ...args) => {
+  const userId = args.at(-1);
+  if (userId === game.user.id && item.parent?.type === "pilot") item.parent.syncPools();
+});
 
 Hooks.on("renderChatMessage", (message, html) => R.decorateCard(message, html));
 
@@ -56,6 +68,7 @@ Hooks.on("updateActor", async (actor, change, options, userId) => {
   if (userId !== game.user.id) return;
   const has = p => foundry.utils.hasProperty(change, p);
   if (has("system.alt")) actor.syncElevation();
+  if (actor.type === "pilot" && (has("system.twist") || has("system.markers"))) actor.syncPools();
 
   // сваливание: Speed ≤ 0 у летящей машины
   if (has("system.speed") && actor.system.speed <= 0) {

@@ -180,3 +180,110 @@ body[data-tb-skin="doc"] {
 
 /* кнопка импорта в разделе сцен */
 .sidebar-tab .header-actions .tb-import { flex: 1 0 100%; margin-top: 4px; }
+
+/* ---------- эффекты триггеров ---------- */
+.thunderbolt .tb-fx-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 8px; padding: 6px 8px; border: 1px dashed var(--tb-line); border-radius: 4px; background: var(--tb-surface); }
+.thunderbolt .tb-fx-title { font-family: var(--tb-data); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--tb-muted); margin-right: 4px; }
+.thunderbolt .tb-fx-toggle { display: inline-flex; gap: 5px; align-items: center; padding: 2px 8px; border: 1px solid var(--tb-line); border-radius: 12px; font-size: 12px; background: var(--tb-surface-2); cursor: pointer; }
+.thunderbolt .tb-fx-toggle small { color: var(--tb-muted); }
+.thunderbolt .tb-fx-toggle.on { background: var(--tb-olive-soft); border-color: var(--tb-olive); }
+.thunderbolt .tb-fx-toggle.on i { color: var(--tb-olive); }
+.thunderbolt .tb-fx-toggle b { font-family: var(--tb-data); min-width: 1.2em; text-align: center; }
+.thunderbolt .tb-fx-now { margin: 0 0 10px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.thunderbolt .tb-chip { font-family: var(--tb-data); font-size: 11px; padding: 1px 6px; border-radius: 3px; background: var(--tb-olive-soft); color: var(--tb-ink); }
+.thunderbolt .tb-chip small { color: var(--tb-muted); font-family: var(--tb-body); }
+.thunderbolt .tb-fx-line { font-family: var(--tb-data); font-size: 11px; color: var(--tb-olive); margin: 2px 0 4px; }
+.thunderbolt .tb-fx-table { width: 100%; border-collapse: collapse; margin: 0 0 6px; background: transparent; border: none; }
+.thunderbolt .tb-fx-table td { padding: 2px 4px 2px 0; border: none; }
+.thunderbolt .tb-fx-table input[type="number"] { width: 56px; }
+.thunderbolt .tb-fx-table select { width: 100%; }
+
+/* ---------- Памятка пилота в журнале ---------- */
+/* окно журнала с листом TBMemoSheet */
+.tb-memo-sheet .window-content { background: var(--tb-bg); color: var(--tb-ink); font-family: var(--tb-body); }
+.tb-memo-sheet .journal-sidebar { background: var(--tb-surface-2); border-right: 1px solid var(--tb-line); color: var(--tb-ink); }
+.tb-memo-sheet .journal-sidebar .directory-list .page-heading,
+.tb-memo-sheet .journal-sidebar .page-title { font-family: var(--tb-display); color: var(--tb-ink); }
+.tb-memo-sheet .journal-sidebar .directory-item.active { background: var(--tb-surface); box-shadow: inset 3px 0 0 var(--tb-accent); }
+.tb-memo-sheet .journal-sidebar .page-number { font-family: var(--tb-data); color: var(--tb-muted); }
+.tb-memo-sheet .journal-sidebar .heading-link { color: var(--tb-muted); font-family: var(--tb-body); }
+.tb-memo-sheet .journal-sidebar input[type="search"] { background: var(--tb-surface); color: var(--tb-ink); border-color: var(--tb-line); }
+.tb-memo-sheet .journal-header input { font-family: var(--tb-display); color: var(--tb-ink); background: transparent; border: none; border-bottom: 3px solid var(--tb-accent); border-radius: 0; }
+.tb-memo-sheet .journal-entry-pages { background: var(--tb-bg); }
+.tb-memo-sheet .journal-entry-page { background: var(--tb-surface); border: 1px solid var(--tb-line); border-radius: 6px; padding: 18px 22px 16px; margin: 0 0 18px; }
+.tb-memo-sheet .journal-page-header h1 { font-family: var(--tb-display); font-weight: 400; font-size: 26px; color: var(--tb-ink); border-bottom: 3px solid var(--tb-ink); padding-bottom: 6px; margin: 0 0 6px; }
+.tb-memo-sheet .journal-entry-page .edit-container { color: var(--tb-muted); }
+
+/* содержимое страниц (работает и в обычном листе журнала) */
+.tb-memo { font-family: var(--tb-body); font-size: 14px; line-height: 1.45; color: var(--tb-ink); }
+.tb-memo p, .tb-memo ul, .tb-memo ol, .tb-memo table, .tb-memo dl { margin: 0; }
+.tb-memo b, .tb-memo strong { font-weight: 600; }
+.tb-memo .tb-m-kicker { font-family: var(--tb-data); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--tb-muted); margin: 0 0 12px; }
+.tb-memo .tb-m-blk { display: grid; gap: 6px; padding: 12px 0 14px; border-top: 1px solid var(--tb-line); }
+.tb-memo .tb-m-blk:first-of-type { border-top: none; padding-top: 4px; }
+.tb-memo .tb-m-blk h2 { font-family: var(--tb-display); font-weight: 400; font-size: 18px; letter-spacing: .02em; color: var(--tb-ink);
+  border: none; margin: 0 0 2px; padding: 0; display: flex; align-items: baseline; gap: 8px; }
+.tb-memo .tb-m-blk h2 small { font-family: var(--tb-data); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--tb-muted); }
+.tb-memo ul, .tb-memo ol { padding-left: 1.3em; display: grid; gap: 4px; }
+.tb-memo li::marker { color: var(--tb-muted); }
+.tb-memo ol li::marker { font-family: var(--tb-data); font-size: .85em; color: var(--tb-accent); }
+.tb-memo .tb-m-note { color: var(--tb-muted); font-size: .9em; }
+.tb-memo .tb-m-lede { font-size: 15px; color: var(--tb-muted); margin: 0 0 8px; }
+.tb-memo .tb-m-lede b { color: var(--tb-accent); }
+.tb-memo .tb-m-motto { font-family: var(--tb-display); font-size: 15px; color: var(--tb-accent); }
+
+/* обложка */
+.tb-memo .tb-m-cover { border: 1px solid var(--tb-line); border-top: 6px solid var(--tb-accent); background: var(--tb-surface-2); padding: 16px 18px; margin: 0 0 14px; position: relative; }
+.tb-memo .tb-m-cover::after { content: "ДСП"; position: absolute; right: 16px; top: 14px; font-family: var(--tb-data); font-weight: 600; font-size: 12px; letter-spacing: .12em;
+  color: var(--tb-accent); border: 2px solid var(--tb-accent); padding: 2px 8px; transform: rotate(-6deg); opacity: .85; }
+.tb-memo .tb-m-org { font-family: var(--tb-data); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--tb-muted); }
+.tb-memo .tb-m-title { font-family: var(--tb-display); font-size: 34px; line-height: 1.1; margin: 4px 0; }
+.tb-memo .tb-m-sub { color: var(--tb-muted); }
+.tb-memo .tb-m-toc { list-style: none; padding: 0; counter-reset: toc; gap: 0; }
+.tb-memo .tb-m-toc li { counter-increment: toc; display: flex; gap: 10px; align-items: baseline; padding: 5px 0; border-bottom: 1px dashed var(--tb-line); }
+.tb-memo .tb-m-toc li::before { content: counter(toc, decimal-leading-zero); font-family: var(--tb-data); color: var(--tb-accent); font-size: 12px; }
+.tb-memo .tb-m-toc span { color: var(--tb-muted); font-size: .92em; }
+
+/* формулы */
+.tb-memo .tb-m-key { background: var(--tb-surface-2); border-radius: 4px; padding: 10px 12px; display: grid; gap: 7px; }
+.tb-memo .tb-m-key.tb-m-hot { box-shadow: inset 4px 0 0 var(--tb-accent); }
+.tb-memo .tb-m-f { font-family: var(--tb-data); font-size: 14px; font-weight: 500; line-height: 1.35; }
+.tb-memo .tb-m-f .tb-m-eq { color: var(--tb-accent); font-weight: 600; }
+.tb-memo .tb-m-f .tb-m-lbl { display: block; font-family: var(--tb-body); font-size: 11.5px; color: var(--tb-muted); }
+
+/* пример */
+.tb-memo .tb-m-ex { border-left: 3px dashed var(--tb-olive); background: color-mix(in srgb, var(--tb-olive-soft) 45%, transparent); padding: 6px 10px; display: grid; gap: 3px; font-size: .95em; border-radius: 0 4px 4px 0; }
+.tb-memo .tb-m-ex .tb-m-t { font-family: var(--tb-data); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--tb-olive); }
+
+/* таблицы */
+.tb-memo table { border-collapse: collapse; width: 100%; font-size: 13.5px; background: transparent; border: none; font-variant-numeric: tabular-nums; }
+.tb-memo tr, .tb-memo tbody tr:nth-child(odd), .tb-memo tbody tr:nth-child(even) { background: transparent; }
+.tb-memo th, .tb-memo td { text-align: left; vertical-align: top; padding: 4px 8px 4px 0; border: none; border-bottom: 1px solid var(--tb-line); }
+.tb-memo th { font-family: var(--tb-data); font-weight: 500; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--tb-muted); }
+.tb-memo tbody tr:last-child td { border-bottom: none; }
+.tb-memo td.tb-m-code { font-family: var(--tb-data); font-weight: 600; white-space: nowrap; width: 1%; padding-right: 14px; }
+.tb-memo .tb-m-spd td, .tb-memo .tb-m-spd th { text-align: center; }
+.tb-memo .tb-m-spd td:first-child, .tb-memo .tb-m-spd th:first-child { text-align: left; }
+.tb-memo .tb-m-hit { color: var(--tb-olive); font-weight: 600; }
+.tb-memo .tb-m-miss { color: var(--tb-accent); font-weight: 600; }
+
+/* действия, урон, архетипы, радио */
+.tb-memo .tb-m-acts { display: grid; gap: 0; }
+.tb-memo .tb-m-acts > div { border-bottom: 1px solid var(--tb-line); padding: 4px 0; }
+.tb-memo .tb-m-acts > div:last-child { border-bottom: none; }
+.tb-memo .tb-m-acts b { font-family: var(--tb-data); font-weight: 600; }
+.tb-memo .tb-m-acts .tb-m-r { float: right; margin-left: 8px; font-family: var(--tb-data); font-size: 11.5px; color: var(--tb-accent); white-space: nowrap; }
+.tb-memo .tb-m-acts .tb-m-d { color: var(--tb-muted); }
+.tb-memo .tb-m-acts .tb-m-d::before { content: " · "; }
+.tb-memo .tb-m-dmg { display: grid; gap: 5px; }
+.tb-memo .tb-m-dmg > div { display: grid; grid-template-columns: 7em minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 5px 8px; background: var(--tb-surface-2); border-radius: 3px; }
+.tb-memo .tb-m-dmg b { font-family: var(--tb-data); font-weight: 600; }
+.tb-memo .tb-m-dmg .tb-m-doom { box-shadow: inset 3px 0 0 var(--tb-accent); }
+.tb-memo .tb-m-dmg .tb-m-doom b { color: var(--tb-accent); }
+.tb-memo .tb-m-arch { display: grid; gap: 8px; }
+.tb-memo .tb-m-arch > div { border-left: 3px solid var(--tb-olive); padding-left: 10px; }
+.tb-memo .tb-m-arch i { font-style: normal; font-family: var(--tb-data); font-size: .85em; color: var(--tb-olive); }
+.tb-memo .tb-m-lingo { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 0 12px; font-size: 13.5px; }
+.tb-memo .tb-m-lingo dt, .tb-memo .tb-m-lingo dd { padding: 3px 0; border-bottom: 1px solid var(--tb-line); margin: 0; }
+.tb-memo .tb-m-lingo dt { font-family: var(--tb-data); font-weight: 600; }
+.tb-memo .tb-m-lingo dd { color: var(--tb-muted); }

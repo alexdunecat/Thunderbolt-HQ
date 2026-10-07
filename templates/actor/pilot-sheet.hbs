@@ -92,6 +92,19 @@
         <button type="button" data-act="stall"><i class="fas fa-arrow-down"></i> Сваливание</button>
       </div>
 
+      {{#if situational.length}}
+      <div class="tb-fx-bar">
+        <span class="tb-fx-title">Ситуативные триггеры</span>
+        {{#each situational as |t|}}
+          {{#if t.hasToggle}}<a class="tb-fx-toggle {{#if t.active}}on{{/if}}" data-trigger-active="{{t.id}}" title="{{t.fxText}}"><i class="fas {{#if t.active}}fa-toggle-on{{else}}fa-toggle-off{{/if}}"></i> {{t.name}} <small>{{t.toggleHint}}</small></a>{{/if}}
+          {{#if t.hasStack}}<span class="tb-fx-toggle {{#if t.stack}}on{{/if}}" title="{{t.fxText}}">{{t.name}} <a data-trigger-stack="{{t.id}}" data-delta="-1">−</a><b>{{t.stack}}</b><a data-trigger-stack="{{t.id}}" data-delta="1">+</a></span>{{/if}}
+        {{/each}}
+      </div>
+      {{/if}}
+      {{#if activeFx.length}}
+      <p class="tb-fx-now tb-small"><span class="tb-muted">Сейчас действуют:</span> {{#each activeFx as |m|}}<span class="tb-chip" title="{{m.name}}">{{m.label}} {{m.sval}} <small>{{m.name}}</small></span>{{/each}}</p>
+      {{/if}}
+
       <div class="tb-grid2">
         <fieldset class="tb-box tb-markers">
           <legend>Метки урона <span class="tb-muted">не больше одной за раунд</span></legend>
@@ -118,7 +131,7 @@
             <li class="tb-item" data-item-id="{{w.id}}">
               <span class="tb-item-name"><a data-chat-item="{{w.id}}" title="В чат">{{w.name}}</a><small>урон {{w.dmg}}{{#if w.mods}} · {{w.mods}}{{/if}}</small></span>
               {{#if w.unlimited}}<span class="tb-ammo">∞</span>{{else}}
-              <span class="tb-ammo"><a data-ammo="{{w.id}}" data-delta="-1">−</a>{{w.ammo}}/{{w.max}}<a data-ammo="{{w.id}}" data-delta="1">+</a></span>{{/if}}
+              <span class="tb-ammo" {{#if w.bonus}}title="+{{w.bonus}} от триггера"{{/if}}><a data-ammo="{{w.id}}" data-delta="-1">−</a>{{w.ammo}}/{{w.max}}<a data-ammo="{{w.id}}" data-delta="1">+</a></span>{{/if}}
               <a class="tb-icon" data-item-edit="{{w.id}}" title="Открыть"><i class="fas fa-pen"></i></a>
               <a class="tb-icon" data-item-delete="{{w.id}}" title="Убрать"><i class="fas fa-trash"></i></a>
             </li>
@@ -170,9 +183,13 @@
             <a class="tb-icon" data-item-delete="{{t.id}}"><i class="fas fa-trash"></i></a>
           </div>
           <p>{{t.text}}</p>
-          {{#if t.needsSkill}}<div class="tb-row tb-small">
-            <label>Навык <select data-item-id="{{t.id}}" data-item-field="system.skill">{{selectOptions @root.skillOptions selected=t.skill blank="—"}}</select></label>
+          {{#if t.fxText}}<p class="tb-fx-line"><i class="fas fa-gears"></i> {{t.fxText}}</p>{{/if}}
+          {{#if t.hasOpts}}<div class="tb-row tb-small">
+            {{#if t.needsSkill}}<label>Навык <select data-item-id="{{t.id}}" data-item-field="system.skill">{{selectOptions @root.skillOptions selected=t.skill blank="—"}}</select></label>{{/if}}
             {{#if t.needsTwo}}<label>Второй <select data-item-id="{{t.id}}" data-item-field="system.skill2">{{selectOptions @root.skillOptions selected=t.skill2 blank="—"}}</select></label>{{/if}}
+            {{#if t.needsWeapon}}<label>Спецоружие <select data-item-id="{{t.id}}" data-item-field="system.weapon">{{selectOptions @root.weaponOpts selected=t.weapon blank="выберите…"}}</select></label>{{/if}}
+            {{#if t.hasToggle}}<a class="tb-fx-toggle {{#if t.active}}on{{/if}}" data-trigger-active="{{t.id}}"><i class="fas {{#if t.active}}fa-toggle-on{{else}}fa-toggle-off{{/if}}"></i> {{#if t.active}}включён{{else}}выключен{{/if}}</a>{{/if}}
+            {{#if t.hasStack}}<span class="tb-fx-toggle {{#if t.stack}}on{{/if}}">серия <a data-trigger-stack="{{t.id}}" data-delta="-1">−</a><b>{{t.stack}}</b><a data-trigger-stack="{{t.id}}" data-delta="1">+</a></span>{{/if}}
           </div>{{/if}}
         </li>
         {{/each}}

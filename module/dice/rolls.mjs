@@ -58,6 +58,13 @@ export function formDialog(title, content, { ok = "Бросить", width = 380 
   });
 }
 
+/** Слагаемые навыка для карточки: ранги и поправки триггеров отдельными строками. */
+function skillParts(actor, skill, label = TB.skills[skill].label) {
+  const s = actor.system;
+  if (!s.skillParts) return [[label, s.skillTotal[skill]]];
+  return [[label, s.skills[skill]], ...s.skillParts[skill].map(m => [m.name, m.value])];
+}
+
 function hasTrigger(actor, key) { return actor.items.some(i => i.type === "trigger" && i.system.key === key); }
 
 async function roll(formula, data = {}) { return new Roll(formula, data).evaluate(); }
@@ -179,7 +186,7 @@ export async function rollCheck(actor, skill, { dc = TB.difficulty, label } = {}
     ${commonFields(actor, skill)}`);
   if (!data) return;
   const dice = await rollDice(actor, data.practiced);
-  const parts = [[sk.label, actor.system.skillTotal[skill]]];
+  const parts = skillParts(actor, skill, sk.label);
   if (data.mod) parts.push(["мод.", data.mod]);
   const card = {
     type: "check", label: label ?? `Проверка ${sk.label} (${sk.en})`, rolled: true, d10: dice.d10, d4: dice.d4,
@@ -195,7 +202,7 @@ export async function rollRecover(actor) {
   const data = await formDialog("Восстановить Strain (Push против 7)", commonFields(actor, "push"));
   if (!data) return;
   const dice = await rollDice(actor, data.practiced);
-  const parts = [["Форсаж", actor.system.skillTotal.push]];
+  const parts = skillParts(actor, "push", "Форсаж");
   if (data.mod) parts.push(["мод.", data.mod]);
   const card = {
     type: "recover", label: "Восстановление Strain", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: 7,
@@ -208,7 +215,7 @@ export async function rollRecover(actor) {
 /** Сваливание: Push против 7. */
 export async function rollStall(actor) {
   const dice = await rollDice(actor, false);
-  const parts = [["Форсаж", actor.system.skillTotal.push]];
+  const parts = skillParts(actor, "push", "Форсаж");
   const card = {
     type: "stall", label: "Сваливание: Push против 7", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: 7,
     strainable: actor.type === "pilot" || actor.system.tier === "ace", alt: actor.system.alt, ...thresholds(actor, "push"),
@@ -226,7 +233,7 @@ export async function rollBreak(actor) {
     ${commonFields(actor, "dodge")}`);
   if (!data) return;
   const dice = await rollDice(actor, data.practiced);
-  const parts = [["Уклонение", actor.system.skillTotal.dodge]];
+  const parts = skillParts(actor, "dodge", "Уклонение");
   if (data.lead) parts.push(["Lead", data.lead]);
   if (data.mod) parts.push(["мод.", data.mod]);
   const tvc = actor.system.planeProps?.has?.("tvc") || actor.system.props?.some?.(p => p.key === "tvc");
@@ -306,7 +313,7 @@ export async function fireMissile(actor) {
   let dice = { d10: null, d4: null, rolls: [] };
   if (data.improved) {
     dice = await rollDice(actor, data.practiced);
-    parts.push([TB.skills[skill].label, s.skillTotal[skill]]);
+    parts.push(...skillParts(actor, skill));
     const m = air ? ws?.aim : ws?.dep;
     if (m) parts.push([`мод ${w.name}`, m]);
   } else {
@@ -352,7 +359,7 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
     ${commonFields(actor, "strafe")}`, { ok: "Огонь" });
   if (!data) return;
   const dice = await rollDice(actor, data.practiced);
-  let strafe = s.skillTotal.strafe;
+  let strafe = null;
   let gun = s.gun ?? 0;
   let label = "Guns, Guns, Guns!";
   if (actor.type === "npc" && s.kind === "ground") { strafe = s.ground.strafe; gun = s.ground.gun ?? 0; }
@@ -361,7 +368,7 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
     gun = y?.gun ?? 0; label = `Огонь: ${y?.name}`;
     strafe = /Strafe \+(\d)/.exec(y?.note ?? "")?.[1] ? Number(/Strafe \+(\d)/.exec(y.note)[1]) : 0;
   }
-  const parts = [["Пушка", strafe]];
+  const parts = strafe === null ? skillParts(actor, "strafe", "Пушка") : [["Пушка", strafe]];
   const pod = data.pod ? actor.items.get(data.pod) : null;
   if (pod?.system.key === "MGP") { parts.push(["MGP", 1]); gun += 3; label += " (MGP)"; }
   if (pod?.system.key === "PLSL") { parts.push(["PLSL", 1]); gun = 6; label = "Импульсный лазер"; }

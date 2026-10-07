@@ -2,9 +2,19 @@
 import { SYSTEM_ID, SYS_PATH, TB } from "../config.mjs";
 import { esc } from "../utils.mjs";
 
+/** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
+export function describeChanges(changes) {
+  return changes.map(c => {
+    const label = TB.effectTargets[c.target] ?? c.target;
+    const val = /^(perk|comp)\./.test(c.target) ? ` ${c.value}` : ` ${c.value >= 0 ? "+" : ""}${c.value}`;
+    const when = c.when !== "always" ? ` (${TB.effectWhen[c.when] ?? c.when})` : "";
+    return label + val + when;
+  }).join(" · ");
+}
+
 const opts = obj => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, typeof v === "string" ? v : v.label]));
 
-function weaponView(w) {
+function weaponView(w, bonus = 0) {
   const s = w.system;
   const mods = [];
   if (s.aa !== null) mods.push(`AA ${s.aa >= 0 ? "+" : ""}${s.aa}`);
@@ -12,7 +22,7 @@ function weaponView(w) {
   if (s.aim !== null) mods.push(`Aim ${s.aim >= 0 ? "+" : ""}${s.aim}`);
   if (s.dep !== null) mods.push(`Deploy ${s.dep >= 0 ? "+" : ""}${s.dep}`);
   return { id: w.id, name: w.name, img: w.img, key: s.key, dmg: s.dmg, fx: s.fx, mods: mods.join(" · "),
-    unlimited: s.ammo.max === null, ammo: s.ammo.value, max: s.ammo.max, target: TB.weaponTargets[s.target] ?? "" };
+    unlimited: s.ammo.max === null, ammo: s.ammo.value, max: s.ammo.max === null ? null : s.ammo.max + bonus, bonus, target: TB.weaponTargets[s.target] ?? "" };
 }
 
 class TBActorSheet extends ActorSheet {
@@ -38,7 +48,7 @@ class TBActorSheet extends ActorSheet {
     ctx.altOptions = TB.altitudes;
     ctx.skillOptions = opts(TB.skills);
     ctx.sysOptions = Object.fromEntries(Object.entries(TB.systems).map(([k, v]) => [k, `${v.label}: ${v.hint}`]));
-    ctx.weapons = a.items.filter(i => i.type === "weapon").map(weaponView);
+    ctx.weapons = a.items.filter(i => i.type === "weapon").map(w => weaponView(w, s.ammoBonus?.[w.id] ?? 0));
     ctx.enrichedNotes = await TextEditor.enrichHTML(s.notes, { secrets: a.isOwner, relativeTo: a });
     ctx.isGM = game.user.isGM;
     return ctx;
@@ -84,12 +94,21 @@ class TBActorSheet extends ActorSheet {
     on("[data-ammo]", d => {
       const item = this.actor.items.get(d.ammo);
       if (!item || item.system.ammo.max === null) return;
-      const v = Math.max(0, Math.min(item.system.ammo.max + 2, item.system.ammo.value + Number(d.delta)));
+      const max = item.system.ammo.max + (this.actor.system.ammoBonus?.[item.id] ?? 0);
+      const v = Math.max(0, Math.min(max, item.system.ammo.value + Number(d.delta)));
       item.update({ "system.ammo.value": v });
     });
     on("[data-item-toggle]", d => {
       const item = this.actor.items.get(d.itemToggle);
       item?.update({ "system.used": !item.system.used });
+    });
+    on("[data-trigger-active]", d => {
+      const item = this.actor.items.get(d.triggerActive);
+      item?.update({ "system.active": !item.system.active });
+    });
+    on("[data-trigger-stack]", d => {
+      const item = this.actor.items.get(d.triggerStack);
+      if (item) item.update({ "system.stack": Math.max(0, item.system.stack + Number(d.delta)) });
     });
     on("[data-chat-item]", d => this.#itemToChat(this.actor.items.get(d.chatItem)));
     el.querySelectorAll("[data-item-field]").forEach(n => n.addEventListener("change", ev => {
@@ -127,10 +146,19 @@ export class PilotSheet extends TBActorSheet {
       statRows: Object.entries(TB.planeStats).map(([k, [en, ru]]) => ({ key: k, en, ru, value: plane.system.stats[k] })),
       sigNames: plane.system.sig.join(", ")
     } : null;
+    const weaponOpts = Object.fromEntries(a.items.filter(i => i.type === "weapon" && i.system.ammo.max !== null).map(w => [w.id, w.name]));
     ctx.triggers = a.items.filter(i => i.type === "trigger").map(t => ({
       id: t.id, name: t.name, ...t.system, typeText: t.system.types.join(" · "),
-      archName: TB.archetypes[t.system.archetype]?.label ?? "", needsSkill: t.system.skills > 0, needsTwo: t.system.skills > 1
+      archName: TB.archetypes[t.system.archetype]?.label ?? "", needsSkill: t.system.skills > 0, needsTwo: t.system.skills > 1,
+      hasToggle: t.system.hasToggle, hasStack: t.system.hasStack, needsWeapon: t.system.needsWeapon,
+      toggleHint: TB.toggleHints[t.system.key] ?? "ситуативный бонус",
+      fxText: describeChanges(t.system.changes),
+      hasOpts: t.system.skills > 0 || t.system.needsWeapon || t.system.hasToggle || t.system.hasStack
     }));
+    ctx.weaponOpts = weaponOpts;
+    ctx.situational = ctx.triggers.filter(t => t.hasToggle || t.hasStack);
+    ctx.activeFx = Object.entries(s.trigFx ?? {}).flatMap(([target, list]) =>
+      list.map(m => ({ label: TB.effectTargets[target] ?? target, name: m.name, sval: `${m.value >= 0 ? "+" : ""}${m.value}` })));
     ctx.archOptions = opts(TB.archetypes);
     ctx.statusOptions = TB.status;
     ctx.pointsOver = s.pointsUsed > s.pointsBudget;
@@ -171,22 +199,22 @@ export class PilotSheet extends TBActorSheet {
   async _onDropItemCreate(itemData) {
     const items = Array.isArray(itemData) ? itemData : [itemData];
     const planes = items.filter(i => i.type === "plane");
-    if (planes.length) {
-      const old = this.actor.items.filter(i => i.type === "plane").map(i => i.id);
-      if (old.length) await this.actor.deleteEmbeddedDocuments("Item", old);
-    }
     if (items.some(i => i.type === "trigger" && this.actor.items.some(t => t.type === "trigger" && t.system.key && t.system.key === i.system?.key)))
       ui.notifications.info("Этот триггер уже есть на листе.");
-    const created = await super._onDropItemCreate(items.length === 1 ? items[0] : items);
-    if (planes.length) {
+    if (!planes.length) return super._onDropItemCreate(items.length === 1 ? items[0] : items);
+    const a = this.actor;
+    return a.withoutPoolSync(async () => {
+      const old = a.items.filter(i => i.type === "plane").map(i => i.id);
+      if (old.length) await a.deleteEmbeddedDocuments("Item", old);
+      const created = await super._onDropItemCreate(items.length === 1 ? items[0] : items);
       const p = planes[planes.length - 1];
-      const upd = { "system.hp.value": this.actor.system.hp.max, "system.strain.value": this.actor.system.strain.max,
-        "system.speed": Math.min(this.actor.system.speed, this.actor.system.maxSpeed) };
-      const defaultImg = !this.actor.prototypeToken.texture.src || this.actor.prototypeToken.texture.src.includes("mystery-man");
+      const upd = { "system.hp.value": a.system.hp.max, "system.strain.value": a.system.strain.max,
+        "system.speed": Math.min(a.system.speed, a.system.maxSpeed), [`flags.${SYSTEM_ID}.pools`]: a.poolsFlag() };
+      const defaultImg = !a.prototypeToken.texture.src || a.prototypeToken.texture.src.includes("mystery-man");
       if (p.img && defaultImg) upd["prototypeToken.texture.src"] = p.img;
-      await this.actor.update(upd);
-    }
-    return created;
+      await a.update(upd);
+      return created;
+    });
   }
 }
 

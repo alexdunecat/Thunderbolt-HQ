@@ -1,5 +1,6 @@
 /* Карточки самолёта, спецоружия и триггера. */
 import { SYS_PATH, TB } from "../config.mjs";
+import { describeChanges } from "./actor-sheets.mjs";
 
 export class TBItemSheet extends ItemSheet {
   static get defaultOptions() {
@@ -30,6 +31,12 @@ export class TBItemSheet extends ItemSheet {
       ctx.archOptions = Object.fromEntries(Object.entries(TB.archetypes).map(([k, v]) => [k, v.label]));
       ctx.typeText = s.types.join(", ");
       ctx.skillOptions = Object.fromEntries(Object.entries(TB.skills).map(([k, v]) => [k, v.label]));
+      ctx.fxCustom = s.effects !== null;
+      ctx.fxBook = !!TB.triggerEffects[s.key];
+      ctx.fxRows = (s.effects ?? []).map((r, i) => ({ ...r, i }));
+      ctx.fxText = describeChanges(s.changes);
+      ctx.targetOptions = TB.effectTargets;
+      ctx.whenOptions = TB.effectWhen;
     }
     return ctx;
   }
@@ -42,6 +49,20 @@ export class TBItemSheet extends ItemSheet {
       const types = ev.target.value.split(/[,·]/).map(t => t.trim()).filter(Boolean);
       this.item.update({ "system.types": types });
     });
+    // эффекты триггера: правим массив целиком
+    const fx = () => foundry.utils.deepClone(this.item.system.effects ?? this.item.system.changes);
+    const click = (sel, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); fn(n.dataset); }));
+    click("[data-fx-edit]", () => this.item.update({ "system.effects": fx() }));
+    click("[data-fx-reset]", () => this.item.update({ "system.effects": null }));
+    click("[data-fx-add]", () => this.item.update({ "system.effects": [...fx(), { target: "hpMax", value: 1, when: "always" }] }));
+    click("[data-fx-delete]", d => { const list = fx(); list.splice(Number(d.fxDelete), 1); this.item.update({ "system.effects": list }); });
+    el.querySelectorAll("[data-fx-field]").forEach(n => n.addEventListener("change", ev => {
+      ev.stopPropagation();
+      const list = fx(), row = list[Number(n.dataset.fxIndex)];
+      if (!row) return;
+      row[n.dataset.fxField] = n.dataset.fxField === "value" ? (parseInt(n.value) || 0) : n.value;
+      this.item.update({ "system.effects": list });
+    }));
   }
 
   /** Поле typesText не из схемы: убираем перед сохранением. */
