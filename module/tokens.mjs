@@ -1,5 +1,7 @@
 /* Токены в зоне: самолёты и цели меньше клетки, в одной зоне помещается несколько.
-   Новый или передвинутый токен сам встаёт на свободное место своей клетки. */
+   Новый или передвинутый токен сам встаёт на свободное место своей клетки.
+   Foundry v12 не даёт токену быть меньше половины клетки, поэтому при размере 1/3 токен остаётся в полклетки,
+   а картинка уменьшается до трети и встаёт в центр своего места. */
 import { SYSTEM_ID } from "./config.mjs";
 
 export const SIZE_CHOICES = { "0.5": "1/2 клетки: до 4 токенов в зоне", "0.33": "1/3 клетки: до 9 токенов в зоне", "1": "Вся клетка: 1 токен в зоне" };
@@ -13,64 +15,79 @@ export function registerTokenSettings() {
   Hooks.on("preUpdateToken", onPreUpdate);
 }
 
-/** Размер токена в клетках по настройке мира: 1, 0.5 или 0.3333. */
-export function tokenSize() {
-  const n = Math.round(1 / (Number(game.settings.get(SYSTEM_ID, "tokenSize")) || 0.5));
-  return n > 1 ? Number((1 / n).toFixed(4)) : 1;
+/** Мест по стороне клетки по настройке мира: 1, 2 или 3. */
+export function slotsPerSide() {
+  return Math.max(1, Math.round(1 / (Number(game.settings.get(SYSTEM_ID, "tokenSize")) || 0.5)));
+}
+
+/** Наименьший размер токена, который принимает Foundry (в v12 — полклетки). */
+const minWidth = () => ((game.release?.generation ?? 12) >= 13 ? 0.05 : 0.5);
+
+/** Размер документа токена и масштаб картинки для n мест по стороне. */
+export function tokenLook(n = slotsPerSide()) {
+  const size = 1 / n, width = Math.max(size, minWidth());
+  return { width, scale: Number((size / width).toFixed(4)) };
 }
 
 const ours = doc => ["pilot", "npc"].includes(doc.actor?.type);
 const squareScene = scene => !!scene && scene === canvas?.scene && canvas.ready && scene.grid.type === CONST.GRID_TYPES.SQUARE;
-/** Сколько мест по стороне клетки для токена размером w (0 — размер не делит клетку ровно). */
-const perSide = w => { const n = Math.round(1 / w); return n >= 1 && Math.abs(n * w - 1) < 0.02 ? n : 0; };
-const center = (t, gs) => ({ x: t.x + (t.width * gs) / 2, y: t.y + (t.height * gs) / 2 });
+const center = (t, gs, w = t.width, h = t.height) => ({ x: t.x + (w * gs) / 2, y: t.y + (h * gs) / 2 });
+/** Видимый размер токена в клетках (документ × масштаб картинки) → мест по стороне. */
+const perSideOf = (w, scale) => { const v = w * Math.abs(scale ?? 1), n = Math.round(1 / v); return n >= 1 && Math.abs(n * v - 1) < 0.03 ? n : 0; };
 
 /* Места, занятые в этом же обновлении: при перетаскивании группы остальные токены ещё стоят на старых местах. */
 let claimed = new Set();
 let claimTimer = null;
+const slotKey = (scene, s) => `${scene.id}:${Math.round(s.x)},${Math.round(s.y)}`;
 function claim(scene, s) {
-  claimed.add(`${scene.id}:${s.x},${s.y}`);
+  claimed.add(slotKey(scene, s));
   clearTimeout(claimTimer);
   claimTimer = setTimeout(() => { claimed = new Set(); }, 300);
 }
 
 /**
- * Ближайшее к (px, py) свободное место в клетке точки c для токена размером w.
- * busy(sx, sy, step) — занято ли место. Возвращает { x, y } или null.
+ * Ближайшее к точке p свободное место (его центр) в клетке точки c, n мест по стороне.
+ * busy(slot, step) — занято ли место. Возвращает { x, y } центра места или null.
  */
-function nearestSlot(scene, c, px, py, w, busy) {
-  const n = perSide(w);
+function nearestSlot(scene, c, p, n, busy) {
   if (!n) return null;
   const o = canvas.grid.getTopLeftPoint(c), step = scene.grid.size / n;
   let best = null;
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-    const sx = Math.round(o.x + i * step), sy = Math.round(o.y + j * step);
-    if (busy(sx, sy, step)) continue;
-    const d = Math.hypot(sx - px, sy - py);
-    if (!best || d < best.d) best = { x: sx, y: sy, d };
+    const s = { x: o.x + (i + 0.5) * step, y: o.y + (j + 0.5) * step };
+    if (busy(s, step)) continue;
+    const d = Math.hypot(s.x - p.x, s.y - p.y);
+    if (!best || d < best.d) best = { ...s, d };
   }
   return best;
 }
 
 /** Место занято другим токеном сцены (его центр внутри места) или уже отдано в этом обновлении. */
-const busyOnScene = (scene, ignoreId) => (sx, sy, step) => claimed.has(`${scene.id}:${sx},${sy}`) ||
+const busyOnScene = (scene, ignoreId) => (s, step) => claimed.has(slotKey(scene, s)) ||
   scene.tokens.some(t => {
     if (t.id === ignoreId) return false;
     const c = center(t, scene.grid.size);
-    return c.x >= sx && c.x < sx + step && c.y >= sy && c.y < sy + step;
+    return Math.abs(c.x - s.x) < step / 2 && Math.abs(c.y - s.y) < step / 2;
   });
+
+/** Верхний левый угол токена шириной w, чтобы его центр встал в центр места. */
+const topLeft = (s, w, gs) => ({ x: Math.round(s.x - (w * gs) / 2), y: Math.round(s.y - (w * gs) / 2) });
 
 function onPreCreate(doc, data, options) {
   if (options.tbKeep || !ours(doc)) return;
   const scene = doc.parent;
-  const upd = {}, size = tokenSize();
-  if (doc.width === 1 && doc.height === 1 && size < 1) upd.width = upd.height = size;
-  const w = upd.width ?? doc.width;
+  const upd = {};
+  let w = doc.width, scale = doc.texture?.scaleX ?? 1;
+  if (doc.width === 1 && doc.height === 1 && slotsPerSide() > 1) {
+    const look = tokenLook();
+    w = look.width; scale = look.scale;
+    Object.assign(upd, { width: w, height: w, texture: { scaleX: scale, scaleY: scale } });
+  }
   if (squareScene(scene) && doc.width === doc.height) {
     // клетка — та, куда бросили; место — первое свободное по порядку
-    const c = center(doc, scene.grid.size), o = canvas.grid.getTopLeftPoint(c);
-    const s = nearestSlot(scene, c, o.x, o.y, w, busyOnScene(scene, null));
-    if (s) { upd.x = s.x; upd.y = s.y; claim(scene, s); }
+    const gs = scene.grid.size, c = center(doc, gs), o = canvas.grid.getTopLeftPoint(c);
+    const s = nearestSlot(scene, c, o, perSideOf(w, scale), busyOnScene(scene, null));
+    if (s) { Object.assign(upd, topLeft(s, w, gs)); claim(scene, s); }
   }
   if (Object.keys(upd).length) doc.updateSource(upd);
 }
@@ -82,27 +99,32 @@ function onPreUpdate(doc, change, options) {
   if (options.tbKeep || !ours(doc) || !("x" in change || "y" in change) || freePlacement()) return;
   const scene = doc.parent;
   const w = change.width ?? doc.width, h = change.height ?? doc.height;
-  if (!squareScene(scene) || w >= 1 || w !== h) return;
-  const px = change.x ?? doc.x, py = change.y ?? doc.y;
-  const s = nearestSlot(scene, center({ x: px, y: py, width: w, height: h }, scene.grid.size), px, py, w, busyOnScene(scene, doc.id));
+  const n = perSideOf(w, change.texture?.scaleX ?? doc.texture?.scaleX);
+  if (!squareScene(scene) || n < 2 || w !== h) return;
+  const gs = scene.grid.size;
+  const c = center({ x: change.x ?? doc.x, y: change.y ?? doc.y }, gs, w, h);
+  const s = nearestSlot(scene, c, c, n, busyOnScene(scene, doc.id));
   if (!s) return;   // все места заняты: токен встаёт поверх, как обычно
   claim(scene, s);
-  if (s.x !== px || s.y !== py) { change.x = s.x; change.y = s.y; }
+  const p = topLeft(s, w, gs);
+  change.x = p.x; change.y = p.y;
 }
 
 /** Ведущий: токены самолётов и целей на сцене привести к размеру из настройки и разложить по местам в своих зонах. */
 export async function arrangeSceneTokens() {
   const scene = canvas?.scene;
   if (!game.user.isGM || !squareScene(scene)) return ui.notifications.warn("Нужна открытая сцена с квадратной сеткой.");
-  const size = tokenSize(), gs = scene.grid.size;
+  const n = slotsPerSide(), { width, scale } = n > 1 ? tokenLook(n) : { width: 1, scale: 1 }, gs = scene.grid.size;
   const taken = new Set(), updates = [];
+  const key = s => `${Math.round(s.x)},${Math.round(s.y)}`;
   for (const t of scene.tokens.filter(ours)) {
     const c = center(t, gs);
     // все места зоны заняты: встать поверх, в первое место
-    const s = nearestSlot(scene, c, t.x, t.y, size, (sx, sy) => taken.has(`${sx},${sy}`)) ?? nearestSlot(scene, c, -1e9, -1e9, size, () => false);
-    const x = s?.x ?? t.x, y = s?.y ?? t.y;
-    taken.add(`${x},${y}`);
-    if (t.width !== size || t.height !== size || t.x !== x || t.y !== y) updates.push({ _id: t.id, width: size, height: size, x, y });
+    const s = nearestSlot(scene, c, c, n, s => taken.has(key(s))) ?? nearestSlot(scene, c, { x: -1e9, y: -1e9 }, n, () => false);
+    taken.add(key(s));
+    const p = topLeft(s, width, gs);
+    if (t.width !== width || t.height !== width || t.x !== p.x || t.y !== p.y || t.texture.scaleX !== scale || t.texture.scaleY !== scale)
+      updates.push({ _id: t.id, width, height: width, x: p.x, y: p.y, "texture.scaleX": scale, "texture.scaleY": scale });
   }
   if (updates.length) await scene.updateEmbeddedDocuments("Token", updates, { tbKeep: true, animate: false });
   ui.notifications.info(updates.length ? `Токенов разложено по зонам: ${updates.length}.` : "Все токены уже на местах.");
