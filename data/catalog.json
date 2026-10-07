@@ -1864,7 +1864,7 @@
    "sig": [
     "LAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/swing.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f14.svg"
   },
   {
    "key": "f14d",
@@ -1912,7 +1912,7 @@
    "sig": [
     "XLAA"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/swing.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f14.svg"
   },
   {
    "key": "f15c",
@@ -2151,7 +2151,7 @@
    "sig": [
     "LAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/swing.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
   },
   {
    "key": "f16b60",
@@ -2832,7 +2832,7 @@
    "sig": [
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/swing.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
   },
   {
    "key": "tornadogr4",
@@ -2875,7 +2875,7 @@
    "sig": [
     "LACM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/swing.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
   },
   {
    "key": "tornadoecr",
@@ -2918,7 +2918,7 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/swing.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
   },
   {
    "key": "hawk",
@@ -3100,7 +3100,7 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/bomberSwing.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/b1b.svg"
   },
   {
    "key": "b2a",
@@ -3234,7 +3234,7 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/transport.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/c130.svg"
   },
   {
    "key": "a50",
@@ -3363,7 +3363,7 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/transport.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/an124.svg"
   },
   {
    "key": "c130",
@@ -3399,7 +3399,7 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/transport.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/c130.svg"
   },
   {
    "key": "c5",
