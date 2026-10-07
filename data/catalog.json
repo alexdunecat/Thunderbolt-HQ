@@ -661,7 +661,7 @@
    },
    "desc": "Высотный скоростной перехватчик из нержавеющей стали. Создан догонять то, что догнать нельзя, и ради скорости пожертвовал всем остальным.",
    "service": "Почти весь парк переведён в разведку и учебные части. Из кабины «двадцать пятого» видно кривизну Земли.",
-   "img": "systems/thunderbolt-shtab/assets/planes/mig31.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig25.svg"
   },
   {
    "key": "su33",
@@ -1028,7 +1028,7 @@
    },
    "desc": "Истребитель-бомбардировщик с изменяемой стреловидностью крыла. Простой, крепкий, берёт много бомб и не задаёт вопросов.",
    "service": "Старый парк фронтовой авиации. Полки на «Сушках» поддерживают войска там, куда не долетают новые машины.",
-   "img": "systems/thunderbolt-shtab/assets/planes/swing.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su22.svg"
   },
   {
    "key": "mig27",
@@ -2987,7 +2987,7 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/bomberSwing.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tu22m.svg"
   },
   {
    "key": "tu95",
@@ -6344,7 +6344,7 @@
    "sig": [
     "HPAA"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig31.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig25.svg"
   },
   {
    "key": "su33",
@@ -6599,7 +6599,7 @@
    "sig": [
     "RCL"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/swing.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su22.svg"
   },
   {
    "key": "mig27",
