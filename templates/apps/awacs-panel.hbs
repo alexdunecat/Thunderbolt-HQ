@@ -1,0 +1,57 @@
+<div class="tb-awacs-wrap">
+  <header class="tb-awacs-head">
+    <span class="tb-kicker">Сцена</span> <b>{{sceneName}}</b>
+    {{#if round}}<span class="tb-awacs-round">Раунд {{round}}{{#if queued}} · ракет в воздухе: {{queued}}{{/if}}</span>{{/if}}
+    <span class="tb-awacs-btns">
+      <button type="button" data-sortie-all><i class="fas fa-plane-departure"></i> Все к вылету</button>
+      <button type="button" data-results><i class="fas fa-clipboard-check"></i> Итоги вылета</button>
+    </span>
+  </header>
+  <section class="tb-awacs-body">
+    <h3>Пилоты</h3>
+    {{#if pilots.length}}
+    <table class="tb-awacs-table">
+      <tr><th></th><th>Пилот</th><th>HP</th><th>Strain</th><th>Speed</th><th>Высота</th><th>Def</th><th>Метки</th><th>Захват</th><th title="сбито в воздухе / на земле за вылет">Счёт</th></tr>
+      {{#each pilots as |p|}}
+      <tr class="{{#unless p.onScene}}off{{/unless}}">
+        <td><img src="{{p.img}}" alt=""></td>
+        <td><a data-open="{{p.id}}"><b>{{p.name}}</b></a><br><small>{{p.plane}}{{#if p.twist}} · после Поворота{{/if}}</small></td>
+        <td class="tb-num {{#if p.hpLow}}low{{/if}}"><a data-pool="hp" data-id="{{p.id}}" data-delta="-1">−</a> {{p.hp.value}}/{{p.hp.max}} <a data-pool="hp" data-id="{{p.id}}" data-delta="1">+</a></td>
+        <td class="tb-num"><a data-pool="strain" data-id="{{p.id}}" data-delta="-1">−</a> {{p.strain.value}}/{{p.strain.max}} <a data-pool="strain" data-id="{{p.id}}" data-delta="1">+</a></td>
+        <td class="tb-num {{#if p.stall}}low{{/if}}">{{p.speed}}/{{p.maxSpeed}}</td>
+        <td>{{p.alt}} {{p.weather}}</td>
+        <td class="tb-num">{{p.defense}}{{#if p.breakEv}} <small>Break</small>{{/if}}</td>
+        <td>{{#each p.markers as |m|}}<span class="tb-mk {{m.cls}}">{{m.label}}</span>{{else}}<span class="tb-muted">—</span>{{/each}}</td>
+        <td>{{#if p.lock}}{{p.lock}}{{else}}<span class="tb-muted">—</span>{{/if}}</td>
+        <td class="tb-num">{{p.kills}}</td>
+      </tr>
+      {{/each}}
+    </table>
+    {{else}}<p class="tb-empty">Пилотов пока нет.</p>{{/if}}
+
+    <h3>Цели на сцене</h3>
+    {{#if targets.length}}
+    <table class="tb-awacs-table">
+      <tr><th>Цель</th><th>Тип</th><th>HP</th><th>Def</th><th>Высота</th><th>Метки</th></tr>
+      {{#each targets as |t|}}
+      <tr class="{{#if t.down}}down{{/if}} {{#if t.hidden}}off{{/if}}">
+        <td><a data-target="{{t.id}}" title="Показать на сцене"><b>{{t.name}}</b></a> <a data-target="{{t.id}}" data-sheet="1" title="Лист"><i class="fas fa-id-card"></i></a></td>
+        <td><small>{{t.kind}}{{#if t.tier}} · {{t.tier}}{{/if}}</small></td>
+        <td class="tb-num">{{t.hp.value}}/{{t.hp.max}}</td>
+        <td class="tb-num">{{t.defense}}</td>
+        <td>{{t.alt}}</td>
+        <td>{{#each t.markers as |m|}}<span class="tb-mk {{m.cls}}">{{m.label}}</span>{{/each}}{{#if t.down}}<span class="tb-mk doom">сбит</span>{{/if}}</td>
+      </tr>
+      {{/each}}
+    </table>
+    {{else}}<p class="tb-empty">На сцене нет NPC.</p>{{/if}}
+
+    <h3>Погода над всей сценой {{#if cells}}<small>ещё в {{cells}} клетках из импорта миссии</small>{{/if}}</h3>
+    <div class="tb-awacs-weather">
+      {{#each weather as |w|}}
+      <label class="tb-fx-toggle {{#if w.on}}on{{/if}}" title="{{w.txt}}"><input type="checkbox" data-weather="{{w.id}}" {{checked w.on}}> {{w.ico}} {{w.name}}</label>
+      {{/each}}
+    </div>
+    <p class="tb-small tb-muted">Погода сама попадает в защиту, A-A и A-G без броска, Push и пороги Complication. Молния и торнадо показываются подсказкой: их последствия объявляет AWACS.</p>
+  </section>
+</div>

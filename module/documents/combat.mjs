@@ -1,6 +1,6 @@
 /* Инициатива через заявку действий: в начале раунда каждый заявляет 1–3 действия.
    Кто заявил меньше, ходит раньше; при равенстве игрок раньше NPC. Значение инициативы = число заявленных действий. */
-import { formDialog } from "../dice/rolls.mjs";
+import { formDialog, resolveVolley } from "../dice/rolls.mjs";
 import { esc } from "../utils.mjs";
 
 
@@ -35,12 +35,14 @@ export class TBCombat extends Combat {
     return this;
   }
 
-  /** Новый раунд: заявки сбрасываются, Break! заканчивается. */
+  /** Новый раунд: ракеты раунда долетают залпом, заявки сбрасываются, Break! заканчивается. */
   async nextRound() {
     if (game.user.isGM) {
-      await ChatMessage.create({
+      // ракеты долетают до сброса Break!: защита целей считается с ним
+      const volley = await resolveVolley(this);
+      if (!volley) await ChatMessage.create({
         speaker: { alias: "AWACS" },
-        content: `<div class="tb-card tb-card-round"><div class="tb-note">Конец раунда ${this.round}: долетают ракеты. Нажмите кнопки урона на их карточках, Break! заканчивается.</div></div>`
+        content: `<div class="tb-card tb-card-round"><div class="tb-note">Конец раунда ${this.round}. Ракет в воздухе нет, Break! заканчивается.</div></div>`
       });
       await this.updateEmbeddedDocuments("Combatant", this.combatants.map(c => ({ _id: c.id, initiative: null })));
       for (const c of this.combatants) {

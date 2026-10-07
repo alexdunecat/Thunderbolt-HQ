@@ -7,6 +7,7 @@
       <div class="tb-head-row">
         <label>Цели <select name="system.target">{{selectOptions targetOptions selected=system.target}}</select></label>
         <label>Откуда <select name="system.kind">{{selectOptions kindOptions selected=system.kind}}</select></label>
+        <label>Дальность <select name="system.range" data-dtype="Number">{{selectOptions rangeOptions selected=rangeValue}}</select></label>
       </div>
     </div>
   </header>
@@ -23,7 +24,7 @@
         <td><input type="number" name="system.dep" value="{{system.dep}}" placeholder="—"></td>
       </tr>
     </table>
-    <p class="tb-small tb-muted">Пустое поле боезапаса: боезапас не считается. AA/AG Mod прибавляется к атаке без броска, Aim/Deploy Mod к Improved Fox Two!</p>
+    <p class="tb-small tb-muted">Пустое поле боезапаса: боезапас не считается. AA/AG Mod прибавляется к атаке без броска, Aim/Deploy Mod к Improved Fox Two! Сейчас дальность: {{reachLabel}}.</p>
     <label class="tb-q">Действие <textarea name="system.fx" rows="4">{{system.fx}}</textarea></label>
   </section>
 </form>

@@ -54,11 +54,11 @@
             <div class="tb-dial {{#if alertSpeed}}alert{{/if}}">
               <span class="tb-dial-label">Speed</span>
               <div class="tb-dial-row"><a data-speed="-1">−</a><input type="number" name="system.speed" value="{{system.speed}}"><a data-speed="1">+</a></div>
-              <span class="tb-dial-sub">макс. {{system.maxSpeed}}</span>
+              <span class="tb-dial-sub">макс. {{maxSpeedNow}}</span>
             </div>
             <div class="tb-dial">
               <span class="tb-dial-label">Defense</span>
-              <div class="tb-dial-big">{{system.defense}}</div>
+              <div class="tb-dial-big" {{#if defenseWeather}}title="с погодой"{{/if}}>{{defenseNow}}</div>
               <span class="tb-dial-sub">Evasion {{system.evasion}}{{#if system.breakEv}} · Break {{system.breakEv}} <a data-act="unbreak" title="Сбросить Break!">×</a>{{/if}} + Speed</span>
             </div>
             <div class="tb-dial">
@@ -76,6 +76,7 @@
             <label>Высота <select name="system.alt">{{selectOptions altOptions selected=system.alt}}</select></label>
             <label class="tb-check"><input type="checkbox" name="system.twist" {{checked system.twist}}> Поворот был</label>
           </div>
+          {{#if weather.length}}<div class="tb-weather tb-small">{{#each weather as |w|}}<span title="{{w.txt}}">{{w.ico}} {{w.name}}</span>{{/each}}</div>{{/if}}
           <div class="tb-row tb-small">
             <span>Air-Air <b>{{system.aa}}</b></span><span>Air-Gnd <b>{{system.ag}}</b></span><span>Gun DMG <b>{{system.gun}}</b></span>
             <span>Захват: {{#if system.lock}}<b>{{system.lock}}</b> <a data-act="unlock" title="Снять захват">×</a>{{else}}<span class="tb-muted">нет</span>{{/if}}</span>

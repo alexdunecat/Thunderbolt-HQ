@@ -18,7 +18,7 @@ function sortieFields() {
     speed: int(1),
     alt: str("med"),
     breakEv: nint(),
-    lock: str(),
+    lock: str(), lockUuid: str(),
     markers: new f.SchemaField({
       grit: bool(), gritSkill: str(), structure: bool(), sys: str(), doom: bool(), lastRound: str()
     })
@@ -179,10 +179,13 @@ export class WeaponData extends foundry.abstract.TypeDataModel {
       key: str(), group: str(), kind: str("book"), target: str("air"),
       ammo: new f.SchemaField({ value: nint(4), max: nint(4) }),
       dmg: str("5"), aa: nint(), ag: nint(), aim: nint(), dep: nint(),
-      fx: str()
+      fx: str(),
+      range: nint()   // null: по ключу из TB.weaponRange или как обычная ракета
     };
   }
   get unlimited() { return this.ammo.max === null; }
+  /** Дальность в зонах: 0 своя, 1 соседние, 2 обычная ракета, 99 вся зона операции. */
+  get reach() { return this.range ?? TB.weaponRange[this.key] ?? (this.target === "gun" ? TB.range.guns : TB.range.missile); }
 }
 
 export class TriggerData extends foundry.abstract.TypeDataModel {

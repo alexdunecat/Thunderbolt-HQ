@@ -1,5 +1,5 @@
 /* Импорт миссии из Планшета AWACS (кнопка «JSON» в планшете): сцена с клетками местности, токены NPC и журнал брифинга. */
-import { SYS_PATH, TB } from "../config.mjs";
+import { SYSTEM_ID, SYS_PATH, TB } from "../config.mjs";
 import { npcActor } from "../data/catalog-docs.mjs";
 import { esc } from "../utils.mjs";
 
@@ -50,7 +50,14 @@ export async function importMission(input) {
   const S = 200;
 
   const base = terrain.get(m.base) ?? terrain.get("steppe");
+  // погода по клеткам: бросок пилота в такой клетке учитывает её сам
+  const weatherCells = {};
+  for (const [k, h] of Object.entries(m.hexes ?? {})) {
+    const ids = (h.fx ?? []).filter(id => TB.weather[id]);
+    if (ids.length) weatherCells[k] = ids;
+  }
   const scene = await Scene.create({
+    flags: { [SYSTEM_ID]: { weatherCells, weather: [] } },
     name: title, width: m.cols * S, height: m.rows * S, padding: 0, backgroundColor: base?.color ?? "#999999",
     grid: { type: CONST.GRID_TYPES.SQUARE, size: S, distance: 1, units: "", color: "#000000", alpha: 0.35 },
     tokenVision: false, fog: { exploration: false }, navigation: true

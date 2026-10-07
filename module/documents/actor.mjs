@@ -76,17 +76,22 @@ export class TBActor extends Actor {
     return c?.started ? `${c.id}:${c.round}` : "";
   }
 
-  /** Нанести урон с учётом меток: не больше одной метки за раунд, лишний урон сгорает. */
-  async applyDamage(amount, { source } = {}) {
+  /**
+   * Нанести урон с учётом меток: не больше одной метки за раунд, лишний урон сгорает.
+   * roundKey: раунд, к которому относится урон (залп считается после смены раунда); sourceUuid: кому засчитать сбитого.
+   */
+  async applyDamage(amount, { source, sourceUuid, roundKey } = {}) {
     amount = Number(amount) || 0;
     if (amount <= 0) return;
     const s = this.system;
-    if (this.type === "npc" && s.kind === "ship") return this.#damageShip(amount);
+    const opts = { sourceUuid, roundKey };
+    if (this.type === "npc" && s.kind === "ship") return this.#damageShip(amount, opts);
     if (this.type === "npc" && s.kind === "ground") {
       const hp = s.hp.value - amount;
       await this.update({ "system.hp.value": Math.max(0, hp) });
       if (hp <= 0) {
         await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
+        await this.#creditKill(sourceUuid);
         return this.#say(`<b>${esc(this.name)}</b> уничтожена.`);
       }
       return this.#say(`<b>${esc(this.name)}</b>: −${amount} HP, осталось ${hp}.`);
@@ -97,7 +102,7 @@ export class TBActor extends Actor {
       await this.update({ "system.hp.value": hp });
       return this.#say(`<b>${esc(this.name)}</b>: −${amount} HP, осталось ${hp} из ${s.hp.max}.`);
     }
-    const key = this.roundKey;
+    const key = roundKey ?? this.roundKey;
     if (key && s.markers.lastRound === key) {
       await this.update({ "system.hp.value": 1 });
       return this.#say(`<b>${esc(this.name)}</b>: HP до нуля, но метку в этом раунде уже ставили. Лишний урон сгорает, HP 1.`);
@@ -105,7 +110,7 @@ export class TBActor extends Actor {
     const full = this.type === "pilot" || this.system.fullMarkers;
     if (!full) {
       await this.update({ "system.hp.value": 0 });
-      return this.markDoom("одна метка у конскриптов и дуэлянтов");
+      return this.markDoom("одна метка у конскриптов и дуэлянтов", opts);
     }
     const choice = await this.#chooseMarker();
     const upd = { "system.hp.value": s.hp.max, "system.markers.lastRound": key };
@@ -113,7 +118,7 @@ export class TBActor extends Actor {
       await this.update(upd);
       return this.#say(`<b>${esc(this.name)}</b>: HP до нуля. Метку выберите на листе, HP восстановлен до ${s.hp.max}.`);
     }
-    if (choice.marker === "doom") { await this.update(upd); return this.markDoom(); }
+    if (choice.marker === "doom") { await this.update(upd); return this.markDoom("", opts); }
     if (choice.marker === "grit") Object.assign(upd, { "system.markers.grit": true, "system.markers.gritSkill": choice.skill });
     if (choice.marker === "structure") Object.assign(upd, { "system.markers.structure": true, "system.markers.sys": choice.sys });
     await this.update(upd);
@@ -122,10 +127,11 @@ export class TBActor extends Actor {
     return this.#say(`<b>${esc(this.name)}</b> получает метку ${what}. HP восстановлен до ${s.hp.max}.${this.system.markerCount >= 2 ? " После двух меток пора уходить из боя." : ""}`);
   }
 
-  async markDoom(reason) {
-    await this.update({ "system.markers.doom": true, "system.markers.lastRound": this.roundKey });
+  async markDoom(reason, { sourceUuid, roundKey } = {}) {
+    await this.update({ "system.markers.doom": true, "system.markers.lastRound": roundKey ?? this.roundKey });
     if (this.type === "npc" && !this.system.fullMarkers)
       await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
+    if (this.type === "npc") await this.#creditKill(sourceUuid);
     const pilot = this.type === "pilot";
     return this.#say(`<b>${esc(this.name)}</b>: метка <b>Doom</b>${reason ? ` (${esc(reason)})` : ""}. ${pilot
       ? "Катапультироваться или последние слова. Если пилот погибнет, стол выбирает: «Победа любой ценой» или «Достойное отступление»."
@@ -145,7 +151,17 @@ export class TBActor extends Actor {
       .then(d => (d?.marker ? d : null));
   }
 
-  async #damageShip(amount) {
+  /** Засчитать сбитого или уничтоженного пилоту-стрелку (для итогов вылета). */
+  async #creditKill(sourceUuid) {
+    const shooter = sourceUuid ? R.resolveActor(sourceUuid) : null;
+    if (shooter?.type !== "pilot") return;
+    const kind = this.system.kind === "air" ? "air" : "ground";
+    const k = foundry.utils.deepClone(shooter.getFlag(SYSTEM_ID, "kills") ?? { air: 0, ground: 0 });
+    k[kind] = (k[kind] ?? 0) + 1;
+    await shooter.setFlag(SYSTEM_ID, "kills", k);
+  }
+
+  async #damageShip(amount, { sourceUuid } = {}) {
     const systems = foundry.utils.deepClone(this.system.systems);
     const alive = systems.map((y, i) => ({ y, i })).filter(o => o.y.value > 0);
     if (!alive.length) return this.#say(`${esc(this.name)}: все системы уже уничтожены.`);
@@ -158,6 +174,7 @@ export class TBActor extends Actor {
     const left = systems.filter(s => s.value > 0).length;
     if (!left) {
       await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
+      await this.#creditKill(sourceUuid);
       return this.#say(`<b>${esc(this.name)}</b>: уничтожена последняя система. Цель потоплена.`);
     }
     return this.#say(`<b>${esc(this.name)}</b>: «${esc(y.name)}» −${amount} HP${y.value ? `, осталось ${y.value}` : ", система уничтожена"}. Целых систем: ${left}.`);
@@ -175,7 +192,7 @@ export class TBActor extends Actor {
   async prepareSortie() {
     await this.withoutPoolSync(async () => {
       await this.update({
-        "system.speed": 1, "system.breakEv": null, "system.lock": "", "system.twist": false,
+        "system.speed": 1, "system.breakEv": null, "system.lock": "", "system.lockUuid": "", "system.twist": false,
         "system.markers": { grit: false, gritSkill: "", structure: false, sys: "", doom: false, lastRound: "" }
       });
       // после снятия меток и Поворота максимумы пересчитаны

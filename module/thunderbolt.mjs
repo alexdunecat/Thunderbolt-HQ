@@ -8,6 +8,9 @@ import { TBItemSheet } from "./sheets/item-sheet.mjs";
 import * as R from "./dice/rolls.mjs";
 import { openImportDialog, importMission } from "./apps/mission-import.mjs";
 import { TBMemoSheet } from "./apps/memo-sheet.mjs";
+import { openAwacs, refreshAwacs, sortieResults } from "./apps/awacs-panel.mjs";
+import { tokenOf, zoneDistance } from "./scene.mjs";
+import { esc } from "./utils.mjs";
 
 function applySkin(skin) {
   document.body.dataset.tbSkin = TB.skins[skin] ? skin : "shtab";
@@ -40,7 +43,7 @@ Hooks.once("init", () => {
     choices: TB.skins, default: "shtab", onChange: applySkin
   });
 
-  game.thunderbolt = { importMission, openImportDialog, rolls: R, TB };
+  game.thunderbolt = { importMission, openImportDialog, openAwacs, sortieResults, rolls: R, TB };
 });
 
 Hooks.once("ready", () => {
@@ -59,10 +62,52 @@ Hooks.on("renderChatMessage", (message, html) => R.decorateCard(message, html));
 
 /* Высота: поле листа и высота токена (1 = Low, 2 = Medium, 3 = High) держатся вместе. */
 Hooks.on("updateToken", (token, change, options, userId) => {
+  const moved = "x" in change || "y" in change || "elevation" in change;
+  if (moved && token.actor?.sheet?.rendered) token.actor.sheet.render(false);   // погода и защита в новой клетке
+  if (moved && game.users.activeGM?.isSelf) setTimeout(() => checkLocks(token.parent), 50);
   if (userId !== game.user.id || !("elevation" in change) || !token.actor) return;
   const alt = Object.entries(TB.altElevation).find(([, v]) => v === change.elevation)?.[0];
   if (alt && token.actor.system.alt !== alt) token.actor.update({ "system.alt": alt });
 });
+
+/** Захват срывается, если цель ушла дальше двух зон (кроме дальнобойного спецоружия). */
+async function checkLocks(scene) {
+  if (!canvas?.ready || scene !== canvas.scene) return;
+  for (const tok of canvas.tokens.placeables) {
+    const a = tok.actor, uuid = a?.system.lockUuid;
+    if (!uuid) continue;
+    const target = R.resolveActor(uuid);
+    const far = a.items.some(i => i.type === "weapon" && i.system.reach >= TB.range.operation && (i.system.unlimited || i.system.ammo.value > 0));
+    const dist = zoneDistance(tok, tokenOf(target));
+    if (far || dist === null || dist <= TB.range.lockHold) continue;
+    await a.update({ "system.lock": "", "system.lockUuid": "" });
+    await ChatMessage.create({
+      speaker: { alias: "AWACS" },
+      content: `<div class="tb-card tb-card-lock"><div class="tb-note"><b>${esc(a.name)}</b>: захват «${esc(target?.name ?? "цель")}» сорван, цель в ${dist} зонах.</div></div>`
+    });
+  }
+}
+
+/* Панель AWACS: кнопка на панели токенов и в разделе «Актёры» (только ведущему). */
+Hooks.on("getSceneControlButtons", controls => {
+  if (!game.user.isGM) return;
+  const tokens = controls.find(c => c.name === "token");
+  tokens?.tools.push({ name: "tb-awacs", title: "Панель AWACS", icon: "fas fa-satellite-dish", button: true, onClick: () => openAwacs() });
+});
+Hooks.on("renderActorDirectory", (app, html) => {
+  if (!game.user.isGM) return;
+  const root = html[0] ?? html;
+  const bar = root.querySelector(".header-actions");
+  if (!bar || bar.querySelector(".tb-awacs-open")) return;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "tb-awacs-open";
+  b.innerHTML = `<i class="fas fa-satellite-dish"></i> Панель AWACS`;
+  b.addEventListener("click", openAwacs);
+  bar.append(b);
+});
+for (const ev of ["updateActor", "createItem", "updateItem", "deleteItem", "createToken", "updateToken", "deleteToken",
+  "updateScene", "canvasReady", "updateCombat", "deleteCombat", "createChatMessage", "updateChatMessage"]) Hooks.on(ev, () => refreshAwacs());
 
 Hooks.on("updateActor", async (actor, change, options, userId) => {
   if (userId !== game.user.id) return;

@@ -1,6 +1,7 @@
 /* Листы пилота и NPC (ActorSheet v1, стабильный API Foundry v12). */
 import { SYSTEM_ID, SYS_PATH, TB } from "../config.mjs";
 import { esc } from "../utils.mjs";
+import { weatherAt, defenseWithWeather } from "../scene.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -51,6 +52,13 @@ class TBActorSheet extends ActorSheet {
     ctx.weapons = a.items.filter(i => i.type === "weapon").map(w => weaponView(w, s.ammoBonus?.[w.id] ?? 0));
     ctx.enrichedNotes = await TextEditor.enrichHTML(s.notes, { secrets: a.isOwner, relativeTo: a });
     ctx.isGM = game.user.isGM;
+    const w = weatherAt(a);
+    ctx.weather = w.list.map(d => ({ ico: d.ico, name: d.name, txt: d.txt }));
+    if (s.defense !== null && s.defense !== undefined) {
+      ctx.defenseNow = defenseWithWeather(a, w);
+      ctx.defenseWeather = ctx.defenseNow !== s.defense;
+    }
+    ctx.maxSpeedNow = (s.maxSpeed ?? 0) + w.spd;
     return ctx;
   }
 
@@ -72,14 +80,14 @@ class TBActorSheet extends ActorSheet {
         case "recover": return a.rollRecover();
         case "stall": return a.rollStall();
         case "sortie": return a.prepareSortie();
-        case "unlock": return a.update({ "system.lock": "" });
+        case "unlock": return a.update({ "system.lock": "", "system.lockUuid": "" });
         case "unbreak": return a.update({ "system.breakEv": null });
         case "doom": return a.markDoom();
       }
     });
     on("[data-speed]", d => {
       const v = this.actor.system.speed + Number(d.speed);
-      this.actor.update({ "system.speed": Math.min(this.actor.system.maxSpeed, v) });
+      this.actor.update({ "system.speed": Math.min(this.actor.system.maxSpeed + weatherAt(this.actor).spd, v) });
     });
     on("[data-step]", d => {
       const path = d.step, cur = foundry.utils.getProperty(this.actor, path) ?? 0;

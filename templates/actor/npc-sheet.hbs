@@ -27,8 +27,8 @@
           <div class="tb-dials">
             <div class="tb-dial"><span class="tb-dial-label">Speed</span>
               <div class="tb-dial-row"><a data-speed="-1">−</a><input type="number" name="system.speed" value="{{system.speed}}"><a data-speed="1">+</a></div>
-              <span class="tb-dial-sub">макс. {{system.maxSpeed}}</span></div>
-            <div class="tb-dial"><span class="tb-dial-label">Defense</span><div class="tb-dial-big">{{system.defense}}</div>
+              <span class="tb-dial-sub">макс. {{maxSpeedNow}}</span></div>
+            <div class="tb-dial"><span class="tb-dial-label">Defense</span><div class="tb-dial-big" {{#if defenseWeather}}title="с погодой"{{/if}}>{{defenseNow}}</div>
               <span class="tb-dial-sub">Evasion {{system.stats.ev}}{{#if system.breakEv}} · Break {{system.breakEv}} <a data-act="unbreak">×</a>{{/if}} + Speed</span></div>
             <div class="tb-dial"><span class="tb-dial-label">HP</span>
               <div class="tb-dial-row"><a data-step="system.hp.value" data-delta="-1">−</a><input type="number" name="system.hp.value" value="{{system.hp.value}}"><a data-step="system.hp.value" data-delta="1" data-max="{{system.hp.max}}">+</a></div>

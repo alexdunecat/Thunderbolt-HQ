@@ -1,6 +1,7 @@
 /* Броски и чат-карточки: проверки, ракеты, пушка, Break!, Strain, урон, сваливание. */
 import { SYSTEM_ID, TB } from "../config.mjs";
 import { esc } from "../utils.mjs";
+import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach } from "../scene.mjs";
 
 const sign = n => (n >= 0 ? "+" : "−") + Math.abs(n);
 
@@ -15,17 +16,31 @@ export function resolveActor(uuid) {
   return d?.actor ?? d ?? null;
 }
 
-/** Первая цель игрока на сцене: { actor, name, uuid, defense, kind } или null. */
+/** Первая цель игрока на сцене: { actor, token, name, uuid, defense, kind } или null. */
 export function currentTarget() {
   const t = game.user.targets.first();
   if (!t?.actor) return null;
-  return describeTarget(t.actor, t.name);
+  return describeTarget(t.actor, t.name, t);
 }
 
-export function describeTarget(actor, name) {
+/** Цель с защитой на текущий момент (Break!, Speed и погода в её клетке). У кораблей защиты нет: Occlusion систем. */
+export function describeTarget(actor, name, token = tokenOf(actor)) {
   const s = actor.system;
   const kind = actor.type === "pilot" ? "air" : s.kind;
-  return { actor, name: name ?? actor.name, uuid: actor.uuid, kind, defense: s.defense ?? null };
+  const weather = weatherAt(actor, token);
+  const defense = kind === "ship" ? null : defenseWithWeather(actor, weather);
+  return { actor, token, name: name ?? actor.name, uuid: actor.uuid, kind, defense, weather };
+}
+
+/** Ключ раунда текущего боя: по нему ракеты собираются в залп конца раунда. */
+function combatKey() {
+  const c = game.combat;
+  return c?.started ? `${c.id}:${c.round}` : "";
+}
+
+/** Погода у стреляющего: строки для карточки. */
+function weatherNotes(w) {
+  return w.list.map(d => `${d.ico} ${esc(d.name)}: ${esc(d.txt)}`);
 }
 
 /** Простой диалог-форма. Возвращает объект значений полей или null при отмене. */
@@ -90,6 +105,7 @@ export function computeCard(c) {
 }
 
 export function renderCard(card) {
+  if (card.type === "volley") return renderVolley(card);
   const c = computeCard(card);
   const rows = [];
   const parts = c.parts.map(([l, v]) => `<span class="tb-part">${esc(l)} ${sign(v)}</span>`).join(" ");
@@ -118,14 +134,17 @@ export function renderCard(card) {
   if (c.type === "recover" && c.success) rows.push(`<div class="tb-note">Вернуть <b>${c.regain}</b> Strain.</div>`);
 
   const btn = [];
-  if (c.rolled && c.strainable) btn.push(`<button type="button" data-tb-action="strain" class="tb-owner"><i class="fas fa-bolt"></i> +1 Strain</button>`);
+  if (c.rolled && c.strainable && !c.resolved) btn.push(`<button type="button" data-tb-action="strain" class="tb-owner"><i class="fas fa-bolt"></i> +1 Strain</button>`);
   if (c.type === "break" && !c.speedApplied) btn.push(`<button type="button" data-tb-action="break-speed" class="tb-owner">Speed −${c.speedDrop} после атак</button>`);
   if (c.type === "recover" && c.success && !c.applied) btn.push(`<button type="button" data-tb-action="recover" class="tb-owner">Вернуть ${c.regain} Strain</button>`);
   if (c.type === "stall" && !c.applied) {
     if (c.success) btn.push(`<button type="button" data-tb-action="stall-ok" class="tb-owner">Выровняться: Speed 1</button>`);
     else btn.push(`<button type="button" data-tb-action="stall-fail" class="tb-owner">${c.alt === "low" ? "Удар о землю: Doom" : "Потерять высоту"}</button>`);
   }
-  if (c.dmg && c.targetUuid && (c.success || c.dc === null || c.dc === undefined) && !c.dmgApplied)
+  const queued = c.delayed && c.combatKey && !c.resolved && !c.dmgApplied;
+  if (queued) rows.push(`<div class="tb-note tb-queued"><i class="fas fa-hourglass-half"></i> В очереди залпа конца раунда.</div>`);
+  if (c.resolved) rows.push(`<div class="tb-note">Учтена в залпе конца раунда.</div>`);
+  if (c.dmg && c.targetUuid && !queued && !c.resolved && (c.success || c.dc === null || c.dc === undefined) && !c.dmgApplied)
     btn.push(`<button type="button" data-tb-action="damage" class="tb-target-owner"><i class="fas fa-burst"></i> ${c.delayed ? "В конце раунда: " : ""}${c.dmg} урона по «${esc(c.targetName)}»</button>`);
   if (c.dmgApplied) rows.push(`<div class="tb-note">Урон нанесён.</div>`);
 
@@ -164,9 +183,11 @@ async function rollDice(actor, practiced) {
 
 function commonFields(actor, skill) {
   const pr = hasTrigger(actor, "practiced") && actor.type === "pilot";
+  const w = weatherAt(actor);
   return `
     <div class="form-group"><label>Модификатор</label><input type="number" name="mod" value="0"></div>
-    <div class="form-group"><label><input type="checkbox" name="storm"> Ураган: Complication на 1–2</label></div>
+    <div class="form-group"><label><input type="checkbox" name="storm" ${w.comp2 ? "checked" : ""}> Ураган: Complication на 1–2</label></div>
+    ${w.list.length ? `<p class="tb-hint">Погода: ${w.list.map(d => `${d.ico} ${esc(d.name)}`).join(", ")}</p>` : ""}
     ${pr ? `<div class="form-group"><label><input type="checkbox" name="practiced"> Отточенное мастерство: максимум без броска</label></div>` : ""}`;
 }
 
@@ -187,6 +208,7 @@ export async function rollCheck(actor, skill, { dc = TB.difficulty, label } = {}
   if (!data) return;
   const dice = await rollDice(actor, data.practiced);
   const parts = skillParts(actor, skill, sk.label);
+  if (skill === "push") parts.push(...weatherParts(weatherAt(actor), "push"));
   if (data.mod) parts.push(["мод.", data.mod]);
   const card = {
     type: "check", label: label ?? `Проверка ${sk.label} (${sk.en})`, rolled: true, d10: dice.d10, d4: dice.d4,
@@ -203,6 +225,7 @@ export async function rollRecover(actor) {
   if (!data) return;
   const dice = await rollDice(actor, data.practiced);
   const parts = skillParts(actor, "push", "Форсаж");
+  parts.push(...weatherParts(weatherAt(actor), "push"));
   if (data.mod) parts.push(["мод.", data.mod]);
   const card = {
     type: "recover", label: "Восстановление Strain", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: 7,
@@ -215,10 +238,11 @@ export async function rollRecover(actor) {
 /** Сваливание: Push против 7. */
 export async function rollStall(actor) {
   const dice = await rollDice(actor, false);
-  const parts = skillParts(actor, "push", "Форсаж");
+  const w = weatherAt(actor);
+  const parts = [...skillParts(actor, "push", "Форсаж"), ...weatherParts(w, "push")];
   const card = {
     type: "stall", label: "Сваливание: Push против 7", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: 7,
-    strainable: actor.type === "pilot" || actor.system.tier === "ace", alt: actor.system.alt, ...thresholds(actor, "push"),
+    strainable: actor.type === "pilot" || actor.system.tier === "ace", alt: actor.system.alt, ...thresholds(actor, "push", w.comp2),
     notes: ["Успех: Speed 1. Провал: минус уровень высоты и повтор на следующем ходу, на Low сразу Doom."]
   };
   return postCard(actor, card, dice.rolls);
@@ -272,14 +296,18 @@ function weaponOptions(actor, missile) {
   return opts;
 }
 
-/** Lock On!: отметить захват текущей цели. */
+/** Lock On!: захват цели в своей или соседней зоне (дальнобойное спецоружие захватывает в любой точке зоны операции). */
 export async function lockOn(actor) {
   const t = currentTarget();
   if (!t) return ui.notifications.warn("Сначала выберите цель (клавиша T над токеном).");
-  await actor.update({ "system.lock": t.name });
+  const longRange = actor.items.find(i => i.type === "weapon" && i.system.reach >= TB.range.operation && (i.system.unlimited || i.system.ammo.value > 0));
+  const { dist, problems } = reachProblems(actor, t, longRange ? TB.range.operation : TB.range.lockOn);
+  if (!(await confirmReach(problems, "Lock On!"))) return;
+  await actor.update({ "system.lock": t.name, "system.lockUuid": t.uuid });
+  const far = dist !== null && dist > TB.range.lockOn && longRange ? ` Захват для ${esc(longRange.name)}.` : "";
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
-    content: `<div class="tb-card tb-card-lock"><header class="tb-card-head"><span class="tb-card-who">${esc(actor.name)}</span><span class="tb-card-what">Lock On!</span></header><div class="tb-note">Захват: <b>${esc(t.name)}</b>. Дальность: своя зона и соседние; срывается дальше двух зон.</div></div>`
+    content: `<div class="tb-card tb-card-lock"><header class="tb-card-head"><span class="tb-card-who">${esc(actor.name)}</span><span class="tb-card-what">Lock On!</span></header><div class="tb-note">Захват: <b>${esc(t.name)}</b>${dist !== null ? `, ${dist} зон.` : "."}${far} Срывается, если цель уйдёт дальше двух зон.</div></div>`
   });
 }
 
@@ -307,6 +335,12 @@ export async function fireMissile(actor) {
   if (w && ws.target === "air" && !air) ui.notifications.warn(`${w.name} бьёт только по воздушным целям.`);
   if (w && ws.target === "ground" && air) ui.notifications.warn(`${w.name} бьёт только по наземным и морским целям.`);
   if (data.improved && blocked(actor, skill)) return;
+  const wx = weatherAt(actor);
+  if (t) {
+    const { problems } = reachProblems(actor, t, ws?.reach ?? TB.range.missile);
+    if (s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
+    if (!(await confirmReach(problems, "Fox Two!"))) return;
+  }
 
   const speed = s.speed ?? 0;
   const parts = [];
@@ -322,16 +356,20 @@ export async function fireMissile(actor) {
     parts.push([air ? "Air-Air" : "Air-Gnd", base ?? 0]);
     const m = air ? ws?.aa : ws?.ag;
     if (m) parts.push([`мод ${w.name}`, m]);
+    parts.push(...weatherParts(wx, air ? "aa" : "ag"));
   }
   if (speed) parts.push(["Speed", -speed]);
   if (data.mod) parts.push(["мод.", data.mod]);
 
   const dmg = w ? (parseInt(ws.dmg) || 0) : TB.missileDamage;
-  const notes = [];
+  const notes = weatherNotes(wx).filter(n => !data.improved || !/A-A/.test(n));
   if (w?.system.fx) notes.push(esc(w.system.fx));
   const hv = w?.system.key === "HVAA";
   const tBroken = t?.actor.system.broken === "ma";
-  notes.push(hv || tBroken ? "Попадает в начале хода цели." : "Ракета долетает в конце раунда. Каждая следующая ракета по той же цели: +1 к атаке самой точной или её урон в сумму.");
+  const key = combatKey();
+  notes.push(hv || tBroken ? "Попадает в начале хода цели."
+    : key ? "Ракета долетит в конце раунда: залп посчитается сам, с защитой цели на тот момент."
+      : "Ракета долетает в конце раунда. Каждая следующая ракета по той же цели: +1 к атаке самой точной или её урон в сумму.");
   if (t?.kind === "ship") notes.push("Корабль: сравните итог с Occlusion выбранной системы.");
 
   if (w && !ws.unlimited) await w.update({ "system.ammo.value": Math.max(0, (ws.ammo.value ?? 0) - 1) });
@@ -340,7 +378,8 @@ export async function fireMissile(actor) {
     type: "attack", attack: true, label: `Fox Two! ${w ? w.name : "стандартная ракета"}`, rolled: !!data.improved,
     d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: t && t.kind !== "ship" ? t.defense : null, vsLabel: "защиты",
     vsHint: t?.kind === "ship" ? "по Occlusion системы" : "", strainable: !!data.improved && (actor.type === "pilot" || actor.system.tier === "ace"),
-    practiced: !!data.practiced, dmg, delayed: !(hv || tBroken), targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes,
+    practiced: !!data.practiced, dmg, delayed: !(hv || tBroken), combatKey: hv || tBroken ? "" : key,
+    targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes,
     ...thresholds(actor, skill, data.storm)
   };
   return postCard(actor, card, dice.rolls);
@@ -358,6 +397,12 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
     ${pods.length ? `<div class="form-group"><label>Контейнер</label><select name="pod"><option value="">Бортовая пушка</option>${pods.join("")}</select></div>` : ""}
     ${commonFields(actor, "strafe")}`, { ok: "Огонь" });
   if (!data) return;
+  const podItem = data.pod ? actor.items.get(data.pod) : null;
+  if (t) {
+    const { problems } = reachProblems(actor, t, podItem?.system.reach ?? TB.range.guns);
+    if (podItem?.system.key === "PLSL" && weatherAt(actor).list.some(d => d.id === "clouds")) problems.push("Облачность: импульсный лазер не бьёт.");
+    if (!(await confirmReach(problems, "Guns, Guns, Guns!"))) return;
+  }
   const dice = await rollDice(actor, data.practiced);
   let strafe = null;
   let gun = s.gun ?? 0;
@@ -400,10 +445,76 @@ export async function fireSam(actor, sysIndex) {
   if (data.mod) parts.push(["мод.", data.mod]);
   const card = {
     type: "attack", attack: true, label, rolled: false, parts, strain: 0, dc: t?.defense ?? null, vsLabel: "защиты",
-    dmg: TB.missileDamage, delayed: true, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "",
-    notes: ["Ракета долетает в конце раунда."]
+    dmg: TB.missileDamage, delayed: true, combatKey: combatKey(), targetUuid: t?.uuid ?? null, targetName: t?.name ?? "",
+    notes: [combatKey() ? "Ракета долетит в конце раунда: залп посчитается сам." : "Ракета долетает в конце раунда."]
   };
   return postCard(actor, card);
+}
+
+/* ---------- залп конца раунда ---------- */
+
+/** Карточка залпа: по строке на цель и одна кнопка урона для ведущего. */
+function renderVolley(c) {
+  const rk = n => `${n} ${n % 10 === 1 && n % 100 !== 11 ? "ракета" : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? "ракеты" : "ракет"}`;
+  const rows = c.targets.map(r => {
+    if (r.ship) return `<div class="tb-volley-row"><b>${esc(r.name)}</b>: ${rk(r.count)}, лучшая ${r.best}. Корабль: сравните с Occlusion системы, урон кнопками на карточках пусков.</div>`;
+    if (r.missing) return `<div class="tb-volley-row muted"><b>${esc(r.name)}</b>: цели нет на сцене.</div>`;
+    const boost = r.boosts ? ` +${r.boosts} от остальных` : "";
+    const verdict = r.hit ? `<b class="ok">Попадание, ${r.dmg} урона</b>${r.added ? ` (сложен урон ${r.added + 1} ракет)` : ""}` : `<b class="fail">Промах</b>`;
+    return `<div class="tb-volley-row ${r.hit ? "hit" : "miss"}"><b>${esc(r.name)}</b>: ${rk(r.count)} (${esc(r.shooters)}). Лучшая ${r.best}${boost} против защиты ${r.defense} → ${verdict}</div>`;
+  }).join("");
+  const hits = c.targets.filter(r => r.hit);
+  const btn = hits.length && !c.applied
+    ? `<div class="tb-actions"><button type="button" data-tb-action="volley-damage" class="tb-gm"><i class="fas fa-burst"></i> Нанести урон: ${hits.map(r => `${esc(r.name)} ${r.dmg}`).join(", ")}</button></div>` : "";
+  return `<div class="tb-card tb-card-volley">
+    <header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">Конец раунда ${c.round}: залп</span></header>
+    ${rows || `<div class="tb-note">Ракет в воздухе не было.</div>`}
+    ${c.applied ? `<div class="tb-note">Урон нанесён.</div>` : ""}${btn}
+  </div>`;
+}
+
+/**
+ * Конец раунда: все ракеты этого раунда долетают. По каждой цели берётся самая точная ракета,
+ * остальные дают +1 к ней, пока не хватит до защиты, а лишние добавляют свой урон.
+ */
+export async function resolveVolley(combat) {
+  const key = `${combat.id}:${combat.round}`;
+  const groups = new Map();
+  for (const m of game.messages.contents) {
+    const c = m.getFlag(SYSTEM_ID, "card");
+    if (!c?.delayed || c.combatKey !== key || c.dmgApplied || c.resolved || !c.targetUuid) continue;
+    if (!groups.has(c.targetUuid)) groups.set(c.targetUuid, []);
+    groups.get(c.targetUuid).push({ m, c: computeCard(c) });
+  }
+  if (!groups.size) return null;
+  const targets = [];
+  const done = [];
+  for (const [uuid, list] of groups) {
+    list.sort((a, b) => b.c.total - a.c.total);
+    const best = list[0].c;
+    const shooters = [...new Set(list.map(x => x.c.actorName))].join(", ");
+    const actor = resolveActor(uuid);
+    if (!actor) { targets.push({ uuid, name: best.targetName, missing: true }); continue; }
+    const info = describeTarget(actor, best.targetName);
+    if (info.kind === "ship") { targets.push({ uuid, name: info.name, ship: true, count: list.length, best: best.total }); continue; }
+    const extra = list.slice(1).map(x => x.c).sort((a, b) => (b.dmg ?? 0) - (a.dmg ?? 0));
+    const need = Math.max(0, info.defense - best.total);
+    const hit = need <= extra.length;
+    const adders = hit ? extra.slice(0, extra.length - need) : [];
+    targets.push({
+      uuid, name: info.name, count: list.length, shooters, best: best.total, defense: info.defense, hit,
+      boosts: hit ? need : 0, added: adders.length, dmg: (best.dmg ?? 0) + adders.reduce((s, x) => s + (x.dmg ?? 0), 0),
+      sourceUuid: best.actorUuid, source: best.actorName
+    });
+    done.push(...list);
+  }
+  for (const { m } of done) {
+    const c = foundry.utils.deepClone(m.getFlag(SYSTEM_ID, "card"));
+    c.resolved = true;
+    await m.update({ content: renderCard(c), [`flags.${SYSTEM_ID}.card`]: c });
+  }
+  const card = { type: "volley", round: combat.round, roundKey: key, targets, applied: false };
+  return ChatMessage.create({ speaker: { alias: "AWACS" }, content: renderVolley(card), flags: { [SYSTEM_ID]: { card } } });
 }
 
 /* ---------- кнопки на карточках ---------- */
@@ -458,7 +569,17 @@ export async function onCardAction(message, action, button) {
       const c = computeCard(card);
       card.dmgApplied = true;
       await save();
-      return target.applyDamage(c.dmg ?? card.dmg, { source: card.actorName });
+      return target.applyDamage(c.dmg ?? card.dmg, { source: card.actorName, sourceUuid: card.actorUuid });
+    }
+    case "volley-damage": {
+      if (!game.user.isGM || card.applied) return;
+      card.applied = true;
+      await save();
+      for (const r of card.targets.filter(x => x.hit)) {
+        const target = resolveActor(r.uuid);
+        if (target) await target.applyDamage(r.dmg, { source: r.source, sourceUuid: r.sourceUuid, roundKey: card.roundKey });
+      }
+      return;
     }
   }
 }
@@ -472,6 +593,7 @@ export function decorateCard(message, html) {
   const target = card.targetUuid ? resolveActor(card.targetUuid) : null;
   const canEdit = message.isAuthor || game.user.isGM;
   root.querySelectorAll(".tb-owner").forEach(b => { if (!(actor?.isOwner && canEdit)) b.remove(); });
+  root.querySelectorAll(".tb-gm").forEach(b => { if (!game.user.isGM) b.remove(); });
   root.querySelectorAll(".tb-target-owner").forEach(b => { if (!(target?.isOwner && (canEdit || game.user.isGM))) b.remove(); });
   root.querySelectorAll("[data-tb-action]").forEach(b => b.addEventListener("click", ev => {
     ev.preventDefault();

@@ -1,6 +1,7 @@
 /* Карточки самолёта, спецоружия и триггера. */
 import { SYS_PATH, TB } from "../config.mjs";
 import { describeChanges } from "./actor-sheets.mjs";
+import { rangeLabel } from "../scene.mjs";
 
 export class TBItemSheet extends ItemSheet {
   static get defaultOptions() {
@@ -26,6 +27,9 @@ export class TBItemSheet extends ItemSheet {
       ctx.targetOptions = TB.weaponTargets;
       ctx.kindOptions = TB.weaponKinds;
       ctx.unlimited = s.ammo.max === null;
+      ctx.rangeOptions = TB.rangeOptions;
+      ctx.rangeValue = s.range === null ? "" : String(s.range);
+      ctx.reachLabel = rangeLabel(s.reach);
     }
     if (this.item.type === "trigger") {
       ctx.archOptions = Object.fromEntries(Object.entries(TB.archetypes).map(([k, v]) => [k, v.label]));
