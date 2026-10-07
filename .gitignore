@@ -2,3 +2,5 @@ node_modules/
 packs-src/
 *.zip
 !dist/*.zip
+packs/*/LOCK
+package-lock.json
