@@ -226,9 +226,11 @@ export class PilotSheet extends TBActorSheet {
       const p = planes[planes.length - 1];
       const upd = { "system.hp.value": a.system.hp.max, "system.strain.value": a.system.strain.max,
         "system.speed": Math.min(a.system.speed, a.system.maxSpeed), [`flags.${SYSTEM_ID}.pools`]: a.poolsFlag() };
-      const defaultImg = !a.prototypeToken.texture.src || a.prototypeToken.texture.src.includes("mystery-man");
-      if (p.img && defaultImg) upd["prototypeToken.texture.src"] = p.img;
+      // своя картинка игрока остаётся; заглушка или силуэт системы меняется на силуэт нового самолёта
+      const replaceable = src => !src || src.includes("mystery-man") || src.includes("/assets/planes/");
+      if (p.img && replaceable(a.prototypeToken.texture.src)) upd["prototypeToken.texture.src"] = p.img;
       await a.update(upd);
+      if (p.img) for (const t of a.getActiveTokens(false, true)) if (replaceable(t.texture.src) && t.texture.src !== p.img) await t.update({ "texture.src": p.img });
       return created;
     });
   }
