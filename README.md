@@ -3,8 +3,12 @@
 Система для Foundry VTT v12 под Thunderbolt: An Aerial Knight RPG v1.3 с правилами нашего стола.
 
 ## Установка
-Настройка → Системы → Установить систему → в поле «URL манифеста» вставить ссылку на `system.json` из последнего релиза репозитория:
-`https://github.com/alexdunecat/Thunderbolt-HQ/releases/latest/download/system.json`.
+Настройка → Системы → Установить систему → в поле «URL манифеста» вставить:
+`https://raw.githubusercontent.com/alexdunecat/Thunderbolt-HQ/main/system.json`
+
+Если сервер не достаёт до GitHub, запасной манифест через jsDelivr:
+`https://cdn.jsdelivr.net/gh/alexdunecat/Thunderbolt-HQ@main/dist/system-jsdelivr.json`
+
 Обновления приходят через кнопку «Обновить» там же.
 
 ## Что внутри
@@ -24,4 +28,5 @@
 ```
 npm install
 npm run build
+./tools/make-dist.sh   # архив dist/thunderbolt-shtab-<версия>.zip
 ```

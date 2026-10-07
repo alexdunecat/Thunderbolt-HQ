@@ -127,6 +127,6 @@
   "secondaryTokenAttribute": "strain",
   "socket": false,
   "url": "https://github.com/alexdunecat/Thunderbolt-HQ",
-  "manifest": "https://raw.githubusercontent.com/alexdunecat/Thunderbolt-HQ/main/system.json",
-  "download": "https://raw.githubusercontent.com/alexdunecat/Thunderbolt-HQ/main/dist/thunderbolt-shtab-0.1.1.zip"
+  "manifest": "https://cdn.jsdelivr.net/gh/alexdunecat/Thunderbolt-HQ@main/dist/system-jsdelivr.json",
+  "download": "https://cdn.jsdelivr.net/gh/alexdunecat/Thunderbolt-HQ@main/dist/thunderbolt-shtab-0.1.1.zip"
 }

@@ -1,5 +1,5 @@
-# Выпуск версии: поднять "version" в system.json и отправить в main.
-# Если релиза v<version> ещё нет, workflow подставляет ссылки manifest/download, собирает zip и создаёт релиз с тегом.
+# Выпуск версии: поднять "version" в system.json, собрать архив (tools/make-dist.sh) и отправить в main.
+# Ссылки manifest/download в system.json ведут на raw.githubusercontent.com (без переадресаций), релиз с тегом дублирует архив.
 name: Release
 on:
   push:
@@ -20,19 +20,11 @@ jobs:
         run: |
           VERSION=$(jq -r .version system.json)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          test -f "dist/thunderbolt-shtab-$VERSION.zip" || { echo "Нет dist/thunderbolt-shtab-$VERSION.zip: запустите tools/make-dist.sh"; exit 1; }
           if gh release view "v$VERSION" >/dev/null 2>&1; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
-      - name: Ссылки в system.json
+      - name: Архив для релиза
         if: steps.v.outputs.exists == 'false'
-        run: |
-          TAG="v${{ steps.v.outputs.version }}"
-          REPO="https://github.com/${GITHUB_REPOSITORY}"
-          jq --arg url "$REPO" \
-             --arg man "$REPO/releases/latest/download/system.json" \
-             --arg dl "$REPO/releases/download/$TAG/thunderbolt-shtab.zip" \
-             '.url=$url | .manifest=$man | .download=$dl' system.json > system.tmp && mv system.tmp system.json
-      - name: Архив системы
-        if: steps.v.outputs.exists == 'false'
-        run: zip -r thunderbolt-shtab.zip system.json module templates styles lang data assets packs README.md -x "*/LOCK"
+        run: cp "dist/thunderbolt-shtab-${{ steps.v.outputs.version }}.zip" thunderbolt-shtab.zip
       - uses: softprops/action-gh-release@v2
         if: steps.v.outputs.exists == 'false'
         with:
