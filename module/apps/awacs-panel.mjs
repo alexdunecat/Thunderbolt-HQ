@@ -3,6 +3,7 @@ import { SYSTEM_ID, SYS_PATH, TB } from "../config.mjs";
 import { esc } from "../utils.mjs";
 import { formDialog } from "../dice/rolls.mjs";
 import { tokenOf, weatherAt, defenseWithWeather, altOf } from "../scene.mjs";
+import { arrangeSceneTokens } from "../tokens.mjs";
 
 let panel = null;
 let timer = null;
@@ -104,6 +105,7 @@ export class AwacsPanel extends Application {
       for (const a of pilots) await a.prepareSortie();
     });
     on("[data-results]", () => sortieResults());
+    on("[data-arrange]", () => arrangeSceneTokens());
   }
 }
 

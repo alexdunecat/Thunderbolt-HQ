@@ -12,6 +12,7 @@ import { openAwacs, refreshAwacs, sortieResults } from "./apps/awacs-panel.mjs";
 import { tokenOf, zoneDistance } from "./scene.mjs";
 import { esc } from "./utils.mjs";
 import { initSocket, checkAdjacency, leadership, formUp } from "./squad.mjs";
+import { registerTokenSettings, arrangeSceneTokens } from "./tokens.mjs";
 
 function applySkin(skin) {
   document.body.dataset.tbSkin = TB.skins[skin] ? skin : "shtab";
@@ -43,8 +44,9 @@ Hooks.once("init", () => {
     name: "TB.SkinName", hint: "TB.SkinHint", scope: "client", config: true, type: String,
     choices: TB.skins, default: "shtab", onChange: applySkin
   });
+  registerTokenSettings();
 
-  game.thunderbolt = { importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, rolls: R, TB };
+  game.thunderbolt = { importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens, rolls: R, TB };
 });
 
 Hooks.once("ready", () => {
