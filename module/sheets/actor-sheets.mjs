@@ -316,6 +316,16 @@ export class NpcSheet extends TBActorSheet {
     super.activateListeners(html);
     if (!this.isEditable) return;
     const el = html[0];
+    // сторона и приоритет пишутся сами по себе, не всей формой: иначе любой отказ в остальных полях листа их терял
+    const own = (sel, key, read) => el.querySelector(sel)?.addEventListener("change", ev => {
+      ev.stopPropagation();
+      const value = read(ev.currentTarget);
+      this.actor.update({ [key]: value }).then(r => {
+        if (!r && foundry.utils.getProperty(this.actor, key) !== value) ui.notifications.warn(`${this.actor.name}: изменение не сохранилось.`);
+      }).catch(err => { console.error(err); ui.notifications.error(`${this.actor.name}: ${err.message}`); });
+    });
+    own("[data-tb-side]", "system.side", n => n.value);
+    own("[data-tb-priority]", "system.priority", n => n.checked);
     el.querySelectorAll("[data-sys-field]").forEach(n => n.addEventListener("change", () => {
       const list = foundry.utils.deepClone(this.actor.system.systems);
       const i = Number(n.dataset.sysIndex), k = n.dataset.sysField;

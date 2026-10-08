@@ -150,8 +150,8 @@
 
     <div class="tab" data-group="primary" data-tab="notes">
       <div class="tb-side-row">
-        <label>Сторона <select name="system.side">{{selectOptions sides selected=system.side}}</select></label>
-        <label class="tb-check"><input type="checkbox" name="system.priority" {{checked system.priority}}> Приоритетная цель</label>
+        <label>Сторона <select data-tb-side>{{selectOptions sides selected=system.side}}</select></label>
+        <label class="tb-check"><input type="checkbox" data-tb-priority {{checked system.priority}}> Приоритетная цель</label>
       </div>
       <p class="tb-hint">По противнику и нейтралу можно стрелять, по союзнику нет. Приоритетная цель первой предлагается в окне пушки.</p>
       {{editor enrichedNotes target="system.notes" button=true editable=editable engine="prosemirror"}}
