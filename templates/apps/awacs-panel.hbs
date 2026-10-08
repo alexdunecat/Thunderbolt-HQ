@@ -31,13 +31,14 @@
     </table>
     {{else}}<p class="tb-empty">Пилотов пока нет.</p>{{/if}}
 
-    <h3>Цели на сцене</h3>
-    {{#if targets.length}}
-    <table class="tb-awacs-table">
-      <tr><th>Цель</th><th>Тип</th><th>HP</th><th>Def</th><th>Высота</th><th>Метки</th></tr>
-      {{#each targets as |t|}}
+    {{#each groups as |g|}}
+    <h3 class="tb-side-{{g.cls}}">{{g.title}}</h3>
+    <table class="tb-awacs-table tb-side-{{g.cls}}">
+      <tr><th>{{#if g.goal}}Цель{{else}}Машина{{/if}}</th>{{#if g.goal}}<th>Задача</th>{{/if}}<th>Тип</th><th>HP</th><th>Def</th><th>Высота</th><th>Метки</th></tr>
+      {{#each g.rows as |t|}}
       <tr class="{{#if t.down}}down{{/if}} {{#if t.hidden}}off{{/if}}">
-        <td><a data-target="{{t.id}}" title="Показать на сцене"><b>{{t.name}}</b></a> <a data-target="{{t.id}}" data-sheet="1" title="Лист"><i class="fas fa-id-card"></i></a></td>
+        <td><span class="tb-side-dot {{t.side}}"></span><a data-target="{{t.id}}" title="Показать на сцене"><b>{{t.name}}</b></a> <a data-target="{{t.id}}" data-sheet="1" title="Лист"><i class="fas fa-id-card"></i></a></td>
+        {{#if g.goal}}<td><select data-task="{{t.id}}">{{#each t.taskOptions as |o|}}<option value="{{o.k}}" {{#if o.sel}}selected{{/if}}>{{o.v}}</option>{{/each}}</select></td>{{/if}}
         <td><small>{{t.kind}}{{#if t.tier}} · {{t.tier}}{{/if}}</small></td>
         <td class="tb-num">{{t.hp.value}}/{{t.hp.max}}</td>
         <td class="tb-num">{{t.defense}}</td>
@@ -46,7 +47,7 @@
       </tr>
       {{/each}}
     </table>
-    {{else}}<p class="tb-empty">На сцене нет NPC.</p>{{/if}}
+    {{else}}<h3>Цели и машины на сцене</h3><p class="tb-empty">На сцене нет NPC.</p>{{/each}}
 
     <h3>Эскадрильи дуэлянтов <button type="button" class="tb-inline-btn" data-squad-form title="Выделите на сцене токены NPC"><i class="fas fa-users"></i> Собрать из выделенных</button></h3>
     {{#if squads.length}}

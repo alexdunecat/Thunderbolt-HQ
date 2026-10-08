@@ -414,3 +414,14 @@ body[data-tb-skin="brief"] .thunderbolt .tb-actions-bar button, body[data-tb-ski
 body[data-tb-skin="brief"] .thunderbolt .tb-actions-bar button:hover, body[data-tb-skin="brief"] .thunderbolt button.tb-wide:hover, body[data-tb-skin="brief"] .tb-awacs button:hover {
   background: var(--tb-accent); border-color: var(--tb-accent); color: var(--tb-accent-ink);
 }
+
+/* панель AWACS: цели и машины по сторонам (цвета как у токенов) */
+.tb-side-dot { display: inline-block; width: 9px; height: 9px; margin-right: 6px; border: 1.5px solid currentColor; vertical-align: 1px; }
+.tb-side-dot.enemy { color: #ff6b4a; background: rgba(255, 107, 74, .25); }
+.tb-side-dot.ally { color: #6cc4ff; background: rgba(108, 196, 255, .25); }
+.tb-side-dot.neutral { color: #f2c14e; background: rgba(242, 193, 78, .25); }
+h3.tb-side-enemy { color: #ff6b4a !important; }
+h3.tb-side-ally { color: #6cc4ff !important; }
+h3.tb-side-neutral { color: #f2c14e !important; }
+.tb-awacs-table select[data-task] { min-width: 9em; }
+.tb-awacs-table.tb-side-goal th:first-child, .tb-awacs-table.tb-side-enemy th:first-child, .tb-awacs-table.tb-side-ally th:first-child, .tb-awacs-table.tb-side-neutral th:first-child { width: 34%; }

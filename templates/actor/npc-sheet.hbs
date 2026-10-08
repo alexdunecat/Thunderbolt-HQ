@@ -152,8 +152,9 @@
       <div class="tb-side-row">
         <label>Сторона <select data-tb-side>{{selectOptions sides selected=system.side}}</select></label>
         <label class="tb-check"><input type="checkbox" data-tb-priority {{checked system.priority}}> Приоритетная цель</label>
+        {{#if system.priority}}<label>Задача <select data-tb-task>{{selectOptions taskOptions selected=system.task}}</select></label>{{/if}}
       </div>
-      <p class="tb-hint">По противнику и нейтралу можно стрелять, по союзнику нет. Приоритетная цель первой предлагается в окне пушки.</p>
+      <p class="tb-hint">По противнику и нейтралу можно стрелять, по союзнику нет. Приоритетная цель первой предлагается в окне пушки, стоит в панели AWACS в разделе «Цели» с задачей и попадает с итогом в отчёт о бое.</p>
       {{editor enrichedNotes target="system.notes" button=true editable=editable engine="prosemirror"}}
     </div>
   </section>

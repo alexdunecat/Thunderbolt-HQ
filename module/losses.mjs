@@ -2,7 +2,7 @@
    пушкой — до конца текущего, ракетой из залпа — до конца следующего (залп считается уже на смене раунда).
    Отступившие (статус «Отступил из боя» на токене) уходят с поля в конце раунда. Всё это записывается в сводку боя,
    а после End combat в чат приходит отчёт с кнопкой «Итоги в личные дела». */
-import { SYSTEM_ID, SYS_PATH } from "./config.mjs";
+import { SYSTEM_ID, SYS_PATH, TB } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
 import { sideOf } from "./scene.mjs";
 
@@ -54,7 +54,8 @@ function lossOf(t, how) {
   const a = t.actor, d = downOf(a);
   const shooter = d?.byUuid ? resolveActor(d.byUuid) : null;
   return { name: t.name, side: sideOf(a), kind: kindOf(a), pilot: a.type === "pilot", how, by: d?.by ?? "", round: d?.round ?? null,
-    byPilot: shooter?.type === "pilot" ? shooter.name : "" };
+    byPilot: shooter?.type === "pilot" ? shooter.name : "",
+    task: a.type === "npc" && a.system.priority ? a.system.task || "" : null };
 }
 
 /** Токены сцены боя, которым пора уйти: сбитые в этом бою не позже раунда upTo и отступившие. */
@@ -97,6 +98,26 @@ export async function clearLosses(combat, upTo = Infinity, { keepLog = false } =
 /** Строка о потере для карточки конца раунда. */
 export const lossLine = r => `${esc(r.name)}: ${r.how === "retreat" ? "отступил" : r.pilot ? "сбит, катапульта" : r.kind === "ship" ? "потоплен" : r.kind === "ground" ? "уничтожен" : "сбит"}${r.by ? ` (${esc(r.by)})` : ""}`;
 
+/* Задачи по приоритетным целям: «Уничтожить», «Перехватить», «Вывести из строя» выполнены, если цель сбита;
+   «Защитить» и «Сопроводить» — если цела (ушла с поля тоже цела). Остальное засчитывает ведущий, отметки нет. */
+const KILL = ["destroy", "intercept", "disable"], KEEP = ["protect", "escort"];
+export function targetGoals(scene, losses = []) {
+  const rows = new Map();
+  for (const r of losses) if (r.task !== null && r.task !== undefined) rows.set(r.name, { name: r.name, task: r.task, lost: r.how === "down", how: r.how });
+  for (const t of scene?.tokens ?? []) {
+    const a = t.actor;
+    if (a?.type !== "npc" || !a.system.priority || rows.has(t.name)) continue;
+    const down = a.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) || a.system.markers?.doom;
+    rows.set(t.name, { name: t.name, task: a.system.task, lost: !!down, how: down ? "down" : "" });
+  }
+  return [...rows.values()].map(g => {
+    const verb = TB.tasks[g.task] || "Цель";
+    const state = g.how === "retreat" ? "ушла с поля" : g.lost ? "сбита" : "цела";
+    const done = KILL.includes(g.task) ? g.lost : KEEP.includes(g.task) ? !g.lost : null;
+    return `${done === true ? "✔ " : done === false ? "✘ " : ""}${esc(verb)}: ${esc(g.name)} (${state})`;
+  });
+}
+
 /** Отчёт после End combat: поражённые, отступившие и уцелевшие цели, потери своих, сбитые по пилотам. */
 async function battleReport(combat) {
   const scene = combat.scene ?? game.scenes.viewed;
@@ -120,6 +141,7 @@ async function battleReport(combat) {
     score.set(r.byPilot, k);
   }
   const pilots = [...score].sort(([a], [b]) => a.localeCompare(b, "ru")).map(([n, k]) => `${esc(n)}: в воздухе ${k.air}, на земле и на море ${k.ground}`);
+  const goals = targetGoals(scene, losses);
   const block = (title, rows, empty = "—") => `<h4>${title}</h4>${rows.length ? `<ul>${rows.map(x => `<li>${x}</li>`).join("")}</ul>` : `<p class="tb-muted">${empty}</p>`}`;
   const date = new Date().toLocaleDateString("ru-RU");
   const html = `<div class="tb-card tb-card-battle">
@@ -130,6 +152,7 @@ async function battleReport(combat) {
     ${block("Не поражены", survivors.map(s => `${esc(s.name)}${s.hp ? ` (HP ${s.hp})` : ""}`))}
     ${block("Потери авиакрыла и союзников", ours.map(lossLine), "Потерь нет.")}
     ${block("Счёт пилотов за бой", pilots, "Пилоты никого не сбили.")}
+    ${goals.length ? block("Цели", goals) : ""}
     ${objectives.length ? block("Задачи операции", objectives.map(esc)) : ""}
     <div class="tb-actions"><button type="button" data-tb-action="battle-results" class="tb-gm"><i class="fas fa-file-signature"></i> Итоги в личные дела</button></div>
   </div>`;

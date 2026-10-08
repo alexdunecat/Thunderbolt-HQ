@@ -309,6 +309,7 @@ export class NpcSheet extends TBActorSheet {
     ctx.shipSam = s.kind === "ship" && s.systems.some(y => y.ga !== null && y.ga !== undefined);
     ctx.canGun = ctx.isAir || (ctx.isGround && s.ground.gun !== null);
     ctx.gunLabel = gunVs(this.actor) === "air" ? "Зенитный огонь" : "Огонь по земле";
+    ctx.taskOptions = TB.tasks;
     return ctx;
   }
 
@@ -326,6 +327,7 @@ export class NpcSheet extends TBActorSheet {
     });
     own("[data-tb-side]", "system.side", n => n.value);
     own("[data-tb-priority]", "system.priority", n => n.checked);
+    own("[data-tb-task]", "system.task", n => n.value);
     el.querySelectorAll("[data-sys-field]").forEach(n => n.addEventListener("change", () => {
       const list = foundry.utils.deepClone(this.actor.system.systems);
       const i = Number(n.dataset.sysIndex), k = n.dataset.sysField;

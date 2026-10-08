@@ -2,9 +2,10 @@
 import { SYSTEM_ID, SYS_PATH, TB } from "../config.mjs";
 import { esc } from "../utils.mjs";
 import { formDialog } from "../dice/rolls.mjs";
-import { tokenOf, weatherAt, defenseWithWeather, altOf } from "../scene.mjs";
+import { tokenOf, weatherAt, defenseWithWeather, altOf, sideOf } from "../scene.mjs";
 import { arrangeSceneTokens } from "../tokens.mjs";
 import { openMapUpdateDialog, coreWeatherFor } from "./mission-import.mjs";
+import { targetGoals } from "../losses.mjs";
 import { SQUAD_POINTS, allSquads, squadPoints, squadMembers, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
 
 let panel = null;
@@ -58,9 +59,16 @@ export class AwacsPanel extends Application {
       return {
         id: t.id, name: t.name, kind: TB.npcKinds[s.kind] ?? s.kind, tier: TB.tiers[s.tier] ?? "",
         hp: s.hp, defense: s.kind === "ship" ? "Occ" : defenseWithWeather(a, w), alt: TB.altitudes[obj ? altOf(obj, a) : s.alt] ?? "",
-        markers: markerList(s), down: a.statuses?.has(dead) || s.markers.doom, hidden: t.hidden
+        markers: markerList(s), down: a.statuses?.has(dead) || s.markers.doom, hidden: t.hidden,
+        side: sideOf(a), priority: !!s.priority, task: s.task ?? ""
       };
     });
+    // приоритетные цели отдельно (с задачей), остальные NPC по сторонам
+    const SIDE_TITLE = { enemy: "Противники", ally: "Союзники", neutral: "Нейтральные" };
+    const groups = [{ title: "Цели", cls: "goal", goal: true, rows: targets.filter(t => t.priority) },
+      ...Object.entries(SIDE_TITLE).map(([k, title]) => ({ title, cls: k, rows: targets.filter(t => !t.priority && t.side === k) }))]
+      .filter(g => g.rows.length);
+    for (const t of targets) t.taskOptions = Object.entries(TB.tasks).map(([k, v]) => ({ k, v, sel: k === t.task }));
     const sceneWeather = new Set(scene?.getFlag(SYSTEM_ID, "weather") ?? []);
     const cells = Object.keys(scene?.getFlag(SYSTEM_ID, "weatherCells") ?? {}).length;
     const combat = game.combat;
@@ -75,7 +83,7 @@ export class AwacsPanel extends Application {
         skills: Object.keys(TB.skills).map(k => ({ key: k, value: l[k] ?? 0 })) };
     });
     return {
-      sceneName: scene?.name ?? "сцена не выбрана", pilots, targets, cells, squads, squadBudget: SQUAD_POINTS,
+      sceneName: scene?.name ?? "сцена не выбрана", pilots, targets, groups, cells, squads, squadBudget: SQUAD_POINTS,
       skillHeads: Object.values(TB.skills).map(v => ({ label: v.label, en: v.en })),
       weather: Object.entries(TB.weather).map(([id, d]) => ({ id, ...d, on: sceneWeather.has(id) })),
       round: combat?.started ? combat.round : null, queued
@@ -93,6 +101,8 @@ export class AwacsPanel extends Application {
       const pool = a.system[d.pool];
       await a.update({ [`system.${d.pool}.value`]: Math.max(0, Math.min(pool.max, pool.value + Number(d.delta))) });
     });
+    el.querySelectorAll("[data-task]").forEach(n => n.addEventListener("change", () =>
+      game.scenes.viewed?.tokens.get(n.dataset.task)?.actor?.update({ "system.task": n.value })));
     on("[data-target]", d => {
       const t = canvas.tokens?.get(d.target);
       if (!t) return;
@@ -175,8 +185,10 @@ async function writeDebrief({ op, objectives, rows, targets }) {
     <li>Спецоружие: ${r.ammo.length ? r.ammo.map(x => `${esc(x.name)} ${x.spent} из ${x.max}`).join(", ") : "не тратил"}</li>
     ${r.pts ? `<li>Очки навыков: +${r.pts}</li>` : ""}</ul>`).join("");
   const goals = objectives.length ? `<h2>Задачи</h2><ul>${objectives.map(o => `<li>${o.done ? "✔" : "✘"} ${esc(o.text)}</li>`).join("")}</ul>` : "";
+  const scene = game.scenes.viewed, marks = targetGoals(scene, scene?.getFlag(SYSTEM_ID, "lastBattle")?.losses ?? []);
+  const aims = marks.length ? `<h2>Цели</h2>${li(marks)}` : "";
   const html = `<p><b>${esc(op)}</b> · ${esc(game.scenes.viewed?.name ?? "")} · ${new Date().toLocaleDateString("ru-RU")}${game.combat?.round ? ` · раундов: ${game.combat.round}` : ""}</p>
-    ${goals}<h2>Звено</h2>${pilots}
+    ${goals}${aims}<h2>Звено</h2>${pilots}
     <h2>Уничтожено</h2>${li(targets.down.map(esc))}${targets.retreat.length ? `<h2>Отступили</h2>${li(targets.retreat.map(esc))}` : ""}<h2>Уцелело</h2>${li(targets.alive.map(esc))}
     <h2>Потери авиакрыла и союзников</h2>${li(targets.ours.map(esc))}`;
   return JournalEntry.create({

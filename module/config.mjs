@@ -26,6 +26,9 @@ export const TB = {
   /* Сторона NPC (лист NPC, «Заметки AWACS»). Пилоты игроков всегда своя сторона: "player". Союзник и игроки друг по другу не стреляют. */
   sides: { enemy: "Противник", ally: "Союзник", neutral: "Нейтральный" },
   tiers: { conscript: "Конскрипт", duelist: "Дуэлянт", ace: "Ас" },
+  // задача по приоритетной цели (панель AWACS и «Заметки AWACS» листа NPC)
+  tasks: { "": "без задачи", destroy: "Уничтожить", protect: "Защитить", escort: "Сопроводить", intercept: "Перехватить", mark: "Отметить",
+    recon: "Разведать", capture: "Захватить", reach: "Добраться", disable: "Вывести из строя" },
   npcKinds: { air: "Воздушная цель", ground: "Наземная цель", ship: "Корабль или особая цель" },
   weaponTargets: { air: "по воздуху", ground: "по земле и морю", gun: "пушечный", util: "РЭБ", line: "по линии" },
   weaponKinds: { book: "из книги", hb: "из Ace Combat 5", op: "опытное" },

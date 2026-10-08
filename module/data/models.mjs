@@ -137,7 +137,7 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       desc: str(), service: str(),
       insignia: str(),
       // сторона в бою и приоритетная цель (вкладка «Заметки AWACS»)
-      side: str("enemy"), priority: bool(),
+      side: str("enemy"), priority: bool(), task: str(),
       ...sortieFields(),
       notes: new f.HTMLField({ required: true, blank: true })
     };
