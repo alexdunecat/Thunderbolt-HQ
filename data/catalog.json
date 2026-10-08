@@ -2951,7 +2951,7 @@
    "sig": [
     "RCL"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig21.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/hawk.svg"
   },
   {
    "key": "tu22m",
@@ -3296,7 +3296,7 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/a50.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/e767.svg"
   },
   {
    "key": "il76",
@@ -3430,7 +3430,7 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/transport.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/c5.svg"
   },
   {
    "key": "nimrod",
@@ -3461,7 +3461,7 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/transport.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/nimrod.svg"
   },
   {
    "key": "ah64a",
