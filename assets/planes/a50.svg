@@ -5,5 +5,7 @@
     
     
     <ellipse cx="110" cy="120" rx="23.4" ry="23.4" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.6"/>
+    
+    
     <ellipse cx="110" cy="25" rx="6" ry="5" style="fill:#9DAA7A;stroke:#1E2822;stroke-width:1"/>
   </svg>

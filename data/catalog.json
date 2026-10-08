@@ -1972,7 +1972,7 @@
    "sig": [
     "SAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f15.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f15smtd.svg"
   },
   {
    "key": "yf23",
@@ -4679,7 +4679,7 @@
      "text": "Ходит в сопровождении 2–4 кораблей. Пока эскорт цел, захват авианосца возможен только из соседней зоны или ближе."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/carrier.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/nimitz.svg"
   },
   {
    "key": "kuznetsov",
@@ -4747,7 +4747,7 @@
      "text": "Ходит в сопровождении 2–4 кораблей. Пока эскорт цел, захват авианосца возможен только из соседней зоны или ближе."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/carrier.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/kuznetsov.svg"
   },
   {
    "key": "iowa",
@@ -4801,7 +4801,7 @@
      "text": "Обычно бьёт по кораблям, пока его не атакуют с воздуха напрямую."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/battleship.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/iowa.svg"
   },
   {
    "key": "kirov",
@@ -4855,7 +4855,7 @@
      "text": "Обычно бьёт по кораблям, пока его не атакуют с воздуха напрямую."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/cruiser.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/kirov.svg"
   },
   {
    "key": "ticonderoga",
@@ -4900,7 +4900,7 @@
      "text": "Обычно бьёт по кораблям, пока его не атакуют с воздуха напрямую."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/cruiser.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/ticonderoga.svg"
   },
   {
    "key": "burke",
@@ -4940,7 +4940,7 @@
      "text": "Обычно бьёт по кораблям, пока его не атакуют с воздуха напрямую."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/destroyer.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/burke.svg"
   },
   {
    "key": "sovremenny",
@@ -4989,7 +4989,7 @@
      "text": "Обычно бьёт по кораблям, пока его не атакуют с воздуха напрямую."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/destroyer.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/sovremenny.svg"
   },
   {
    "key": "udaloy",
@@ -5034,7 +5034,7 @@
      "text": "Обычно бьёт по кораблям, пока его не атакуют с воздуха напрямую."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/destroyer.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/udaloy.svg"
   },
   {
    "key": "krivak",
@@ -5079,7 +5079,7 @@
      "text": "По книге фрегат или крейсер может быть подводным: действием погружается или всплывает; под водой не атакует и не может быть атакован оружием воздух-поверхность."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/frigate.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/krivak.svg"
   },
   {
    "key": "perry",
@@ -5119,7 +5119,7 @@
      "text": "Обычно бьёт по кораблям, пока его не атакуют с воздуха напрямую."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/frigate.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/perry.svg"
   },
   {
    "key": "patrolboat",
@@ -5150,7 +5150,7 @@
      "text": "В конце раунда может сместиться на соседний морской участок."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/boat.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/molniya.svg"
   },
   {
    "key": "landing",
@@ -5181,7 +5181,7 @@
      "text": "Два действия у берега: десант на суше. AWACS решает, что это меняет в цели вылета."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/ship.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/ropucha.svg"
   },
   {
    "key": "cargo",
@@ -5212,7 +5212,7 @@
      "text": "Если судно тонет, груз потерян. Иногда это гуманитарный конвой, и об этом стоит узнать заранее."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/ship.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tanker.svg"
   },
   {
    "key": "sub",
@@ -5243,7 +5243,7 @@
      "text": "Действием погружается или всплывает. Под водой не атакует и не может быть атакована воздух-поверхность. Подлодка книги."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/sub.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/la688.svg"
   },
   {
    "key": "gyges",
@@ -5611,7 +5611,7 @@
      "text": "По книге уничтожение супероружия — последняя миссия операции. Поставь рядом эскорт и подкрепления, и не забудь про Twist."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/landship.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tarpan.svg"
   },
   {
    "key": "scinfaxi",
@@ -6060,7 +6060,7 @@
      "text": "По книге фрегат или крейсер может быть подводным: действием погружается или всплывает; под водой не атакует и не может быть атакован оружием воздух-поверхность."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/cruiser.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/ticonderoga.svg"
   },
   {
    "key": "bookcarrier",
@@ -6091,7 +6091,7 @@
      "text": "Действием ставит самолёт на палубу, ещё действием выпускает его в воздух. Пилот, потерявший авианосец, обречён и знает это."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/carrier.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/nimitz.svg"
   }
  ],
  "planeNpcs": [

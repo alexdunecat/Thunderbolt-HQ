@@ -5,5 +5,7 @@
     
     <circle cx="110" cy="105" r="95" style="fill:none;stroke:#6B7468;stroke-width:1.2;stroke-dasharray:6 4"/><circle cx="110" cy="237.4" r="95" style="fill:none;stroke:#6B7468;stroke-width:1.2;stroke-dasharray:6 4"/>
     
+    
+    
     <ellipse cx="110" cy="96.39999999999999" rx="6.3" ry="5.8" style="fill:#9DAA7A;stroke:#1E2822;stroke-width:1"/>
   </svg>

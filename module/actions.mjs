@@ -3,7 +3,8 @@
    кнопки Speed ±, переход токена в другую зону (Move) и смена высоты (Climb / Dive).
    Смену скорости вместе с Move или Climb / Dive в тот же ход правила дают бесплатно.
    Запрещено: действовать до заявки и не в свой ход, сверх заявки, второй бросок за ход, Move дальше соседней зоны
-   и Climb / Dive больше чем на ступень. Ведущий может переставить токен в обход правил, перетаскивая его с Shift. */
+   и Climb / Dive больше чем на ступень. Ведущий может переставить токен в обход правил, перетаскивая его с Shift.
+   Move и Climb / Dive засчитываются в момент перемещения, и двигавший видит об этом сообщение. */
 import { SYSTEM_ID } from "./config.mjs";
 import { PASS } from "./documents/combat.mjs";
 
@@ -103,33 +104,43 @@ function zoneStep(doc, to) {
   return Math.max(Math.abs(a - p), Math.abs(b - q));
 }
 
-/** Перемещения, прошедшие проверку: uuid токена → { from, elev }. */
-const pending = new Map();
+/** Засчитать Move и Climb / Dive по токену и сказать об этом тому, кто двигал. */
+async function countMove(doc, acts) {
+  for (const what of acts) await spendAction(doc.actor, what, { token: doc });
+  const c = combatantOf(doc.actor, doc);
+  if (!c) return;
+  const s = spentOf(c), n = declaredOf(c) ?? 0;
+  ui.notifications.info(`${doc.name}: ${acts.map(a => ACT_NAMES[a]).join(" и ")} засчитан${acts.length > 1 ? "ы" : ""}, действий ${s.used} из ${n}.`);
+}
 
 export function registerActions() {
-  // Move и Climb / Dive: проверка до перемещения, счёт после. Откуда шёл токен, помним у себя.
+  // Move и Climb / Dive проверяются и засчитываются ещё до перемещения: только этот хук точно знает, откуда шёл токен
   Hooks.on("preUpdateToken", (doc, change, options) => {
-    if (options.tbKeep || !doc.actor || !combatantOf(doc.actor, doc)) return;
+    if (options.tbKeep || !doc.actor) return;
+    const moving = "x" in change || "y" in change || "elevation" in change;
+    if (!moving || !game.combat?.started) return;
+    if (!combatantOf(doc.actor, doc)) return console.log(`${SYSTEM_ID} | ${doc.name}: токена нет в текущем бою, перемещение не считается`);
     const gmFree = game.user.isGM && !!game.keyboard?.isModifierActive?.(KeyboardManager.MODIFIER_KEYS.SHIFT);
-    const problems = [], move = {};
+    const problems = [], acts = [];
     if ("x" in change || "y" in change) {
       const d = zoneStep(doc, change);
       if (d > 0) {
-        move.from = { x: doc.x, y: doc.y, width: doc.width, height: doc.height, parent: doc.parent };
+        acts.push("move");
         const p = actionProblem(doc.actor, "move", { token: doc });
         if (p) problems.push(p);
         else if (d > 1) problems.push(`${doc.name}: Move только в соседнюю зону, а здесь ${d}.`);
       }
     }
     if ("elevation" in change && change.elevation !== doc.elevation && [1, 2, 3].includes(change.elevation)) {
-      move.elev = doc.elevation;
+      acts.push("climb");
       const p = actionProblem(doc.actor, "climb", { token: doc });
       if (p) problems.push(p);
       else if (Math.abs(change.elevation - doc.elevation) > 1) problems.push(`${doc.name}: Climb / Dive меняет высоту только на одну ступень.`);
     }
     if (problems.length && !gmFree) { ui.notifications.warn(problems[0]); return false; }
     if (gmFree && problems.length) return;   // ведущий с Shift: в обход правил и без счёта
-    if (move.from || "elev" in move) pending.set(doc.uuid, move);
+    console.log(`${SYSTEM_ID} | ${doc.name}: ${acts.join(", ") || "в своей зоне"}${problems.length ? ` (в обход: ${problems[0]})` : ""}`);
+    if (acts.length) countMove(doc, acts);
   });
   // смена высоты из листа проверяется так же, как ▲▼ на токене
   Hooks.on("preUpdateActor", (actor, change, options) => {
@@ -139,13 +150,6 @@ export function registerActions() {
     if (!p) return;
     ui.notifications.warn(p);
     return false;
-  });
-  Hooks.on("updateToken", (doc, change, options, userId) => {
-    const move = pending.get(doc.uuid);
-    if (!move || userId !== game.user.id) return;
-    pending.delete(doc.uuid);
-    if (move.from && zoneStep(move.from, doc) > 0) spendAction(doc.actor, "move", { token: doc });
-    if ("elev" in move && move.elev !== doc.elevation) spendAction(doc.actor, "climb", { token: doc });
   });
   // лист и трекер показывают счётчик
   Hooks.on("updateCombatant", c => { if (c.actor?.sheet?.rendered) c.actor.sheet.render(false); });
