@@ -3,6 +3,7 @@ import { SYSTEM_ID, TB } from "./config.mjs";
 import { PilotData, NpcData, PlaneData, WeaponData, TriggerData } from "./data/models.mjs";
 import { TBActor, TBItem } from "./documents/actor.mjs";
 import { TBCombat, registerCombat } from "./documents/combat.mjs";
+import { registerActions } from "./actions.mjs";
 import { PilotSheet, NpcSheet } from "./sheets/actor-sheets.mjs";
 import { TBItemSheet } from "./sheets/item-sheet.mjs";
 import * as R from "./dice/rolls.mjs";
@@ -56,6 +57,7 @@ Hooks.once("init", () => {
   registerAltitude();
   registerInsignia();
   registerCombat();
+  registerActions();
 
   game.thunderbolt = { importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
     squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB };

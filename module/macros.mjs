@@ -3,14 +3,25 @@
 import { SYSTEM_ID, SYS_PATH, TB } from "./config.mjs";
 import { resolveActor } from "./utils.mjs";
 import { leadership, formUp } from "./squad.mjs";
+import { spendAction } from "./actions.mjs";
 
 export const ACTIONS = {
   lock: "Lock On!", missile: "Fox Two!", guns: "Guns, Guns, Guns!", break: "Break!",
   recover: "Вернуть Strain", stall: "Сваливание", lead: "Leadership", formup: "Вплотную"
 };
 
-/** Выполнить действие листа за актёра. */
-export function runAction(actor, act, { skill } = {}) {
+/** Выполнить действие листа за актёра. В бою сделанное действие попадает в счётчик хода. */
+export async function runAction(actor, act, { skill } = {}) {
+  const res = await doAction(actor, act, { skill });
+  if (act === "stall" || !res) return res;
+  // действие состоялось: карточка в чате (отмена диалога и предупреждения возвращают не её) или строй собран
+  const card = res.documentName === "ChatMessage" ? res.getFlag(SYSTEM_ID, "card") : null;
+  if (res.documentName !== "ChatMessage" && res !== true) return res;
+  await spendAction(actor, act, { rolled: !!card?.rolled });
+  return res;
+}
+
+function doAction(actor, act, { skill } = {}) {
   switch (act) {
     case "skill": return TB.skills[skill] ? actor.rollSkill(skill) : null;
     case "lock": return actor.lockOn();

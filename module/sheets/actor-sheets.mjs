@@ -6,6 +6,7 @@ import { leadership, formUp, nextMods, dropNext, adjacentOf, breakAdjacent } fro
 import { resolveActor } from "../utils.mjs";
 import { SQUAD_POINTS, allSquads, squadLayout, setSquadLayout, squadMembers } from "../squadrons.mjs";
 import { runAction, ACTIONS, startActionDrag } from "../macros.mjs";
+import { spendAction, actsSummary } from "../actions.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -65,6 +66,7 @@ class TBActorSheet extends ActorSheet {
     ctx.maxSpeedNow = (s.maxSpeed ?? 0) + w.spd;
     ctx.nextMods = nextMods(a).map((m, i) => ({ ...m, i, sval: `${m.value >= 0 ? "+" : ""}${m.value}` }));
     ctx.adjacent = adjacentOf(a).map(uuid => ({ uuid, name: resolveActor(uuid)?.name ?? "?" }));
+    ctx.acts = actsSummary(a);
     ctx.insigniaHint = a.type === "pilot" ? "Шильдик авиакрыла на токене. Щелчок: выбрать картинку, правый щелчок: убрать."
       : "Шильдик авиакрыла или страны на токене. Щелчок: выбрать картинку, правый щелчок: убрать.";
     return ctx;
@@ -77,7 +79,7 @@ class TBActorSheet extends ActorSheet {
     if (!this.isEditable) return;
     const on = (sel, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); fn(n.dataset, n, ev); }));
 
-    on("[data-roll-skill]", d => this.actor.rollSkill(d.rollSkill));
+    on("[data-roll-skill]", d => runAction(this.actor, "skill", { skill: d.rollSkill }));
     // шильдик на токене: картинка из файлов мира
     on("[data-insignia]", () => new FilePicker({ type: "image", current: this.actor.system.insignia,
       callback: path => this.actor.update({ "system.insignia": path }) }).render(true));
@@ -102,9 +104,11 @@ class TBActorSheet extends ActorSheet {
       n.draggable = true;
       n.addEventListener("dragstart", ev => startActionDrag(ev, this.actor, act, n.dataset.rollSkill));
     });
-    on("[data-speed]", d => {
-      const v = this.actor.system.speed + Number(d.speed);
-      this.actor.update({ "system.speed": Math.min(this.actor.system.maxSpeed + weatherAt(this.actor).spd, v) });
+    on("[data-speed]", async d => {
+      const v = Math.min(this.actor.system.maxSpeed + weatherAt(this.actor).spd, this.actor.system.speed + Number(d.speed));
+      if (v === this.actor.system.speed) return;
+      await this.actor.update({ "system.speed": v });
+      spendAction(this.actor, "speed");
     });
     on("[data-step]", d => {
       const path = d.step, cur = foundry.utils.getProperty(this.actor, path) ?? 0;

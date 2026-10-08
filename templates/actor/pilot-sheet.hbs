@@ -53,6 +53,9 @@
 
         <fieldset class="tb-box tb-flight">
           <legend>В воздухе</legend>
+          {{#if acts}}<div class="tb-acts {{#if acts.over}}over{{/if}} {{#if acts.turn}}turn{{/if}}" title="{{acts.list}}">
+            <i class="fas fa-list-check"></i> {{acts.label}}
+          </div>{{/if}}
           <div class="tb-dials">
             <div class="tb-dial {{#if alertSpeed}}alert{{/if}}">
               <span class="tb-dial-label">Speed</span>

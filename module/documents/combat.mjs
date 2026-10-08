@@ -209,7 +209,13 @@ function decorateTracker(app, html) {
     const c = combat.combatants.get(li.dataset.combatantId);
     if (!c) continue;
     const ini = li.querySelector(".token-initiative .initiative");
-    if (ini && declared(c)) ini.textContent = declareLabel(c.initiative);
+    if (ini && declared(c)) {
+      // сколько из заявленного уже сделано: «1/2»
+      const spent = c.getFlag(SYSTEM_ID, "acts"), used = spent?.round === combat.round ? spent.used : 0;
+      const n = isPass(c.initiative) ? 0 : delayedBy(c.initiative) || c.initiative;
+      ini.textContent = used ? `${used}/${n}${delayedBy(c.initiative) ? "↓" : ""}` : declareLabel(c.initiative);
+      if (used > n) ini.style.color = "#d0302a";
+    }
     if (passive(c.actor)) li.querySelector(".token-initiative")?.replaceChildren();
     const mine = c.id === combat.combatant?.id && c.isOwner && c.actor?.hasPlayerOwner && Number.isNumeric(c.initiative) && c.initiative <= 3;
     if (mine && flag(combat, "ready") === combat.round) {

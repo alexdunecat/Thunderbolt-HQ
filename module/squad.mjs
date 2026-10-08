@@ -136,6 +136,7 @@ export async function formUp(actor) {
     await setAdjacent(other, [...theirs]);
   }
   await actor.setFlag(SYSTEM_ID, ADJ, [...now]);
+  return true;
 }
 
 export async function breakAdjacent(actor, uuid) {
