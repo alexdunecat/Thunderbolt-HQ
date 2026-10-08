@@ -8,6 +8,7 @@
    Всё, что меняет бой, делает клиент ведущего: так раунд закрывается правильно, даже если ход передал игрок. */
 import { SYSTEM_ID } from "../config.mjs";
 import { formDialog, resolveVolley, renderCard } from "../dice/rolls.mjs";
+import { clearLosses, lossLine } from "../losses.mjs";
 import { esc } from "../utils.mjs";
 
 /** Значение инициативы: 1–3 заявлено действий, PASS пропуск, PASS + n отложил ход с n действиями. */
@@ -140,6 +141,9 @@ async function endRound(combat, round) {
     if (drop) { upd["system.speed"] = (a.system.speed ?? 0) - drop; lines.push(`${esc(c.name)}: Speed −${drop} после Break!`); }
     if (Object.keys(upd).length) await a.update(upd, { tbStallBy: ownerOf(a) });
   }
+  // сбитые до этого раунда и отступившие уходят с поля (ракеты залпа, посчитанного сейчас, — в конце следующего)
+  const gone = await clearLosses(combat, round);
+  if (gone.length) lines.push(`С поля убраны: ${gone.map(lossLine).join(", ")}.`);
   await combat.updateEmbeddedDocuments("Combatant", combat.combatants.map(c => ({ _id: c.id, initiative: null })));
   const tail = lines.length ? `<br>${lines.join("<br>")}` : "";
   await ChatMessage.create({

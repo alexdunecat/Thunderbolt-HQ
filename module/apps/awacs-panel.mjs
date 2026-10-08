@@ -135,10 +135,17 @@ function pilotState(a) {
   return { markers: out, hp: `${s.hp.value}/${s.hp.max}`, strain: `${s.strain.value}/${s.strain.max}`, ammo, plane: s.plane?.name ?? "" };
 }
 
-/** Цели открытой сцены: уничтоженные и уцелевшие (скрытые и не появившиеся не считаются). */
+/** Цели открытой сцены: уничтоженные, отступившие и уцелевшие (скрытые и не появившиеся не считаются),
+    плюс те, кого бой уже убрал с поля (сводка последнего боя), и потери своих. */
 function sceneTargets() {
   const dead = CONFIG.specialStatusEffects.DEFEATED;
-  const down = [], alive = [];
+  const down = [], alive = [], retreat = [], ours = [];
+  const last = game.scenes.viewed?.getFlag(SYSTEM_ID, "lastBattle");
+  for (const r of last?.losses ?? []) {
+    const line = `${r.name}${r.by ? ` (${r.by})` : ""}`;
+    if (["player", "ally"].includes(r.side)) ours.push(`${r.name}: ${r.how === "retreat" ? "отступил" : r.pilot ? "сбит, катапульта" : "сбит"}`);
+    else (r.how === "retreat" ? retreat : down).push(line);
+  }
   for (const t of game.scenes.viewed?.tokens ?? []) {
     const a = t.actor;
     if (a?.type !== "npc") continue;
@@ -146,7 +153,7 @@ function sceneTargets() {
     if (killed) down.push(t.name);
     else if (!t.hidden) alive.push(`${t.name}${a.system.hp ? ` (HP ${a.system.hp.value}/${a.system.hp.max})` : ""}`);
   }
-  return { down, alive };
+  return { down, alive, retreat, ours };
 }
 
 /** Журнал «Разбор полёта» в папке «Разбор полётов»; игроки могут его читать. */
@@ -165,7 +172,8 @@ async function writeDebrief({ op, objectives, rows, targets }) {
   const goals = objectives.length ? `<h2>Задачи</h2><ul>${objectives.map(o => `<li>${o.done ? "✔" : "✘"} ${esc(o.text)}</li>`).join("")}</ul>` : "";
   const html = `<p><b>${esc(op)}</b> · ${esc(game.scenes.viewed?.name ?? "")} · ${new Date().toLocaleDateString("ru-RU")}${game.combat?.round ? ` · раундов: ${game.combat.round}` : ""}</p>
     ${goals}<h2>Звено</h2>${pilots}
-    <h2>Уничтожено</h2>${li(targets.down.map(esc))}<h2>Уцелело</h2>${li(targets.alive.map(esc))}`;
+    <h2>Уничтожено</h2>${li(targets.down.map(esc))}${targets.retreat.length ? `<h2>Отступили</h2>${li(targets.retreat.map(esc))}` : ""}<h2>Уцелело</h2>${li(targets.alive.map(esc))}
+    <h2>Потери авиакрыла и союзников</h2>${li(targets.ours.map(esc))}`;
   return JournalEntry.create({
     name: `${new Date().toLocaleDateString("ru-RU")} · ${op}`, folder: folder.id, ownership: { default: L.OBSERVER },
     pages: [{ name: "Разбор полёта", type: "text", text: { content: html } }]

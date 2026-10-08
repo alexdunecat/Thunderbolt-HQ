@@ -18,6 +18,7 @@ import { registerSquadronSettings, squadFromSelection } from "./squadrons.mjs";
 import { registerMacros, actFromMacro } from "./macros.mjs";
 import { registerRwr } from "./rwr.mjs";
 import { registerInsignia } from "./insignia.mjs";
+import { registerLosses } from "./losses.mjs";
 import { registerAltitude, stepAltitude } from "./altitude.mjs";
 
 function applySkin(skin) {
@@ -56,6 +57,7 @@ Hooks.once("init", () => {
   registerRwr();
   registerAltitude();
   registerInsignia();
+  registerLosses();
   registerCombat();
   registerActions();
 

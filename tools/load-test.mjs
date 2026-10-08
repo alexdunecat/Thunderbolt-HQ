@@ -7,7 +7,7 @@ Object.assign(globalThis, {
     abstract: { TypeDataModel: class {} }, utils: { mergeObject: (a, b) => ({ ...a, ...b }), hasProperty: () => false, getProperty: () => 0, deepClone: x => structuredClone(x) } },
   Actor: class {}, Item: class {}, Combat: class {}, ActorSheet: mk(), ItemSheet: mk(), JournalSheet: mk(), Application: mk(), Dialog: class {}, JournalEntry: class {},
   Hooks: { once: (n, f) => (hooks[n] ??= []).push(f), on: (n, f) => (hooks[n] ??= []).push(f) },
-  CONFIG: { Actor: { dataModels: {} }, Item: { dataModels: {} }, Combat: {} },
+  CONFIG: { Actor: { dataModels: {} }, Item: { dataModels: {} }, Combat: {}, specialStatusEffects: { DEFEATED: "dead" }, statusEffects: [{ id: "dead", img: "icons/svg/skull.svg" }] },
   Actors: { unregisterSheet() {}, registerSheet(s, c, o) { console.log("sheet", s, c.name, o.label); } },
   Items: { unregisterSheet() {}, registerSheet(s, c, o) { console.log("sheet", s, c.name, o.label); } },
   DocumentSheetConfig: { registerSheet(d, s, c, o) { console.log("sheet", s, c.name, o.label); } },

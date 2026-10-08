@@ -716,6 +716,10 @@ export async function onCardAction(message, action, button) {
       card[action === "perk-next" ? "perkPassed" : "compPassed"] = who.name;
       return save();
     }
+    case "battle-results": {
+      if (game.user.isGM) game.thunderbolt.sortieResults();
+      return;
+    }
     case "volley-damage": {
       if (!game.user.isGM || card.applied) return;
       card.applied = true;

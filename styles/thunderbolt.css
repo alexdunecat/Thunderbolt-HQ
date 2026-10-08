@@ -349,3 +349,6 @@ body[data-tb-skin="doc"] {
 .thunderbolt .tb-side-row { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; margin: 4px 0 2px; }
 .thunderbolt .tb-side-row label { display: inline-flex; align-items: center; gap: 6px; }
 .thunderbolt .tb-side-row select { width: auto; }
+.tb-card-battle h4 { margin: 6px 0 2px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; border: none; }
+.tb-card-battle ul { margin: 0 0 2px; padding-left: 18px; }
+.tb-card-battle p { margin: 0 0 2px; }

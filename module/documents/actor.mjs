@@ -129,6 +129,7 @@ export class TBActor extends Actor {
 
   async markDoom(reason, { sourceUuid, roundKey } = {}) {
     await this.update({ "system.markers.doom": true, "system.markers.lastRound": roundKey ?? this.roundKey });
+    if (this.type === "pilot") await this.#markDown(sourceUuid);
     if (this.type === "npc" && !this.system.fullMarkers)
       await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
     if (this.type === "npc") await this.#creditKill(sourceUuid);
@@ -151,8 +152,17 @@ export class TBActor extends Actor {
       .then(d => (d?.marker ? d : null));
   }
 
+  /** Отметить машину сбитой в текущем бою: в конце раунда её уберут с поля и запишут в потери (losses.mjs). */
+  async #markDown(sourceUuid) {
+    const c = game.combat;
+    if (!c?.started) return;
+    const by = sourceUuid ? R.resolveActor(sourceUuid)?.name ?? "" : "";
+    await this.setFlag(SYSTEM_ID, "down", { combat: c.id, round: c.round, by });
+  }
+
   /** Засчитать сбитого или уничтоженного пилоту-стрелку (для итогов вылета). */
   async #creditKill(sourceUuid) {
+    await this.#markDown(sourceUuid);
     const shooter = sourceUuid ? R.resolveActor(sourceUuid) : null;
     if (shooter?.type !== "pilot") return;
     const kind = this.system.kind === "air" ? "air" : "ground";
@@ -195,7 +205,8 @@ export class TBActor extends Actor {
     await this.withoutPoolSync(async () => {
       await this.update({
         "system.speed": 1, "system.breakEv": null, "system.lock": "", "system.lockUuid": "", "system.twist": false,
-        "system.markers": { grit: false, gritSkill: "", structure: false, sys: "", doom: false, lastRound: "" }
+        "system.markers": { grit: false, gritSkill: "", structure: false, sys: "", doom: false, lastRound: "" },
+        [`flags.${SYSTEM_ID}.-=down`]: null
       });
       // после снятия меток и Поворота максимумы пересчитаны
       await this.update({ "system.hp.value": this.system.hp.max, "system.strain.value": this.system.strain.max,
