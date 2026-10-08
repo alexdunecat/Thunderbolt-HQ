@@ -3971,7 +3971,7 @@
      "text": "Обычно 3–6 машин. Каждая уехавшая с карты засчитывается противнику."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/truck.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/ural.svg"
   },
   {
    "key": "mlrs",
@@ -4037,7 +4037,7 @@
      "text": "AWACS объявляет, через сколько раундов пуск (обычно 3). Пуск — удар баллистической ракетой по правилам супероружия книги."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/tel.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/topol.svg"
   },
   {
    "key": "howitzer",
@@ -4075,7 +4075,7 @@
      "text": "Чтобы сменить позицию, ей нужен тягач и целый раунд без стрельбы."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/howitzer.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/m198.svg"
   },
   {
    "key": "msta",
