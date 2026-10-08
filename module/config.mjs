@@ -54,7 +54,8 @@ export const TB = {
   /* Дальность в зонах: 0 своя, 1 соседние, 2 обычная ракета (захват держится до двух зон), 99 вся зона операции. */
   range: { lockOn: 1, lockHold: 2, missile: 2, guns: 0, operation: 99 },
   /** Большие цели: размер токена в клетках [ширина, длина]; [1, 1] — на всю зону, без деления на места. Вид сверху для вытянутых токенов, если значок нарисован сбоку. */
-  footprints: { strategic: [2, 2], large: [2, 2], arkbird: [2, 3], aerialCruiser: [1, 1], superSub: [1, 3], fleet: [1, 2] },
+  /* Большие цели: [ширина, длина] в местах зоны (зона — 3×3 места, обычный самолёт занимает одно). */
+  footprints: { strategic: [2, 2], large: [2, 2], arkbird: [2, 3], aerialCruiser: [3, 2], superSub: [1, 3], fleet: [1, 2] },
   topViews: Object.fromEntries(["superSub", "carrier", "battleship", "cruiser", "destroyer", "frigate", "ship", "sub"]
     .map(k => [`assets/targets/${k}.svg`, `assets/targets/${k}-top.svg`])),
   weaponRange: { RCL: 0, MGP: 0, PLSL: 1, XAGM: 1, "4AAM": 1, ESM: 1, XLAA: 99, LAAM: 99, LACM: 99 },
@@ -112,7 +113,7 @@ export const TB = {
   }
 };
 
-/** Размер токена большой цели [ширина, длина] по данным NPC или null: стратегические бомбардировщики, крупные самолёты, Аркбёрд, летающие крейсеры, подводные авианосцы, корабли крупнее катера. */
+/** Размер большой цели [ширина, длина] в местах зоны по данным NPC или null: стратегические бомбардировщики, крупные самолёты, Аркбёрд, летающие крейсеры, подводные авианосцы, корабли крупнее катера. */
 export function footprintOf(sys) {
   if (!sys) return null;
   const props = [...(sys.props ?? []), ...(sys.rules ?? [])].map(p => p?.key ?? p);

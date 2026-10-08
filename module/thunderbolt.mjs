@@ -16,6 +16,7 @@ import { registerTokenSettings, arrangeSceneTokens } from "./tokens.mjs";
 import { registerSquadronSettings, squadFromSelection } from "./squadrons.mjs";
 import { registerMacros, actFromMacro } from "./macros.mjs";
 import { registerRwr } from "./rwr.mjs";
+import { registerInsignia } from "./insignia.mjs";
 import { registerAltitude, stepAltitude } from "./altitude.mjs";
 
 function applySkin(skin) {
@@ -53,6 +54,7 @@ Hooks.once("init", () => {
   registerMacros();
   registerRwr();
   registerAltitude();
+  registerInsignia();
 
   game.thunderbolt = { importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
     squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB };

@@ -1,6 +1,9 @@
 <form class="tb-sheet {{cssClass}}" autocomplete="off">
   <header class="tb-head">
-    <img class="tb-portrait" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" alt="">
+    <div class="tb-portrait-box">
+      <img class="tb-portrait" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" alt="">
+      <div class="tb-insignia" data-insignia title="{{insigniaHint}}">{{#if system.insignia}}<img src="{{system.insignia}}" alt="">{{else}}<i class="fas fa-shield-halved"></i>{{/if}}</div>
+    </div>
     <div class="tb-head-main">
       <div class="tb-kicker">Личное дело пилота · ВВС Юктобании</div>
       <input class="tb-name" type="text" name="name" value="{{actor.name}}" placeholder="Имя пилота">

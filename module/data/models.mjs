@@ -48,6 +48,7 @@ export class PilotData extends foundry.abstract.TypeDataModel {
       skills: skillSchema(),
       twist: bool(),
       wso: str(),
+      insignia: str(),
       ...sortieFields(),
       notes: new f.HTMLField({ required: true, blank: true })
     };
@@ -132,6 +133,7 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       props: named(), rules: named(),
       sig: new f.ArrayField(new f.StringField()),
       desc: str(), service: str(),
+      insignia: str(),
       ...sortieFields(),
       notes: new f.HTMLField({ required: true, blank: true })
     };

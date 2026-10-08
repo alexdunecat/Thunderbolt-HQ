@@ -1,17 +1,14 @@
-/* Высота на карте: тень под самолётом (чем выше, тем дальше и бледнее), значок L / M / H,
-   кнопки ▲▼ в меню токена и клавиши PageUp / PageDown, приглушение всего, что летит на другой высоте. */
+/* Высота на карте: тень под самолётом (чем выше, тем дальше и бледнее), кнопки ▲▼ в меню токена,
+   клавиши PageUp / PageDown и приглушение всего, что летит на другой высоте. */
 import { SYSTEM_ID, TB } from "./config.mjs";
-import { altOf, tokenOf } from "./scene.mjs";
+import { altOf, tokenOf, isFlying, flyingBoss } from "./scene.mjs";
 
 const ORDER = ["low", "med", "high"];
 const LETTER = { low: "L", med: "M", high: "H" };
-const BADGE = { low: [0xd0302a, 0xffffff], med: [0x2f9e44, 0xffffff], high: [0xf4f4f4, 0x1e2822] };
 const SHADOW = { low: { off: 0.05, alpha: 0.45 }, med: { off: 0.14, alpha: 0.32 }, high: { off: 0.26, alpha: 0.2 } };
 const DIM = 0.4;
 
-const isAir = a => a?.type === "pilot" || (a?.type === "npc" && a.system.kind === "air");
-/** Летающие крейсеры не привязаны к уровню высоты: их не приглушаем. */
-const floats = a => a?.type === "npc" && (a.system.key === "arkbird" || [...(a.system.props ?? []), ...(a.system.rules ?? [])].some(p => (p?.key ?? p) === "aerialship"));
+const isAir = isFlying;
 
 export function registerAltitude() {
   game.settings.register(SYSTEM_ID, "altitudeDim", {
@@ -28,6 +25,12 @@ export function registerAltitude() {
   Hooks.on("destroyToken", t => { if (t.tbShadow && !t.tbShadow.destroyed) t.tbShadow.destroy(); t.tbShadow = null; });
   for (const ev of ["controlToken", "updateToken", "updateActor", "createToken", "deleteToken", "canvasReady"]) Hooks.on(ev, refreshSoon);
   Hooks.on("renderTokenHUD", addHudButtons);
+  // воздушный босс встаёт на свою высоту: Аркбёрд на High, летающий крейсер на Medium или High
+  Hooks.on("preCreateToken", doc => {
+    if (!flyingBoss(doc.actor)) return;
+    const elevation = TB.altElevation[altOf({ document: doc }, doc.actor)];
+    if (doc.elevation !== elevation) doc.updateSource({ elevation });
+  });
 }
 
 let timer = null;
@@ -51,7 +54,7 @@ function viewerToken() {
 
 /** Приглушить ли токен для этого игрока. */
 export function dimmed(token, viewer = viewerToken()) {
-  if (!viewer || token === viewer || !token.actor || floats(token.actor)) return false;
+  if (!viewer || token === viewer || !token.actor) return false;
   let on = true;
   try { on = game.settings.get(SYSTEM_ID, "altitudeDim"); } catch { /* до регистрации настройки */ }
   return on && altOf(token) !== altOf(viewer);
@@ -64,7 +67,6 @@ function decorate(t) {
   applyDim(t, dim);
   const air = isAir(t.actor);
   const alt = air ? altOf(t) : null;
-  drawBadge(t, alt, dim);
   try { drawShadow(t, alt, dim); } catch (err) { console.warn(`${SYSTEM_ID} | тень токена`, err); }
 }
 
@@ -75,29 +77,6 @@ function applyDim(t, dim) {
   const base = m._tbSet !== undefined && Math.abs(m.alpha - m._tbSet) < 1e-6 ? m._tbBase : m.alpha;
   m._tbBase = base;
   m._tbSet = m.alpha = dim ? base * DIM : base;
-}
-
-/** Значок высоты в правом нижнем углу: L красный, M зелёный, H белый. */
-function drawBadge(t, alt, dim) {
-  let g = t.tbAltBadge;
-  if (!alt) {
-    if (g && !g.destroyed) g.destroy({ children: true });
-    t.tbAltBadge = null;
-    return;
-  }
-  if (!g || g.destroyed) {
-    g = t.tbAltBadge = t.addChild(new PIXI.Graphics());
-    g.eventMode = "none";
-    g.tbText = g.addChild(new PIXI.Text("", { fontFamily: "monospace", fontWeight: "bold", fontSize: 16, fill: 0xffffff }));
-    g.tbText.anchor.set(0.5);
-  }
-  const s = Math.max(12, Math.min(t.w, t.h) * 0.3), [bg, fg] = BADGE[alt];
-  g.clear().lineStyle(Math.max(1, s * 0.08), 0x1e2822, 1).beginFill(bg, 1).drawRoundedRect(-s / 2, -s / 2, s, s, s * 0.22).endFill();
-  g.tbText.text = LETTER[alt];
-  g.tbText.style.fill = fg;
-  g.tbText.style.fontSize = Math.round(s * 0.72);
-  g.position.set(t.w - s * 0.45, t.h - s * 0.45);
-  g.alpha = dim ? DIM + 0.2 : 1;
 }
 
 const SpriteClass = () => foundry.canvas?.primary?.PrimarySpriteMesh ?? globalThis.PrimarySpriteMesh;
@@ -136,9 +115,14 @@ function drawShadow(t, alt, dim) {
 export async function stepAltitude(token, delta) {
   const doc = token?.document ?? token;
   if (!doc?.isOwner || !isAir(doc.actor)) return;
-  const cur = ORDER.indexOf(altOf(doc.object ?? token));
-  const next = ORDER[Math.max(0, Math.min(ORDER.length - 1, cur + delta))];
-  if (next === ORDER[cur]) return ui.notifications.info(delta > 0 ? "Выше High подниматься некуда." : "Ниже Low только земля.");
+  const allowed = flyingBoss(doc.actor) ?? ORDER;
+  const cur = allowed.indexOf(altOf(doc.object ?? { document: doc }, doc.actor));
+  const next = allowed[Math.max(0, Math.min(allowed.length - 1, cur + delta))];
+  if (next === allowed[cur]) {
+    if (allowed.length === 1) return ui.notifications.info(`«${doc.name}» всегда на ${TB.altitudes[next]}.`);
+    if (allowed !== ORDER && delta < 0) return ui.notifications.info(`«${doc.name}» не опускается ниже ${TB.altitudes[allowed[0]]}.`);
+    return ui.notifications.info(delta > 0 ? "Выше High подниматься некуда." : "Ниже Low только земля.");
+  }
   return doc.update({ elevation: TB.altElevation[next] });
 }
 

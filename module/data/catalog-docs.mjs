@@ -55,7 +55,6 @@ export function npcActor(n, { tier = "conscript", bonus = 0, name } = {}) {
   const fp = footprintOf(sys);
   return {
     name: name ?? n.name, type: "npc", img: n.img, system: sys,
-    prototypeToken: { name: name ?? n.name, texture: { src: fp ? footprintTexture(n.img) : n.img }, actorLink: false, disposition: -1,
-      ...(fp ? { width: fp[0], height: fp[1] } : {}) }
+    prototypeToken: { name: name ?? n.name, texture: { src: fp ? footprintTexture(n.img) : n.img }, actorLink: false, disposition: -1 }
   };
 }

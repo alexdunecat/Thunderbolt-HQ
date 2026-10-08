@@ -11,10 +11,29 @@ export function tokenOf(actor) {
   return actor.getActiveTokens()[0] ?? null;
 }
 
-/** Высота токена: по elevation (1 Low, 2 Medium, 3 High), иначе по листу актёра. */
+const propKeys = a => [...(a?.system?.props ?? []), ...(a?.system?.rules ?? [])].map(p => p?.key ?? p);
+
+/** Воздушный босс: летающий крейсер (Medium или High) или Аркбёрд (всегда High). Иначе null. */
+export function flyingBoss(actor) {
+  if (actor?.type !== "npc") return null;
+  const keys = propKeys(actor);
+  if (actor.system.key === "arkbird" || keys.includes("highonly")) return ["high"];
+  if (keys.includes("aerialship")) return ["med", "high"];
+  return null;
+}
+
+/** Летит ли машина: пилот, воздушный NPC или воздушный босс. */
+export const isFlying = actor => actor?.type === "pilot" || (actor?.type === "npc" && actor.system.kind === "air") || !!flyingBoss(actor);
+
+/** Высота токена: по elevation (1 Low, 2 Medium, 3 High), иначе по листу актёра. Воздушный босс не выходит из своих высот. */
 export function altOf(token, actor = token?.actor) {
   const elev = token?.document?.elevation;
   const byElev = Object.entries(TB.altElevation).find(([, v]) => v === elev)?.[0];
+  const boss = flyingBoss(actor);
+  if (boss) {
+    const want = byElev ?? actor.system.alt;
+    return boss.includes(want) ? want : boss[boss.length - 1];
+  }
   if (actor?.type === "npc" && actor.system.kind !== "air") return "low";
   return byElev ?? actor?.system.alt ?? "med";
 }
@@ -26,7 +45,7 @@ export function cellOf(token) {
   return { col: o.j, row: o.i };
 }
 
-function isAir(actor) { return actor?.type === "pilot" || actor?.system.kind === "air"; }
+const isAir = isFlying;
 
 /** Клетки токена: { c0, r0, c1, r1 }. Токен не больше клетки — клетка его центра, большой — все клетки под ним. */
 function cellsOf(token) {

@@ -3,6 +3,7 @@ import { SYSTEM_ID, SYS_PATH, TB, footprintOf } from "../config.mjs";
 import { squadLayout, setSquadLayout } from "../squadrons.mjs";
 import { npcActor } from "../data/catalog-docs.mjs";
 import { esc } from "../utils.mjs";
+import { zonePacker } from "../tokens.mjs";
 
 const COL_LETTERS = "АБВГДЕЖИКЛМНОПРСТУФХЦЧШЭЮЯ";
 const cellName = (c, r) => (COL_LETTERS[c] ?? "?") + (r + 1);
@@ -89,6 +90,7 @@ export async function importMission(input) {
   const folder = await Folder.create({ name: `Миссия: ${title}`, type: "Actor" });
   const tokens = [];
   const roster = [];
+  const pack = zonePacker(scene);
   const perCell = {};
   const place = (c, r) => {
     const k = `${c},${r}`; const i = perCell[k] = (perCell[k] ?? -1) + 1;
@@ -128,17 +130,16 @@ export async function importMission(input) {
     const count = Math.max(1, Number(u.count) || 1);
     const fp = footprintOf(actor.system);
     for (let i = 0; i < count; i++) {
-      // большая цель ложится по клеткам вокруг своей, остальные — по местам в клетке
-      const p = fp ? { x: (u.c - Math.floor((fp[0] - 1) / 2)) * S, y: (u.r - Math.floor((fp[1] - 1) / 2)) * S } : place(u.c, u.r);
-      const size = fp ? { width: fp[0], height: fp[1] } : { width: 0.5, height: 0.5 };
-      const td = await actor.getTokenDocument({ x: p.x, y: p.y, ...size, elevation,
+      // каждая машина — на свободные места своей зоны, большая цель — на блок мест
+      const spot = pack(fp, u.c, u.r);
+      const td = await actor.getTokenDocument({ ...spot, texture: { ...actor.prototypeToken.texture.toObject(), ...spot.texture }, elevation,
         name: count > 1 ? `${actor.name} ${i + 1}` : actor.name });
       tokens.push(td.toObject());
     }
     roster.push({ u, name: actor.name, where, what: `${entry.name} · ${TB.tiers[tier] ?? tier}${count > 1 ? ` ×${count}` : ""}` });
   }
   await scene.createEmbeddedDocuments("Drawing", drawings);
-  if (tokens.length) await scene.createEmbeddedDocuments("Token", tokens);
+  if (tokens.length) await scene.createEmbeddedDocuments("Token", tokens, { tbKeep: true });
 
   // ---- журнал ----
   const p = s => s ? `<p>${esc(s).replace(/\n/g, "<br>")}</p>` : "";

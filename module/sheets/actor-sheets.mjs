@@ -65,6 +65,8 @@ class TBActorSheet extends ActorSheet {
     ctx.maxSpeedNow = (s.maxSpeed ?? 0) + w.spd;
     ctx.nextMods = nextMods(a).map((m, i) => ({ ...m, i, sval: `${m.value >= 0 ? "+" : ""}${m.value}` }));
     ctx.adjacent = adjacentOf(a).map(uuid => ({ uuid, name: resolveActor(uuid)?.name ?? "?" }));
+    ctx.insigniaHint = a.type === "pilot" ? "Шильдик авиакрыла на токене. Щелчок: выбрать картинку, правый щелчок: убрать."
+      : "Шильдик авиакрыла или страны на токене. Щелчок: выбрать картинку, правый щелчок: убрать.";
     return ctx;
   }
 
@@ -76,6 +78,13 @@ class TBActorSheet extends ActorSheet {
     const on = (sel, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); fn(n.dataset, n, ev); }));
 
     on("[data-roll-skill]", d => this.actor.rollSkill(d.rollSkill));
+    // шильдик на токене: картинка из файлов мира
+    on("[data-insignia]", () => new FilePicker({ type: "image", current: this.actor.system.insignia,
+      callback: path => this.actor.update({ "system.insignia": path }) }).render(true));
+    el.querySelector("[data-insignia]")?.addEventListener("contextmenu", ev => {
+      ev.preventDefault();
+      if (this.actor.system.insignia) this.actor.update({ "system.insignia": "" });
+    });
     on("[data-act]", d => {
       const a = this.actor;
       switch (d.act) {

@@ -35,6 +35,11 @@ body[data-tb-skin="doc"] {
 .thunderbolt .tb-head { display: flex; gap: 12px; padding: 10px 12px; background: var(--tb-surface); border-bottom: 3px solid var(--tb-accent); flex: none; }
 .thunderbolt .tb-portrait { width: 84px; height: 84px; object-fit: contain; border: 1px solid var(--tb-line); background: var(--tb-surface-2); flex: none; }
 .thunderbolt .tb-portrait.wide { width: 120px; }
+.thunderbolt .tb-portrait-box { position: relative; flex: none; align-self: flex-start; }
+.thunderbolt .tb-insignia { position: absolute; right: -8px; bottom: -8px; width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer;
+  background: var(--tb-surface); border: 1px solid var(--tb-line); border-radius: 6px; color: var(--tb-muted, #7a8270); font-size: 16px; }
+.thunderbolt .tb-insignia img { width: 30px; height: 30px; object-fit: contain; border: none; }
+.thunderbolt .tb-insignia:hover { border-color: var(--tb-accent); }
 .thunderbolt .tb-head-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .thunderbolt .tb-kicker { font-family: var(--tb-data); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--tb-muted); }
 .thunderbolt .tb-name { font-family: var(--tb-display); font-size: 22px; height: 34px; border: none; border-bottom: 1px solid var(--tb-line); background: transparent; border-radius: 0; }

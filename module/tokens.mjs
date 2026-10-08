@@ -1,115 +1,140 @@
-/* Токены в зоне: самолёты и цели меньше клетки, в одной зоне помещается несколько.
-   Новый или передвинутый токен сам встаёт на свободное место своей клетки.
-   Foundry v12 не даёт токену быть меньше половины клетки, поэтому при размере 1/3 токен остаётся в полклетки,
-   а картинка уменьшается до трети и встаёт в центр своего места.
-   Большие цели (стратегические бомбардировщики, крупные самолёты, Аркбёрд, летающие крейсеры, подводные авианосцы, корабли крупнее катера) занимают несколько клеток. */
-import { SYSTEM_ID, footprintOf, footprintTexture } from "./config.mjs";
+/* Токены в зоне: одна клетка сетки сцены — это зона, а зона делится на 3×3 места.
+   Обычный самолёт или цель занимает одно место, большие цели — несколько мест, но всегда в пределах одной зоны
+   (стратегические бомбардировщики и крупные самолёты 2×2, Аркбёрд 2×3, летающие крейсеры 3×2, подводные авианосцы 1×3,
+   корабли крупнее катера 1×2). Новый или передвинутый токен сам встаёт на свободные места своей зоны.
+   Foundry v12 даёт токену размер только с шагом в полклетки, поэтому документ токена чуть больше,
+   а картинка уменьшается до нужного числа мест и встаёт в центр своего блока. */
+import { footprintOf, footprintTexture } from "./config.mjs";
 
-export const SIZE_CHOICES = { "0.5": "1/2 клетки: до 4 токенов в зоне", "0.33": "1/3 клетки: до 9 токенов в зоне", "1": "Вся клетка: 1 токен в зоне" };
+/** Мест по стороне зоны. */
+export const CELLS = 3;
+const ONE = [1, 1];
 
 export function registerTokenSettings() {
-  game.settings.register(SYSTEM_ID, "tokenSize", {
-    name: "TB.TokenSizeName", hint: "TB.TokenSizeHint", scope: "world", config: true, type: String,
-    choices: SIZE_CHOICES, default: "0.5"
-  });
   Hooks.on("preCreateToken", onPreCreate);
   Hooks.on("preUpdateToken", onPreUpdate);
 }
 
-/** Мест по стороне клетки по настройке мира: 1, 2 или 3. */
-export function slotsPerSide() {
-  return Math.max(1, Math.round(1 / (Number(game.settings.get(SYSTEM_ID, "tokenSize")) || 0.5)));
-}
+/** Шаг размера токена: в v12 полклетки, в v13 ограничения нет. */
+const sizeStep = () => ((game?.release?.generation ?? 12) >= 13 ? 0 : 0.5);
 
-/** Наименьший размер токена, который принимает Foundry (в v12 — полклетки). */
-const minWidth = () => ((game.release?.generation ?? 12) >= 13 ? 0.05 : 0.5);
-
-/** Размер документа токена и масштаб картинки для n мест по стороне. */
-export function tokenLook(n = slotsPerSide()) {
-  const size = 1 / n, width = Math.max(size, minWidth());
-  return { width, scale: Number((size / width).toFixed(4)) };
+/**
+ * Размер документа токена и масштаб картинки для блока w×h мест.
+ * Картинка (с пропорциями блока) вписывается в документ и масштабируется до w/3 × h/3 зоны.
+ */
+export function cellLook([w, h] = ONE, step = sizeStep()) {
+  const vw = w / CELLS, vh = h / CELLS;
+  const up = v => (step ? Math.max(step, Math.ceil(v / step - 1e-6) * step) : v);
+  const width = up(vw), height = up(vh);
+  const fitW = Math.min(width, (height * vw) / vh);
+  return { width, height, scale: Number((vw / fitW).toFixed(4)) };
 }
 
 const ours = doc => ["pilot", "npc"].includes(doc.actor?.type);
-const squareScene = scene => !!scene && scene === canvas?.scene && canvas.ready && scene.grid.type === CONST.GRID_TYPES.SQUARE;
+const squareScene = scene => !!scene && scene.grid?.type === CONST.GRID_TYPES.SQUARE;
 const center = (t, gs, w = t.width, h = t.height) => ({ x: t.x + (w * gs) / 2, y: t.y + (h * gs) / 2 });
-/** Видимый размер токена в клетках (документ × масштаб картинки) → мест по стороне. */
-const perSideOf = (w, scale) => { const v = w * Math.abs(scale ?? 1), n = Math.round(1 / v); return n >= 1 && Math.abs(n * v - 1) < 0.03 ? n : 0; };
+const fpOf = doc => footprintOf(doc.actor?.system) ?? ONE;
+const same = (a, b) => Math.abs((a ?? 1) - b) < 1e-3;
+/** Токен того размера, который ему даёт система (а не растянутый вручную). */
+const looksRight = (w, h, scale, look) => same(w, look.width) && same(h, look.height) && same(Math.abs(scale ?? 1), look.scale);
+
+/** Левый верхний угол зоны, в которой лежит точка p. */
+function zoneOf(scene, p) {
+  const gs = scene.grid.size;
+  if (scene === canvas?.scene && canvas.ready) return canvas.grid.getTopLeftPoint(p);
+  return { x: Math.floor(p.x / gs) * gs, y: Math.floor(p.y / gs) * gs };
+}
+
+/** Блок мест токена, центр которого в точке c: { zx, zy, i, j, w, h }. */
+function blockAt(scene, c, [w, h]) {
+  const z = zoneOf(scene, c), cs = scene.grid.size / CELLS;
+  const clamp = (v, n) => Math.max(0, Math.min(CELLS - n, Math.round(v)));
+  return { zx: z.x, zy: z.y, i: clamp((c.x - z.x) / cs - w / 2, w), j: clamp((c.y - z.y) / cs - h / 2, h), w, h };
+}
+const cellKeys = b => {
+  const out = [];
+  for (let dj = 0; dj < b.h; dj++) for (let di = 0; di < b.w; di++) out.push(`${b.zx},${b.zy}:${b.i + di},${b.j + dj}`);
+  return out;
+};
 
 /* Места, занятые в этом же обновлении: при перетаскивании группы остальные токены ещё стоят на старых местах. */
 let claimed = new Set();
 let claimTimer = null;
-const slotKey = (scene, s) => `${scene.id}:${Math.round(s.x)},${Math.round(s.y)}`;
-function claim(scene, s) {
-  claimed.add(slotKey(scene, s));
+function claim(scene, b) {
+  for (const k of cellKeys(b)) claimed.add(`${scene.id}|${k}`);
   clearTimeout(claimTimer);
   claimTimer = setTimeout(() => { claimed = new Set(); }, 300);
 }
 
+/** Занятые места сцены: блоки всех наших токенов, кроме ignoreId, и места, отданные в этом обновлении. */
+function takenOnScene(scene, ignoreId) {
+  const taken = new Set([...claimed].filter(k => k.startsWith(`${scene.id}|`)).map(k => k.slice(scene.id.length + 1)));
+  for (const t of scene.tokens) {
+    if (t.id === ignoreId || !ours(t)) continue;
+    for (const k of cellKeys(blockAt(scene, center(t, scene.grid.size), fpOf(t)))) taken.add(k);
+  }
+  return taken;
+}
+
 /**
- * Ближайшее к точке p свободное место (его центр) в клетке точки c, n мест по стороне.
- * busy(slot, step) — занято ли место. Возвращает { x, y } центра места или null.
+ * Свободный блок w×h мест в зоне точки c, ближайший к точке p.
+ * Возвращает блок с центром { x, y } или null, если в зоне нет места.
  */
-function nearestSlot(scene, c, p, n, busy) {
-  if (!n) return null;
-  const o = canvas.grid.getTopLeftPoint(c), step = scene.grid.size / n;
+function freeBlock(scene, c, p, [w, h], taken) {
+  const z = zoneOf(scene, c), cs = scene.grid.size / CELLS;
   let best = null;
-  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-    const s = { x: o.x + (i + 0.5) * step, y: o.y + (j + 0.5) * step };
-    if (busy(s, step)) continue;
-    const d = Math.hypot(s.x - p.x, s.y - p.y);
-    if (!best || d < best.d) best = { ...s, d };
+  for (let j = 0; j + h <= CELLS; j++) for (let i = 0; i + w <= CELLS; i++) {
+    const b = { zx: z.x, zy: z.y, i, j, w, h };
+    if (cellKeys(b).some(k => taken.has(k))) continue;
+    const x = z.x + (i + w / 2) * cs, y = z.y + (j + h / 2) * cs, d = Math.hypot(x - p.x, y - p.y);
+    if (!best || d < best.d) best = { ...b, x, y, d };
   }
   return best;
 }
 
-/** Место занято другим токеном сцены (его центр внутри места) или уже отдано в этом обновлении. */
-const busyOnScene = (scene, ignoreId) => (s, step) => claimed.has(slotKey(scene, s)) ||
-  scene.tokens.some(t => {
-    if (t.id === ignoreId) return false;
-    const c = center(t, scene.grid.size);
-    return Math.abs(c.x - s.x) < step / 2 && Math.abs(c.y - s.y) < step / 2;
-  });
+/** Верхний левый угол документа токена, чтобы его центр встал в центр блока. */
+const topLeft = (s, look, gs) => ({ x: Math.round(s.x - (look.width * gs) / 2), y: Math.round(s.y - (look.height * gs) / 2) });
 
-/** Верхний левый угол токена шириной w, чтобы его центр встал в центр места. */
-const topLeft = (s, w, gs) => ({ x: Math.round(s.x - (w * gs) / 2), y: Math.round(s.y - (w * gs) / 2) });
-
-/** Верхний левый угол большого токена w×h, чтобы он лёг по клеткам вокруг клетки точки c. */
-function bigTopLeft(c, w, h, gs) {
-  const o = canvas.grid.getTopLeftPoint(c);
-  return { x: o.x - Math.floor((w - 1) / 2) * gs, y: o.y - Math.floor((h - 1) / 2) * gs };
-}
-
-/** Новый токен большой цели: размер по таблице, вид сверху, клетки вокруг места, куда бросили. */
-function createBig(doc, fp) {
-  const scene = doc.parent, upd = {};
-  const [w, h] = doc.width === 1 && doc.height === 1 ? fp : [doc.width, doc.height];
-  if (w !== doc.width || h !== doc.height) {
-    Object.assign(upd, { width: w, height: h, texture: { scaleX: 1, scaleY: 1 } });
+/** Обновление, которое приводит токен к размеру системы: документ, масштаб и для больших целей вид сверху. */
+function lookUpdate(doc, fp, look) {
+  const upd = { width: look.width, height: look.height, texture: { scaleX: look.scale, scaleY: look.scale } };
+  if (fp !== ONE) {
+    upd.texture.fit = "contain";
     const src = footprintTexture(doc.texture?.src);
     if (src !== doc.texture?.src) upd.texture.src = src;
   }
-  if (squareScene(scene)) Object.assign(upd, bigTopLeft(center(doc, scene.grid.size), w, h, scene.grid.size));
-  if (Object.keys(upd).length) doc.updateSource(upd);
+  return upd;
+}
+
+/**
+ * Места для новых токенов, которые ставит не Foundry, а сама система (импорт миссии).
+ * Возвращает функцию (fp, zoneCol, zoneRow) → { width, height, x, y, texture }.
+ */
+export function zonePacker(scene) {
+  const taken = new Set(), gs = scene.grid.size;
+  return (fp, c, r) => {
+    fp = fp ?? ONE;
+    const look = cellLook(fp), z = { x: c * gs, y: r * gs };
+    const s = freeBlock(scene, z, z, fp, taken) ?? { ...freeBlock(scene, z, z, fp, new Set()) };
+    for (const k of cellKeys(s)) taken.add(k);
+    const tex = { scaleX: look.scale, scaleY: look.scale, ...(fp !== ONE ? { fit: "contain" } : {}) };
+    return { width: look.width, height: look.height, ...topLeft(s, look, gs), texture: tex };
+  };
 }
 
 function onPreCreate(doc, data, options) {
   if (options.tbKeep || !ours(doc)) return;
-  const fp = footprintOf(doc.actor?.system);
-  if (fp) return createBig(doc, fp);
-  const scene = doc.parent;
+  const scene = doc.parent, real = footprintOf(doc.actor?.system), fp = real ?? ONE, look = cellLook(fp);
   const upd = {};
-  let w = doc.width, scale = doc.texture?.scaleX ?? 1;
-  if (doc.width === 1 && doc.height === 1 && slotsPerSide() > 1) {
-    const look = tokenLook();
-    w = look.width; scale = look.scale;
-    Object.assign(upd, { width: w, height: w, texture: { scaleX: scale, scaleY: scale } });
-  }
-  if (squareScene(scene) && doc.width === doc.height) {
-    // клетка — та, куда бросили; место — первое свободное по порядку
-    const gs = scene.grid.size, c = center(doc, gs), o = canvas.grid.getTopLeftPoint(c);
-    const s = nearestSlot(scene, c, o, perSideOf(w, scale), busyOnScene(scene, null));
-    if (s) { Object.assign(upd, topLeft(s, w, gs)); claim(scene, s); }
+  // свежий токен 1×1 или старый большой токен размером в зоны получают размер в местах
+  const fresh = (doc.width === 1 && doc.height === 1) || (real && doc.width === real[0] && doc.height === real[1]);
+  if (fresh) foundry.utils.mergeObject(upd, lookUpdate(doc, real ?? ONE, look));
+  else if (!looksRight(doc.width, doc.height, doc.texture?.scaleX, look)) return;
+  if (squareScene(scene)) {
+    // зона — та, куда бросили; место — первое свободное по порядку
+    const gs = scene.grid.size, c = center(doc, gs), o = zoneOf(scene, c);
+    const s = freeBlock(scene, c, o, fp, takenOnScene(scene, null));
+    if (s) { Object.assign(upd, topLeft(s, look, gs)); claim(scene, s); }
   }
   if (Object.keys(upd).length) doc.updateSource(upd);
 }
@@ -120,40 +145,41 @@ const freePlacement = () => !!game.keyboard?.isModifierActive?.(KeyboardManager.
 function onPreUpdate(doc, change, options) {
   if (options.tbKeep || !ours(doc) || !("x" in change || "y" in change) || freePlacement()) return;
   const scene = doc.parent;
+  if (!squareScene(scene)) return;
+  const fp = fpOf(doc), look = cellLook(fp);
   const w = change.width ?? doc.width, h = change.height ?? doc.height;
-  const n = perSideOf(w, change.texture?.scaleX ?? doc.texture?.scaleX);
-  if (!squareScene(scene) || n < 2 || w !== h) return;
+  if (!looksRight(w, h, change.texture?.scaleX ?? doc.texture?.scaleX, look)) return;
   const gs = scene.grid.size;
   const c = center({ x: change.x ?? doc.x, y: change.y ?? doc.y }, gs, w, h);
-  const s = nearestSlot(scene, c, c, n, busyOnScene(scene, doc.id));
-  if (!s) return;   // все места заняты: токен встаёт поверх, как обычно
+  const s = freeBlock(scene, c, c, fp, takenOnScene(scene, doc.id));
+  if (!s) return;   // в зоне нет места: токен встаёт поверх, как обычно
   claim(scene, s);
-  const p = topLeft(s, w, gs);
+  const p = topLeft(s, look, gs);
   change.x = p.x; change.y = p.y;
 }
 
-/** Ведущий: токены самолётов и целей на сцене привести к размеру из настройки и разложить по местам в своих зонах. */
+/** Ведущий: токены самолётов и целей на сцене привести к размеру в местах и разложить по своим зонам. */
 export async function arrangeSceneTokens() {
   const scene = canvas?.scene;
   if (!game.user.isGM || !squareScene(scene)) return ui.notifications.warn("Нужна открытая сцена с квадратной сеткой.");
-  const n = slotsPerSide(), { width, scale } = n > 1 ? tokenLook(n) : { width: 1, scale: 1 }, gs = scene.grid.size;
-  const taken = new Set(), updates = [];
-  const key = s => `${Math.round(s.x)},${Math.round(s.y)}`;
-  for (const t of scene.tokens.filter(ours)) {
-    const c = center(t, gs);
-    const fp = footprintOf(t.actor?.system);
-    if (fp) {
-      const p = bigTopLeft(c, fp[0], fp[1], gs), src = footprintTexture(t.texture.src);
-      if (t.width !== fp[0] || t.height !== fp[1] || t.x !== p.x || t.y !== p.y || t.texture.scaleX !== 1 || src !== t.texture.src)
-        updates.push({ _id: t.id, width: fp[0], height: fp[1], ...p, "texture.scaleX": 1, "texture.scaleY": 1, "texture.src": src });
-      continue;
-    }
-    // все места зоны заняты: встать поверх, в первое место
-    const s = nearestSlot(scene, c, c, n, s => taken.has(key(s))) ?? nearestSlot(scene, c, { x: -1e9, y: -1e9 }, n, () => false);
-    taken.add(key(s));
-    const p = topLeft(s, width, gs);
-    if (t.width !== width || t.height !== width || t.x !== p.x || t.y !== p.y || t.texture.scaleX !== scale || t.texture.scaleY !== scale)
-      updates.push({ _id: t.id, width, height: width, x: p.x, y: p.y, "texture.scaleX": scale, "texture.scaleY": scale });
+  const gs = scene.grid.size, taken = new Set(), updates = [];
+  const area = t => { const [w, h] = fpOf(t); return w * h; };
+  // сначала большие цели: им нужно больше мест подряд
+  for (const t of scene.tokens.filter(ours).sort((a, b) => area(b) - area(a))) {
+    const real = footprintOf(t.actor?.system), fp = real ?? ONE, look = cellLook(fp), c = center(t, gs);
+    // все места зоны заняты: встать поверх, на ближайший блок
+    const s = freeBlock(scene, c, c, fp, taken) ?? freeBlock(scene, c, c, fp, new Set());
+    for (const k of cellKeys(s)) taken.add(k);
+    const p = topLeft(s, look, gs), want = lookUpdate(t, real ?? ONE, look);
+    const tex = want.texture;
+    const differs = t.width !== look.width || t.height !== look.height || t.x !== p.x || t.y !== p.y
+      || !same(t.texture.scaleX, look.scale) || !same(t.texture.scaleY, look.scale)
+      || (tex.src && tex.src !== t.texture.src) || (tex.fit && tex.fit !== t.texture.fit);
+    if (!differs) continue;
+    const u = { _id: t.id, width: look.width, height: look.height, ...p, "texture.scaleX": look.scale, "texture.scaleY": look.scale };
+    if (tex.src) u["texture.src"] = tex.src;
+    if (tex.fit) u["texture.fit"] = tex.fit;
+    updates.push(u);
   }
   if (updates.length) await scene.updateEmbeddedDocuments("Token", updates, { tbKeep: true, animate: false });
   ui.notifications.info(updates.length ? `Токенов разложено по зонам: ${updates.length}.` : "Все токены уже на местах.");
