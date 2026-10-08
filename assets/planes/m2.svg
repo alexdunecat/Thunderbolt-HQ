@@ -1,0 +1,10 @@
+<svg viewBox="-17.5 0 255 255" width="512" height="512" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+    
+    <polygon points="110,10 166.8,10 170,12.9 170,241.3 168.1,244.5 110,244.5 110,244.5 51.9,244.5 50,241.3 50,12.9 53.2,10 110,10" style="fill:#E9E4D2;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
+    <line x1="152.6" y1="14.2" x2="152.6" y2="240" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="67.4" y1="14.2" x2="67.4" y2="240" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/>
+    
+    
+    
+    <polygon points="110,40.6 111.3,40.6 111.3,92.9 115.2,110.3 129.4,111 150,130.3 153.2,140 153.2,174.2 148.7,185.2 139,194.8 126.1,199.4 110,200.6 110,200.6 93.9,199.4 81,194.8 71.3,185.2 66.8,174.2 66.8,140 70,130.3 90.6,111 104.8,110.3 108.7,92.9 108.7,40.6 110,40.6" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
+    <ellipse cx="124.2" cy="162.6" rx="11.6" ry="11.6" style="fill:#9DAA7A;stroke:#1E2822;stroke-width:1"/>
+  </svg>

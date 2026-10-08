@@ -3645,7 +3645,7 @@
    "sig": [
     "RCL"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/heli.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mi24.svg"
   },
   {
    "key": "mi28",
@@ -3683,7 +3683,7 @@
    "sig": [
     "RCL"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/heli.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mi28.svg"
   },
   {
    "key": "mi8",
@@ -3719,7 +3719,7 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/heli.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mi8.svg"
   },
   {
    "key": "ka52",
@@ -3757,7 +3757,7 @@
    "sig": [
     "RCL"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/heli.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/ka52.svg"
   },
   {
    "key": "uav",
@@ -3816,7 +3816,7 @@
      "text": "В конце раунда может сместиться на соседний участок по дороге или ровной местности."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/tank.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/t80u.svg"
   },
   {
    "key": "m1a2",
@@ -3844,7 +3844,7 @@
      "text": "В конце раунда может сместиться на соседний участок по дороге или ровной местности."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/tank.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/m1a2.svg"
   },
   {
    "key": "bmp2",
@@ -3877,7 +3877,7 @@
      "text": "Может стрелять по вертолётам и самолётам на Low в своём участке: d10 + 0 против Defense."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/apc.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/bmp2.svg"
   },
   {
    "key": "m2",
@@ -3910,7 +3910,7 @@
      "text": "Может стрелять по вертолётам и самолётам на Low в своём участке: d10 + 0 против Defense."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/apc.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/m2.svg"
   },
   {
    "key": "btr80",
@@ -3938,7 +3938,7 @@
      "text": "В конце раунда может сместиться на соседний участок по дороге или ровной местности."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/apc.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/btr80.svg"
   },
   {
    "key": "truck",
