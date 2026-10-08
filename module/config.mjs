@@ -55,7 +55,9 @@ export const TB = {
   range: { lockOn: 1, lockHold: 2, missile: 2, guns: 0, operation: 99 },
   /** Большие цели: размер токена в клетках [ширина, длина]; [1, 1] — на всю зону, без деления на места. Вид сверху для вытянутых токенов, если значок нарисован сбоку. */
   /* Большие цели: [ширина, длина] в местах зоны (зона — 3×3 места, обычный самолёт занимает одно). */
-  footprints: { strategic: [2, 2], large: [2, 2], arkbird: [2, 3], aerialCruiser: [3, 2], superSub: [1, 3], fleet: [1, 2] },
+  footprints: { strategic: [2, 2], large: [2, 2], arkbird: [2, 3], aerialCruiser: [3, 2], superSub: [1, 3], fleet: [1, 2], longVehicle: [1, 2] },
+  /* Длинные наземные машины на 2 места: пока только «Тополь-М» (Alex, 08.10). */
+  longVehicles: ["tel"],
   topViews: Object.fromEntries(["superSub", "carrier", "battleship", "cruiser", "destroyer", "frigate", "ship", "sub"]
     .map(k => [`assets/targets/${k}.svg`, `assets/targets/${k}-top.svg`])),
   weaponRange: { RCL: 0, MGP: 0, PLSL: 1, XAGM: 1, "4AAM": 1, ESM: 1, XLAA: 99, LAAM: 99, LACM: 99 },
@@ -123,6 +125,7 @@ export function footprintOf(sys) {
   if (sys.kind === "air" && (sys.grp === "support" || sys.key === "ac130")) return TB.footprints.large;
   if (props.includes("aerialship")) return TB.footprints.aerialCruiser;
   if (props.includes("superdive")) return TB.footprints.superSub;
+  if (sys.kind === "ground" && TB.longVehicles.includes(sys.key)) return TB.footprints.longVehicle;
   if (sys.kind === "ship" && sys.grp === "sea" && sys.key !== "patrolboat") return TB.footprints.fleet;
   return null;
 }
