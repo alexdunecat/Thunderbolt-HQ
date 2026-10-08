@@ -1,7 +1,7 @@
 /* Листы пилота и NPC (ActorSheet v1, стабильный API Foundry v12). */
 import { SYSTEM_ID, SYS_PATH, TB } from "../config.mjs";
 import { esc } from "../utils.mjs";
-import { weatherAt, defenseWithWeather, tokenOf, zoneDistance, rangeLabel } from "../scene.mjs";
+import { weatherAt, defenseWithWeather, tokenOf, zoneDistance, rangeLabel, gunVs } from "../scene.mjs";
 import { leadership, formUp, nextMods, dropNext, adjacentOf, breakAdjacent } from "../squad.mjs";
 import { resolveActor } from "../utils.mjs";
 import { SQUAD_POINTS, allSquads, squadLayout, setSquadLayout, squadMembers } from "../squadrons.mjs";
@@ -308,6 +308,7 @@ export class NpcSheet extends TBActorSheet {
     ctx.canSam = ctx.isGround && s.ground.ga !== null;
     ctx.shipSam = s.kind === "ship" && s.systems.some(y => y.ga !== null && y.ga !== undefined);
     ctx.canGun = ctx.isAir || (ctx.isGround && s.ground.gun !== null);
+    ctx.gunLabel = gunVs(this.actor) === "air" ? "Зенитный огонь" : "Огонь по земле";
     return ctx;
   }
 

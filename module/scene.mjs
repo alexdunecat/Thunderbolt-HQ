@@ -22,6 +22,18 @@ export function flyingBoss(actor) {
   return null;
 }
 
+export const hasRule = (actor, key) => propKeys(actor).includes(key);
+
+/**
+ * По кому бьёт пушка: самолёты — по всем; наземка с «Зенитным огнём» (Шилка, Вулкан, Тунгуска, зенитная батарея) — только по воздуху,
+ * остальная наземка (танки, БМП, БТР) — только по земле и морю; корабельные орудия систем — по воздуху.
+ */
+export function gunVs(actor) {
+  if (actor?.type !== "npc" || actor.system.kind === "air" || flyingBoss(actor)) return "any";
+  if (actor.system.kind === "ground") return hasRule(actor, "aafire") ? "air" : "ground";
+  return "air";
+}
+
 /** Летит ли машина: пилот, воздушный NPC или воздушный босс. */
 export const isFlying = actor => actor?.type === "pilot" || (actor?.type === "npc" && actor.system.kind === "air") || !!flyingBoss(actor);
 
@@ -172,4 +184,24 @@ export function defenseWithWeather(actor, w) {
   if (actor.type === "npc" && s.kind !== "air") return s.defense ?? null;
   const ev = (s.evasion ?? s.stats?.ev ?? 0) + (w?.ev ?? 0);
   return Math.max(ev, s.breakEv ?? -Infinity) + (s.speed ?? 0);
+}
+
+/* ---------- вода и суша ---------- */
+export const WATER = ["sea", "lake", "coast", "port"];
+
+/**
+ * Почему корабль не может встать в эту точку: клетка — суша (местность из импорта миссии, флаг terrainCells).
+ * На сушу выходит только сухопутный линкор (правило landship); воздушные корабли летают. Без карты местности — null.
+ */
+export function landBlocked(doc, to) {
+  const a = doc.actor, scene = doc.parent;
+  if (a?.type !== "npc" || a.system.kind !== "ship" || flyingBoss(a) || hasRule(a, "landship")) return null;
+  const cells = scene?.getFlag(SYSTEM_ID, "terrainCells");
+  const gs = scene?.grid?.size;
+  if (!cells || !gs) return null;
+  const w = (to.width ?? doc.width) * gs, h = (to.height ?? doc.height) * gs;
+  const x = (to.x ?? doc.x) + w / 2, y = (to.y ?? doc.y) + h / 2;
+  const ter = cells[`${Math.floor(x / gs)},${Math.floor(y / gs)}`];
+  if (!ter || WATER.includes(ter)) return null;
+  return `${doc.name}: корабль не выходит на сушу. На берег заходит только сухопутный линкор.`;
 }

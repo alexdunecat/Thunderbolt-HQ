@@ -1,7 +1,7 @@
 /* Броски и чат-карточки: проверки, ракеты, пушка, Break!, Strain, урон, сваливание. */
 import { SYSTEM_ID, TB } from "../config.mjs";
 import { esc, resolveActor } from "../utils.mjs";
-import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, zoneDistance, rangeLabel, isFlying, struckBy } from "../scene.mjs";
+import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, zoneDistance, rangeLabel, isFlying, struckBy, gunVs } from "../scene.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
 import { allowRoll } from "../actions.mjs";
@@ -509,7 +509,7 @@ function gunTargets(actor, pods) {
   const list = [], why = [];
   // приоритетные цели — задача для игроков и их союзников
   const ours = actor.type === "pilot" || actor.system.side === "ally";
-  const aaOnly = actor.type === "npc" && actor.system.kind !== "air";
+  const vs = gunVs(actor);
   for (const t of canvas.tokens.placeables) {
     if (t === me || !t.actor || t.actor === actor || (t.document.hidden && !game.user.isGM)) continue;
     const near = (zoneDistance(me, t) ?? 99) <= reach + 1;
@@ -517,7 +517,8 @@ function gunTargets(actor, pods) {
     if (!canFireAt(actor, t.actor)) { if (near) why.push(`${t.name}: своя сторона`); continue; }
     const d = describeTarget(t.actor, t.name, t);
     // зенитные орудия наземки и кораблей бьют только по воздуху
-    if (aaOnly && d.kind !== "air") { if (near) why.push(`${t.name}: зенитное орудие не бьёт по земле и морю`); continue; }
+    if (vs === "air" && d.kind !== "air") { if (near) why.push(`${t.name}: зенитное орудие не бьёт по земле и морю`); continue; }
+    if (vs === "ground" && d.kind === "air") { if (near) why.push(`${t.name}: по воздуху это орудие не стреляет`); continue; }
     const r = reachProblems(actor, d, reach);
     if (r.problems.length) { if (near) why.push(`${t.name}: ${r.problems[0]}`); continue; }
     list.push({ ...d, dist: r.dist, priority: ours && !!t.actor.system.priority });
@@ -553,7 +554,9 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
   if (t) {
     const { problems } = reachProblems(actor, t, gunReach(podItem));
     if (podItem?.system.key === "PLSL" && weatherAt(actor).list.some(d => d.id === "clouds")) problems.push("Облачность: импульсный лазер не бьёт.");
-    if (actor.type === "npc" && s.kind !== "air" && t.kind !== "air") problems.unshift("зенитное орудие не бьёт по земле и морю.");
+    const vs = gunVs(actor);
+    if (vs === "air" && t.kind !== "air") problems.unshift("зенитное орудие не бьёт по земле и морю.");
+    if (vs === "ground" && t.kind === "air") problems.unshift("по воздуху это орудие не стреляет.");
     if (problems.length) return ui.notifications.warn(`Guns, Guns, Guns!: ${problems[0]}`);
     if (t.token) selectTarget(t.token);
   }

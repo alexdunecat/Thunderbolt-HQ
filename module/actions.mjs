@@ -7,6 +7,7 @@
    Move и Climb / Dive засчитываются в момент перемещения, и двигавший видит об этом сообщение. */
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { PASS, isOut } from "./documents/combat.mjs";
+import { landBlocked } from "./scene.mjs";
 
 export const ACT_NAMES = {
   lock: "Lock On!", missile: "Fox Two!", guns: "Guns, Guns, Guns!", break: "Break!", recover: "Передышка",
@@ -119,6 +120,22 @@ async function countMove(actor, acts, token = null) {
 }
 
 export function registerActions() {
+  // корабли держатся воды (и вне боя); ведущий с Shift ставит куда угодно
+  Hooks.on("preUpdateToken", (doc, change, options) => {
+    if (options.tbKeep || !("x" in change || "y" in change)) return;
+    if (game.user.isGM && game.keyboard?.isModifierActive?.(KeyboardManager.MODIFIER_KEYS.SHIFT)) return;
+    const p = landBlocked(doc, change);
+    if (!p) return;
+    ui.notifications.warn(p);
+    return false;
+  });
+  Hooks.on("preCreateToken", (doc, data, options) => {
+    if (options.tbKeep || (game.user.isGM && game.keyboard?.isModifierActive?.(KeyboardManager.MODIFIER_KEYS.SHIFT))) return;
+    const p = landBlocked(doc, {});
+    if (!p) return;
+    ui.notifications.warn(p);
+    return false;
+  });
   // Move и Climb / Dive проверяются и засчитываются ещё до перемещения: только этот хук точно знает, откуда шёл токен
   Hooks.on("preUpdateToken", (doc, change, options) => {
     // tbSync: токен подтягивается к уже сменённой на листе высоте, Climb / Dive засчитан там

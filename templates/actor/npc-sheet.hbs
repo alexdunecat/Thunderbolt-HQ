@@ -109,7 +109,7 @@
         <div class="tb-actions-bar">
           {{#if canSam}}<button type="button" data-act="lock"><i class="fas fa-crosshairs"></i> Lock On!</button>
           <button type="button" data-sam><i class="fas fa-rocket"></i> Пуск ЗРК</button>{{/if}}
-          {{#if canGun}}<button type="button" data-act="guns"><i class="fas fa-burst"></i> Зенитный огонь <span class="tb-dice-tag" title="С броском d10 + d4: одна проверка за ход"><i class="fas fa-dice-d10"></i></span></button>{{/if}}
+          {{#if canGun}}<button type="button" data-act="guns"><i class="fas fa-burst"></i> {{gunLabel}} <span class="tb-dice-tag" title="С броском d10 + d4: одна проверка за ход"><i class="fas fa-dice-d10"></i></span></button>{{/if}}
         </div>
       </fieldset>
       {{/if}}

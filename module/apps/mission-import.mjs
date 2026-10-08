@@ -78,12 +78,13 @@ export async function drawMap(scene, m) {
 
   const { cells, everywhere } = splitWeather(m);
   const tiles = [], drawings = [];
+  const terrainCells = {};   // местность клеток: корабли не выходят на сушу (scene.mjs landBlocked)
   const B = 34;   // значок погоды
   for (let r = 0; r < m.rows; r++) for (let c = 0; c < m.cols; c++) {
     const h = m.hexes?.[`${c},${r}`] ?? {};
     const ter = (h.t && terrain.get(h.t)) || base;
     const x = c * S, y = r * S;
-    if (ter) tiles.push(tile(`${MAP}terrain/${ter.id}.svg`, x, y, S, S, 0));
+    if (ter) { tiles.push(tile(`${MAP}terrain/${ter.id}.svg`, x, y, S, S, 0)); terrainCells[`${c},${r}`] = ter.id; }
     // погода над всей картой рисуется погодой Foundry и табличкой сцены, в клетке только своя
     const fx = (h.fx ?? []).filter(id => effects.has(id) && !everywhere.includes(id));
     fx.forEach((id, i) => {
@@ -103,7 +104,7 @@ export async function drawMap(scene, m) {
   if (tiles.length) await scene.createEmbeddedDocuments("Tile", tiles);
   if (drawings.length) await scene.createEmbeddedDocuments("Drawing", drawings);
   await scene.update({ backgroundColor: base?.color ?? "#999999", weather: coreWeatherFor(everywhere),
-    [`flags.${SYSTEM_ID}.weatherCells`]: cells, [`flags.${SYSTEM_ID}.weather`]: everywhere });
+    [`flags.${SYSTEM_ID}.weatherCells`]: cells, [`flags.${SYSTEM_ID}.terrainCells`]: terrainCells, [`flags.${SYSTEM_ID}.weather`]: everywhere });
   for (const a of game.actors) if (a.sheet?.rendered) a.sheet.render(false);
   return { cells: Object.keys(cells).length, everywhere };
 }
