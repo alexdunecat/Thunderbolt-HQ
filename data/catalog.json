@@ -1756,7 +1756,7 @@
    "sig": [
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg"
   },
   {
    "key": "f4x",
@@ -1794,7 +1794,7 @@
    "sig": [
     "LAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig31.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg"
   },
   {
    "key": "f16c",
@@ -1821,7 +1821,7 @@
    "sig": [
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg"
   },
   {
    "key": "f14a",
@@ -1939,7 +1939,7 @@
    "sig": [
     "SAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/su27.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f15.svg"
   },
   {
    "key": "f15smtd",
@@ -1972,7 +1972,7 @@
    "sig": [
     "SAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f15.svg"
   },
   {
    "key": "yf23",
@@ -2178,7 +2178,7 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg"
   },
   {
    "key": "f16xl",
@@ -2244,7 +2244,7 @@
    "sig": [
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg"
   },
   {
    "key": "fa18e",
@@ -2277,7 +2277,7 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg"
   },
   {
    "key": "ea18g",
@@ -2320,7 +2320,7 @@
    "sig": [
     "ESM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg"
   },
   {
    "key": "f35c",
@@ -2391,7 +2391,7 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg"
   },
   {
    "key": "rafalem",
@@ -2533,7 +2533,7 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg"
   },
   {
    "key": "f15e",
@@ -2566,7 +2566,7 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/su27.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f15.svg"
   },
   {
    "key": "a6e",
