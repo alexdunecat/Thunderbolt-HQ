@@ -12,11 +12,14 @@ export const ACT_NAMES = {
   lead: "Leadership", formup: "Вплотную", sam: "Пуск ЗРК", skill: "Проверка", speed: "Change Speed", move: "Move", climb: "Climb / Dive"
 };
 
-/** Боец текущего боя для актёра (у несвязанных токенов — свой). */
-export function combatantOf(actor) {
+/** Боец текущего боя для актёра или токена: сначала по токену, потом по актёру. */
+export function combatantOf(actor, token = null) {
   const c = game.combat;
   if (!c?.started || !actor) return null;
-  return c.combatants.find(x => x.actor === actor || (x.actorId === actor.id && !actor.isToken && x.token?.actorLink)) ?? null;
+  const tokId = token?.id ?? (actor.isToken ? actor.token?.id : null);
+  return c.combatants.find(x => tokId && x.tokenId === tokId)
+    ?? c.combatants.find(x => x.actor === actor || (!actor.isToken && x.actorId === actor.id))
+    ?? null;
 }
 
 /** Заявлено действий: 1–3, отложивший ход — свои, пропуск — 0. */
@@ -34,8 +37,8 @@ export function spentOf(c) {
 }
 
 /** Почему действие сейчас нельзя сделать, или null. Вне боя ограничений нет. */
-export function actionProblem(actor, what, { rolled = false } = {}) {
-  const c = combatantOf(actor);
+export function actionProblem(actor, what, { rolled = false, token = null } = {}) {
+  const c = combatantOf(actor, token);
   if (!c) return null;
   const combat = c.parent, name = ACT_NAMES[what] ?? what;
   if (combat.getFlag(SYSTEM_ID, "ready") !== combat.round) return `${c.name}: сначала заявка действий на этот раунд.`;
@@ -66,8 +69,8 @@ export function allowRoll(actor) {
  * Отметить сделанное действие. what — ключ из ACT_NAMES; rolled — с броском.
  * Move и Climb / Dive открывают бесплатную смену скорости в этот ход.
  */
-export async function spendAction(actor, what, { rolled = false } = {}) {
-  const c = combatantOf(actor);
+export async function spendAction(actor, what, { rolled = false, token = null } = {}) {
+  const c = combatantOf(actor, token);
   if (!c?.isOwner) return;
   const name = ACT_NAMES[what] ?? what;
   const s = foundry.utils.deepClone(spentOf(c));
@@ -100,31 +103,33 @@ function zoneStep(doc, to) {
   return Math.max(Math.abs(a - p), Math.abs(b - q));
 }
 
+/** Перемещения, прошедшие проверку: uuid токена → { from, elev }. */
+const pending = new Map();
+
 export function registerActions() {
-  // Move и Climb / Dive: проверка до перемещения, счёт после
-  Hooks.on("preUpdateToken", (doc, change, options, userId) => {
-    if (options.tbKeep || !doc.actor || !combatantOf(doc.actor)) return;
+  // Move и Climb / Dive: проверка до перемещения, счёт после. Откуда шёл токен, помним у себя.
+  Hooks.on("preUpdateToken", (doc, change, options) => {
+    if (options.tbKeep || !doc.actor || !combatantOf(doc.actor, doc)) return;
     const gmFree = game.user.isGM && !!game.keyboard?.isModifierActive?.(KeyboardManager.MODIFIER_KEYS.SHIFT);
-    const problems = [];
+    const problems = [], move = {};
     if ("x" in change || "y" in change) {
-      options.tbFrom = { x: doc.x, y: doc.y, w: doc.width, h: doc.height };
       const d = zoneStep(doc, change);
       if (d > 0) {
-        const p = actionProblem(doc.actor, "move");
+        move.from = { x: doc.x, y: doc.y, width: doc.width, height: doc.height, parent: doc.parent };
+        const p = actionProblem(doc.actor, "move", { token: doc });
         if (p) problems.push(p);
         else if (d > 1) problems.push(`${doc.name}: Move только в соседнюю зону, а здесь ${d}.`);
       }
     }
     if ("elevation" in change && change.elevation !== doc.elevation && [1, 2, 3].includes(change.elevation)) {
-      options.tbElev = doc.elevation;
-      const p = actionProblem(doc.actor, "climb");
+      move.elev = doc.elevation;
+      const p = actionProblem(doc.actor, "climb", { token: doc });
       if (p) problems.push(p);
       else if (Math.abs(change.elevation - doc.elevation) > 1) problems.push(`${doc.name}: Climb / Dive меняет высоту только на одну ступень.`);
     }
-    if (!problems.length) return;
-    if (gmFree) { options.tbFree = true; return; }
-    ui.notifications.warn(problems[0]);
-    return false;
+    if (problems.length && !gmFree) { ui.notifications.warn(problems[0]); return false; }
+    if (gmFree && problems.length) return;   // ведущий с Shift: в обход правил и без счёта
+    if (move.from || "elev" in move) pending.set(doc.uuid, move);
   });
   // смена высоты из листа проверяется так же, как ▲▼ на токене
   Hooks.on("preUpdateActor", (actor, change, options) => {
@@ -136,9 +141,11 @@ export function registerActions() {
     return false;
   });
   Hooks.on("updateToken", (doc, change, options, userId) => {
-    if (userId !== game.user.id || options.tbKeep || options.tbFree || !doc.actor || !combatantOf(doc.actor)) return;
-    if (options.tbFrom && zoneStep({ ...options.tbFrom, width: options.tbFrom.w, height: options.tbFrom.h, parent: doc.parent }, doc) > 0) spendAction(doc.actor, "move");
-    if ("tbElev" in options && options.tbElev !== doc.elevation) spendAction(doc.actor, "climb");
+    const move = pending.get(doc.uuid);
+    if (!move || userId !== game.user.id) return;
+    pending.delete(doc.uuid);
+    if (move.from && zoneStep(move.from, doc) > 0) spendAction(doc.actor, "move", { token: doc });
+    if ("elev" in move && move.elev !== doc.elevation) spendAction(doc.actor, "climb", { token: doc });
   });
   // лист и трекер показывают счётчик
   Hooks.on("updateCombatant", c => { if (c.actor?.sheet?.rendered) c.actor.sheet.render(false); });
