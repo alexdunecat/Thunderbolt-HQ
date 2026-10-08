@@ -93,8 +93,9 @@ const out = {
 };
 fs.writeFileSync(path.join(ROOT, "data/catalog.json"), JSON.stringify(out, null, 1));
 
-/* Рамка силуэтов неквадратных токенов [ширина, длина] в клетках, как TB.footprints в module/config.mjs. */
-const FRAME = { aerial: [6, 2], arkbird: [2, 3], scinfaxi: [1, 3] };
+/* Пропорции поля силуэтов неквадратных токенов [ширина, длина], по TB.footprints в module/config.mjs
+   (Гигес и Коттос занимают одну зону, но сами шире, чем длиннее). */
+const FRAME = { aerial: [3, 2], arkbird: [2, 3], scinfaxi: [1, 3] };
 for (const s of shapes) {
   let svg = fix(Y.silhouette(s)).replace(' role="img" aria-label="Силуэт сверху"', ' xmlns="http://www.w3.org/2000/svg"');
   // поле в пропорциях токена (у больших целей — по их клеткам, у остальных квадрат), чтобы силуэт заполнял рамку
