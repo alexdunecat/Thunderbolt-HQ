@@ -51,7 +51,6 @@ export class PilotData extends foundry.abstract.TypeDataModel {
       twist: bool(),
       wso: str(),
       insignia: str(),
-      side: str("enemy"), priority: bool(),
       ...sortieFields(),
       notes: new f.HTMLField({ required: true, blank: true })
     };
@@ -137,6 +136,8 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       sig: new f.ArrayField(new f.StringField()),
       desc: str(), service: str(),
       insignia: str(),
+      // сторона в бою и приоритетная цель (вкладка «Заметки AWACS»)
+      side: str("enemy"), priority: bool(),
       ...sortieFields(),
       notes: new f.HTMLField({ required: true, blank: true })
     };
