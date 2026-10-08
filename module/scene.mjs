@@ -85,7 +85,7 @@ export function rangeLabel(r) {
 
 /**
  * Что мешает атаке или захвату: дальность, погода «цели только в своей зоне», запреты по высоте.
- * target: { actor, token, kind }. Возвращает { dist, problems: [строки] }.
+ * target: { actor, token, kind }. Возвращает { dist, far (дальше дальности), problems: [строки] }.
  */
 export function reachProblems(attacker, target, range) {
   const problems = [];
@@ -95,13 +95,14 @@ export function reachProblems(attacker, target, range) {
   const dusty = (wa.ownZone || wb.ownZone) && range > 0;
   if (dusty) range = 0;
   const dist = zoneDistance(a, b);
-  if (dist !== null && dist > range)
+  const far = dist !== null && dist > range;
+  if (far)
     problems.push(`Цель в ${dist} ${dist === 1 ? "зоне" : "зонах"} от вас, а дальность: ${rangeLabel(range)}.${dusty ? " Пыльная буря: цели только в своей зоне." : ""}`);
   const altA = altOf(a, attacker), altB = altOf(b, target.actor);
   const air = target.kind === "air";
   if (altA === "high" && (!air || altB === "low")) problems.push("С High нельзя бить по земле и по целям на Low.");
   else if (air && altB === "low" && altA !== "low") problems.push("По воздушной цели на Low бьют только с Low.");
-  return { dist, problems };
+  return { dist, far, problems };
 }
 
 /** Спросить ведущего или игрока, стрелять ли вне правил дальности. true — продолжать. */

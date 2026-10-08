@@ -67,6 +67,7 @@ Hooks.once("ready", () => {
   applySkin(game.settings.get(SYSTEM_ID, "skin"));
   // пилоты, созданные до автоматики триггеров: подтянуть HP и Strain к новым максимумам
   initSocket();
+  R.initHitSocket();
   // «В строю» читает союзника: после загрузки всех актёров пересчитать тех, кто стоит вплотную
   for (const a of game.actors) if (a.type === "pilot" && a.getFlag(SYSTEM_ID, "adjacent")?.length) { a.prepareData(); a.sheet?.rendered && a.sheet.render(false); }
   if (game.user.isGM) for (const a of game.actors) if (a.type === "pilot") a.syncPools();

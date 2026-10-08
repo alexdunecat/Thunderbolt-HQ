@@ -148,7 +148,7 @@ export function renderCard(card) {
   if (c.resolved) rows.push(`<div class="tb-note">${c.atTurn ? "Учтена в начале хода цели." : "Учтена в залпе конца раунда."}</div>`);
   if (c.dmg && c.targetUuid && !queued && !c.resolved && (c.success || c.dc === null || c.dc === undefined) && !c.dmgApplied)
     btn.push(`<button type="button" data-tb-action="damage" class="tb-target-owner"><i class="fas fa-burst"></i> ${c.delayed ? "В конце раунда: " : ""}${c.dmg} урона по «${esc(c.targetName)}»</button>`);
-  if (c.dmgApplied) rows.push(`<div class="tb-note">Урон нанесён.</div>`);
+  if (c.dmgApplied) rows.push(`<div class="tb-note">${c.autoDmg ? `Попадание: ${c.dmg} урона по «${esc(c.targetName)}» нанесено сразу.` : "Урон нанесён."}</div>`);
 
   return `<div class="tb-card tb-card-${c.type}">
     <header class="tb-card-head"><span class="tb-card-who">${esc(c.actorName)}</span><span class="tb-card-what">${esc(c.label)}</span></header>
@@ -316,14 +316,16 @@ export async function lockOn(actor) {
   if (!tok) return;
   const t = describeTarget(tok.actor, tok.name, tok);
   const longRange = actor.items.find(i => i.type === "weapon" && i.system.reach >= TB.range.operation && (i.system.unlimited || i.system.ammo.value > 0));
-  const { dist, problems } = reachProblems(actor, t, longRange ? TB.range.operation : TB.range.lockOn);
+  const { dist, far, problems } = reachProblems(actor, t, longRange ? TB.range.operation : TB.range.lockOn);
+  // дальше своей и соседней зоны захват не берётся; запреты по высоте ведущий может разрешить
+  if (far) return ui.notifications.warn(`Lock On! невозможен: ${problems[0]}`);
   if (!(await confirmReach(problems, "Lock On!"))) return;
   selectTarget(tok);
   await actor.update({ "system.lock": t.name, "system.lockUuid": t.uuid });
-  const far = dist !== null && dist > TB.range.lockOn && longRange ? ` Захват для ${esc(longRange.name)}.` : "";
+  const longNote = dist !== null && dist > TB.range.lockOn && longRange ? ` Захват для ${esc(longRange.name)}.` : "";
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
-    content: `<div class="tb-card tb-card-lock"><header class="tb-card-head"><span class="tb-card-who">${esc(actor.name)}</span><span class="tb-card-what">Lock On!</span></header><div class="tb-note">Захват: <b>${esc(t.name)}</b>${dist !== null ? `, ${dist} зон.` : "."}${far} Срывается, если цель уйдёт дальше двух зон.</div></div>`,
+    content: `<div class="tb-card tb-card-lock"><header class="tb-card-head"><span class="tb-card-who">${esc(actor.name)}</span><span class="tb-card-what">Lock On!</span></header><div class="tb-note">Захват: <b>${esc(t.name)}</b>${dist !== null ? `, ${dist} зон.` : "."}${longNote} Срывается, если цель уйдёт дальше двух зон.</div></div>`,
     flags: { [SYSTEM_ID]: { rwr: { target: t.uuid, from: actor.name } } }
   });
 }
@@ -407,22 +409,58 @@ export async function fireMissile(actor) {
 }
 
 /** Guns, Guns, Guns!: d10 + Strafe − Speed против защиты, урон сразу. */
+/** Дальность пушки: бортовая — своя зона, контейнер — по своей дальности. */
+const gunReach = pod => pod?.system.reach ?? TB.range.guns;
+
+/**
+ * Цели для пушки: противники (другая сторона токена), до которых достаёт хоть одна пушка, без запретов по высоте.
+ * null — проверить нельзя (у стрелка нет токена на сцене с сеткой).
+ */
+function gunTargets(actor, pods) {
+  const me = tokenOf(actor);
+  if (!me || !canvas?.ready || canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return null;
+  const reach = Math.max(TB.range.guns, ...pods.map(gunReach));
+  const out = [];
+  for (const t of canvas.tokens.placeables) {
+    if (t === me || !t.actor || t.actor === actor || (t.document.hidden && !game.user.isGM)) continue;
+    if (t.document.disposition === me.document.disposition) continue;
+    if (t.actor.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) continue;
+    const d = describeTarget(t.actor, t.name, t);
+    const r = reachProblems(actor, d, reach);
+    if (!r.problems.length) out.push({ ...d, dist: r.dist });
+  }
+  return out.sort((x, y) => (x.dist ?? 0) - (y.dist ?? 0) || x.name.localeCompare(y.name));
+}
+
+/** Guns, Guns, Guns!: Strafe − Speed против защиты цели в своей зоне, без захвата. Попадание наносит урон сразу. */
 export async function fireGuns(actor, { system: sysIndex } = {}) {
   const s = actor.system;
-  const t = currentTarget() ?? lockedTarget(actor);
   if (s.broken === "gu") return ui.notifications.warn("Пушка сломана (метка Structure).");
   if (blocked(actor, "strafe")) return;
+  const podItems = s.broken === "sw" ? [] : actor.items.filter(i => i.type === "weapon" && i.system.target === "gun" && (i.system.unlimited || (i.system.ammo.value ?? 0) > 0));
   const pods = weaponOptions(actor, false);
+  // цель: противник в своей зоне; если их несколько, выбор в окне
+  const list = gunTargets(actor, podItems);
+  if (list && !list.length) return ui.notifications.warn("В зоне пушки нет противника: Guns бьёт только по цели в своей зоне.");
+  const picked = currentTarget();
+  const pre = list ? (list.find(x => x.uuid === picked?.uuid && x.token === picked?.token) ?? list[0]) : picked ?? lockedTarget(actor);
+  const targetField = list
+    ? (list.length === 1
+      ? `<p class="tb-hint">Цель: <b>${esc(pre.name)}</b>${pre.defense !== null ? `, защита ${pre.defense}` : ""}. Захват не нужен.</p>`
+      : `<div class="form-group"><label>Цель</label><select name="target">${list.map((x, i) => `<option value="${i}" ${x === pre ? "selected" : ""}>${esc(x.name)}${x.defense !== null ? ` · защита ${x.defense}` : " · по Occlusion системы"}${x.dist ? " · соседняя зона" : ""}</option>`).join("")}</select></div>`)
+    : `<p class="tb-hint">${pre ? `Цель: <b>${esc(pre.name)}</b>${pre.defense !== null ? `, защита ${pre.defense}` : ""}` : "Цель не выбрана: итог покажу без сравнения."} Только в своей зоне.</p>`;
   const data = await formDialog("Guns, Guns, Guns!", `
-    <p class="tb-hint">${t ? `Цель: <b>${esc(t.name)}</b>${t.defense !== null ? `, защита ${t.defense}` : ""}` : "Цель не выбрана: итог покажу без сравнения."} Только в своей зоне.</p>
+    ${targetField}
     ${pods.length ? `<div class="form-group"><label>Контейнер</label><select name="pod"><option value="">Бортовая пушка</option>${pods.join("")}</select></div>` : ""}
     ${commonFields(actor, "strafe")}`, { ok: "Огонь" });
   if (!data) return;
   const podItem = data.pod ? actor.items.get(data.pod) : null;
+  const t = list ? (list.length > 1 ? list[Number(data.target) || 0] : pre) : pre;
   if (t) {
-    const { problems } = reachProblems(actor, t, podItem?.system.reach ?? TB.range.guns);
+    const { problems } = reachProblems(actor, t, gunReach(podItem));
     if (podItem?.system.key === "PLSL" && weatherAt(actor).list.some(d => d.id === "clouds")) problems.push("Облачность: импульсный лазер не бьёт.");
-    if (!(await confirmReach(problems, "Guns, Guns, Guns!"))) return;
+    if (problems.length) return ui.notifications.warn(`Guns, Guns, Guns!: ${problems[0]}`);
+    if (t.token) selectTarget(t.token);
   }
   const dice = await rollDice(actor, data.practiced);
   let strafe = null;
@@ -435,7 +473,7 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
     strafe = /Strafe \+(\d)/.exec(y?.note ?? "")?.[1] ? Number(/Strafe \+(\d)/.exec(y.note)[1]) : 0;
   }
   const parts = strafe === null ? skillParts(actor, "strafe", "Пушка") : [["Пушка", strafe]];
-  const pod = data.pod ? actor.items.get(data.pod) : null;
+  const pod = podItem;
   if (pod?.system.key === "MGP") { parts.push(["MGP", 1]); gun += 3; label += " (MGP)"; }
   if (pod?.system.key === "PLSL") { parts.push(["PLSL", 1]); gun = 6; label = "Импульсный лазер"; }
   parts.push(...await takeNext(actor));
@@ -446,11 +484,48 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
     type: "attack", attack: true, label, rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0,
     dc: t && t.kind !== "ship" ? t.defense : null, vsLabel: "защиты", vsHint: t?.kind === "ship" ? "по Occlusion системы" : "",
     strainable: actor.type === "pilot" || s.tier === "ace", practiced: !!data.practiced,
-    dmg: gun, delayed: false, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "",
-    notes: pod?.system.key === "PLSL" ? ["Бьёт в своей и соседних зонах. Облака блокируют лазер."] : [],
+    dmg: gun, delayed: false, instant: true, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "",
+    notes: [...(t?.actor.system.breakEv != null && t.kind === "air" ? [`У цели Break!: защита ${t.defense}.`] : []),
+      ...(pod?.system.key === "PLSL" ? ["Бьёт в своей и соседних зонах. Облака блокируют лазер."] : [])],
     ...thresholds(actor, "strafe", data.storm)
   };
-  return postCard(actor, card, dice.rolls);
+  const msg = await postCard(actor, card, dice.rolls);
+  await autoHit(msg);
+  return msg;
+}
+
+/* ---------- урон без кнопки ---------- */
+
+const CHANNEL = `system.${SYSTEM_ID}`;
+
+/** Кто наносит урон цели: игрок-владелец в сети (у него откроется выбор метки), иначе ведущий. */
+export function damageUser(actor) {
+  return game.users.find(u => u.active && !u.isGM && actor.testUserPermission(u, "OWNER"))?.id ?? game.users.activeGM?.id ?? null;
+}
+
+/**
+ * Пушка попала: урон сразу (по правилам Guns бьёт мгновенно, Break! после выстрела уже не поможет).
+ * Срабатывает при выстреле и когда Strain превращает промах в попадание. Корабли — по кнопке (Occlusion системы).
+ */
+async function autoHit(message) {
+  const card = foundry.utils.deepClone(message?.getFlag(SYSTEM_ID, "card") ?? {});
+  if (!card.instant || card.dmgApplied || !card.targetUuid || card.dc === null || card.dc === undefined) return;
+  const c = computeCard(card);
+  if (!c.success) return;
+  const target = resolveActor(card.targetUuid);
+  const by = target && damageUser(target);
+  if (!by) return;   // ведущего нет: урон останется на кнопке
+  card.dmgApplied = true;
+  card.autoDmg = true;
+  if (message.canUserModify(game.user, "update")) await message.update({ content: renderCard(card), [`flags.${SYSTEM_ID}.card`]: card });
+  const hit = { uuid: card.targetUuid, name: card.targetName, dmg: c.dmg ?? card.dmg, source: card.actorName, sourceUuid: card.actorUuid, gun: true };
+  if (by === game.user.id) return hitTarget(hit);
+  game.socket.emit(CHANNEL, { type: "hit", to: by, hit });
+}
+
+/** Урон, который другой клиент поручил этому. */
+export function initHitSocket() {
+  game.socket.on(CHANNEL, msg => { if (msg?.type === "hit" && msg.to === game.user.id) hitTarget(msg.hit); });
 }
 
 /** Пуск ЗРК или ракета корабельной системы: G-A, Speed 0, без броска. */
@@ -536,7 +611,7 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
       boosts: hit ? need : 0, added: adders.length, dmg: (best.dmg ?? 0) + adders.reduce((s, x) => s + (x.dmg ?? 0), 0),
       sourceUuid: best.actorUuid, source: best.actorName,
       // урон наносит клиент владельца-игрока (у него откроется выбор метки), иначе ведущий
-      by: game.users.find(u => u.active && !u.isGM && actor.testUserPermission(u, "OWNER"))?.id ?? game.user.id
+      by: damageUser(actor) ?? game.user.id
     });
     done.push(...list);
   }
@@ -553,12 +628,12 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
   return msg;
 }
 
-/** Нанести урон попавшего залпа; пилоту — сигнал. */
+/** Нанести урон попадания (залп или пушка); пилоту — сигнал. */
 async function hitTarget(r, roundKey) {
   const target = resolveActor(r.uuid);
-  if (!target) return;
+  if (!target?.isOwner) return;
   if (target.type === "pilot" && !game.user.isGM) {
-    ui.notifications.error(`Ракета попала в «${r.name}»: ${r.dmg} урона.`);
+    ui.notifications.error(`${r.gun ? "Пушка" : "Ракета"}${r.source ? ` (${r.source})` : ""} попала в «${r.name}»: ${r.dmg} урона.`);
     foundry.audio.AudioHelper.play({ src: CONFIG.sounds.notification, volume: 0.8, autoplay: true, loop: false }, false);
   }
   await target.applyDamage(r.dmg, { source: r.source, sourceUuid: r.sourceUuid, roundKey });
@@ -588,6 +663,7 @@ export async function onCardAction(message, action, button) {
       card.strain = (card.strain ?? 0) + 1;
       await save();
       if (card.type === "break") await applyBreak(actor, card);
+      if (card.instant) await autoHit(message);
       return;
     }
     case "break-speed": {
