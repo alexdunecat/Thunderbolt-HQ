@@ -36,32 +36,21 @@ const tile = (src, x, y, w, h, sort, alpha = 1, rotation = 0) => ({
 
 /* ---------- местность у воды поворачивается к соседней воде ---------- */
 const WET = ["sea", "lake", "port"];
-const DIRS = [[1, 0, 0], [0, 1, 90], [-1, 0, 180], [0, -1, 270]];   // восток, юг, запад, север: поворот рисунка «вода справа»
-const CORNERS = [[1, -1, 0], [1, 1, 90], [-1, 1, 180], [-1, -1, 270]]; // СВ, ЮВ, ЮЗ, СЗ: поворот рисунка «вода в правом верхнем углу»
+const DIRS = [[1, 0, 0], [0, 1, 90], [-1, 0, 180], [0, -1, 270]];   // восток, юг, запад, север
 
 /**
- * Рисунок и поворот клетки: побережье смотрит водой на соседнее море, озеро или порт (две соседние стороны — угол),
- * а без воды рядом — на край карты; порт ставит причалы к воде; озеро рядом с другой водой открыто, без берега.
+ * Рисунок и поворот клетки: побережье рисунка не получает (клетка пустая, название видно при наведении);
+ * порт ставит причалы к соседней воде, а без воды рядом — к краю карты; озеро рядом с другой водой открыто, без берега.
  */
 export function terrainArt(terOf, c, r, cols, rows) {
   const id = terOf(c, r);
   const wet = (dc, dr) => WET.includes(terOf(c + dc, r + dr));
   if (id === "lake") return { src: [...DIRS].some(([dc, dr]) => ["lake", "sea"].includes(terOf(c + dc, r + dr))) ? "lake-open" : "lake", rot: 0 };
-  if (id !== "coast" && id !== "port") return { src: id, rot: 0 };
-  const sides = DIRS.filter(([dc, dr]) => wet(dc, dr));
-  let pick = null;
-  if (id === "coast" && sides.length === 2 && (sides[1][2] - sides[0][2]) % 180 !== 0) {
-    const a = sides[0][2], b = sides[1][2];
-    return { src: "coast-corner", rot: a === 0 && b === 270 ? 0 : b };
-  }
-  if (sides.length) pick = sides[0];
-  if (!pick && id === "coast") {
-    const corner = CORNERS.find(([dc, dr]) => wet(dc, dr));
-    if (corner) return { src: "coast-corner", rot: corner[2] };
-  }
-  // воды рядом нет: к краю карты (побережье вдоль края смотрит наружу)
-  if (!pick) pick = DIRS.find(([dc, dr]) => terOf(c + dc, r + dr) === null) ?? DIRS[0];
-  return { src: id, rot: id === "port" ? (pick[2] + 270) % 360 : pick[2] };
+  if (id === "coast") return null;
+  if (id !== "port") return { src: id, rot: 0 };
+  // воды рядом нет: к краю карты
+  const pick = DIRS.find(([dc, dr]) => wet(dc, dr)) ?? DIRS.find(([dc, dr]) => terOf(c + dc, r + dr) === null) ?? DIRS[0];
+  return { src: id, rot: (pick[2] + 270) % 360 };
 }
 
 /** Погода, которая лежит на всех клетках карты, становится погодой всей сцены; остальная остаётся по клеткам. */
@@ -117,7 +106,7 @@ export async function drawMap(scene, m) {
     const id = terOf(c, r);
     if (id) {
       const art = terrainArt(terOf, c, r, m.cols, m.rows);
-      tiles.push(tile(`${MAP}terrain/${art.src}.svg`, x, y, S, S, 0, 1, art.rot));
+      if (art) tiles.push(tile(`${MAP}terrain/${art.src}.svg`, x, y, S, S, 0, 1, art.rot));
       terrainCells[`${c},${r}`] = id;
     }
     // погода над всей картой идёт погодой Foundry, в клетке только своя
@@ -146,7 +135,7 @@ export async function legendHtml(m) {
   const used = new Set([m.base ?? "steppe"]), fx = new Set();
   for (const h of Object.values(m.hexes ?? {})) { if (h.t) used.add(h.t); for (const id of h.fx ?? []) fx.add(id); }
   const img = (src, w = 64) => `<img src="${src}" width="${w}" height="${w}" style="border:none;vertical-align:middle">`;
-  const ter = cat.terrain.filter(t => used.has(t.id)).map(t => `<tr><td>${img(`${MAP}terrain/${t.id}.svg`)}</td><td><b>${esc(t.name)}</b>${t.note ? `<br>${esc(t.note)}` : ""}</td></tr>`).join("");
+  const ter = cat.terrain.filter(t => used.has(t.id)).map(t => `<tr><td>${t.id === "coast" ? "" : img(`${MAP}terrain/${t.id}.svg`)}</td><td><b>${esc(t.name)}</b>${t.note ? `<br>${esc(t.note)}` : ""}</td></tr>`).join("");
   const wx = cat.effects.filter(e => fx.has(e.id)).map(e => `<tr><td>${img(`${MAP}weather/${e.id}-badge.svg`, 40)}</td><td><b>${e.ico} ${esc(e.name)}</b><br>${esc(TB.weather[e.id]?.txt ?? e.txt)}</td></tr>`).join("");
   const all = splitWeather(m).everywhere.map(id => `${TB.weather[id].ico} ${TB.weather[id].name}`);
   return `<h2>Местность</h2><table>${ter}</table>${wx ? `<h2>Погода и эффекты</h2>${all.length ? `<p><b>Над всей картой:</b> ${all.join(", ")}. Это погода всей сцены (панель AWACS), на карте она идёт погодой Foundry.</p>` : ""}<p>Значок погоды клетки стоит в её правом верхнем углу. Погода сама учитывается в бросках и защите тех, кто в этой клетке.</p><table>${wx}</table>` : ""}`;
