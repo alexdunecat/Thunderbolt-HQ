@@ -1,11 +1,1 @@
-<svg viewBox="-3 0 226 226" width="512" height="512" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
-    
-    <polygon points="110,10 168.2,10 170,11.8 170,213.8 167.6,216.1 110,216.1 110,216.1 52.4,216.1 50,213.8 50,11.8 51.8,10 110,10" style="fill:#E9E4D2;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
-    <line x1="152.8" y1="13" x2="152.8" y2="213.8" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="67.2" y1="13" x2="67.2" y2="213.8" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/>
-    
-    
-    
-    <polygon points="110,30.8 113.6,30.8 113.6,83.7 119.5,83.7 119.5,98.5 136.7,99.1 144.5,114 144.5,137.7 139.7,152.6 130.8,158.5 110,161.5 110,161.5 89.2,158.5 80.3,152.6 75.5,137.7 75.5,114 83.3,99.1 100.5,98.5 100.5,83.7 106.4,83.7 106.4,30.8 110,30.8" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
-    
-    <ellipse cx="79.7" cy="64.7" rx="11.9" ry="11.9" style="fill:#9DAA7A;stroke:#1E2822;stroke-width:1"/>
-  </svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.00 0.00 226.00 226.00" width="512" height="512"><polygon points="110.0,10.0 168.2,10.0 170.0,11.8 170.0,213.8 167.6,216.1 110.0,216.1 110.0,216.1 52.4,216.1 50.0,213.8 50.0,11.8 51.8,10.0 110.0,10.0" fill="#0b1d24" fill-opacity="0.6" stroke="#07141a" stroke-opacity=".75" stroke-width="7.50" stroke-linejoin="round"/><polygon points="110.0,10.0 168.2,10.0 170.0,11.8 170.0,213.8 167.6,216.1 110.0,216.1 110.0,216.1 52.4,216.1 50.0,213.8 50.0,11.8 51.8,10.0 110.0,10.0" fill="#ffffff" fill-opacity=".22" stroke="#ffffff" stroke-width="3.09" stroke-linejoin="round"/><line x1="110" y1="18.2" x2="110" y2="207.8" stroke="#ffffff" stroke-width="0.71" stroke-dasharray="4.4 3.1" opacity=".4"/><line x1="152.8" y1="13" x2="152.8" y2="213.8" stroke="#ffffff" stroke-width="2.65" stroke-linecap="round" opacity=".85"/><line x1="67.2" y1="13" x2="67.2" y2="213.8" stroke="#ffffff" stroke-width="2.65" stroke-linecap="round" opacity=".85"/><polygon points="110.0,30.8 113.6,30.8 113.6,83.7 119.5,83.7 119.5,98.5 136.7,99.1 144.5,114.0 144.5,137.7 139.7,152.6 130.8,158.5 110.0,161.5 110.0,161.5 89.2,158.5 80.3,152.6 75.5,137.7 75.5,114.0 83.3,99.1 100.5,98.5 100.5,83.7 106.4,83.7 106.4,30.8 110.0,30.8" fill="none" stroke="#ffffff" stroke-width="1.50" stroke-linejoin="round" stroke-linecap="round" opacity=".7"/><ellipse cx="79.7" cy="64.7" rx="11.9" ry="11.9" fill="#ffffff" fill-opacity=".35" stroke="#ffffff" stroke-width="1.50"/></svg>

@@ -1,11 +1,1 @@
-<svg viewBox="-49 0 318 318" width="512" height="512" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
-    
-    <polygon points="110,10 160.2,10 160.2,27.1 162.7,29.6 162.7,125 159.2,126 159.2,154.1 170,154.1 170,306.7 168.2,307.7 110,307.7 110,307.7 51.8,307.7 50,306.7 50,154.1 60.8,154.1 60.8,126 57.3,125 57.3,29.6 59.8,27.1 59.8,10 110,10" style="fill:#E9E4D2;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
-    
-    
-    
-    
-    <polygon points="110,154.1 168.7,154.1 170,155.6 170,305.7 168.7,306.7 110,306.7 110,306.7 51.3,306.7 50,305.7 50,155.6 51.3,154.1 110,154.1" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
-    
-    <ellipse cx="110" cy="83.8" rx="38" ry="3" style="fill:#9DAA7A;stroke:#1E2822;stroke-width:1"/>
-  </svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-49.00 0.00 318.00 318.00" width="512" height="512"><polygon points="110.0,10.0 160.2,10.0 160.2,27.1 162.7,29.6 162.7,125.0 159.2,126.0 159.2,154.1 170.0,154.1 170.0,306.7 168.2,307.7 110.0,307.7 110.0,307.7 51.8,307.7 50.0,306.7 50.0,154.1 60.8,154.1 60.8,126.0 57.3,125.0 57.3,29.6 59.8,27.1 59.8,10.0 110.0,10.0" fill="#0b1d24" fill-opacity="0.6" stroke="#07141a" stroke-opacity=".75" stroke-width="10.56" stroke-linejoin="round"/><polygon points="110.0,10.0 160.2,10.0 160.2,27.1 162.7,29.6 162.7,125.0 159.2,126.0 159.2,154.1 170.0,154.1 170.0,306.7 168.2,307.7 110.0,307.7 110.0,307.7 51.8,307.7 50.0,306.7 50.0,154.1 60.8,154.1 60.8,126.0 57.3,125.0 57.3,29.6 59.8,27.1 59.8,10.0 110.0,10.0" fill="#ffffff" fill-opacity=".22" stroke="#ffffff" stroke-width="4.35" stroke-linejoin="round"/><line x1="110" y1="21.9" x2="110" y2="296.1" stroke="#ffffff" stroke-width="0.99" stroke-dasharray="6.2 4.3" opacity=".4"/><polygon points="110.0,154.1 168.7,154.1 170.0,155.6 170.0,305.7 168.7,306.7 110.0,306.7 110.0,306.7 51.3,306.7 50.0,305.7 50.0,155.6 51.3,154.1 110.0,154.1" fill="none" stroke="#ffffff" stroke-width="2.11" stroke-linejoin="round" stroke-linecap="round" opacity=".7"/><ellipse cx="110" cy="83.8" rx="38" ry="3" fill="#ffffff" fill-opacity=".35" stroke="#ffffff" stroke-width="2.11"/></svg>

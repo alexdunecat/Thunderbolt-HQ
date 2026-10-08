@@ -1,11 +1,1 @@
-<svg viewBox="-113.5 0 447 447" width="512" height="512" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
-    
-    <polygon points="110,21.4 159.1,21.4 170,55.5 170,435.7 167.8,437.4 110,437.4 110,437.4 52.2,437.4 50,435.7 50,55.5 60.9,21.4 110,21.4" style="fill:#E9E4D2;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
-    
-    
-    
-    
-    <polygon points="110,145.8 127.5,145.8 127.5,12.6 129.3,10 138,10 139.8,12.6 141.5,10 150.3,10 152,12.6 153.8,10 162.6,10 164.3,12.6 164.3,157.2 136.3,157.2 136.3,207.1 110,207.1 110,207.1 83.7,207.1 83.7,157.2 55.7,157.2 55.7,12.6 57.4,10 66.2,10 68,12.6 69.7,10 78.5,10 80.2,12.6 82,10 90.7,10 92.5,12.6 92.5,145.8 110,145.8" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
-    
-    <ellipse cx="110" cy="176.4" rx="20" ry="7" style="fill:#9DAA7A;stroke:#1E2822;stroke-width:1"/>
-  </svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-113.50 0.00 447.00 447.00" width="512" height="512"><polygon points="110.0,21.4 159.1,21.4 170.0,55.5 170.0,435.7 167.8,437.4 110.0,437.4 110.0,437.4 52.2,437.4 50.0,435.7 50.0,55.5 60.9,21.4 110.0,21.4" fill="#0b1d24" fill-opacity="0.6" stroke="#07141a" stroke-opacity=".75" stroke-width="14.84" stroke-linejoin="round"/><polygon points="110.0,21.4 159.1,21.4 170.0,55.5 170.0,435.7 167.8,437.4 110.0,437.4 110.0,437.4 52.2,437.4 50.0,435.7 50.0,55.5 60.9,21.4 110.0,21.4" fill="#ffffff" fill-opacity=".22" stroke="#ffffff" stroke-width="6.11" stroke-linejoin="round"/><line x1="110" y1="27.1" x2="110" y2="419.9" stroke="#ffffff" stroke-width="1.40" stroke-dasharray="8.7 6.1" opacity=".4"/><polygon points="110.0,145.8 127.5,145.8 127.5,12.6 129.3,10.0 138.0,10.0 139.8,12.6 141.5,10.0 150.3,10.0 152.0,12.6 153.8,10.0 162.6,10.0 164.3,12.6 164.3,157.2 136.3,157.2 136.3,207.1 110.0,207.1 110.0,207.1 83.7,207.1 83.7,157.2 55.7,157.2 55.7,12.6 57.4,10.0 66.2,10.0 68.0,12.6 69.7,10.0 78.5,10.0 80.2,12.6 82.0,10.0 90.7,10.0 92.5,12.6 92.5,145.8 110.0,145.8" fill="none" stroke="#ffffff" stroke-width="2.97" stroke-linejoin="round" stroke-linecap="round" opacity=".7"/><ellipse cx="110" cy="176.4" rx="20" ry="7" fill="#ffffff" fill-opacity=".35" stroke="#ffffff" stroke-width="2.97"/></svg>

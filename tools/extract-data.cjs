@@ -98,19 +98,22 @@ fs.writeFileSync(path.join(ROOT, "data/catalog.json"), JSON.stringify(out, null,
 const FRAME = { aerial: [3, 2], arkbird: [2, 3], scinfaxi: [1, 3], topol: [1, 2] };
 // корабли флота крупнее катера (TB.footprints.fleet)
 for (const k of ["nimitz", "kuznetsov", "iowa", "kirov", "ticonderoga", "burke", "sovremenny", "udaloy", "krivak", "perry", "ropucha", "tanker", "la688"]) FRAME[k] = [1, 2];
-for (const s of shapes) {
-  let svg = fix(Y.silhouette(s)).replace(' role="img" aria-label="Силуэт сверху"', ' xmlns="http://www.w3.org/2000/svg"');
-  // поле в пропорциях токена (у больших целей — по их клеткам, у остальных квадрат), чтобы силуэт заполнял рамку
-  const [fw, fh] = FRAME[s] ?? [1, 1], a = fw / fh, h = Y.SHAPES[s].h + 20;
-  const bw = Math.max(220, h * a), bh = bw / a, dx = (bw - 220) / 2, dy = (bh - h) / 2;
-  const px = a >= 1 ? [512, Math.round(512 / a)] : [Math.round(512 * a), 512];
-  svg = svg.replace(/viewBox="0 0 220 \d+"/, `viewBox="${+(-dx).toFixed(2)} ${+(-dy).toFixed(2)} ${+bw.toFixed(2)} ${+bh.toFixed(2)}" width="${px[0]}" height="${px[1]}"`)
-    .replace(/<line x1="110" y1="4"[^>]*\/>/, "");
-  fs.writeFileSync(path.join(ROOT, "assets/planes", s + ".svg"), svg);
-}
-for (const i of icons) {
-  const svg = fix(Y.targetIcon(i)).replace(' role="img" aria-label="Схема сбоку"', ' xmlns="http://www.w3.org/2000/svg"')
-    .replace('viewBox="0 0 320 160"', 'viewBox="0 -80 320 320" width="512" height="512"');
-  fs.writeFileSync(path.join(ROOT, "assets/targets", i + ".svg"), svg);
+/* Токены в стиле «Брифинг» (стекло): белые линии, цвет стороны даёт тонировка в Foundry (module/sidecolor.mjs).
+   Пишем все силуэты и все старые мишени: на них могут ссылаться актёры старых миров. */
+const { tokenIcon } = require("./token-icon.cjs");
+// старые иконки мишеней (вид сбоку) -> силуэт сверху той же машины
+const TARGETS = { aa: "zu23", apc: "btr80", battleship: "iowa", boat: "molniya", bridge: "bridge", building: "bunker", carrier: "nimitz",
+  cruiser: "ticonderoga", destroyer: "burke", frigate: "perry", howitzer: "m198", landship: "tarpan", launcher: "mlrs", manpads: "manpads",
+  radar: "p18", sam: "s75", samMobile: "osa", ship: "tanker", spg: "msta", sub: "la688", superSub: "scinfaxi", "tank-farm": "fuel",
+  tank: "t80u", tel: "topol", truck: "ural" };
+// виды сверху для токенов в несколько клеток: поле в пропорциях токена
+for (const k of ["battleship", "carrier", "cruiser", "destroyer", "frigate", "ship", "sub", "superSub"]) TARGETS[k + "-top"] = TARGETS[k];
+const TOP_FRAME = { "superSub-top": [1, 3] };
+const token = (shape, frame) => tokenIcon(Y.SHAPES, shape, { side: "white", variant: "glass", frame });
+for (const s of Object.keys(Y.SHAPES)) fs.writeFileSync(path.join(ROOT, "assets/planes", s + ".svg"), token(s, FRAME[s] ?? [1, 1]));
+for (const [i, s] of Object.entries(TARGETS)) {
+  if (!Y.SHAPES[s]) throw new Error("нет силуэта " + s);
+  const frame = i.endsWith("-top") ? TOP_FRAME[i] ?? [1, 2] : [1, 1];
+  fs.writeFileSync(path.join(ROOT, "assets/targets", i + ".svg"), token(s, frame));
 }
 console.log(`catalog: ${planes.length} planes, ${book.length} book, ${weapons.length} weapons, ${npcs.length} npcs, ${triggers.length} triggers; ${shapes.size} silhouettes, ${icons.size} icons`);

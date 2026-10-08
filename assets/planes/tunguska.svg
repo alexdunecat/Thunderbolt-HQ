@@ -1,11 +1,1 @@
-<svg viewBox="-49.5 0 319 319" width="512" height="512" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
-    
-    <polygon points="110,10 167.3,10 170,12.7 170,305.8 167.3,308.8 110,308.8 110,308.8 52.7,308.8 50,305.8 50,12.7 52.7,10 110,10" style="fill:#E9E4D2;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
-    <line x1="151.6" y1="13.3" x2="151.6" y2="305.8" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="68.4" y1="13.3" x2="68.4" y2="305.8" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/>
-    
-    
-    
-    <polygon points="110,94.7 134.1,96.5 143.2,88.7 163.1,87.5 163.1,199.6 143.2,200.9 146.2,206.3 140.2,216.5 128.1,221.4 110,222.6 110,222.6 91.9,221.4 79.8,216.5 73.8,206.3 76.8,200.9 56.9,199.6 56.9,87.5 76.8,88.7 85.9,96.5 110,94.7" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
-    
-    <ellipse cx="119.9" cy="132.2" rx="12.1" ry="12.1" style="fill:#9DAA7A;stroke:#1E2822;stroke-width:1"/>
-  </svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-49.50 0.00 319.00 319.00" width="512" height="512"><polygon points="110.0,10.0 167.3,10.0 170.0,12.7 170.0,305.8 167.3,308.8 110.0,308.8 110.0,308.8 52.7,308.8 50.0,305.8 50.0,12.7 52.7,10.0 110.0,10.0" fill="#0b1d24" fill-opacity="0.6" stroke="#07141a" stroke-opacity=".75" stroke-width="10.59" stroke-linejoin="round"/><polygon points="110.0,10.0 167.3,10.0 170.0,12.7 170.0,305.8 167.3,308.8 110.0,308.8 110.0,308.8 52.7,308.8 50.0,305.8 50.0,12.7 52.7,10.0 110.0,10.0" fill="#ffffff" fill-opacity=".22" stroke="#ffffff" stroke-width="4.36" stroke-linejoin="round"/><line x1="110" y1="22.0" x2="110" y2="297.0" stroke="#ffffff" stroke-width="1.00" stroke-dasharray="6.2 4.4" opacity=".4"/><line x1="151.6" y1="13.3" x2="151.6" y2="305.8" stroke="#ffffff" stroke-width="3.74" stroke-linecap="round" opacity=".85"/><line x1="68.4" y1="13.3" x2="68.4" y2="305.8" stroke="#ffffff" stroke-width="3.74" stroke-linecap="round" opacity=".85"/><polygon points="110.0,94.7 134.1,96.5 143.2,88.7 163.1,87.5 163.1,199.6 143.2,200.9 146.2,206.3 140.2,216.5 128.1,221.4 110.0,222.6 110.0,222.6 91.9,221.4 79.8,216.5 73.8,206.3 76.8,200.9 56.9,199.6 56.9,87.5 76.8,88.7 85.9,96.5 110.0,94.7" fill="none" stroke="#ffffff" stroke-width="2.12" stroke-linejoin="round" stroke-linecap="round" opacity=".7"/><ellipse cx="119.9" cy="132.2" rx="12.1" ry="12.1" fill="#ffffff" fill-opacity=".35" stroke="#ffffff" stroke-width="2.12"/></svg>

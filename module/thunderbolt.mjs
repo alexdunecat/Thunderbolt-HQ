@@ -20,6 +20,7 @@ import { registerRwr } from "./rwr.mjs";
 import { registerMapInfo } from "./mapinfo.mjs";
 import { registerRotate } from "./rotate.mjs";
 import { registerInsignia } from "./insignia.mjs";
+import { registerSideColor } from "./sidecolor.mjs";
 import { registerLosses } from "./losses.mjs";
 import { registerAltitude, stepAltitude } from "./altitude.mjs";
 
@@ -70,6 +71,7 @@ Hooks.once("init", () => {
   registerRotate();
   registerAltitude();
   registerInsignia();
+  registerSideColor();
   registerLosses();
   registerCombat();
   registerActions();
