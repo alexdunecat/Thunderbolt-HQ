@@ -54,7 +54,7 @@ export const TB = {
   /* Дальность в зонах: 0 своя, 1 соседние, 2 обычная ракета (захват держится до двух зон), 99 вся зона операции. */
   range: { lockOn: 1, lockHold: 2, missile: 2, guns: 0, operation: 99 },
   /** Большие цели: размер токена в клетках [ширина, длина]. Вид сверху для вытянутых токенов, если значок нарисован сбоку. */
-  footprints: { strategic: [2, 2], aerialCruiser: [6, 2], superSub: [1, 3], fleet: [1, 2] },
+  footprints: { strategic: [2, 2], large: [2, 2], arkbird: [2, 3], aerialCruiser: [6, 2], superSub: [1, 3], fleet: [1, 2] },
   topViews: Object.fromEntries(["superSub", "carrier", "battleship", "cruiser", "destroyer", "frigate", "ship", "sub"]
     .map(k => [`assets/targets/${k}.svg`, `assets/targets/${k}-top.svg`])),
   weaponRange: { RCL: 0, MGP: 0, PLSL: 1, XAGM: 1, "4AAM": 1, ESM: 1, XLAA: 99, LAAM: 99, LACM: 99 },
@@ -112,12 +112,15 @@ export const TB = {
   }
 };
 
-/** Размер токена большой цели [ширина, длина] по данным NPC или null: стратегические бомбардировщики, летающие крейсеры, подводные авианосцы, корабли крупнее катера. */
+/** Размер токена большой цели [ширина, длина] по данным NPC или null: стратегические бомбардировщики, крупные самолёты, Аркбёрд, летающие крейсеры, подводные авианосцы, корабли крупнее катера. */
 export function footprintOf(sys) {
   if (!sys) return null;
   const props = [...(sys.props ?? []), ...(sys.rules ?? [])].map(p => p?.key ?? p);
+  if (sys.key === "arkbird") return TB.footprints.arkbird;
   if (/стратегическ/i.test(sys.cls ?? "") || sys.key === "b2a") return TB.footprints.strategic;
-  if (props.includes("aerialship") || sys.key === "arkbird") return TB.footprints.aerialCruiser;
+  // крупные самолёты: транспорт, ДРЛО, патрульные и AC-130
+  if (sys.kind === "air" && (sys.grp === "support" || sys.key === "ac130")) return TB.footprints.large;
+  if (props.includes("aerialship")) return TB.footprints.aerialCruiser;
   if (props.includes("superdive")) return TB.footprints.superSub;
   if (sys.kind === "ship" && sys.grp === "sea" && sys.key !== "patrolboat") return TB.footprints.fleet;
   return null;
