@@ -4004,7 +4004,7 @@
      "text": "Действием накрывает соседний участок: каждая наземная цель там получает атаку 7 против Occlusion. По самолётам не стреляет."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/launcher.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mlrs.svg"
   },
   {
    "key": "tel",
@@ -4113,7 +4113,7 @@
      "text": "В конце раунда может сместиться на соседний участок по дороге или ровной местности."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/spg.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/msta.svg"
   },
   {
    "key": "paladin",
@@ -4151,7 +4151,7 @@
      "text": "После залпа в том же раунде может сместиться на соседний участок."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/spg.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/paladin.svg"
   },
   {
    "key": "samsite",
@@ -4212,7 +4212,7 @@
      "text": "Захват на две зоны вместо одной."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/sam.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/s300.svg"
   },
   {
    "key": "patriot",
@@ -4245,7 +4245,7 @@
      "text": "Захват на две зоны вместо одной."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/sam.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/patriot.svg"
   },
   {
    "key": "osa",
@@ -4278,7 +4278,7 @@
      "text": "В конце раунда может сместиться на соседний участок по дороге или ровной местности."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/samMobile.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/osa.svg"
   },
   {
    "key": "tunguska",
@@ -4316,7 +4316,7 @@
      "text": "Стреляет как пушка по своему участку: d10 + Strafe против Defense цели, урон = Gun DMG."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/samMobile.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tunguska.svg"
   },
   {
    "key": "shilka",
@@ -4349,7 +4349,7 @@
      "text": "В конце раунда может сместиться на соседний участок по дороге или ровной местности."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/aa.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/shilka.svg"
   },
   {
    "key": "m163",
@@ -4382,7 +4382,7 @@
      "text": "В конце раунда может сместиться на соседний участок по дороге или ровной местности."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/aa.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/m163.svg"
   },
   {
    "key": "aagun",

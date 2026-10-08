@@ -1,0 +1,11 @@
+<svg viewBox="-163.5 0 547 547" width="512" height="512" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+    
+    <polygon points="110,226.7 163.3,226.7 170,233.3 170,505.8 166.7,507.5 125,507.5 125,533.3 121.7,536.7 110,536.7 110,536.7 98.3,536.7 95,533.3 95,507.5 53.3,507.5 50,505.8 50,233.3 56.7,226.7 110,226.7" style="fill:#E9E4D2;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
+    <line x1="150.8" y1="230.8" x2="150.8" y2="503.3" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="69.2" y1="230.8" x2="69.2" y2="503.3" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/>
+    
+    
+    
+    <polygon points="110,10 115.8,10 115.8,25 113.3,40.8 113.3,160 115,160.8 115,185 114.2,185.8 114.2,274.2 120.8,275 120.8,310 156.7,311.7 160,316.7 160,505.8 156.7,510 110,510 110,510 63.3,510 60,505.8 60,316.7 63.3,311.7 99.2,310 99.2,275 105.8,274.2 105.8,185.8 105,185 105,160.8 106.7,160 106.7,40.8 104.2,25 104.2,10 110,10" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
+    
+    <ellipse cx="82.5" cy="426.7" rx="11.7" ry="11.7" style="fill:#9DAA7A;stroke:#1E2822;stroke-width:1"/>
+  </svg>
