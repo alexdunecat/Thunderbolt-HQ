@@ -116,6 +116,7 @@ export class AwacsPanel extends Application {
     });
     on("[data-results]", () => sortieResults());
     on("[data-arrange]", () => arrangeSceneTokens());
+    on("[data-all-fight]", () => allToCombat());
     on("[data-squad-form]", () => squadFromSelection());
     on("[data-squad-num]", d => numberSquad(d.squadNum));
     on("[data-squad-del]", async d => {
@@ -241,4 +242,20 @@ export async function sortieResults() {
     speaker: { alias: "AWACS" },
     content: `<div class="tb-card tb-card-results"><header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">Итоги вылета: ${esc(op)}</span></header><div class="tb-note">${lines.join("<br>")}</div>${entry ? `<div class="tb-note">@UUID[${entry.uuid}]{Разбор полёта}</div>` : ""}</div>`
   });
+}
+
+/** «Все в бой»: все пилоты и NPC сцены в трекер боя (бой создаётся сам). Здания и объекты отсеивает preCreateCombatant, сбитые и отступившие не идут. */
+export async function allToCombat() {
+  const scene = game.scenes.viewed;
+  if (!game.user.isGM || !scene) return;
+  const dead = CONFIG.specialStatusEffects.DEFEATED;
+  const tokens = scene.tokens.filter(t => ["pilot", "npc"].includes(t.actor?.type) && !t.inCombat
+    && !t.actor.statuses?.has(dead) && !t.actor.statuses?.has("retreat"));
+  if (!tokens.length) return ui.notifications.info("Все на сцене уже в бою.");
+  const before = game.combat?.combatants.size ?? 0;
+  await TokenDocument.implementation.createCombatants(tokens);
+  const added = (game.combat?.combatants.size ?? 0) - before;
+  ui.combat?.renderPopout?.();
+  ui.sidebar?.activateTab?.("combat");
+  ui.notifications.info(`В бой: ${added}. ${game.combat?.started ? "" : "Начните бой кнопкой «Begin Combat» в трекере."}`);
 }

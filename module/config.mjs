@@ -51,7 +51,7 @@ export const TB = {
     spd: ["Max Speed", "макс. скорость"], ev: ["Evasion", "уклонение"], aa: ["Air-Air", "атака по воздуху"], ag: ["Air-Gnd", "атака по земле"],
     hp: ["Max HP", "прочность"], str: ["Max Strain", "перегрузка"], gun: ["Gun DMG", "урон пушки"], hard: ["Hrd Pnt", "узлы подвески"]
   },
-  skins: { shtab: "Штаб", ac5: "ОС AC5", doc: "Документация" },
+  skins: { brief: "Брифинг", shtab: "Штаб", ac5: "ОС AC5", doc: "Документация" },
   difficulty: 7,
   /* Дальность в зонах: 0 своя, 1 соседние, 2 обычная ракета (захват держится до двух зон), 99 вся зона операции. */
   range: { lockOn: 1, lockHold: 2, missile: 2, guns: 0, operation: 99 },

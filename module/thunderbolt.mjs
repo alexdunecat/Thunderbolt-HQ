@@ -17,14 +17,21 @@ import { registerTokenSettings, arrangeSceneTokens } from "./tokens.mjs";
 import { registerSquadronSettings, squadFromSelection } from "./squadrons.mjs";
 import { registerMacros, actFromMacro } from "./macros.mjs";
 import { registerRwr } from "./rwr.mjs";
+import { registerMapInfo } from "./mapinfo.mjs";
+import { registerRotate } from "./rotate.mjs";
 import { registerInsignia } from "./insignia.mjs";
 import { registerLosses } from "./losses.mjs";
 import { registerAltitude, stepAltitude } from "./altitude.mjs";
 
 function applySkin(skin) {
-  document.body.dataset.tbSkin = TB.skins[skin] ? skin : "shtab";
+  document.body.dataset.tbSkin = TB.skins[skin] ? skin : "brief";
   for (const app of Object.values(ui.windows)) if (app.options?.classes?.includes("thunderbolt")) app.render(false);
 }
+
+// надписи карты рисуются шрифтами «Брифинга»: дождаться их до отрисовки сцены
+Hooks.once("setup", () => {
+  for (const f of ['16px "Jura"', '16px "JetBrains Mono"']) document.fonts?.load(f, "АБВ abc 123").catch(() => null);
+});
 
 Hooks.once("init", () => {
   console.log(`${SYSTEM_ID} | init`);
@@ -49,12 +56,18 @@ Hooks.once("init", () => {
 
   game.settings.register(SYSTEM_ID, "skin", {
     name: "TB.SkinName", hint: "TB.SkinHint", scope: "client", config: true, type: String,
-    choices: TB.skins, default: "shtab", onChange: applySkin
+    choices: TB.skins, default: "brief", onChange: applySkin
   });
+  // с 0.4.29 оформление по умолчанию — «Брифинг»: один раз переключить и тех, у кого было сохранено прежнее
+  game.settings.register(SYSTEM_ID, "skinBrief", { scope: "client", config: false, type: Boolean, default: false });
+  // шрифты «Брифинга» лежат в системе (assets/fonts): их видят и надписи на карте
+  Object.assign(CONFIG.fontDefinitions, { "Jura": { editor: true, fonts: [] }, "JetBrains Mono": { editor: true, fonts: [] } });
   registerTokenSettings();
   registerSquadronSettings();
   registerMacros();
   registerRwr();
+  registerMapInfo();
+  registerRotate();
   registerAltitude();
   registerInsignia();
   registerLosses();
@@ -65,7 +78,11 @@ Hooks.once("init", () => {
     squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB };
 });
 
-Hooks.once("ready", () => {
+Hooks.once("ready", async () => {
+  if (!game.settings.get(SYSTEM_ID, "skinBrief")) {
+    await game.settings.set(SYSTEM_ID, "skin", "brief");
+    await game.settings.set(SYSTEM_ID, "skinBrief", true);
+  }
   applySkin(game.settings.get(SYSTEM_ID, "skin"));
   // пилоты, созданные до автоматики триггеров: подтянуть HP и Strain к новым максимумам
   initSocket();

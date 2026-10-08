@@ -7,11 +7,11 @@ Object.assign(globalThis, {
     abstract: { TypeDataModel: class {} }, utils: { mergeObject: (a, b) => ({ ...a, ...b }), hasProperty: () => false, getProperty: () => 0, deepClone: x => structuredClone(x) } },
   Actor: class {}, Item: class {}, Combat: class {}, ActorSheet: mk(), ItemSheet: mk(), JournalSheet: mk(), Application: mk(), Dialog: class {}, JournalEntry: class {},
   Hooks: { once: (n, f) => (hooks[n] ??= []).push(f), on: (n, f) => (hooks[n] ??= []).push(f) },
-  CONFIG: { Actor: { dataModels: {} }, Item: { dataModels: {} }, Combat: {}, specialStatusEffects: { DEFEATED: "dead" }, statusEffects: [{ id: "dead", img: "icons/svg/skull.svg" }] },
+  CONFIG: { Actor: { dataModels: {} }, Item: { dataModels: {} }, Combat: {}, fontDefinitions: {}, specialStatusEffects: { DEFEATED: "dead" }, statusEffects: [{ id: "dead", img: "icons/svg/skull.svg" }] },
   Actors: { unregisterSheet() {}, registerSheet(s, c, o) { console.log("sheet", s, c.name, o.label); } },
   Items: { unregisterSheet() {}, registerSheet(s, c, o) { console.log("sheet", s, c.name, o.label); } },
   DocumentSheetConfig: { registerSheet(d, s, c, o) { console.log("sheet", s, c.name, o.label); } },
-  game: { settings: { register() {}, get: () => "shtab" }, keybindings: { register() {} }, i18n: { localize: x => x }, actors: [], user: { isGM: true }, users: { activeGM: null }, socket: { on() {}, emit() {} } },
+  game: { settings: { register() {}, get: () => "shtab", set: async () => {} }, keybindings: { register() {} }, i18n: { localize: x => x }, actors: [], user: { isGM: true }, users: { activeGM: null }, socket: { on() {}, emit() {} } },
   CONST: { TOKEN_DISPOSITIONS: {}, GRID_TYPES: {}, DRAWING_FILL_TYPES: {}, TOKEN_DISPLAY_MODES: {} },
   document: { body: { dataset: {} } }, ui: { windows: {} }
 });

@@ -11,6 +11,13 @@ body[data-tb-skin="ac5"] {
   --tb-accent: #ff4b3a; --tb-accent-ink: #12040a; --tb-olive: #57f2b3; --tb-olive-soft: #0f3a2f; --tb-warn: #ffb347;
   --tb-display: "Exo 2", "Russo One", system-ui, sans-serif; --tb-body: "Exo 2", system-ui, sans-serif; --tb-data: "JetBrains Mono", ui-monospace, monospace;
 }
+/* «Брифинг» (как в Штабе и Планшете AWACS): тёмная бирюза, мятные линии, Jura и JetBrains Mono */
+body[data-tb-skin="brief"] {
+  --tb-bg: #07141a; --tb-surface: #0b1d24; --tb-surface-2: #10272f; --tb-ink: #d7eee6; --tb-muted: #7fa79d; --tb-line: #2c5a52;
+  --tb-accent: #9be3bf; --tb-accent-ink: #08161b; --tb-olive: #9be3bf; --tb-olive-soft: #12342c; --tb-warn: #f2c14e;
+  --tb-hostile: #ff6b4a; --tb-friend: #6cc4ff; --tb-player: #f2c14e;
+  --tb-display: "Jura", "Exo 2", system-ui, sans-serif; --tb-body: "Jura", "Exo 2", system-ui, sans-serif; --tb-data: "JetBrains Mono", ui-monospace, monospace;
+}
 body[data-tb-skin="doc"] {
   --tb-bg: #d9d5c9; --tb-surface: #f2efe6; --tb-surface-2: #e4e0d3; --tb-ink: #1d1b17; --tb-muted: #5e584c; --tb-line: #9c9584;
   --tb-accent: #b0261c; --tb-accent-ink: #fff8f0; --tb-olive: #2f3b52; --tb-olive-soft: #d6dae2; --tb-warn: #8a4b00;
@@ -368,3 +375,42 @@ body[data-tb-skin="doc"] {
 .thunderbolt .tb-oplog { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 0 0 8px; }
 .thunderbolt .tb-oplog th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--tb-muted); border-bottom: 1px solid var(--tb-line); padding: 2px 4px; }
 .thunderbolt .tb-oplog td { border-bottom: 1px solid var(--tb-line); padding: 2px 4px; }
+
+/* ---------- «Брифинг»: квадратные рамки с уголками, разрядка заголовков, мятные кнопки ---------- */
+body[data-tb-skin="brief"] .thunderbolt.sheet .window-content, body[data-tb-skin="brief"] .tb-awacs .window-content {
+  background: radial-gradient(ellipse at 50% 0%, #12333d 0%, #0a1f27 45%, #050f13 100%); font-weight: 500;
+}
+body[data-tb-skin="brief"] .thunderbolt input, body[data-tb-skin="brief"] .thunderbolt select, body[data-tb-skin="brief"] .thunderbolt textarea { border-radius: 0; background: rgba(5, 15, 19, .7); }
+body[data-tb-skin="brief"] .thunderbolt .tb-box, body[data-tb-skin="brief"] .thunderbolt .tb-dial {
+  border-radius: 0; border-color: rgba(155, 227, 191, .5); outline: 1px solid rgba(155, 227, 191, .15); outline-offset: -5px;
+  background: linear-gradient(#9be3bf, #9be3bf) 3px 3px / 4px 4px no-repeat, rgba(9, 27, 33, .82);
+}
+body[data-tb-skin="brief"] .thunderbolt .tb-box legend, body[data-tb-skin="brief"] .thunderbolt .tb-tabs .item,
+body[data-tb-skin="brief"] .thunderbolt h2, body[data-tb-skin="brief"] .thunderbolt h3 { text-transform: uppercase; letter-spacing: .14em; font-weight: 600; color: var(--tb-accent); }
+body[data-tb-skin="brief"] .thunderbolt .tb-tabs .item { color: var(--tb-muted); font-size: 12px; }
+body[data-tb-skin="brief"] .thunderbolt .tb-tabs .item.active { color: var(--tb-accent-ink); background: var(--tb-accent); border-bottom-color: var(--tb-accent); }
+body[data-tb-skin="brief"] .thunderbolt .tb-head { border-bottom: 1px solid var(--tb-line); box-shadow: inset 0 -3px 0 rgba(155, 227, 191, .25); }
+body[data-tb-skin="brief"] .thunderbolt .tb-name { letter-spacing: .08em; text-transform: uppercase; }
+body[data-tb-skin="brief"] .thunderbolt .tb-portrait { border-radius: 0; background: #050f13; border-color: rgba(155, 227, 191, .5); }
+body[data-tb-skin="brief"] .thunderbolt .tb-actions-bar button, body[data-tb-skin="brief"] .thunderbolt button.tb-wide,
+body[data-tb-skin="brief"] .thunderbolt .tb-btn { border-radius: 0; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; }
+body[data-tb-skin="brief"] .thunderbolt .tb-roll { color: var(--tb-accent); }
+body[data-tb-skin="brief"] .thunderbolt .tb-lock-strip.on { border-color: var(--tb-hostile); background: rgba(255, 107, 74, .08); }
+body[data-tb-skin="brief"] .tb-card {
+  border-radius: 0; border: 1px solid rgba(155, 227, 191, .5); border-left: 3px solid var(--tb-accent);
+  background: linear-gradient(#9be3bf, #9be3bf) 4px 4px / 4px 4px no-repeat, #0b1d24; color: var(--tb-ink);
+}
+body[data-tb-skin="brief"] .tb-card-attack { border-left-color: var(--tb-hostile); }
+body[data-tb-skin="brief"] .tb-card-head { padding-left: 8px; }
+body[data-tb-skin="brief"] .tb-card-what { text-transform: uppercase; letter-spacing: .1em; color: var(--tb-accent); }
+body[data-tb-skin="brief"] .tb-card button { border-radius: 0; background: rgba(5, 15, 19, .7); color: var(--tb-ink); border: 1px solid var(--tb-line); }
+body[data-tb-skin="brief"] .tb-card button:hover { background: var(--tb-accent); color: var(--tb-accent-ink); }
+body[data-tb-skin="brief"] .tb-awacs .tb-awacs-head { border-bottom: 1px solid var(--tb-line); box-shadow: inset 0 -3px 0 rgba(155, 227, 191, .25); }
+body[data-tb-skin="brief"] .tb-awacs h3 { text-transform: uppercase; letter-spacing: .14em; color: var(--tb-accent); font-family: var(--tb-data); font-size: 12px; }
+body[data-tb-skin="brief"] .tb-memo h2 { text-transform: uppercase; letter-spacing: .12em; color: var(--tb-accent); }
+body[data-tb-skin="brief"] .thunderbolt .tb-actions-bar button, body[data-tb-skin="brief"] .thunderbolt button.tb-wide, body[data-tb-skin="brief"] .tb-awacs button {
+  background: rgba(5, 15, 19, .75); color: var(--tb-ink); border: 1px solid rgba(155, 227, 191, .5); border-radius: 0; box-shadow: none;
+}
+body[data-tb-skin="brief"] .thunderbolt .tb-actions-bar button:hover, body[data-tb-skin="brief"] .thunderbolt button.tb-wide:hover, body[data-tb-skin="brief"] .tb-awacs button:hover {
+  background: var(--tb-accent); border-color: var(--tb-accent); color: var(--tb-accent-ink);
+}
