@@ -85,21 +85,22 @@
           {{#if weather.length}}<div class="tb-weather tb-small">{{#each weather as |w|}}<span title="{{w.txt}}">{{w.ico}} {{w.name}}</span>{{/each}}</div>{{/if}}
           <div class="tb-row tb-small">
             <span>Air-Air <b>{{system.aa}}</b></span><span>Air-Gnd <b>{{system.ag}}</b></span><span>Gun DMG <b>{{system.gun}}</b></span>
-            <span>Захват: {{#if system.lock}}<b>{{system.lock}}</b> <a data-act="unlock" title="Снять захват">×</a>{{else}}<span class="tb-muted">нет</span>{{/if}}</span>
           </div>
         </fieldset>
       </div>
 
+      <div class="tb-lock-strip {{#if lockInfo}}on{{/if}}"><i class="fas fa-crosshairs"></i> Захват: {{#if lockInfo}}<a data-act="lock-focus" title="Показать цель на сцене"><b>{{lockInfo.name}}</b></a>{{#if lockInfo.dist}} <span class="tb-muted">({{lockInfo.dist}})</span>{{/if}}{{#if lockInfo.gone}} <span class="tb-warn">цели нет на сцене</span>{{/if}} <a data-act="lock" class="tb-lock-change" title="Навестись на другую цель: это действие Lock On!"><i class="fas fa-arrows-rotate"></i> сменить</a> <a data-act="unlock" title="Снять захват"><i class="fas fa-xmark"></i> снять</a>{{else}}<span class="tb-muted">нет</span>{{/if}}</div>
       <div class="tb-actions-bar">
         <button type="button" data-act="lock"><i class="fas fa-crosshairs"></i> Lock On!</button>
-        <button type="button" data-act="missile"><i class="fas fa-rocket"></i> Fox Two!</button>
-        <button type="button" data-act="guns"><i class="fas fa-burst"></i> Guns, Guns, Guns!</button>
-        <button type="button" data-act="break"><i class="fas fa-shuffle"></i> Break!</button>
-        <button type="button" data-act="recover"><i class="fas fa-bolt"></i> Вернуть Strain</button>
-        <button type="button" data-act="stall"><i class="fas fa-arrow-down"></i> Сваливание</button>
+        <button type="button" data-act="missile"><i class="fas fa-rocket"></i> Fox Two! <span class="tb-dice-tag half" title="Без броска. С броском только Improved Fox Two!"><i class="fas fa-dice-d10"></i>?</span></button>
+        <button type="button" data-act="guns"><i class="fas fa-burst"></i> Guns, Guns, Guns! <span class="tb-dice-tag" title="С броском d10 + d4: одна проверка за ход"><i class="fas fa-dice-d10"></i></span></button>
+        <button type="button" data-act="break"><i class="fas fa-shuffle"></i> Break! <span class="tb-dice-tag" title="С броском d10 + d4: одна проверка за ход"><i class="fas fa-dice-d10"></i></span></button>
+        <button type="button" data-act="recover"><i class="fas fa-bolt"></i> Вернуть Strain <span class="tb-dice-tag" title="С броском d10 + d4: одна проверка за ход"><i class="fas fa-dice-d10"></i></span></button>
+        <button type="button" data-act="stall"><i class="fas fa-arrow-down"></i> Сваливание <span class="tb-dice-tag" title="Бросок Push против 7 в начале хода при Speed 0 и ниже"><i class="fas fa-dice-d10"></i></span></button>
         <button type="button" data-act="lead"><i class="fas fa-bullhorn"></i> Leadership</button>
         <button type="button" data-act="formup"><i class="fas fa-people-arrows"></i> Вплотную</button>
       </div>
+      <p class="tb-small tb-muted tb-dice-legend"><i class="fas fa-dice-d10"></i> — действие с броском (за ход одна проверка). <i class="fas fa-dice-d10"></i>? — бросок по желанию (Improved). Без значка — без броска: Lock On!, Leadership, Вплотную, пуск ЗРК, Move, Climb / Dive, Change Speed.</p>
       {{#if nextMods.length}}<p class="tb-fx-now tb-small"><span class="tb-muted">К следующему броску:</span> {{#each nextMods as |m|}}<span class="tb-chip">{{m.sval}} {{m.label}} <a data-next-drop="{{m.i}}" title="Убрать">×</a></span>{{/each}}</p>{{/if}}
       {{#if adjacent.length}}<p class="tb-fx-now tb-small"><span class="tb-muted">Вплотную с:</span> {{#each adjacent as |x|}}<span class="tb-chip">{{x.name}} <a data-adj-drop="{{x.uuid}}" title="Отрыв">×</a></span>{{/each}}</p>{{/if}}
 
@@ -140,7 +141,7 @@
           <ul class="tb-list">
             {{#each weapons as |w|}}
             <li class="tb-item" data-item-id="{{w.id}}">
-              <span class="tb-item-name"><a data-chat-item="{{w.id}}" title="В чат">{{w.name}}</a><small>урон {{w.dmg}}{{#if w.mods}} · {{w.mods}}{{/if}}</small></span>
+              <span class="tb-item-name"><a data-chat-item="{{w.id}}" title="В чат">{{w.name}}</a><small>{{#if w.target}}{{w.target}} · {{/if}}урон {{w.dmg}} · <i class="fas fa-ruler-horizontal"></i> {{w.range}}{{#if w.mods}} · {{w.mods}}{{/if}}</small></span>
               {{#if w.unlimited}}<span class="tb-ammo">∞</span>{{else}}
               <span class="tb-ammo" {{#if w.bonus}}title="+{{w.bonus}} от триггера"{{/if}}><a data-ammo="{{w.id}}" data-delta="-1">−</a>{{w.ammo}}/{{w.max}}<a data-ammo="{{w.id}}" data-delta="1">+</a></span>{{/if}}
               <a class="tb-icon" data-item-edit="{{w.id}}" title="Открыть"><i class="fas fa-pen"></i></a>
@@ -243,6 +244,16 @@
         <label>Наземных целей <input type="number" name="system.service.ground" value="{{system.service.ground}}"></label>
         <label>Катапультирований <input type="number" name="system.service.eject" value="{{system.service.eject}}"></label>
       </div>
+      <h3>Операции <small class="tb-muted">пишутся сами из «Итогов вылета»</small></h3>
+      {{#if serviceLog.length}}
+      <table class="tb-oplog">
+        <tr><th>№</th><th>Операция</th><th>Дата</th><th>Сбито</th><th>На земле</th><th></th></tr>
+        {{#each serviceLog as |x|}}
+        <tr><td>{{x.n}}</td><td><b>{{x.op}}</b>{{#if x.eject}} <span class="tb-warn" title="Катапультировался">⏏</span>{{/if}}</td><td>{{x.date}}</td><td>{{x.air}}</td><td>{{x.ground}}</td>
+          <td>{{#if @root.isGM}}<a class="tb-icon" data-oplog-del="{{x.i}}" title="Убрать запись"><i class="fas fa-trash"></i></a>{{/if}}</td></tr>
+        {{/each}}
+      </table>
+      {{else}}<p class="tb-muted tb-small">Пока ни одной операции.</p>{{/if}}
       <label class="tb-q">Награды <textarea name="system.service.awards" rows="2">{{system.service.awards}}</textarea></label>
     </div>
 

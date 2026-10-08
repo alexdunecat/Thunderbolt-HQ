@@ -31,9 +31,9 @@ export class TBActor extends Actor {
   lockOn() { return R.lockOn(this); }
 
   /* ---------- высота ---------- */
-  async setAltitude(alt) {
+  async setAltitude(alt, options = {}) {
     if (!TB.altitudes[alt]) return;
-    return this.update({ "system.alt": alt });
+    return this.update({ "system.alt": alt }, options);
   }
 
   /** Подтянуть высоту токенов к полю alt (1 = Low, 2 = Medium, 3 = High). */
@@ -41,7 +41,7 @@ export class TBActor extends Actor {
     const elev = TB.altElevation[this.system.alt];
     if (!elev) return;
     const tokens = this.isToken ? [this.token] : this.getActiveTokens(false, true);
-    for (const t of tokens) if (t && t.elevation !== elev && t.isOwner) await t.update({ elevation: elev });
+    for (const t of tokens) if (t && t.elevation !== elev && t.isOwner) await t.update({ elevation: elev }, { tbSync: true });
   }
 
   /* ---------- HP и Strain ---------- */
@@ -131,11 +131,11 @@ export class TBActor extends Actor {
   }
 
   async markDoom(reason, { sourceUuid, roundKey } = {}) {
-    await this.update({ "system.markers.doom": true, "system.markers.lastRound": roundKey ?? this.roundKey });
-    if (this.type === "pilot") await this.#markDown(sourceUuid);
-    if (this.type === "npc" && !this.system.fullMarkers)
-      await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
-    if (this.type === "npc") await this.#creditKill(sourceUuid);
+    await this.update({ "system.markers.doom": true, "system.markers.lastRound": roundKey ?? this.roundKey }, { tbDoom: true });
+    // Doom — машина сбита у всех, и у пилота, и у аса: знак X, в конце раунда токен уходит с поля
+    await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
+    if (this.type === "pilot") await this.markDown(sourceUuid);
+    else await this.#creditKill(sourceUuid);
     const pilot = this.type === "pilot";
     return this.#say(`<b>${esc(this.name)}</b>: метка <b>Doom</b>${reason ? ` (${esc(reason)})` : ""}. ${pilot
       ? "Катапультироваться или последние слова. Если пилот погибнет, стол выбирает: «Победа любой ценой» или «Достойное отступление»."
@@ -156,9 +156,9 @@ export class TBActor extends Actor {
   }
 
   /** Отметить машину сбитой в текущем бою: в конце раунда её уберут с поля и запишут в потери (losses.mjs). */
-  async #markDown(sourceUuid) {
+  async markDown(sourceUuid) {
     const c = game.combat;
-    if (!c?.started) return;
+    if (!c?.started || this.getFlag(SYSTEM_ID, "down")?.combat === c.id) return;
     const by = sourceUuid ? R.resolveActor(sourceUuid)?.name ?? "" : "";
     await this.setFlag(SYSTEM_ID, "down", { combat: c.id, round: c.round, by, byUuid: sourceUuid ?? "" });
     // в трекере боец выбывает: заявок и хода у него больше нет
@@ -168,7 +168,7 @@ export class TBActor extends Actor {
 
   /** Засчитать сбитого или уничтоженного пилоту-стрелку (для итогов вылета). */
   async #creditKill(sourceUuid) {
-    await this.#markDown(sourceUuid);
+    await this.markDown(sourceUuid);
     const shooter = sourceUuid ? R.resolveActor(sourceUuid) : null;
     if (shooter?.type !== "pilot") return;
     const kind = this.system.kind === "air" ? "air" : "ground";

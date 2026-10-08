@@ -19,6 +19,133 @@ export async function catalog() {
   return CATALOG;
 }
 
+const MAP = SYS_PATH + "assets/map/";
+const S = 200;
+
+/** Табличка с текстом: тёмная плашка и белые буквы с обводкой — читается на любой местности и при любом масштабе. */
+function plate(x, y, w, h, text, { size = 17, fill = "#1e2822", alpha = 0.78 } = {}) {
+  return {
+    x, y, shape: { type: "r", width: w, height: h }, text, fontSize: size, fontFamily: "Signika", textColor: "#ffffff", textAlpha: 1,
+    fillType: CONST.DRAWING_FILL_TYPES.SOLID, fillColor: fill, fillAlpha: alpha, strokeWidth: 1, strokeColor: "#9daa7a", strokeAlpha: 0.6,
+    locked: true, flags: { [SYSTEM_ID]: { map: true } }
+  };
+}
+
+const tile = (src, x, y, w, h, sort, alpha = 1) => ({
+  texture: { src }, x, y, width: w, height: h, sort, alpha, locked: true, elevation: 0, flags: { [SYSTEM_ID]: { map: true } }
+});
+
+/** Погода, которая лежит на всех клетках карты, становится погодой всей сцены; остальная остаётся по клеткам. */
+function splitWeather(m) {
+  const cells = {};
+  for (const [k, h] of Object.entries(m.hexes ?? {})) {
+    const ids = (h.fx ?? []).filter(id => TB.weather[id]);
+    if (ids.length) cells[k] = ids;
+  }
+  const total = m.cols * m.rows;
+  const everywhere = Object.keys(TB.weather).filter(id => Object.values(cells).filter(l => l.includes(id)).length === total);
+  for (const k of Object.keys(cells)) {
+    cells[k] = cells[k].filter(id => !everywhere.includes(id));
+    if (!cells[k].length) delete cells[k];
+  }
+  return { cells, everywhere };
+}
+
+/** Видимая погода Foundry для погоды над всей сценой: самая сильная из включённых. */
+const CORE_WEATHER = [["lightning", "rainStorm"], ["hurrA", "rainStorm"], ["hurrW", "rainStorm"], ["rain", "rain"], ["clouds", "fog"]];
+export function coreWeatherFor(ids) {
+  return CORE_WEATHER.find(([id]) => ids.includes(id))?.[1] ?? "";
+}
+
+/**
+ * Нарисовать карту миссии на сцене: местность и погода — схематичные рисунки клеток, подписи — читаемые таблички.
+ * Погода из Планшета сразу действует на броски: по клеткам, а та, что лежит на всей карте, — над всей сценой.
+ * Прежняя карта этой системы на сцене стирается, токены не трогаются.
+ */
+export async function drawMap(scene, m) {
+  const cat = await catalog();
+  const terrain = new Map(cat.terrain.map(t => [t.id, t]));
+  const effects = new Map(cat.effects.map(e => [e.id, e]));
+  const base = terrain.get(m.base) ?? terrain.get("steppe");
+  const mine = coll => coll.filter(d => d.getFlag(SYSTEM_ID, "map")).map(d => d.id);
+  // сцены, импортированные до 0.4.27: заливки клеток и мелкие подписи старого импорта тоже убираются
+  const oldImport = d => d.locked && !d.strokeWidth && (d.text
+    ? d.fillType === CONST.DRAWING_FILL_TYPES.NONE && ["#1e2822", "#3a3f38", "#a8281f"].includes(String(d.textColor).toLowerCase())
+    : d.fillType === CONST.DRAWING_FILL_TYPES.SOLID && d.shape?.width === S && d.shape?.height === S && d.x % S === 0 && d.y % S === 0);
+  const oldT = mine(scene.tiles), oldD = [...new Set([...mine(scene.drawings), ...scene.drawings.filter(oldImport).map(d => d.id)])];
+  if (oldT.length) await scene.deleteEmbeddedDocuments("Tile", oldT);
+  if (oldD.length) await scene.deleteEmbeddedDocuments("Drawing", oldD);
+
+  const { cells, everywhere } = splitWeather(m);
+  const tiles = [], drawings = [];
+  const B = 34;   // значок погоды
+  for (let r = 0; r < m.rows; r++) for (let c = 0; c < m.cols; c++) {
+    const h = m.hexes?.[`${c},${r}`] ?? {};
+    const ter = (h.t && terrain.get(h.t)) || base;
+    const x = c * S, y = r * S;
+    if (ter) tiles.push(tile(`${MAP}terrain/${ter.id}.svg`, x, y, S, S, 0));
+    // погода над всей картой рисуется погодой Foundry и табличкой сцены, в клетке только своя
+    const fx = (h.fx ?? []).filter(id => effects.has(id) && !everywhere.includes(id));
+    fx.forEach((id, i) => {
+      tiles.push(tile(`${MAP}weather/${id}.svg`, x, y, S, S, 10 + i, 0.9));
+      tiles.push(tile(`${MAP}weather/${id}-badge.svg`, x + S - 4 - (i + 1) * (B + 3), y + 4, B, B, 50));
+    });
+    drawings.push(plate(x + 4, y + 4, 40, 24, cellName(c, r), { size: 15 }));
+    const lines = [];
+    if (h.label) lines.push(h.label);
+    if (ter && (ter.id !== base?.id || h.label)) lines.push(ter.name + (ter.note ? ` · ${ter.note}` : ""));
+    for (const id of fx) lines.push(`${effects.get(id).ico} ${effects.get(id).name}`);
+    if (lines.length) {
+      const hh = lines.length * 19 + 8;
+      drawings.push(plate(x + 6, y + S - hh - 6, S - 12, hh, lines.join("\n"), { size: 15 }));
+    }
+  }
+  if (tiles.length) await scene.createEmbeddedDocuments("Tile", tiles);
+  if (drawings.length) await scene.createEmbeddedDocuments("Drawing", drawings);
+  await scene.update({ backgroundColor: base?.color ?? "#999999", weather: coreWeatherFor(everywhere),
+    [`flags.${SYSTEM_ID}.weatherCells`]: cells, [`flags.${SYSTEM_ID}.weather`]: everywhere });
+  for (const a of game.actors) if (a.sheet?.rendered) a.sheet.render(false);
+  return { cells: Object.keys(cells).length, everywhere };
+}
+
+/** Легенда карты: местность и погода, которые есть на этой карте, с рисунками и действием погоды. */
+export async function legendHtml(m) {
+  const cat = await catalog();
+  const used = new Set([m.base ?? "steppe"]), fx = new Set();
+  for (const h of Object.values(m.hexes ?? {})) { if (h.t) used.add(h.t); for (const id of h.fx ?? []) fx.add(id); }
+  const img = (src, w = 64) => `<img src="${src}" width="${w}" height="${w}" style="border:none;vertical-align:middle">`;
+  const ter = cat.terrain.filter(t => used.has(t.id)).map(t => `<tr><td>${img(`${MAP}terrain/${t.id}.svg`)}</td><td><b>${esc(t.name)}</b>${t.note ? `<br>${esc(t.note)}` : ""}</td></tr>`).join("");
+  const wx = cat.effects.filter(e => fx.has(e.id)).map(e => `<tr><td>${img(`${MAP}weather/${e.id}-badge.svg`, 40)}</td><td><b>${e.ico} ${esc(e.name)}</b><br>${esc(TB.weather[e.id]?.txt ?? e.txt)}</td></tr>`).join("");
+  const all = splitWeather(m).everywhere.map(id => `${TB.weather[id].ico} ${TB.weather[id].name}`);
+  return `<h2>Местность</h2><table>${ter}</table>${wx ? `<h2>Погода и эффекты</h2>${all.length ? `<p><b>Над всей картой:</b> ${all.join(", ")}. Это погода всей сцены (панель AWACS), на карте она идёт погодой Foundry.</p>` : ""}<p>Значок погоды клетки стоит в её правом верхнем углу. Погода сама учитывается в бросках и защите тех, кто в этой клетке.</p><table>${wx}</table>` : ""}`;
+}
+
+/** Окно «Карта и погода из Планшета»: перерисовать текущую сцену по JSON миссии, не трогая токены. */
+export function openMapUpdateDialog() {
+  const scene = game.scenes.viewed;
+  if (!scene) return ui.notifications.warn("Нет открытой сцены.");
+  new Dialog({
+    title: "Карта и погода из Планшета AWACS",
+    content: `<form class="tb-dialog"><p class="tb-hint">Вставьте JSON миссии из Планшета AWACS (кнопка «JSON»). На сцене «${esc(scene.name)}» перерисуются местность, подписи и погода (подписи прежнего импорта уберутся), а погода сразу начнёт действовать на броски: по клеткам, а погода на всей карте — над всей сценой. Токены не трогаются.</p>
+      <textarea name="json" rows="12" style="width:100%;font-family:monospace"></textarea></form>`,
+    buttons: {
+      ok: {
+        icon: '<i class="fas fa-cloud-bolt"></i>', label: "Применить",
+        callback: async html => {
+          try {
+            const m = JSON.parse(html[0].querySelector("textarea").value.trim());
+            if (!m?.cols || !m?.rows) throw new Error("в JSON нет размеров карты (cols, rows)");
+            const res = await drawMap(scene, m);
+            ui.notifications.info(`Карта обновлена. Погода: ${res.everywhere.length ? `над всей сценой ${res.everywhere.map(id => TB.weather[id].name).join(", ")}, ` : ""}в ${res.cells} клетках.`);
+          } catch (e) { console.error(e); ui.notifications.error(`Не получилось: ${e.message}`); }
+        }
+      },
+      cancel: { label: "Отмена" }
+    },
+    default: "ok"
+  }, { width: 560, classes: ["dialog", "thunderbolt"] }).render(true);
+}
+
 export function openImportDialog() {
   new Dialog({
     title: "Импорт миссии из Планшета AWACS",
@@ -46,46 +173,19 @@ export async function importMission(input) {
   const cat = await catalog();
   const byKey = new Map(cat.npcs.concat(cat.planeNpcs).map(n => [n.key, n]));
   const terrain = new Map(cat.terrain.map(t => [t.id, t]));
-  const effects = new Map(cat.effects.map(e => [e.id, e]));
   const markers = new Map(cat.markers.map(x => [x.id, x]));
   const title = m.name || "Миссия";
-  const S = 200;
 
-  const base = terrain.get(m.base) ?? terrain.get("steppe");
-  // погода по клеткам: бросок пилота в такой клетке учитывает её сам
-  const weatherCells = {};
-  for (const [k, h] of Object.entries(m.hexes ?? {})) {
-    const ids = (h.fx ?? []).filter(id => TB.weather[id]);
-    if (ids.length) weatherCells[k] = ids;
-  }
   const scene = await Scene.create({
-    flags: { [SYSTEM_ID]: { weatherCells, weather: [], mission: m.name ?? "", objectives: m.objectives ?? [] } },
-    name: title, width: m.cols * S, height: m.rows * S, padding: 0, backgroundColor: base?.color ?? "#999999",
+    flags: { [SYSTEM_ID]: { mission: m.name ?? "", objectives: m.objectives ?? [] } },
+    name: title, width: m.cols * S, height: m.rows * S, padding: 0, backgroundColor: (terrain.get(m.base) ?? terrain.get("steppe"))?.color ?? "#999999",
     grid: { type: CONST.GRID_TYPES.SQUARE, size: S, distance: 1, units: "", color: "#000000", alpha: 0.35 },
     tokenVision: false, fog: { exploration: false }, navigation: true
   });
+  await drawMap(scene, m);
 
-  // ---- местность, подписи клеток, погода, метки AWACS ----
+  // ---- метки AWACS ----
   const drawings = [];
-  const text = (x, y, w, h, t, { size = 22, color = "#1E2822", align } = {}) => ({
-    x, y, shape: { type: "r", width: w, height: h }, text: t, fontSize: size, textColor: color, textAlpha: 0.9,
-    fillType: CONST.DRAWING_FILL_TYPES.NONE, strokeWidth: 0, locked: true
-  });
-  for (let r = 0; r < m.rows; r++) for (let c = 0; c < m.cols; c++) {
-    const h = m.hexes?.[`${c},${r}`] ?? {};
-    const ter = h.t ? terrain.get(h.t) : null;
-    if (ter && ter.id !== base?.id) drawings.push({
-      x: c * S, y: r * S, shape: { type: "r", width: S, height: S },
-      fillType: CONST.DRAWING_FILL_TYPES.SOLID, fillColor: ter.color, fillAlpha: 1, strokeWidth: 0, locked: true
-    });
-    drawings.push(text(c * S + 4, r * S + 2, 60, 30, cellName(c, r), { size: 18, color: "#3a3f38" }));
-    const lines = [];
-    if (ter && ter.id !== base?.id) lines.push(ter.name + (ter.note ? ` (${ter.note})` : ""));
-    if (h.label) lines.push(h.label);
-    for (const fx of h.fx ?? []) { const e = effects.get(fx); if (e) lines.push(`${e.ico} ${e.name}`); }
-    if (lines.length) drawings.push(text(c * S + 8, r * S + S - 70, S - 16, 64, lines.join("\n"), { size: 18 }));
-  }
-
   // ---- силы на карте ----
   const folder = await Folder.create({ name: `Миссия: ${title}`, type: "Actor" });
   const tokens = [];
@@ -103,7 +203,7 @@ export async function importMission(input) {
     const where = cellName(u.c, u.r);
     if (mk && ref !== "protect") {
       const p = place(u.c, u.r);
-      drawings.push(text(p.x, p.y, S / 2, S / 2, `${mk.s}\n${u.name || mk.n}`, { size: 16, color: ref === "reinf" ? "#a8281f" : "#1E2822" }));
+      drawings.push(plate(p.x + 4, p.y + 4, S / 2 - 8, 48, `${mk.s}\n${u.name || mk.n}`, { size: 15, fill: ref === "reinf" ? "#7a1d16" : "#1e2822" }));
       roster.push({ u, name: u.name || mk.n, where, what: mk.n });
       continue;
     }
@@ -139,7 +239,7 @@ export async function importMission(input) {
     }
     roster.push({ u, name: actor.name, where, what: `${entry.name} · ${TB.tiers[tier] ?? tier}${count > 1 ? ` ×${count}` : ""}` });
   }
-  await scene.createEmbeddedDocuments("Drawing", drawings);
+  if (drawings.length) await scene.createEmbeddedDocuments("Drawing", drawings);
   if (tokens.length) await scene.createEmbeddedDocuments("Token", tokens, { tbKeep: true });
 
   // ---- журнал ----
@@ -153,6 +253,7 @@ export async function importMission(input) {
     { name: "Силы на карте", type: "text", text: { content: `<table><tr><th>Клетка</th><th>Кто</th><th>Что</th><th>Заметки</th></tr>${roster.map(x =>
       `<tr><td>${x.where}${x.u.alt ? ` · ${x.u.alt}` : ""}</td><td>${esc(x.name)}</td><td>${esc(x.what)}</td><td>${esc(x.u.notes ?? "")}</td></tr>`).join("")}</table>` } }
   ];
+  pages.push({ name: "Условные обозначения", type: "text", text: { content: await legendHtml(m) } });
   const journal = await JournalEntry.create({ name: `Миссия: ${title}`, pages });
   await scene.update({ journal: journal.id });
   ui.notifications.info(`Миссия «${title}» импортирована: сцена, ${tokens.length} токенов, журнал брифинга.`);

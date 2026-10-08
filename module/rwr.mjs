@@ -6,7 +6,8 @@ import { resolveActor } from "./utils.mjs";
 export function registerRwr() {
   Hooks.on("refreshToken", t => drawBadge(t));
   Hooks.on("canvasReady", () => refreshAll());
-  for (const ev of ["updateActor", "updateToken", "createToken", "deleteToken"]) Hooks.on(ev, refreshSoon);
+  // у NPC без связи с актёром захват живёт в дельте токена: её обновление приходит отдельным хуком
+  for (const ev of ["updateActor", "updateActorDelta", "updateToken", "createToken", "deleteToken", "targetToken"]) Hooks.on(ev, refreshSoon);
   Hooks.on("createChatMessage", alertOwner);
 }
 

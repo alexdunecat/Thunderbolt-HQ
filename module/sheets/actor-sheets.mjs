@@ -1,7 +1,7 @@
 /* Листы пилота и NPC (ActorSheet v1, стабильный API Foundry v12). */
 import { SYSTEM_ID, SYS_PATH, TB } from "../config.mjs";
 import { esc } from "../utils.mjs";
-import { weatherAt, defenseWithWeather } from "../scene.mjs";
+import { weatherAt, defenseWithWeather, tokenOf, zoneDistance, rangeLabel } from "../scene.mjs";
 import { leadership, formUp, nextMods, dropNext, adjacentOf, breakAdjacent } from "../squad.mjs";
 import { resolveActor } from "../utils.mjs";
 import { SQUAD_POINTS, allSquads, squadLayout, setSquadLayout, squadMembers } from "../squadrons.mjs";
@@ -28,7 +28,8 @@ function weaponView(w, bonus = 0) {
   if (s.aim !== null) mods.push(`Aim ${s.aim >= 0 ? "+" : ""}${s.aim}`);
   if (s.dep !== null) mods.push(`Deploy ${s.dep >= 0 ? "+" : ""}${s.dep}`);
   return { id: w.id, name: w.name, img: w.img, key: s.key, dmg: s.dmg, fx: s.fx, mods: mods.join(" · "),
-    unlimited: s.ammo.max === null, ammo: s.ammo.value, max: s.ammo.max === null ? null : s.ammo.max + bonus, bonus, target: TB.weaponTargets[s.target] ?? "" };
+    unlimited: s.ammo.max === null, ammo: s.ammo.value, max: s.ammo.max === null ? null : s.ammo.max + bonus, bonus, target: TB.weaponTargets[s.target] ?? "",
+    range: s.target === "util" ? "действует на свою и соседние зоны" : s.target === "line" ? "линия через всю зону операции" : rangeLabel(s.reach) };
 }
 
 class TBActorSheet extends ActorSheet {
@@ -67,6 +68,7 @@ class TBActorSheet extends ActorSheet {
     ctx.nextMods = nextMods(a).map((m, i) => ({ ...m, i, sval: `${m.value >= 0 ? "+" : ""}${m.value}` }));
     ctx.adjacent = adjacentOf(a).map(uuid => ({ uuid, name: resolveActor(uuid)?.name ?? "?" }));
     ctx.acts = actsSummary(a);
+    ctx.lockInfo = lockInfo(a);
     ctx.sides = TB.sides;
     ctx.insigniaHint = a.type === "pilot" ? "Шильдик авиакрыла на токене. Щелчок: выбрать картинку, правый щелчок: убрать."
       : "Шильдик авиакрыла или страны на токене. Щелчок: выбрать картинку, правый щелчок: убрать.";
@@ -93,6 +95,11 @@ class TBActorSheet extends ActorSheet {
       switch (d.act) {
         case "sortie": return a.prepareSortie();
         case "unlock": return a.update({ "system.lock": "", "system.lockUuid": "" });
+        case "lock-focus": {
+          const t = a.system.lockUuid ? tokenOf(resolveActor(a.system.lockUuid)) : null;
+          if (!t) return ui.notifications.warn("Цели захвата нет на этой сцене.");
+          return canvas.animatePan({ x: t.center.x, y: t.center.y, duration: 250 });
+        }
         case "unbreak": return a.update({ "system.breakEv": null });
         case "doom": return a.markDoom();
         default: return runAction(a, d.act);
@@ -159,6 +166,18 @@ class TBActorSheet extends ActorSheet {
   }
 }
 
+/** Строка захвата на листе: на кого навёлся, сколько до него зон, видна ли цель. */
+function lockInfo(actor) {
+  const s = actor.system;
+  if (!s.lockUuid && !s.lock) return null;
+  const target = s.lockUuid ? resolveActor(s.lockUuid) : null;
+  const dist = zoneDistance(tokenOf(actor), tokenOf(target));
+  return {
+    name: target?.token?.name ?? target?.name ?? s.lock, gone: !target || !tokenOf(target),
+    dist: dist === null ? "" : dist === 0 ? "в своей зоне" : `${dist} ${dist === 1 ? "зона" : "зоны"}`
+  };
+}
+
 export class PilotSheet extends TBActorSheet {
   static get defaultOptions() {
     return foundry.utils.mergeObject(super.defaultOptions, {
@@ -177,6 +196,7 @@ export class PilotSheet extends TBActorSheet {
       statRows: Object.entries(TB.planeStats).map(([k, [en, ru]]) => ({ key: k, en, ru, value: plane.system.stats[k] })),
       sigNames: plane.system.sig.join(", ")
     } : null;
+    ctx.serviceLog = (s.service.log ?? []).map((x, i) => ({ ...x, i, n: i + 1 })).reverse();
     const weaponOpts = Object.fromEntries(a.items.filter(i => i.type === "weapon" && i.system.ammo.max !== null).map(w => [w.id, w.name]));
     ctx.triggers = a.items.filter(i => i.type === "trigger").map(t => ({
       id: t.id, name: t.name, ...t.system, typeText: t.system.types.join(" · "),
@@ -205,6 +225,12 @@ export class PilotSheet extends TBActorSheet {
     const el = html[0];
     // досье: строки можно зачёркивать, но не стирать
     el.querySelectorAll("[data-dossier]").forEach(n => n.addEventListener("change", () => this.#saveDossier(el)));
+    el.querySelectorAll("[data-oplog-del]").forEach(n => n.addEventListener("click", ev => {
+      ev.preventDefault();
+      const log = foundry.utils.deepClone(this.actor.system.service.log ?? []);
+      log.splice(Number(n.dataset.oplogDel), 1);
+      this.actor.update({ "system.service.log": log });
+    }));
     el.querySelector("[data-dossier-add]")?.addEventListener("click", ev => {
       ev.preventDefault();
       const list = foundry.utils.deepClone(this.actor.system.dossier);

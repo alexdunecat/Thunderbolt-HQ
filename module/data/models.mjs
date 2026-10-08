@@ -42,7 +42,9 @@ export class PilotData extends foundry.abstract.TypeDataModel {
       dossier: new f.ArrayField(new f.SchemaField({ text: str(), struck: bool() }), { initial: [{ text: "", struck: false }] }),
       service: new f.SchemaField({
         sorties: int(0, { min: 0 }), ops: int(0, { min: 0 }), air: int(0, { min: 0 }), ground: int(0, { min: 0 }),
-        eject: int(0, { min: 0 }), awards: str(), status: str("active")
+        eject: int(0, { min: 0 }), awards: str(), status: str("active"),
+        // журнал вылетов: операция, дата, сбитые, катапульта (пишут «Итоги вылета»)
+        log: new f.ArrayField(new f.SchemaField({ op: str(), date: str(), air: int(0), ground: int(0), eject: bool() }))
       }),
       bonusPoints: int(0),
       skills: skillSchema(),

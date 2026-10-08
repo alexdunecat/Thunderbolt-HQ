@@ -4,6 +4,7 @@ import { esc } from "../utils.mjs";
 import { formDialog } from "../dice/rolls.mjs";
 import { tokenOf, weatherAt, defenseWithWeather, altOf } from "../scene.mjs";
 import { arrangeSceneTokens } from "../tokens.mjs";
+import { openMapUpdateDialog, coreWeatherFor } from "./mission-import.mjs";
 import { SQUAD_POINTS, allSquads, squadPoints, squadMembers, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
 
 let panel = null;
@@ -103,9 +104,11 @@ export class AwacsPanel extends Application {
       const scene = game.scenes.viewed;
       if (!scene) return;
       const ids = [...el.querySelectorAll("[data-weather]:checked")].map(x => x.dataset.weather);
-      await scene.setFlag(SYSTEM_ID, "weather", ids);
+      // видимая погода Foundry над сценой: дождь, гроза или облачность
+      await scene.update({ [`flags.${SYSTEM_ID}.weather`]: ids, weather: coreWeatherFor(ids) });
       for (const a of game.actors) if (a.sheet?.rendered) a.sheet.render(false);
     }));
+    on("[data-map-update]", () => openMapUpdateDialog());
     on("[data-sortie-all]", async () => {
       const pilots = game.actors.filter(a => a.type === "pilot");
       if (!(await Dialog.confirm({ title: "Все к вылету", content: `<p>Подготовить к вылету всех пилотов (${pilots.length}): HP и Strain до максимума, Speed 1, метки сняты, спецоружие пополнено?</p>` }))) return;
@@ -220,7 +223,11 @@ export async function sortieResults() {
     const sortie = sv.sorties + 1;
     const names = kind => (k.list ?? []).filter(x => x.kind === kind).map(x => x.name);
     report.push({ name: a.name, air, gnd, airNames: names("air"), gndNames: names("ground"), eject, pts, ...pilotState(a) });
+    // в личное дело: в какой операции был вылет; новая операция прибавляет счётчик операций
+    const log = [...(sv.log ?? []), { op, date: new Date().toLocaleDateString("ru-RU"), air, ground: gnd, eject }];
+    const newOp = !(sv.log ?? []).some(x => x.op === op);
     await a.update({
+      "system.service.log": log, "system.service.ops": sv.ops + (newOp ? 1 : 0),
       "system.service.sorties": sortie, "system.service.air": sv.air + air, "system.service.ground": sv.ground + gnd,
       "system.service.eject": sv.eject + (eject ? 1 : 0), "system.bonusPoints": a.system.bonusPoints + pts,
       [`flags.${SYSTEM_ID}.-=kills`]: null

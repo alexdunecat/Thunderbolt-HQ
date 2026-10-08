@@ -146,7 +146,19 @@ export function weatherAt(actor, token = tokenOf(actor)) {
     if (d.comp2) w.comp2 = true;
     if (d.ownZone) w.ownZone = true;
   }
+  // удар молнии: до конца следующего хода −1 Evasion и ракеты только с броском
+  if (struckBy(actor)) {
+    w.list.push({ id: "struck", ico: "ϟ", name: "Удар молнии", mods: { ev: -1 }, txt: "−1 Evasion и ракеты только с броском до конца следующего хода" });
+    w.ev -= 1;
+    w.struck = true;
+  }
   return w;
+}
+
+/** Самолёт поражён молнией в этом или прошлом раунде текущего боя (действует до конца его следующего хода). */
+export function struckBy(actor) {
+  const f = actor?.getFlag?.(SYSTEM_ID, "struck"), c = game.combat;
+  return !!f && !!c && f.combat === c.id && c.round <= f.round + 1;
 }
 
 /** Строки погоды для карточки броска: [["☁ Облачность", −1], …] по ключу модификатора. */

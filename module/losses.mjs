@@ -27,6 +27,11 @@ export function registerLosses() {
     const has = p => foundry.utils.hasProperty(change, p);
     if (has("system.breakEv")) syncStatus(actor, BREAK, actor.system.breakEv !== null && actor.system.breakEv !== undefined);
     if (has("system.speed") && (actor.type === "pilot" || actor.system.kind === "air")) syncStatus(actor, STALL, actor.system.speed <= 0);
+    // Doom отмечен на листе вручную: машина сбита так же, как от урона
+    if (!options.tbDoom && foundry.utils.getProperty(change, "system.markers.doom") === true) {
+      syncStatus(actor, CONFIG.specialStatusEffects.DEFEATED, true);
+      actor.markDown?.();
+    }
   });
   Hooks.on("deleteCombat", combat => {
     if (!game.users.activeGM?.isSelf || !combat.round) return;

@@ -1,7 +1,7 @@
 /* Броски и чат-карточки: проверки, ракеты, пушка, Break!, Strain, урон, сваливание. */
 import { SYSTEM_ID, TB } from "../config.mjs";
 import { esc, resolveActor } from "../utils.mjs";
-import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, zoneDistance } from "../scene.mjs";
+import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, zoneDistance, rangeLabel, isFlying, struckBy } from "../scene.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
 import { allowRoll } from "../actions.mjs";
@@ -160,12 +160,31 @@ export function renderCard(card) {
 async function postCard(actor, card, rolls = []) {
   card.actorUuid = actor.uuid;
   card.actorName = actor.name;
-  return ChatMessage.create({
+  const msg = await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
     content: renderCard(card),
     rolls,
     sound: rolls.length ? CONFIG.sounds.dice : null,
     flags: { [SYSTEM_ID]: { card } }
+  });
+  if (card.rolled && computeCard(card).comp) await lightningStrike(actor);
+  return msg;
+}
+
+/**
+ * Молния: Complication на d4 в зоне с грозой — в самолёт бьёт молния (раз в раунд на самолёт).
+ * До конца его следующего хода −1 Evasion, а ракеты только с броском (Improved Fox Two!).
+ */
+async function lightningStrike(actor) {
+  const c = game.combat;
+  if (!c?.started || !isFlying(actor) || !actor.isOwner) return;
+  if (!weatherAt(actor).list.some(d => d.id === "lightning")) return;
+  if (actor.getFlag(SYSTEM_ID, "struck")?.combat === c.id && actor.getFlag(SYSTEM_ID, "struck")?.round === c.round) return;
+  await actor.setFlag(SYSTEM_ID, "struck", { combat: c.id, round: c.round });
+  return ChatMessage.create({
+    speaker: { alias: "AWACS" },
+    content: `<div class="tb-card tb-card-lightning"><header class="tb-card-head"><span class="tb-card-who">ϟ Молния</span><span class="tb-card-what">${esc(actor.token?.name ?? actor.name)}</span></header>
+      <div class="tb-note">Complication в грозе: в самолёт ударила молния. До конца следующего хода <b>−1 Evasion</b>, а ракеты только с броском (Improved Fox Two!).</div></div>`
   });
 }
 
@@ -177,20 +196,38 @@ function thresholds(actor, skill, extraComp) {
   return { perkOn: s.perkOn?.[skill] ?? 4, compOn: Math.max(s.compOn?.[skill] ?? 1, extraComp ? 2 : 1) };
 }
 
-async function rollDice(actor, practiced) {
-  if (practiced) return { d10: 10, d4: 4, rolls: [] };
+/** Триггер «Отточенное мастерство» (Practiced Competence), ещё не использованный в этом вылете. */
+export function practicedReady(actor) {
+  if (actor?.type !== "pilot") return null;
+  return actor.items.find(i => i.type === "trigger" && i.system.key === "practiced" && !i.system.used) ?? null;
+}
+
+/**
+ * Кубики хода. «Отточенное мастерство»: 10 и 4 без броска, раз за вылет (триггер отмечается использованным),
+ * и это не тратит единственную проверку хода. Обычный бросок, когда проверка хода уже была, — null.
+ */
+async function rollDice(actor, practiced, { turnRoll = true } = {}) {
+  if (practiced) {
+    const t = practicedReady(actor);
+    if (t) {
+      await t.update({ "system.used": true });
+      return { d10: 10, d4: 4, rolls: [], practiced: true };
+    }
+    ui.notifications.warn("«Отточенное мастерство» в этом вылете уже использовано: бросаю кубики.");
+  }
+  if (turnRoll && !allowRoll(actor)) return null;
   const r10 = await roll("1d10"), r4 = await roll("1d4");
   return { d10: r10.total, d4: r4.total, rolls: [r10, r4] };
 }
 
 function commonFields(actor, skill) {
-  const pr = hasTrigger(actor, "practiced") && actor.type === "pilot";
+  const pr = !!practicedReady(actor);
   const w = weatherAt(actor);
   return `
     <div class="form-group"><label>Модификатор</label><input type="number" name="mod" value="0"></div>
     <div class="form-group"><label><input type="checkbox" name="storm" ${w.comp2 ? "checked" : ""}> Ураган: Complication на 1–2</label></div>
     ${w.list.length ? `<p class="tb-hint">Погода: ${w.list.map(d => `${d.ico} ${esc(d.name)}`).join(", ")}</p>` : ""}
-    ${pr ? `<div class="form-group"><label><input type="checkbox" name="practiced"> Отточенное мастерство: максимум без броска</label></div>` : ""}`;
+    ${pr ? `<div class="form-group"><label><input type="checkbox" name="practiced"> Отточенное мастерство (раз за вылет): d10 = 10 и d4 = 4 без броска, проверка хода не тратится</label></div>` : ""}`;
 }
 
 function blocked(actor, skill) {
@@ -209,6 +246,7 @@ export async function rollCheck(actor, skill, { dc = TB.difficulty, label } = {}
     ${commonFields(actor, skill)}`);
   if (!data) return;
   const dice = await rollDice(actor, data.practiced);
+  if (!dice) return;
   const parts = skillParts(actor, skill, sk.label);
   if (skill === "push") parts.push(...weatherParts(weatherAt(actor), "push"));
   parts.push(...await takeNext(actor));
@@ -216,7 +254,7 @@ export async function rollCheck(actor, skill, { dc = TB.difficulty, label } = {}
   const card = {
     type: "check", label: label ?? `Проверка ${sk.label} (${sk.en})`, rolled: true, d10: dice.d10, d4: dice.d4,
     parts, strain: 0, dc: data.dc, strainable: actor.type === "pilot" || actor.system.tier === "ace",
-    practiced: !!data.practiced, ...thresholds(actor, skill, data.storm)
+    practiced: !!dice.practiced, ...thresholds(actor, skill, data.storm)
   };
   return postCard(actor, card, dice.rolls);
 }
@@ -227,13 +265,14 @@ export async function rollRecover(actor) {
   const data = await formDialog("Восстановить Strain (Push против 7)", commonFields(actor, "push"));
   if (!data) return;
   const dice = await rollDice(actor, data.practiced);
+  if (!dice) return;
   const parts = skillParts(actor, "push", "Форсаж");
   parts.push(...weatherParts(weatherAt(actor), "push"));
   parts.push(...await takeNext(actor));
   if (data.mod) parts.push(["мод.", data.mod]);
   const card = {
     type: "recover", label: "Восстановление Strain", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: 7,
-    strainable: true, practiced: !!data.practiced, minRegain: actor.system.planeProps?.has?.("kitchen") ? 2 : 1,
+    strainable: true, practiced: !!dice.practiced, minRegain: actor.system.planeProps?.has?.("kitchen") ? 2 : 1,
     ...thresholds(actor, "push", data.storm)
   };
   return postCard(actor, card, dice.rolls);
@@ -241,7 +280,7 @@ export async function rollRecover(actor) {
 
 /** Сваливание: Push против 7. */
 export async function rollStall(actor) {
-  const dice = await rollDice(actor, false);
+  const dice = await rollDice(actor, false, { turnRoll: false });
   const w = weatherAt(actor);
   const parts = [...skillParts(actor, "push", "Форсаж"), ...weatherParts(w, "push"), ...await takeNext(actor)];
   const card = {
@@ -261,6 +300,7 @@ export async function rollBreak(actor) {
     ${commonFields(actor, "dodge")}`);
   if (!data) return;
   const dice = await rollDice(actor, data.practiced);
+  if (!dice) return;
   const parts = skillParts(actor, "dodge", "Уклонение");
   if (data.lead) parts.push(["Lead", data.lead]);
   parts.push(...await takeNext(actor));
@@ -269,7 +309,7 @@ export async function rollBreak(actor) {
   const card = {
     type: "break", label: "Break!", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: null,
     ev: actor.system.evasion ?? actor.system.stats?.ev ?? 0, strainable: actor.type === "pilot" || actor.system.tier === "ace",
-    speedDrop: tvc ? 1 : 2, combatKey: combatKey(), practiced: !!data.practiced, ...thresholds(actor, "dodge", data.storm)
+    speedDrop: tvc ? 1 : 2, combatKey: combatKey(), practiced: !!dice.practiced, ...thresholds(actor, "dodge", data.storm)
   };
   const msg = await postCard(actor, card, dice.rolls);
   await applyBreak(actor, card);
@@ -283,19 +323,46 @@ async function applyBreak(actor, card) {
 
 /* ---------- атаки ---------- */
 
-function weaponOptions(actor, missile) {
+/** Вид цели для оружия: воздушная или наземная/морская. */
+const targetKind = t => (t?.kind === "air" ? "air" : "ground");
+const has = v => v !== null && v !== undefined;
+
+/** Спецоружие подходит к виду цели: противовоздушное только по воздуху, ударное только по земле и морю. */
+export const weaponFits = (w, kind) => w.system.target === kind || w.system.target === "line";
+
+/** Есть ли у стрелка стандартная ракета против вида цели: у NPC — только при Air-Air / Air-Gnd в листе (у бомбардировщиков Air-Air нет). */
+function stdMissile(actor, kind) {
+  const s = actor.system;
+  if (s.broken === "ms") return false;
+  if (actor.type === "pilot") return true;
+  if (s.kind === "air") return has(kind === "air" ? s.stats.aa : s.stats.ag);
+  return false;
+}
+
+/** Чем стрелок может атаковать цель этого вида ракетами: стандартная ракета, спецоружие, ЗРК и ракетные системы корабля. */
+export function strikeMeans(actor, kind) {
+  const s = actor.system, air = kind === "air", out = [];
+  if (stdMissile(actor, kind)) out.push("Стандартная ракета");
+  if (actor.type === "npc" && s.kind === "ground" && has(air ? s.ground.ga : s.ground.gg)) out.push(air ? "ЗРК" : "G-G");
+  if (actor.type === "npc" && s.kind === "ship" && s.systems.some(y => y.value > 0 && has(air ? y.ga : y.gg))) out.push("ракетная система");
+  if (s.broken !== "sw") for (const w of actor.items)
+    if (w.type === "weapon" && weaponFits(w, kind) && (w.system.unlimited || (w.system.ammo.value ?? 0) > 0)) out.push(w.name);
+  return out;
+}
+
+function weaponOptions(actor, missile, kind = null) {
   const opts = [];
-  if (missile) {
-    const noMsl = actor.system.broken === "ms";
-    if (!noMsl) opts.push(`<option value="">Стандартная ракета (урон ${TB.missileDamage})</option>`);
-  }
+  if (missile && (kind ? stdMissile(actor, kind) : stdMissile(actor, "air") || stdMissile(actor, "ground")))
+    opts.push(`<option value="">Стандартная ракета (урон ${TB.missileDamage}, ${rangeLabel(TB.range.missile)})</option>`);
   if (actor.system.broken !== "sw") {
     for (const w of actor.items.filter(i => i.type === "weapon")) {
       const s = w.system;
       const isGun = s.target === "gun";
       if (missile === isGun) continue;
+      if (missile && (s.target === "util" || (kind && !weaponFits(w, kind)))) continue;
       const empty = !w.system.unlimited && (s.ammo.value ?? 0) <= 0;
-      opts.push(`<option value="${w.id}" ${empty ? "disabled" : ""}>${esc(w.name)}${w.system.unlimited ? "" : ` · ${s.ammo.value}/${s.ammo.max}`}</option>`);
+      const vs = s.target === "air" ? "по воздуху" : s.target === "ground" ? "по земле и морю" : "";
+      opts.push(`<option value="${w.id}" ${empty ? "disabled" : ""}>${esc(w.name)}${w.system.unlimited ? "" : ` · ${s.ammo.value}/${s.ammo.max}`} · ${[vs, rangeLabel(s.reach)].filter(Boolean).join(", ")}</option>`);
     }
   }
   return opts;
@@ -317,7 +384,10 @@ export async function lockOn(actor) {
   if (tok.actor.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) return ui.notifications.warn(`«${tok.name}» уже сбит.`);
   if (!canFireAt(actor, tok.actor)) return ui.notifications.warn(`«${tok.name}» на вашей стороне: захват берётся только на противника или нейтрала (сторона NPC — во вкладке «Заметки AWACS»).`);
   const t = describeTarget(tok.actor, tok.name, tok);
-  const longRange = actor.items.find(i => i.type === "weapon" && i.system.reach >= TB.range.operation && (i.system.unlimited || i.system.ammo.value > 0));
+  const kind = targetKind(t);
+  if (!strikeMeans(actor, kind).length)
+    return ui.notifications.warn(`Lock On! невозможен: у «${actor.name}» нечем бить по ${kind === "air" ? "воздушным" : "наземным и морским"} целям.`);
+  const longRange = actor.items.find(i => i.type === "weapon" && weaponFits(i, kind) && i.system.reach >= TB.range.operation && (i.system.unlimited || i.system.ammo.value > 0));
   const { dist, far, problems } = reachProblems(actor, t, longRange ? TB.range.operation : TB.range.lockOn);
   // дальше своей и соседней зоны захват не берётся; запреты по высоте ведущий может разрешить
   if (far) return ui.notifications.warn(`Lock On! невозможен: ${problems[0]}`);
@@ -336,27 +406,39 @@ export async function lockOn(actor) {
 export async function fireMissile(actor) {
   const s = actor.system;
   const t = currentTarget() ?? lockedTarget(actor);
-  const opts = weaponOptions(actor, true);
-  if (!opts.length) return ui.notifications.warn("Ракет нет: система ракет сломана, а спецоружия не осталось.");
-  const ground = t ? t.kind !== "air" : false;
+  // цель известна: в списке только то, что бьёт по её виду, и вид цели не меняется
+  const tk = t ? targetKind(t) : null;
+  const opts = weaponOptions(actor, true, tk);
+  if (!opts.length) return ui.notifications.warn(tk
+    ? `Fox Two!: у «${actor.name}» нечем бить по ${tk === "air" ? "воздушной" : "наземной или морской"} цели «${t.name}».`
+    : "Ракет нет: система ракет сломана, а спецоружия не осталось.");
+  const ground = tk === "ground";
+  const kinds = [["air", "воздушная (Air-Air, Aim)"], ["ground", "наземная или морская (Air-Gnd, Deploy)"]].filter(([k]) => !tk || k === tk);
   const data = await formDialog("Fox Two!", `
     <p class="tb-hint">${t ? `Цель: <b>${esc(t.name)}</b>${t.defense !== null ? `, защита ${t.defense}` : ""}` : "Цель не выбрана: итог покажу без сравнения."}</p>
     <div class="form-group"><label>Оружие</label><select name="weapon">${opts.join("")}</select></div>
     <div class="form-group"><label>Цель</label><select name="tkind">
-      <option value="air" ${ground ? "" : "selected"}>воздушная (Air-Air, Aim)</option>
-      <option value="ground" ${ground ? "selected" : ""}>наземная или морская (Air-Gnd, Deploy)</option></select></div>
+      ${kinds.map(([k, l]) => `<option value="${k}" ${(k === "ground") === ground ? "selected" : ""}>${l}</option>`).join("")}</select></div>
     <div class="form-group"><label><input type="checkbox" name="improved"> Improved Fox Two! (с броском)</label></div>
     ${commonFields(actor, ground ? "deploy" : "aim")}`, { ok: "Пуск" });
   if (!data) return;
 
+  if (data.practiced) data.improved = true;   // максимум на кубиках бывает только у действия с броском
+  if (!data.improved && struckBy(actor)) {
+    data.improved = true;
+    ui.notifications.info("После удара молнии ракета только с броском: пуск идёт как Improved Fox Two!.");
+  }
   const air = data.tkind === "air";
   const skill = air ? "aim" : "deploy";
   const w = data.weapon ? actor.items.get(data.weapon) : null;
   const ws = w?.system;
-  if (w && ws.target === "air" && !air) ui.notifications.warn(`${w.name} бьёт только по воздушным целям.`);
-  if (w && ws.target === "ground" && air) ui.notifications.warn(`${w.name} бьёт только по наземным и морским целям.`);
+  // противовоздушное спецоружие не бьёт по земле, ударное не бьёт по воздуху; стандартной ракеты у NPC без Air-Air / Air-Gnd нет
+  if (w && !weaponFits(w, air ? "air" : "ground"))
+    return ui.notifications.warn(`${w.name} бьёт только по ${ws.target === "air" ? "воздушным" : "наземным и морским"} целям.`);
+  if (!w && !stdMissile(actor, air ? "air" : "ground"))
+    return ui.notifications.warn(`У «${actor.name}» нет стандартной ракеты против ${air ? "воздушных" : "наземных и морских"} целей.`);
   if (data.improved && blocked(actor, skill)) return;
-  if (data.improved && !allowRoll(actor)) return;
+  if (data.improved && !data.practiced && !allowRoll(actor)) return;
   const wx = weatherAt(actor);
   if (t) {
     const { problems } = reachProblems(actor, t, ws?.reach ?? TB.range.missile);
@@ -369,6 +451,7 @@ export async function fireMissile(actor) {
   let dice = { d10: null, d4: null, rolls: [] };
   if (data.improved) {
     dice = await rollDice(actor, data.practiced);
+    if (!dice) return;
     parts.push(...skillParts(actor, skill));
     const m = air ? ws?.aim : ws?.dep;
     if (m) parts.push([`мод ${w.name}`, m]);
@@ -403,7 +486,7 @@ export async function fireMissile(actor) {
     type: "attack", attack: true, label: `Fox Two! ${w ? w.name : "стандартная ракета"}`, rolled: !!data.improved,
     d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: t && t.kind !== "ship" ? t.defense : null, vsLabel: "защиты",
     vsHint: t?.kind === "ship" ? "по Occlusion системы" : "", strainable: !!data.improved && (actor.type === "pilot" || actor.system.tier === "ace"),
-    practiced: !!data.practiced, dmg, delayed: atTurn || !(hv || tBroken), atTurn, combatKey: hv || tBroken ? (atTurn ? key : "") : key,
+    practiced: !!dice.practiced, dmg, delayed: atTurn || !(hv || tBroken), atTurn, combatKey: hv || tBroken ? (atTurn ? key : "") : key,
     targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes, maws: mawsOn(t),
     ...thresholds(actor, skill, data.storm)
   };
@@ -426,12 +509,15 @@ function gunTargets(actor, pods) {
   const list = [], why = [];
   // приоритетные цели — задача для игроков и их союзников
   const ours = actor.type === "pilot" || actor.system.side === "ally";
+  const aaOnly = actor.type === "npc" && actor.system.kind !== "air";
   for (const t of canvas.tokens.placeables) {
     if (t === me || !t.actor || t.actor === actor || (t.document.hidden && !game.user.isGM)) continue;
     const near = (zoneDistance(me, t) ?? 99) <= reach + 1;
     if (t.actor.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) { if (near) why.push(`${t.name}: сбит`); continue; }
     if (!canFireAt(actor, t.actor)) { if (near) why.push(`${t.name}: своя сторона`); continue; }
     const d = describeTarget(t.actor, t.name, t);
+    // зенитные орудия наземки и кораблей бьют только по воздуху
+    if (aaOnly && d.kind !== "air") { if (near) why.push(`${t.name}: зенитное орудие не бьёт по земле и морю`); continue; }
     const r = reachProblems(actor, d, reach);
     if (r.problems.length) { if (near) why.push(`${t.name}: ${r.problems[0]}`); continue; }
     list.push({ ...d, dist: r.dist, priority: ours && !!t.actor.system.priority });
@@ -467,10 +553,12 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
   if (t) {
     const { problems } = reachProblems(actor, t, gunReach(podItem));
     if (podItem?.system.key === "PLSL" && weatherAt(actor).list.some(d => d.id === "clouds")) problems.push("Облачность: импульсный лазер не бьёт.");
+    if (actor.type === "npc" && s.kind !== "air" && t.kind !== "air") problems.unshift("зенитное орудие не бьёт по земле и морю.");
     if (problems.length) return ui.notifications.warn(`Guns, Guns, Guns!: ${problems[0]}`);
     if (t.token) selectTarget(t.token);
   }
   const dice = await rollDice(actor, data.practiced);
+  if (!dice) return;
   let strafe = null;
   let gun = s.gun ?? 0;
   let label = "Guns, Guns, Guns!";
@@ -491,7 +579,7 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
   const card = {
     type: "attack", attack: true, label, rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0,
     dc: t && t.kind !== "ship" ? t.defense : null, vsLabel: "защиты", vsHint: t?.kind === "ship" ? "по Occlusion системы" : "",
-    strainable: actor.type === "pilot" || s.tier === "ace", practiced: !!data.practiced,
+    strainable: actor.type === "pilot" || s.tier === "ace", practiced: !!dice.practiced,
     dmg: gun, delayed: false, instant: true, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "",
     notes: [...(t?.actor.system.breakEv != null && t.kind === "air" ? [`У цели Break!: защита ${t.defense}.`] : []),
       ...(pod?.system.key === "PLSL" ? ["Бьёт в своей и соседних зонах. Облака блокируют лазер."] : [])],
@@ -542,6 +630,7 @@ export async function fireSam(actor, sysIndex) {
   const t = currentTarget() ?? lockedTarget(actor);
   let ga = s.ground?.ga, label = "Пуск ЗРК";
   if (s.kind === "ship") { const y = s.systems[sysIndex]; ga = y?.ga; label = `Пуск: ${y?.name}`; }
+  if (t && t.kind !== "air") return ui.notifications.warn(`${label}: зенитная ракета бьёт только по воздушным целям, а «${t.name}» на земле или на воде.`);
   const data = await formDialog(label, `
     <p class="tb-hint">${t ? `Цель: <b>${esc(t.name)}</b>, защита ${t.defense}` : "Цель не выбрана."} Lock On и пуск: два действия.</p>
     <div class="form-group"><label>Модификатор</label><input type="number" name="mod" value="0"></div>`, { ok: "Пуск" });
@@ -704,7 +793,7 @@ export async function onCardAction(message, action, button) {
       card.applied = true; await save();
       if (actor.system.alt === "low") return actor.markDoom("Сваливание на Low");
       const down = { high: "med", med: "low" }[actor.system.alt] ?? "low";
-      return actor.setAltitude(down);
+      return actor.setAltitude(down, { tbFree: true });
     }
     case "damage": {
       const target = resolveActor(card.targetUuid);

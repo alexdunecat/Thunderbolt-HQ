@@ -62,7 +62,7 @@ export const TB = {
   longVehicles: ["tel"],
   topViews: Object.fromEntries(["superSub", "carrier", "battleship", "cruiser", "destroyer", "frigate", "ship", "sub"]
     .map(k => [`assets/targets/${k}.svg`, `assets/targets/${k}-top.svg`])),
-  weaponRange: { RCL: 0, MGP: 0, PLSL: 1, XAGM: 1, "4AAM": 1, ESM: 1, XLAA: 99, LAAM: 99, LACM: 99 },
+  weaponRange: { RCL: 0, MGP: 0, PLSL: 1, XAGM: 1, "4AAM": 1, ESM: 1, XLAA: 99, LAAM: 99, LACM: 99, EMRG: 99 },
   rangeOptions: { "": "по умолчанию для этого оружия", 0: "своя зона", 1: "своя и соседние", 2: "до двух зон", 99: "вся зона операции" },
 
   /* Погода (как в Планшете AWACS). mods: ev, aa, ag, push, spd; alts: на каких высотах действует; comp2: Complication на 1–2. */
@@ -70,7 +70,7 @@ export const TB = {
     clouds: { ico: "☁", name: "Облачность", mods: { ev: 1, aa: -1, ag: -1 }, txt: "+1 Evasion, −1 A-A и A-G; импульсный лазер не бьёт" },
     rain: { ico: "☂", name: "Дождь", mods: { aa: -1, ag: -1 }, txt: "−1 A-A и A-G" },
     dust: { ico: "≋", name: "Пыльная буря", mods: { ev: 2, aa: -2, ag: -2 }, alts: ["low", "med"], ownZone: true, txt: "+2 Evasion, −2 A-A и A-G, цели только в своей зоне; до High не доходит" },
-    lightning: { ico: "ϟ", name: "Молния", txt: "раз в раунд удар: −1 Evasion и ракеты только с броском до конца следующего хода" },
+    lightning: { ico: "ϟ", name: "Молния", txt: "Complication на d4 = удар молнии (раз в раунд): −1 Evasion и ракеты только с броском до конца следующего хода" },
     wind: { ico: "↝", name: "Сильный ветер", mods: { push: -1 }, txt: "−1 к Push" },
     tornado: { ico: "⌁", name: "Торнадо", txt: "переход в соседнюю зону = 2 Move; выйти: Push против 7; Complication = урон обломками" },
     hurrW: { ico: "↻", name: "Ураган, по ветру", mods: { spd: 2 }, comp2: true, txt: "+2 к Max Speed, Complication на 1–2" },

@@ -43,8 +43,7 @@
               <div class="tb-dial-row"><a data-step="system.strain.value" data-delta="-1">−</a><input type="number" name="system.strain.value" value="{{system.strain.value}}"><a data-step="system.strain.value" data-delta="1" data-max="{{system.strain.max}}">+</a></div>
               <span class="tb-dial-sub">из {{system.strain.max}}</span></div>{{/if}}
           </div>
-          <div class="tb-row"><label>Высота <select name="system.alt">{{selectOptions altOptions selected=system.alt}}</select></label>
-            <span>Захват: {{#if system.lock}}<b>{{system.lock}}</b> <a data-act="unlock">×</a>{{else}}<span class="tb-muted">нет</span>{{/if}}</span></div>
+          <div class="tb-row"><label>Высота <select name="system.alt">{{selectOptions altOptions selected=system.alt}}</select></label></div>
           <table class="tb-stats tb-edit">
             <tr><th>Max Speed</th><th>Evasion</th><th>Air-Air</th><th>Air-Gnd</th><th>Gun DMG</th>{{#if isAce}}<th>Max Strain</th>{{/if}}</tr>
             <tr><td><input type="number" name="system.stats.spd" value="{{system.stats.spd}}"></td><td><input type="number" name="system.stats.ev" value="{{system.stats.ev}}"></td>
@@ -68,13 +67,15 @@
           {{/if}}
         </fieldset>
       </div>
+      <div class="tb-lock-strip {{#if lockInfo}}on{{/if}}"><i class="fas fa-crosshairs"></i> Захват: {{#if lockInfo}}<a data-act="lock-focus" title="Показать цель на сцене"><b>{{lockInfo.name}}</b></a>{{#if lockInfo.dist}} <span class="tb-muted">({{lockInfo.dist}})</span>{{/if}}{{#if lockInfo.gone}} <span class="tb-warn">цели нет на сцене</span>{{/if}} <a data-act="lock" class="tb-lock-change" title="Навестись на другую цель: это действие Lock On!"><i class="fas fa-arrows-rotate"></i> сменить</a> <a data-act="unlock" title="Снять захват"><i class="fas fa-xmark"></i> снять</a>{{else}}<span class="tb-muted">нет</span>{{/if}}</div>
       <div class="tb-actions-bar">
         <button type="button" data-act="lock"><i class="fas fa-crosshairs"></i> Lock On!</button>
-        <button type="button" data-act="missile"><i class="fas fa-rocket"></i> Fox Two!</button>
-        {{#if canGun}}<button type="button" data-act="guns"><i class="fas fa-burst"></i> Пушка</button>{{/if}}
-        <button type="button" data-act="break"><i class="fas fa-shuffle"></i> Break!</button>
-        <button type="button" data-act="stall"><i class="fas fa-arrow-down"></i> Сваливание</button>
+        <button type="button" data-act="missile"><i class="fas fa-rocket"></i> Fox Two! <span class="tb-dice-tag half" title="Без броска. С броском только Improved Fox Two!"><i class="fas fa-dice-d10"></i>?</span></button>
+        {{#if canGun}}<button type="button" data-act="guns"><i class="fas fa-burst"></i> Пушка <span class="tb-dice-tag" title="С броском d10 + d4: одна проверка за ход"><i class="fas fa-dice-d10"></i></span></button>{{/if}}
+        <button type="button" data-act="break"><i class="fas fa-shuffle"></i> Break! <span class="tb-dice-tag" title="С броском d10 + d4: одна проверка за ход"><i class="fas fa-dice-d10"></i></span></button>
+        <button type="button" data-act="stall"><i class="fas fa-arrow-down"></i> Сваливание <span class="tb-dice-tag" title="Бросок Push против 7 в начале хода при Speed 0 и ниже"><i class="fas fa-dice-d10"></i></span></button>
       </div>
+      <p class="tb-small tb-muted tb-dice-legend"><i class="fas fa-dice-d10"></i> — действие с броском (за ход одна проверка). <i class="fas fa-dice-d10"></i>? — бросок по желанию (Improved). Без значка — без броска: Lock On!, Leadership, Вплотную, пуск ЗРК, Move, Climb / Dive, Change Speed.</p>
       <fieldset class="tb-box tb-markers">
         <legend>Метки {{#unless isAce}}<span class="tb-muted">одна метка = Doom</span>{{/unless}}</legend>
         {{#if isAce}}
@@ -85,7 +86,7 @@
       </fieldset>
       {{#if weapons.length}}
       <fieldset class="tb-box"><legend>Спецоружие</legend><ul class="tb-list">
-        {{#each weapons as |w|}}<li class="tb-item" data-item-id="{{w.id}}"><span class="tb-item-name"><a data-chat-item="{{w.id}}">{{w.name}}</a><small>урон {{w.dmg}}{{#if w.mods}} · {{w.mods}}{{/if}}</small></span>
+        {{#each weapons as |w|}}<li class="tb-item" data-item-id="{{w.id}}"><span class="tb-item-name"><a data-chat-item="{{w.id}}">{{w.name}}</a><small>{{#if w.target}}{{w.target}} · {{/if}}урон {{w.dmg}} · <i class="fas fa-ruler-horizontal"></i> {{w.range}}{{#if w.mods}} · {{w.mods}}{{/if}}</small></span>
           <a class="tb-icon" data-item-edit="{{w.id}}"><i class="fas fa-pen"></i></a><a class="tb-icon" data-item-delete="{{w.id}}"><i class="fas fa-trash"></i></a></li>{{/each}}
       </ul></fieldset>
       {{/if}}
@@ -104,10 +105,11 @@
         <table class="tb-stats tb-edit"><tr><th>G-A</th><th>G-G</th><th>Gun DMG</th><th>Strafe</th></tr>
           <tr><td><input type="number" name="system.ground.ga" value="{{system.ground.ga}}" placeholder="—"></td><td><input type="number" name="system.ground.gg" value="{{system.ground.gg}}" placeholder="—"></td>
             <td><input type="number" name="system.ground.gun" value="{{system.ground.gun}}" placeholder="—"></td><td><input type="number" name="system.ground.strafe" value="{{system.ground.strafe}}"></td></tr></table>
+        {{#if canSam}}<div class="tb-lock-strip {{#if lockInfo}}on{{/if}}"><i class="fas fa-crosshairs"></i> Захват: {{#if lockInfo}}<a data-act="lock-focus" title="Показать цель на сцене"><b>{{lockInfo.name}}</b></a>{{#if lockInfo.dist}} <span class="tb-muted">({{lockInfo.dist}})</span>{{/if}}{{#if lockInfo.gone}} <span class="tb-warn">цели нет на сцене</span>{{/if}} <a data-act="lock" class="tb-lock-change" title="Навестись на другую цель: это действие Lock On!"><i class="fas fa-arrows-rotate"></i> сменить</a> <a data-act="unlock" title="Снять захват"><i class="fas fa-xmark"></i> снять</a>{{else}}<span class="tb-muted">нет</span>{{/if}}</div>{{/if}}
         <div class="tb-actions-bar">
           {{#if canSam}}<button type="button" data-act="lock"><i class="fas fa-crosshairs"></i> Lock On!</button>
           <button type="button" data-sam><i class="fas fa-rocket"></i> Пуск ЗРК</button>{{/if}}
-          {{#if canGun}}<button type="button" data-act="guns"><i class="fas fa-burst"></i> Зенитный огонь</button>{{/if}}
+          {{#if canGun}}<button type="button" data-act="guns"><i class="fas fa-burst"></i> Зенитный огонь <span class="tb-dice-tag" title="С броском d10 + d4: одна проверка за ход"><i class="fas fa-dice-d10"></i></span></button>{{/if}}
         </div>
       </fieldset>
       {{/if}}
@@ -132,8 +134,7 @@
           </tr>
           {{/each}}
         </table>
-        {{#if shipSam}}<div class="tb-actions-bar"><button type="button" data-act="lock"><i class="fas fa-crosshairs"></i> Lock On!</button>
-          {{#if system.lock}}<span class="tb-muted">Захват: <b>{{system.lock}}</b> <a data-act="unlock">×</a></span>{{/if}}</div>{{/if}}
+        {{#if shipSam}}<div class="tb-lock-strip {{#if lockInfo}}on{{/if}}"><i class="fas fa-crosshairs"></i> Захват: {{#if lockInfo}}<a data-act="lock-focus" title="Показать цель на сцене"><b>{{lockInfo.name}}</b></a>{{#if lockInfo.dist}} <span class="tb-muted">({{lockInfo.dist}})</span>{{/if}}{{#if lockInfo.gone}} <span class="tb-warn">цели нет на сцене</span>{{/if}} <a data-act="lock" class="tb-lock-change" title="Навестись на другую цель: это действие Lock On!"><i class="fas fa-arrows-rotate"></i> сменить</a> <a data-act="unlock" title="Снять захват"><i class="fas fa-xmark"></i> снять</a>{{else}}<span class="tb-muted">нет</span>{{/if}}</div><div class="tb-actions-bar"><button type="button" data-act="lock"><i class="fas fa-crosshairs"></i> Lock On!</button></div>{{/if}}
         <a class="tb-btn" data-sys-add><i class="fas fa-plus"></i> Система</a>
         <p class="tb-small tb-muted">Корабль тонет, когда уничтожены все системы. Урон по кнопке на карточке атаки спросит, в какую систему попали.</p>
       </fieldset>

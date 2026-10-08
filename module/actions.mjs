@@ -5,7 +5,7 @@
    Запрещено: действовать до заявки и не в свой ход, сверх заявки, второй бросок за ход, Move дальше соседней зоны
    и Climb / Dive больше чем на ступень. Ведущий может переставить токен в обход правил, перетаскивая его с Shift.
    Move и Climb / Dive засчитываются в момент перемещения, и двигавший видит об этом сообщение. */
-import { SYSTEM_ID } from "./config.mjs";
+import { SYSTEM_ID, TB } from "./config.mjs";
 import { PASS, isOut } from "./documents/combat.mjs";
 
 export const ACT_NAMES = {
@@ -110,18 +110,19 @@ function zoneStep(doc, to) {
 }
 
 /** Засчитать Move и Climb / Dive по токену и сказать об этом тому, кто двигал. */
-async function countMove(doc, acts) {
-  for (const what of acts) await spendAction(doc.actor, what, { token: doc });
-  const c = combatantOf(doc.actor, doc);
+async function countMove(actor, acts, token = null) {
+  for (const what of acts) await spendAction(actor, what, { token });
+  const c = combatantOf(actor, token);
   if (!c) return;
   const s = spentOf(c), n = declaredOf(c) ?? 0;
-  ui.notifications.info(`${doc.name}: ${acts.map(a => ACT_NAMES[a]).join(" и ")} засчитан${acts.length > 1 ? "ы" : ""}, действий ${s.used} из ${n}.`);
+  ui.notifications.info(`${token?.name ?? c.name}: ${acts.map(a => ACT_NAMES[a]).join(" и ")} засчитан${acts.length > 1 ? "ы" : ""}, действий ${s.used} из ${n}.`);
 }
 
 export function registerActions() {
   // Move и Climb / Dive проверяются и засчитываются ещё до перемещения: только этот хук точно знает, откуда шёл токен
   Hooks.on("preUpdateToken", (doc, change, options) => {
-    if (options.tbKeep || !doc.actor) return;
+    // tbSync: токен подтягивается к уже сменённой на листе высоте, Climb / Dive засчитан там
+    if (options.tbKeep || options.tbSync || !doc.actor) return;
     const moving = "x" in change || "y" in change || "elevation" in change;
     if (!moving || !game.combat?.started) return;
     if (!combatantOf(doc.actor, doc)) return console.log(`${SYSTEM_ID} | ${doc.name}: токена нет в текущем бою, перемещение не считается`);
@@ -136,16 +137,18 @@ export function registerActions() {
         else if (d > 1) problems.push(`${doc.name}: Move только в соседнюю зону, а здесь ${d}.`);
       }
     }
-    if ("elevation" in change && change.elevation !== doc.elevation && [1, 2, 3].includes(change.elevation)) {
+    // токен без высоты (0, брошен на сцену вручную) стоит на высоте листа
+    const was = [1, 2, 3].includes(doc.elevation) ? doc.elevation : TB.altElevation[doc.actor.system.alt];
+    if ("elevation" in change && change.elevation !== was && [1, 2, 3].includes(change.elevation)) {
       acts.push("climb");
       const p = actionProblem(doc.actor, "climb", { token: doc });
       if (p) problems.push(p);
-      else if (Math.abs(change.elevation - doc.elevation) > 1) problems.push(`${doc.name}: Climb / Dive меняет высоту только на одну ступень.`);
+      else if (was && Math.abs(change.elevation - was) > 1) problems.push(`${doc.name}: Climb / Dive меняет высоту только на одну ступень.`);
     }
     if (problems.length && !gmFree) { ui.notifications.warn(problems[0]); return false; }
     if (gmFree && problems.length) return;   // ведущий с Shift: в обход правил и без счёта
     console.log(`${SYSTEM_ID} | ${doc.name}: ${acts.join(", ") || "в своей зоне"}${problems.length ? ` (в обход: ${problems[0]})` : ""}`);
-    if (acts.length) countMove(doc, acts);
+    if (acts.length) countMove(doc.actor, acts, doc);
   });
   // Change Speed: кнопки ±, поле листа и полоска токена. Сброс после Break!, сваливание и т. п. идут с options.tbFree.
   Hooks.on("preUpdateActor", (actor, change, options) => {
@@ -156,14 +159,14 @@ export function registerActions() {
     if (p) { ui.notifications.warn(p); return false; }
     spendAction(actor, "speed");
   });
-  // смена высоты из листа проверяется так же, как ▲▼ на токене
+  // смена высоты из листа проверяется и засчитывается так же, как ▲▼ на токене (токены потом подтягиваются с tbSync)
   Hooks.on("preUpdateActor", (actor, change, options) => {
-    if (options.tbSync || !foundry.utils.hasProperty(change, "system.alt") || change.system.alt === actor.system.alt) return;
+    if (options.tbSync || options.tbFree || !foundry.utils.hasProperty(change, "system.alt") || change.system.alt === actor.system.alt) return;
+    if (!combatantOf(actor)) return;
     const order = ["low", "med", "high"], step = Math.abs(order.indexOf(change.system.alt) - order.indexOf(actor.system.alt));
-    const p = actionProblem(actor, "climb") ?? (step > 1 && combatantOf(actor) ? `${actor.name}: Climb / Dive меняет высоту только на одну ступень.` : null);
-    if (!p) return;
-    ui.notifications.warn(p);
-    return false;
+    const p = actionProblem(actor, "climb") ?? (step > 1 ? `${actor.name}: Climb / Dive меняет высоту только на одну ступень.` : null);
+    if (p) { ui.notifications.warn(p); return false; }
+    countMove(actor, ["climb"]);
   });
   // лист и трекер показывают счётчик
   Hooks.on("updateCombatant", c => { if (c.actor?.sheet?.rendered) c.actor.sheet.render(false); });
