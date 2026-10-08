@@ -7,7 +7,7 @@ const DIM = 0.6;
 
 export function registerInsignia() {
   Hooks.on("refreshToken", t => draw(t));
-  for (const ev of ["updateActor", "updateToken", "canvasReady"]) Hooks.on(ev, refreshSoon);
+  for (const ev of ["updateActor", "updateActorDelta", "updateToken", "canvasReady"]) Hooks.on(ev, refreshSoon);
 }
 
 let timer = null;

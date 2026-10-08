@@ -150,7 +150,7 @@ Hooks.on("renderActorDirectory", (app, html) => {
   b.addEventListener("click", openAwacs);
   bar.append(b);
 });
-for (const ev of ["updateActor", "createItem", "updateItem", "deleteItem", "createToken", "updateToken", "deleteToken",
+for (const ev of ["updateActor", "updateActorDelta", "createItem", "updateItem", "deleteItem", "createToken", "updateToken", "deleteToken",
   "updateScene", "canvasReady", "updateCombat", "deleteCombat", "createChatMessage", "updateChatMessage", `${SYSTEM_ID}.squadrons`]) Hooks.on(ev, () => refreshAwacs());
 
 /* Прежний архетип нужен после обновления, чтобы убрать его Core-триггер. */
@@ -158,15 +158,26 @@ Hooks.on("preUpdateActor", (actor, change, options) => {
   if (actor.type === "pilot" && foundry.utils.hasProperty(change, "system.archetype")) options.tbOldArchetype = actor.system.archetype;
 });
 
-/* Сторона NPC меняет и сторону его токенов (цвет рамки Foundry), чтобы сцена и система не расходились. */
+/* Сторона NPC меняет и сторону его токенов (цвет рамки Foundry), чтобы сцена и система не расходились.
+   Токены NPC не связаны с актёром: правка листа токена приходит как updateActorDelta, а правка актёра из «Актёров»
+   должна дойти и до уже стоящих токенов (getActiveTokens(true) их не возвращает). */
 const SIDE_DISPOSITION = { enemy: -1, neutral: 0, ally: 1 };
+function sideToTokens(actor, side) {
+  const disposition = SIDE_DISPOSITION[side];
+  if (actor.isToken) return actor.token.disposition !== disposition && actor.token.update({ disposition });
+  if (actor.prototypeToken.disposition !== disposition) actor.update({ "prototypeToken.disposition": disposition });
+  for (const t of actor.getActiveTokens(false, true))
+    if (t.actor?.system.side === side && t.disposition !== disposition) t.update({ disposition });
+}
 Hooks.on("updateActor", (actor, change, options, userId) => {
   const side = foundry.utils.getProperty(change, "system.side");
   if (userId !== game.user.id || actor.type !== "npc" || !(side in SIDE_DISPOSITION)) return;
-  const disposition = SIDE_DISPOSITION[side];
-  if (actor.isToken) return actor.token.update({ disposition });
-  actor.update({ "prototypeToken.disposition": disposition });
-  for (const t of actor.getActiveTokens(true, true)) if (t.disposition !== disposition) t.update({ disposition });
+  sideToTokens(actor, side);
+});
+Hooks.on("updateActorDelta", (delta, change, options, userId) => {
+  const side = foundry.utils.getProperty(change, "system.side"), actor = delta.parent?.actor;
+  if (userId !== game.user.id || actor?.type !== "npc" || !(side in SIDE_DISPOSITION)) return;
+  sideToTokens(actor, side);
 });
 
 Hooks.on("updateActor", async (actor, change, options, userId) => {

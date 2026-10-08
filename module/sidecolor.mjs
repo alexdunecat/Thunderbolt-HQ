@@ -9,7 +9,7 @@ const OURS = /systems\/thunderbolt-shtab\/assets\/(planes|targets)\//;
 
 export function registerSideColor() {
   Hooks.on("refreshToken", t => paint(t));
-  for (const ev of ["updateActor", "canvasReady"]) Hooks.on(ev, refreshSoon);
+  for (const ev of ["updateActor", "updateActorDelta", "updateToken", "canvasReady"]) Hooks.on(ev, refreshSoon);
 }
 
 let timer = null;
