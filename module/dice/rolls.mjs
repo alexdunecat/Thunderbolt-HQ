@@ -485,7 +485,7 @@ function renderVolley(c) {
     if (r.missing) return `<div class="tb-volley-row muted"><b>${esc(r.name)}</b>: цели нет на сцене.</div>`;
     const boost = r.boosts ? ` +${r.boosts} от остальных` : "";
     const verdict = r.hit ? `<b class="ok">Попадание, ${r.dmg} урона</b>${r.added ? ` (сложен урон ${r.added + 1} ракет)` : ""}` : `<b class="fail">Промах</b>`;
-    return `<div class="tb-volley-row ${r.hit ? "hit" : "miss"}"><b>${esc(r.name)}</b>: ${rk(r.count)} (${esc(r.shooters)}). Лучшая ${r.best}${boost} против защиты ${r.defense} → ${verdict}</div>`;
+    return `<div class="tb-volley-row ${r.hit ? "hit" : "miss"}"><b>${esc(r.name)}</b>: ${rk(r.count)} (${esc(r.shooters)}). Лучшая ${r.best}${boost} против защиты ${r.defense}${r.broke ? " (с Break!)" : ""} → ${verdict}</div>`;
   }).join("");
   const hits = c.targets.filter(r => r.hit);
   const btn = hits.length && !c.applied
@@ -493,7 +493,7 @@ function renderVolley(c) {
   return `<div class="tb-card tb-card-volley">
     <header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">${c.atTurnOf ? `Начало хода «${esc(c.atTurnOf)}»: ракеты` : `Конец раунда ${c.round}: залп`}</span></header>
     ${rows || `<div class="tb-note">Ракет в воздухе не было.</div>`}
-    ${c.applied ? `<div class="tb-note">Урон нанесён.</div>` : ""}${btn}
+    ${c.auto ? `<div class="tb-note">Урон нанесён сам.</div>` : c.applied ? `<div class="tb-note">Урон нанесён.</div>` : ""}${btn}
   </div>`;
 }
 
@@ -529,10 +529,14 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
     const need = Math.max(0, info.defense - best.total);
     const hit = need <= extra.length;
     const adders = hit ? extra.slice(0, extra.length - need) : [];
+    const ev = actor.system.evasion ?? actor.system.stats?.ev ?? 0;
     targets.push({
       uuid, name: info.name, count: list.length, shooters, best: best.total, defense: info.defense, hit,
+      broke: (actor.system.breakEv ?? -Infinity) > ev,
       boosts: hit ? need : 0, added: adders.length, dmg: (best.dmg ?? 0) + adders.reduce((s, x) => s + (x.dmg ?? 0), 0),
-      sourceUuid: best.actorUuid, source: best.actorName
+      sourceUuid: best.actorUuid, source: best.actorName,
+      // урон наносит клиент владельца-игрока (у него откроется выбор метки), иначе ведущий
+      by: game.users.find(u => u.active && !u.isGM && actor.testUserPermission(u, "OWNER"))?.id ?? game.user.id
     });
     done.push(...list);
   }
@@ -541,8 +545,30 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
     c.resolved = true;
     await m.update({ content: renderCard(c), [`flags.${SYSTEM_ID}.card`]: c });
   }
-  const card = { type: "volley", round, roundKey: key, atTurnOf, targets, applied: false };
-  return ChatMessage.create({ speaker: { alias: "AWACS" }, content: renderVolley(card), flags: { [SYSTEM_ID]: { card } } });
+  // урон по попавшим наносится сам: ракета уже посчитана с защитой цели на этот момент (Break!, Speed, погода)
+  const auto = targets.some(r => r.hit);
+  const card = { type: "volley", round, roundKey: key, atTurnOf, targets, applied: auto, auto };
+  const msg = await ChatMessage.create({ speaker: { alias: "AWACS" }, content: renderVolley(card), flags: { [SYSTEM_ID]: { card } } });
+  for (const r of targets.filter(x => x.hit && x.by === game.user.id)) await hitTarget(r, key);
+  return msg;
+}
+
+/** Нанести урон попавшего залпа; пилоту — сигнал. */
+async function hitTarget(r, roundKey) {
+  const target = resolveActor(r.uuid);
+  if (!target) return;
+  if (target.type === "pilot" && !game.user.isGM) {
+    ui.notifications.error(`Ракета попала в «${r.name}»: ${r.dmg} урона.`);
+    foundry.audio.AudioHelper.play({ src: CONFIG.sounds.notification, volume: 0.8, autoplay: true, loop: false }, false);
+  }
+  await target.applyDamage(r.dmg, { source: r.source, sourceUuid: r.sourceUuid, roundKey });
+}
+
+/** Игрок: залп попал в его самолёт — урон наносит его клиент. */
+export function onVolleyCreated(message) {
+  const c = message.getFlag(SYSTEM_ID, "card");
+  if (c?.type !== "volley" || !c.auto || game.user.isGM) return;
+  for (const r of c.targets.filter(x => x.hit && x.by === game.user.id)) hitTarget(r, c.roundKey);
 }
 
 /* ---------- кнопки на карточках ---------- */

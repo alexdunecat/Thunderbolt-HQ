@@ -79,6 +79,8 @@ for (const ev of ["createItem", "updateItem", "deleteItem"]) Hooks.on(ev, (item,
 });
 
 Hooks.on("renderChatMessage", (message, html) => R.decorateCard(message, html));
+// залп попал в самолёт игрока: урон наносит его клиент (выбор метки открывается у него)
+Hooks.on("createChatMessage", message => R.onVolleyCreated(message));
 
 /* Высота: поле листа и высота токена (1 = Low, 2 = Medium, 3 = High) держатся вместе. */
 Hooks.on("updateToken", (token, change, options, userId) => {

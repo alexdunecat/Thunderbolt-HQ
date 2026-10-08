@@ -1723,7 +1723,7 @@
    "sig": [
     "QAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/su47.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/x29.svg"
   },
   {
    "key": "f4e",
@@ -4179,7 +4179,7 @@
      "text": "Атака = G-A, Speed всегда 0, против Defense цели. Lock On и пуск — два действия. Дальность: свой участок и соседние."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/sam.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/s75.svg"
   },
   {
    "key": "s300",
@@ -4410,7 +4410,7 @@
      "text": "Стреляет как пушка по своему участку: d10 + Strafe против Defense цели, урон = Gun DMG."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/aa.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/zu23.svg"
   },
   {
    "key": "manpads",
@@ -4471,7 +4471,7 @@
      "text": "Пока РЛС цела, ЗРК её стороны в соседних участках получают +1 к G-A."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/radar.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/p18.svg"
   },
   {
    "key": "jammer",
@@ -4499,7 +4499,7 @@
      "text": "Накрывает две зоны. Союзные ей цели там скрыты от радара, получают +2 к Defense и захватываются только из той же зоны."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/radar.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/krasukha.svg"
   },
   {
    "key": "hangar",
