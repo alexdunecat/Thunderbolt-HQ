@@ -2080,7 +2080,7 @@
    "sig": [
     "SAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/delta.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mirage2000.svg"
   },
   {
    "key": "typhoon",
@@ -2113,7 +2113,7 @@
    "sig": [
     "SAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/canard.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/typhoon.svg"
   },
   {
    "key": "tornadof3",
@@ -2424,7 +2424,7 @@
    "sig": [
     "LAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/canard.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/rafale.svg"
   },
   {
    "key": "rafaleb",
@@ -2457,7 +2457,7 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/canard.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/rafale.svg"
   },
   {
    "key": "jas39c",
@@ -2495,7 +2495,7 @@
    "sig": [
     "QAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/canard.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/gripen.svg"
   },
   {
    "key": "f4g",
@@ -2789,7 +2789,7 @@
    "sig": [
     "GPB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/delta.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mirage2000.svg"
   },
   {
    "key": "tornadogr1",
