@@ -1,0 +1,11 @@
+<svg viewBox="-16 0 252 252" width="512" height="512" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+    
+    <polygon points="110,10 210,10 210,28 194,28 194,224 192.6,230.9 188.7,236.7 182.9,240.6 176,242 110,242 110,242 44,242 37.099999999999994,240.6 31.299999999999997,236.7 27.400000000000006,230.9 26,224 26,28 10,28 10,10 110,10" style="fill:#E9E4D2;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
+    <line x1="110" y1="60" x2="194" y2="60" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="110" y1="60" x2="26" y2="60" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="110" y1="95" x2="194" y2="95" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="110" y1="95" x2="26" y2="95" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="110" y1="130" x2="194" y2="130" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="110" y1="130" x2="26" y2="130" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="110" y1="165" x2="194" y2="165" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="110" y1="165" x2="26" y2="165" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="110" y1="200" x2="194" y2="200" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="110" y1="200" x2="26" y2="200" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="202" y1="12" x2="202" y2="26" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="18" y1="12" x2="18" y2="26" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/>
+    
+    
+    
+    
+    <circle cx="110" cy="222" r="8" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.2"/>
+    <ellipse cx="110" cy="10" rx="0" ry="0" style="fill:#9DAA7A;stroke:#1E2822;stroke-width:1"/>
+  </svg>

@@ -1,0 +1,11 @@
+<svg viewBox="0 -20 220 220" width="512" height="512" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+    
+    <polygon points="110,10 135.9,12.7 160,20.7 180.8,33.4 196.6,50 206.6,69.3 210,90 206.6,110.7 196.6,130 180.8,146.6 160,159.3 135.9,167.3 110,170 110,170 84.1,167.3 60,159.3 39.2,146.6 23.400000000000006,130 13.400000000000006,110.7 10,90 13.400000000000006,69.3 23.400000000000006,50 39.2,33.4 60,20.7 84.1,12.7 110,10" style="fill:#E9E4D2;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
+    <line x1="162" y1="32" x2="162" y2="140" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/><line x1="58" y1="32" x2="58" y2="140" style="stroke:#1E2822;stroke-width:3;stroke-linecap:round"/>
+    
+    
+    
+    
+    <circle cx="148" cy="94" r="20" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.2"/><circle cx="72" cy="94" r="20" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.2"/><circle cx="148" cy="92" r="9" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.2"/><circle cx="72" cy="92" r="9" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.2"/>
+    <ellipse cx="110" cy="10" rx="0" ry="0" style="fill:#9DAA7A;stroke:#1E2822;stroke-width:1"/>
+  </svg>

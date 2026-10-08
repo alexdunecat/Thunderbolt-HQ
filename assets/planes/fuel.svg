@@ -1,0 +1,11 @@
+<svg viewBox="-5 0 230 230" width="512" height="512" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+    
+    <polygon points="110,10 202,10 210,18 210,212 202,220 110,220 110,220 18,220 10,212 10,18 18,10 110,10" style="fill:#E9E4D2;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
+    
+    
+    
+    
+    <polygon points="110,22 196,22 198,24 198,206 196,208 110,208 110,208 24,208 22,206 22,24 24,22 110,22" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.6;stroke-linejoin:round"/>
+    <circle cx="156" cy="68" r="38" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.2"/><circle cx="64" cy="68" r="38" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.2"/><circle cx="156" cy="162" r="38" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.2"/><circle cx="64" cy="162" r="38" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.2"/><circle cx="156" cy="68" r="6" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.2"/><circle cx="64" cy="68" r="6" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.2"/><circle cx="156" cy="162" r="6" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.2"/><circle cx="64" cy="162" r="6" style="fill:#C9C3AE;stroke:#1E2822;stroke-width:1.2"/>
+    <ellipse cx="110" cy="10" rx="0" ry="0" style="fill:#9DAA7A;stroke:#1E2822;stroke-width:1"/>
+  </svg>

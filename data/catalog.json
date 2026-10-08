@@ -4443,7 +4443,7 @@
      "text": "Бьёт только по своей зоне и только по целям на Low и Medium. Lock On и пуск — два действия."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/manpads.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/manpads.svg"
   },
   {
    "key": "radar",
@@ -4527,7 +4527,7 @@
      "text": "Пока ангар цел, AWACS может поднять из него один самолёт за вылет."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/building.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/hangar.svg"
   },
   {
    "key": "fuel",
@@ -4555,7 +4555,7 @@
      "text": "При уничтожении наносит 2 урона всем наземным целям в своём участке."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/tank-farm.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/fuel.svg"
   },
   {
    "key": "bunker",
@@ -4583,7 +4583,7 @@
      "text": "Обычные ракеты и пушки наносят половину урона (с округлением вниз). GPB, UGB и крылатые ракеты — полный."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/building.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/bunker.svg"
   },
   {
    "key": "bridge",
@@ -4611,7 +4611,7 @@
      "text": "Пока мост цел, техника противника пересекает реку в этом участке."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/bridge.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/bridge.svg"
   },
   {
    "key": "nimitz",
