@@ -298,6 +298,9 @@ function weaponOptions(actor, missile) {
   return opts;
 }
 
+/** У цели-игрока работает MAWS: её владелец услышит сигнал о пуске. */
+const mawsOn = t => !!t?.actor?.hasPlayerOwner && t.actor.system.broken !== "ma";
+
 /** Захваченная цель, если её токен ещё на сцене: для Fox Two! без выбранной цели. */
 function lockedTarget(actor) {
   const a = actor.system.lockUuid ? resolveActor(actor.system.lockUuid) : null;
@@ -316,7 +319,8 @@ export async function lockOn(actor) {
   const far = dist !== null && dist > TB.range.lockOn && longRange ? ` Захват для ${esc(longRange.name)}.` : "";
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
-    content: `<div class="tb-card tb-card-lock"><header class="tb-card-head"><span class="tb-card-who">${esc(actor.name)}</span><span class="tb-card-what">Lock On!</span></header><div class="tb-note">Захват: <b>${esc(t.name)}</b>${dist !== null ? `, ${dist} зон.` : "."}${far} Срывается, если цель уйдёт дальше двух зон.</div></div>`
+    content: `<div class="tb-card tb-card-lock"><header class="tb-card-head"><span class="tb-card-who">${esc(actor.name)}</span><span class="tb-card-what">Lock On!</span></header><div class="tb-note">Захват: <b>${esc(t.name)}</b>${dist !== null ? `, ${dist} зон.` : "."}${far} Срывается, если цель уйдёт дальше двух зон.</div></div>`,
+    flags: { [SYSTEM_ID]: { rwr: { target: t.uuid, from: actor.name } } }
   });
 }
 
@@ -389,7 +393,7 @@ export async function fireMissile(actor) {
     d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: t && t.kind !== "ship" ? t.defense : null, vsLabel: "защиты",
     vsHint: t?.kind === "ship" ? "по Occlusion системы" : "", strainable: !!data.improved && (actor.type === "pilot" || actor.system.tier === "ace"),
     practiced: !!data.practiced, dmg, delayed: !(hv || tBroken), combatKey: hv || tBroken ? "" : key,
-    targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes,
+    targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes, maws: mawsOn(t),
     ...thresholds(actor, skill, data.storm)
   };
   return postCard(actor, card, dice.rolls);
@@ -456,7 +460,7 @@ export async function fireSam(actor, sysIndex) {
   if (data.mod) parts.push(["мод.", data.mod]);
   const card = {
     type: "attack", attack: true, label, rolled: false, parts, strain: 0, dc: t?.defense ?? null, vsLabel: "защиты",
-    dmg: TB.missileDamage, delayed: true, combatKey: combatKey(), targetUuid: t?.uuid ?? null, targetName: t?.name ?? "",
+    dmg: TB.missileDamage, delayed: true, combatKey: combatKey(), targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", maws: mawsOn(t),
     notes: [combatKey() ? "Ракета долетит в конце раунда: залп посчитается сам." : "Ракета долетает в конце раунда."]
   };
   return postCard(actor, card);

@@ -13,6 +13,9 @@ import { tokenOf, zoneDistance } from "./scene.mjs";
 import { esc } from "./utils.mjs";
 import { initSocket, checkAdjacency, leadership, formUp } from "./squad.mjs";
 import { registerTokenSettings, arrangeSceneTokens } from "./tokens.mjs";
+import { registerSquadronSettings, squadFromSelection } from "./squadrons.mjs";
+import { registerMacros, actFromMacro } from "./macros.mjs";
+import { registerRwr } from "./rwr.mjs";
 
 function applySkin(skin) {
   document.body.dataset.tbSkin = TB.skins[skin] ? skin : "shtab";
@@ -45,8 +48,12 @@ Hooks.once("init", () => {
     choices: TB.skins, default: "shtab", onChange: applySkin
   });
   registerTokenSettings();
+  registerSquadronSettings();
+  registerMacros();
+  registerRwr();
 
-  game.thunderbolt = { importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens, rolls: R, TB };
+  game.thunderbolt = { importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
+    squadFromSelection, act: actFromMacro, rolls: R, TB };
 });
 
 Hooks.once("ready", () => {
@@ -113,7 +120,7 @@ Hooks.on("renderActorDirectory", (app, html) => {
   bar.append(b);
 });
 for (const ev of ["updateActor", "createItem", "updateItem", "deleteItem", "createToken", "updateToken", "deleteToken",
-  "updateScene", "canvasReady", "updateCombat", "deleteCombat", "createChatMessage", "updateChatMessage"]) Hooks.on(ev, () => refreshAwacs());
+  "updateScene", "canvasReady", "updateCombat", "deleteCombat", "createChatMessage", "updateChatMessage", `${SYSTEM_ID}.squadrons`]) Hooks.on(ev, () => refreshAwacs());
 
 /* Прежний архетип нужен после обновления, чтобы убрать его Core-триггер. */
 Hooks.on("preUpdateActor", (actor, change, options) => {

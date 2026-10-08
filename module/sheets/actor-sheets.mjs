@@ -4,6 +4,8 @@ import { esc } from "../utils.mjs";
 import { weatherAt, defenseWithWeather } from "../scene.mjs";
 import { leadership, formUp, nextMods, dropNext, adjacentOf, breakAdjacent } from "../squad.mjs";
 import { resolveActor } from "../utils.mjs";
+import { SQUAD_POINTS, allSquads, squadLayout, setSquadLayout, squadMembers } from "../squadrons.mjs";
+import { runAction, ACTIONS, startActionDrag } from "../macros.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -77,19 +79,19 @@ class TBActorSheet extends ActorSheet {
     on("[data-act]", d => {
       const a = this.actor;
       switch (d.act) {
-        case "missile": return a.fireMissile();
-        case "guns": return a.fireGuns();
-        case "break": return a.rollBreak();
-        case "lock": return a.lockOn();
-        case "recover": return a.rollRecover();
-        case "stall": return a.rollStall();
         case "sortie": return a.prepareSortie();
         case "unlock": return a.update({ "system.lock": "", "system.lockUuid": "" });
         case "unbreak": return a.update({ "system.breakEv": null });
         case "doom": return a.markDoom();
-        case "lead": return leadership(a);
-        case "formup": return formUp(a);
+        default: return runAction(a, d.act);
       }
+    });
+    // кнопки действий и кубики навыков можно перетащить на панель макросов
+    el.querySelectorAll("[data-act], [data-roll-skill]").forEach(n => {
+      const act = n.dataset.rollSkill ? "skill" : n.dataset.act;
+      if (act !== "skill" && !ACTIONS[act]) return;
+      n.draggable = true;
+      n.addEventListener("dragstart", ev => startActionDrag(ev, this.actor, act, n.dataset.rollSkill));
     });
     on("[data-speed]", d => {
       const v = this.actor.system.speed + Number(d.speed);
@@ -254,6 +256,13 @@ export class NpcSheet extends TBActorSheet {
     ctx.isShip = s.kind === "ship";
     ctx.isAce = s.tier === "ace";
     ctx.isConscript = s.tier === "conscript";
+    ctx.isDuelist = s.tier === "duelist" && !ctx.isShip;
+    if (ctx.isDuelist) {
+      ctx.squadNames = Object.keys(allSquads());
+      ctx.squadBudget = SQUAD_POINTS;
+      ctx.squadCount = s.squad ? Math.max(1, squadMembers(s.squad).length) : 0;
+      ctx.squadOver = s.squadPoints > SQUAD_POINTS;
+    }
     ctx.kindOptions = TB.npcKinds;
     ctx.tierOptions = TB.tiers;
     ctx.systems = s.systems.map((y, i) => ({ ...y, i, dead: y.value <= 0 }));
@@ -276,6 +285,11 @@ export class NpcSheet extends TBActorSheet {
     el.querySelectorAll("[data-sys-gun]").forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); this.actor.fireGuns({ system: Number(n.dataset.sysGun) }); }));
     el.querySelectorAll("[data-sys-sam]").forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); this.actor.fireSam(Number(n.dataset.sysSam)); }));
     el.querySelectorAll("[data-sam]").forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); this.actor.fireSam(); }));
+    el.querySelectorAll("[data-squad-skill]").forEach(n => n.addEventListener("change", ev => {
+      ev.stopPropagation();
+      const name = this.actor.system.squad;
+      if (name) setSquadLayout(name, { ...(squadLayout(name) ?? this.actor.system.skills), [n.dataset.squadSkill]: Number(n.value) || 0 });
+    }));
     el.querySelector("[data-sys-add]")?.addEventListener("click", ev => {
       ev.preventDefault();
       const list = foundry.utils.deepClone(this.actor.system.systems);

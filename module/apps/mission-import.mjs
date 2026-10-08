@@ -1,5 +1,6 @@
 /* Импорт миссии из Планшета AWACS (кнопка «JSON» в планшете): сцена с клетками местности, токены NPC и журнал брифинга. */
 import { SYSTEM_ID, SYS_PATH, TB, footprintOf } from "../config.mjs";
+import { squadLayout, setSquadLayout } from "../squadrons.mjs";
 import { npcActor } from "../data/catalog-docs.mjs";
 import { esc } from "../utils.mjs";
 
@@ -57,7 +58,7 @@ export async function importMission(input) {
     if (ids.length) weatherCells[k] = ids;
   }
   const scene = await Scene.create({
-    flags: { [SYSTEM_ID]: { weatherCells, weather: [] } },
+    flags: { [SYSTEM_ID]: { weatherCells, weather: [], mission: m.name ?? "", objectives: m.objectives ?? [] } },
     name: title, width: m.cols * S, height: m.rows * S, padding: 0, backgroundColor: base?.color ?? "#999999",
     grid: { type: CONST.GRID_TYPES.SQUARE, size: S, distance: 1, units: "", color: "#000000", alpha: 0.35 },
     tokenVision: false, fog: { exploration: false }, navigation: true
@@ -116,6 +117,11 @@ export async function importMission(input) {
     if (u.alt && ALT[u.alt]) data.system.alt = ALT[u.alt];
     if (u.skills && Object.keys(u.skills).length) data.system.skills = Object.fromEntries(Object.keys(TB.skills).map(k => [k, Number(u.skills[k]) || 0]));
     if (u.notes) data.system.notes = `<p>${esc(u.notes)}</p>`;
+    // дуэлянты одной строки миссии — одна эскадрилья с общей раскладкой
+    if (tier === "duelist") {
+      data.system.squad = data.name;
+      if (u.skills || !squadLayout(data.name)) await setSquadLayout(data.name, data.system.skills ?? {});
+    }
     data.prototypeToken.disposition = SIDE[u.side] ?? CONST.TOKEN_DISPOSITIONS.HOSTILE;
     const actor = await Actor.create(data);
     const elevation = TB.altElevation[actor.system.alt] ?? 1;

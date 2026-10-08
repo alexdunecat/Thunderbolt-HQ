@@ -47,6 +47,21 @@
     </table>
     {{else}}<p class="tb-empty">На сцене нет NPC.</p>{{/if}}
 
+    <h3>Эскадрильи дуэлянтов <button type="button" class="tb-inline-btn" data-squad-form title="Выделите на сцене токены NPC"><i class="fas fa-users"></i> Собрать из выделенных</button></h3>
+    {{#if squads.length}}
+    <table class="tb-awacs-table tb-squads">
+      <tr><th>Эскадрилья</th>{{#each skillHeads as |h|}}<th title="{{h.label}}">{{h.en}}</th>{{/each}}<th>Очки</th><th></th></tr>
+      {{#each squads as |q|}}
+      <tr>
+        <td><b>{{q.name}}</b><br><small>{{#if q.members}}{{q.members}}{{else}}машин на сцене нет{{/if}}</small></td>
+        {{#each q.skills as |sk|}}<td class="tb-num"><input type="number" min="0" data-squad="{{q.name}}" data-squad-key="{{sk.key}}" value="{{sk.value}}"></td>{{/each}}
+        <td class="tb-num {{#if q.over}}low{{/if}}">{{q.used}}/{{@root.squadBudget}}</td>
+        <td><a data-squad-del="{{q.name}}" title="Распустить"><i class="fas fa-trash"></i></a></td>
+      </tr>
+      {{/each}}
+    </table>
+    {{else}}<p class="tb-empty">Эскадрилий пока нет. Выделите токены NPC и нажмите «Собрать из выделенных»: у них будет одна раскладка навыков на {{squadBudget}} очка.</p>{{/if}}
+
     <h3>Погода над всей сценой {{#if cells}}<small>ещё в {{cells}} клетках из импорта миссии</small>{{/if}}</h3>
     <div class="tb-awacs-weather">
       {{#each weather as |w|}}

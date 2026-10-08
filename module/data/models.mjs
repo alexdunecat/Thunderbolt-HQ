@@ -1,5 +1,6 @@
 /* Модели данных (TypeDataModel) для пилота, NPC, самолёта, спецоружия и триггера. */
 import { SYSTEM_ID, TB } from "../config.mjs";
+import { squadLayout, squadPoints } from "../squadrons.mjs";
 
 const f = foundry.data.fields;
 const int = (initial = 0, opts = {}) => new f.NumberField({ required: true, nullable: false, integer: true, initial, ...opts });
@@ -121,7 +122,7 @@ export class NpcData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     return {
       kind: str("air"), key: str(), grp: str(), grpName: str(), nato: str(), cls: str(), seats: int(1),
-      tier: str("conscript"), bonus: int(0),
+      tier: str("conscript"), bonus: int(0), squad: str(),
       skills: skillSchema(),
       stats: new f.SchemaField({ spd: int(3), ev: int(3), aa: nint(6), ag: nint(5), gun: nint(2), str: nint() }),
       ground: new f.SchemaField({ occ: int(4), ga: nint(), gg: nint(), gun: nint(), strafe: int(0) }),
@@ -141,7 +142,10 @@ export class NpcData extends foundry.abstract.TypeDataModel {
 
   prepareDerivedData() {
     const conscript = this.tier === "conscript";
-    this.skillTotal = Object.fromEntries(SKILL_KEYS.map(k => [k, conscript ? this.bonus : this.skills[k]]));
+    // дуэлянты эскадрильи берут общую раскладку из настройки мира
+    const layout = this.tier === "duelist" ? squadLayout(this.squad) ?? this.skills : this.skills;
+    this.skillTotal = Object.fromEntries(SKILL_KEYS.map(k => [k, conscript ? this.bonus : layout[k] ?? 0]));
+    this.squadPoints = squadPoints(layout);
     this.skillBlocked = Object.fromEntries(SKILL_KEYS.map(k => [k, this.markers.grit && this.markers.gritSkill === k]));
     this.perkOn = Object.fromEntries(SKILL_KEYS.map(k => [k, 4]));
     this.compOn = Object.fromEntries(SKILL_KEYS.map(k => [k, 1]));

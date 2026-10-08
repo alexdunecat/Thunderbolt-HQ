@@ -324,3 +324,9 @@ body[data-tb-skin="doc"] {
 .tb-dialog .tb-pick-list { display: grid; gap: 4px; margin: 4px 0 8px; }
 .tb-dialog .tb-pick { display: flex; gap: 6px; align-items: center; }
 .tb-dialog .tb-pick small { color: #777; }
+/* эскадрильи дуэлянтов */
+.tb-squads input[type="number"] { width: 3.2em; text-align: center; }
+.tb-inline-btn { display: inline-block; width: auto; line-height: 20px; font-size: 11px; padding: 0 8px; margin-left: 8px; vertical-align: middle; }
+.tb-small.tb-warn { color: var(--tb-warn); font-weight: 600; }
+/* действия листа можно перетащить на панель макросов */
+.thunderbolt [data-act][draggable="true"], .thunderbolt [data-roll-skill][draggable="true"] { cursor: grab; }

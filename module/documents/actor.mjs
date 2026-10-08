@@ -158,6 +158,8 @@ export class TBActor extends Actor {
     const kind = this.system.kind === "air" ? "air" : "ground";
     const k = foundry.utils.deepClone(shooter.getFlag(SYSTEM_ID, "kills") ?? { air: 0, ground: 0 });
     k[kind] = (k[kind] ?? 0) + 1;
+    // имена для разбора полёта
+    k.list = [...(k.list ?? []), { name: this.token?.name ?? this.name, kind }];
     await shooter.setFlag(SYSTEM_ID, "kills", k);
   }
 

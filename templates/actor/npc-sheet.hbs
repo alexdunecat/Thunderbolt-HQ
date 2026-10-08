@@ -51,9 +51,14 @@
           {{#if isConscript}}
           <p class="tb-small">Конскрипт: ко всем навыкам <input class="tb-inline" type="number" name="system.bonus" value="{{system.bonus}}" min="0" max="1"> (книга: +0 или +1).</p>
           <ol class="tb-skills compact">{{#each skills as |sk|}}<li class="tb-skill"><a class="tb-roll" data-roll-skill="{{sk.key}}"><i class="fas fa-dice-d10"></i></a><span class="tb-skill-name"><b>{{sk.label}}</b> <small>{{sk.en}}</small></span><span class="tb-skill-total">{{sk.total}}</span></li>{{/each}}</ol>
+          {{else if isDuelist}}
+          <div class="tb-row"><label>Эскадрилья <input type="text" name="system.squad" value="{{system.squad}}" list="tb-squads-{{actor.id}}" placeholder="название"></label>
+            <datalist id="tb-squads-{{actor.id}}">{{#each squadNames as |n|}}<option value="{{n}}">{{/each}}</datalist></div>
+          <ol class="tb-skills compact">{{#each skills as |sk|}}<li class="tb-skill {{#if sk.blocked}}blocked{{/if}}"><a class="tb-roll" data-roll-skill="{{sk.key}}"><i class="fas fa-dice-d10"></i></a><span class="tb-skill-name"><b>{{sk.label}}</b> <small>{{sk.en}}</small></span>{{#if @root.system.squad}}<input type="number" data-squad-skill="{{sk.key}}" value="{{sk.total}}" min="0" {{#unless @root.isGM}}disabled{{/unless}}>{{else}}<input type="number" name="system.skills.{{sk.key}}" value="{{sk.value}}" min="0">{{/if}}</li>{{/each}}</ol>
+          <p class="tb-small {{#if squadOver}}tb-warn{{else}}tb-muted{{/if}}">{{#if system.squad}}Раскладка общая для эскадрильи «{{system.squad}}» ({{squadCount}} маш.): {{system.squadPoints}} из {{squadBudget}} очков. Правка здесь меняет её у всех машин эскадрильи.{{else}}Дуэлянты: одна раскладка на {{squadBudget}} очка на всю эскадрилью. Впишите название, и раскладка станет общей. Сейчас {{system.squadPoints}} из {{squadBudget}}.{{/if}}</p>
           {{else}}
           <ol class="tb-skills compact">{{#each skills as |sk|}}<li class="tb-skill {{#if sk.blocked}}blocked{{/if}}"><a class="tb-roll" data-roll-skill="{{sk.key}}"><i class="fas fa-dice-d10"></i></a><span class="tb-skill-name"><b>{{sk.label}}</b> <small>{{sk.en}}</small></span><input type="number" name="system.skills.{{sk.key}}" value="{{sk.value}}"></li>{{/each}}</ol>
-          <p class="tb-small tb-muted">{{#if isAce}}Ас: полный лист, может иметь Strain, триггеры и спецоружие.{{else}}Дуэлянты: одна раскладка на 4 очка на всю эскадрилью.{{/if}}</p>
+          <p class="tb-small tb-muted">Ас: полный лист, может иметь Strain, триггеры и спецоружие.</p>
           {{/if}}
         </fieldset>
       </div>
