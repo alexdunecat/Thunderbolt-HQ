@@ -6,7 +6,7 @@ import { leadership, formUp, nextMods, dropNext, adjacentOf, breakAdjacent } fro
 import { resolveActor } from "../utils.mjs";
 import { SQUAD_POINTS, allSquads, squadLayout, setSquadLayout, squadMembers } from "../squadrons.mjs";
 import { runAction, ACTIONS, startActionDrag } from "../macros.mjs";
-import { spendAction, actsSummary } from "../actions.mjs";
+import { spendAction, actsSummary, allowAction } from "../actions.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -106,7 +106,7 @@ class TBActorSheet extends ActorSheet {
     });
     on("[data-speed]", async d => {
       const v = Math.min(this.actor.system.maxSpeed + weatherAt(this.actor).spd, this.actor.system.speed + Number(d.speed));
-      if (v === this.actor.system.speed) return;
+      if (v === this.actor.system.speed || !allowAction(this.actor, "speed")) return;
       await this.actor.update({ "system.speed": v });
       spendAction(this.actor, "speed");
     });
@@ -295,9 +295,15 @@ export class NpcSheet extends TBActorSheet {
       list[i][k] = n.type === "number" ? (n.value === "" ? null : Number(n.value)) : n.value;
       this.actor.update({ "system.systems": list });
     }));
-    el.querySelectorAll("[data-sys-gun]").forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); this.actor.fireGuns({ system: Number(n.dataset.sysGun) }); }));
-    el.querySelectorAll("[data-sys-sam]").forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); this.actor.fireSam(Number(n.dataset.sysSam)); }));
-    el.querySelectorAll("[data-sam]").forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); this.actor.fireSam(); }));
+    // орудия и ЗРК систем — тоже действия хода
+    const act = async (what, rolled, fn) => {
+      if (!allowAction(this.actor, what, { rolled })) return;
+      const r = await fn();
+      if (r?.documentName === "ChatMessage") await spendAction(this.actor, what, { rolled });
+    };
+    el.querySelectorAll("[data-sys-gun]").forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); act("guns", true, () => this.actor.fireGuns({ system: Number(n.dataset.sysGun) })); }));
+    el.querySelectorAll("[data-sys-sam]").forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); act("sam", false, () => this.actor.fireSam(Number(n.dataset.sysSam))); }));
+    el.querySelectorAll("[data-sam]").forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); act("sam", false, () => this.actor.fireSam()); }));
     el.querySelectorAll("[data-squad-skill]").forEach(n => n.addEventListener("change", ev => {
       ev.stopPropagation();
       const name = this.actor.system.squad;

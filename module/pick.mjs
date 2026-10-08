@@ -3,7 +3,7 @@
 let active = null;
 
 /**
- * Попросить щёлкнуть по токену цели. Выбранный токен становится целью игрока.
+ * Попросить щёлкнуть по токену цели. Целью игрока токен становится, только когда вызвавший подтвердит выбор (selectTarget).
  * Возвращает токен или null при отмене. Свой токен (self) не выбирается.
  */
 export function pickTargetToken(self, { title = "Lock On!" } = {}) {
@@ -26,7 +26,6 @@ export function pickTargetToken(self, { title = "Lock On!" } = {}) {
       view.style.cursor = prevCursor;
       for (const w of sheets) w.maximize();
       active = null;
-      if (token) token.setTarget(true, { releaseOthers: true });
       resolve(token ?? null);
     };
     const tokenAt = ev => {
@@ -58,4 +57,9 @@ export function pickTargetToken(self, { title = "Lock On!" } = {}) {
     window.addEventListener("keydown", onKey, true);
     active = { cancel: () => finish(null) };
   });
+}
+
+/** Сделать токен целью игрока (после того как действие подтверждено). */
+export function selectTarget(token) {
+  token?.setTarget?.(true, { releaseOthers: true });
 }

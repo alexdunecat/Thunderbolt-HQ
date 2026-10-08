@@ -3,7 +3,8 @@ import { SYSTEM_ID, TB } from "../config.mjs";
 import { esc, resolveActor } from "../utils.mjs";
 import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach } from "../scene.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
-import { pickTargetToken } from "../pick.mjs";
+import { pickTargetToken, selectTarget } from "../pick.mjs";
+import { allowRoll } from "../actions.mjs";
 
 const sign = n => (n >= 0 ? "+" : "−") + Math.abs(n);
 
@@ -317,6 +318,7 @@ export async function lockOn(actor) {
   const longRange = actor.items.find(i => i.type === "weapon" && i.system.reach >= TB.range.operation && (i.system.unlimited || i.system.ammo.value > 0));
   const { dist, problems } = reachProblems(actor, t, longRange ? TB.range.operation : TB.range.lockOn);
   if (!(await confirmReach(problems, "Lock On!"))) return;
+  selectTarget(tok);
   await actor.update({ "system.lock": t.name, "system.lockUuid": t.uuid });
   const far = dist !== null && dist > TB.range.lockOn && longRange ? ` Захват для ${esc(longRange.name)}.` : "";
   return ChatMessage.create({
@@ -350,6 +352,7 @@ export async function fireMissile(actor) {
   if (w && ws.target === "air" && !air) ui.notifications.warn(`${w.name} бьёт только по воздушным целям.`);
   if (w && ws.target === "ground" && air) ui.notifications.warn(`${w.name} бьёт только по наземным и морским целям.`);
   if (data.improved && blocked(actor, skill)) return;
+  if (data.improved && !allowRoll(actor)) return;
   const wx = weatherAt(actor);
   if (t) {
     const { problems } = reachProblems(actor, t, ws?.reach ?? TB.range.missile);

@@ -87,7 +87,7 @@ Hooks.on("updateToken", (token, change, options, userId) => {
   if (moved && game.users.activeGM?.isSelf) setTimeout(() => { checkLocks(token.parent); checkAdjacency(); }, 50);
   if (userId !== game.user.id || !("elevation" in change) || !token.actor) return;
   const alt = Object.entries(TB.altElevation).find(([, v]) => v === change.elevation)?.[0];
-  if (alt && token.actor.system.alt !== alt) token.actor.update({ "system.alt": alt });
+  if (alt && token.actor.system.alt !== alt) token.actor.update({ "system.alt": alt }, { tbSync: true });
 });
 
 /** Захват срывается, если цель ушла дальше двух зон (кроме дальнобойного спецоружия). */

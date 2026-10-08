@@ -3,7 +3,10 @@
 import { SYSTEM_ID, SYS_PATH, TB } from "./config.mjs";
 import { resolveActor } from "./utils.mjs";
 import { leadership, formUp } from "./squad.mjs";
-import { spendAction } from "./actions.mjs";
+import { spendAction, allowAction } from "./actions.mjs";
+
+/** Действия, которые всегда с броском (Fox Two! с броском решается в окне пуска). */
+const ROLLED = new Set(["guns", "break", "recover", "skill"]);
 
 export const ACTIONS = {
   lock: "Lock On!", missile: "Fox Two!", guns: "Guns, Guns, Guns!", break: "Break!",
@@ -12,6 +15,7 @@ export const ACTIONS = {
 
 /** Выполнить действие листа за актёра. В бою сделанное действие попадает в счётчик хода. */
 export async function runAction(actor, act, { skill } = {}) {
+  if (act !== "stall" && !allowAction(actor, act, { rolled: ROLLED.has(act) })) return;
   const res = await doAction(actor, act, { skill });
   if (act === "stall" || !res) return res;
   // действие состоялось: карточка в чате (отмена диалога и предупреждения возвращают не её) или строй собран
