@@ -330,3 +330,9 @@ body[data-tb-skin="doc"] {
 .tb-small.tb-warn { color: var(--tb-warn); font-weight: 600; }
 /* действия листа можно перетащить на панель макросов */
 .thunderbolt [data-act][draggable="true"], .thunderbolt [data-roll-skill][draggable="true"] { cursor: grab; }
+/* высота в меню токена */
+.tb-alt-hud { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-bottom: 6px; }
+.tb-alt-hud .tb-alt-now { width: 26px; height: 22px; line-height: 20px; text-align: center; font: bold 14px monospace; border: 1px solid #1e2822; border-radius: 5px; }
+.tb-alt-hud .tb-alt-now.low { background: #d0302a; color: #fff; }
+.tb-alt-hud .tb-alt-now.med { background: #2f9e44; color: #fff; }
+.tb-alt-hud .tb-alt-now.high { background: #f4f4f4; color: #1e2822; }
