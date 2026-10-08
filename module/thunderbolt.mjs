@@ -2,7 +2,7 @@
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { PilotData, NpcData, PlaneData, WeaponData, TriggerData } from "./data/models.mjs";
 import { TBActor, TBItem } from "./documents/actor.mjs";
-import { TBCombat } from "./documents/combat.mjs";
+import { TBCombat, registerCombat } from "./documents/combat.mjs";
 import { PilotSheet, NpcSheet } from "./sheets/actor-sheets.mjs";
 import { TBItemSheet } from "./sheets/item-sheet.mjs";
 import * as R from "./dice/rolls.mjs";
@@ -55,6 +55,7 @@ Hooks.once("init", () => {
   registerRwr();
   registerAltitude();
   registerInsignia();
+  registerCombat();
 
   game.thunderbolt = { importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
     squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB };
@@ -132,17 +133,16 @@ Hooks.on("preUpdateActor", (actor, change, options) => {
 });
 
 Hooks.on("updateActor", async (actor, change, options, userId) => {
-  if (userId !== game.user.id) return;
   const has = p => foundry.utils.hasProperty(change, p);
-  if (has("system.alt")) actor.syncElevation();
-  if (actor.type === "pilot" && (has("system.twist") || has("system.markers"))) actor.syncPools();
-
-  // сваливание: Speed ≤ 0 у летящей машины
-  if (has("system.speed") && actor.system.speed <= 0) {
+  // сваливание: Speed ≤ 0 у летящей машины. Бросает тот, кого назвал конец раунда (владелец пилота), иначе кто менял
+  if (has("system.speed") && actor.system.speed <= 0 && (options.tbStallBy ?? userId) === game.user.id) {
     const flying = actor.type === "pilot" || actor.system.kind === "air";
     const hover = actor.system.planeProps?.has?.("vtol") || actor.system.props?.some?.(p => p.key === "vtol" || p.key === "hover");
     if (flying && !hover) R.rollStall(actor);
   }
+  if (userId !== game.user.id) return;
+  if (has("system.alt")) actor.syncElevation();
+  if (actor.type === "pilot" && (has("system.twist") || has("system.markers"))) actor.syncPools();
 
   // архетип сменился: убрать Core-триггер прежнего архетипа и добавить Core нового из компендиума
   if (actor.type === "pilot" && has("system.archetype")) {

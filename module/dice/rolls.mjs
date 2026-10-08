@@ -135,14 +135,16 @@ export function renderCard(card) {
   if (c.compPassed) rows.push(`<div class="tb-note">Complication: −1 к следующей проверке, ${esc(c.compPassed)}.</div>`);
   if (c.rolled && c.strainable && !c.resolved) btn.push(`<button type="button" data-tb-action="strain" class="tb-owner"><i class="fas fa-bolt"></i> +1 Strain</button>`);
   if (c.type === "break" && !c.speedApplied) btn.push(`<button type="button" data-tb-action="break-speed" class="tb-owner">Speed −${c.speedDrop} после атак</button>`);
+  if (c.type === "break" && !c.speedApplied && c.combatKey) rows.push(`<div class="tb-note">Speed −${c.speedDrop} спишется сам в конце раунда.</div>`);
+  if (c.type === "break" && c.speedApplied) rows.push(`<div class="tb-note">Speed −${c.speedDrop} списан.</div>`);
   if (c.type === "recover" && c.success && !c.applied) btn.push(`<button type="button" data-tb-action="recover" class="tb-owner">Вернуть ${c.regain} Strain</button>`);
   if (c.type === "stall" && !c.applied) {
     if (c.success) btn.push(`<button type="button" data-tb-action="stall-ok" class="tb-owner">Выровняться: Speed 1</button>`);
     else btn.push(`<button type="button" data-tb-action="stall-fail" class="tb-owner">${c.alt === "low" ? "Удар о землю: Doom" : "Потерять высоту"}</button>`);
   }
   const queued = c.delayed && c.combatKey && !c.resolved && !c.dmgApplied;
-  if (queued) rows.push(`<div class="tb-note tb-queued"><i class="fas fa-hourglass-half"></i> В очереди залпа конца раунда.</div>`);
-  if (c.resolved) rows.push(`<div class="tb-note">Учтена в залпе конца раунда.</div>`);
+  if (queued) rows.push(`<div class="tb-note tb-queued"><i class="fas fa-hourglass-half"></i> ${c.atTurn ? "Ждёт начала хода цели." : "В очереди залпа конца раунда."}</div>`);
+  if (c.resolved) rows.push(`<div class="tb-note">${c.atTurn ? "Учтена в начале хода цели." : "Учтена в залпе конца раунда."}</div>`);
   if (c.dmg && c.targetUuid && !queued && !c.resolved && (c.success || c.dc === null || c.dc === undefined) && !c.dmgApplied)
     btn.push(`<button type="button" data-tb-action="damage" class="tb-target-owner"><i class="fas fa-burst"></i> ${c.delayed ? "В конце раунда: " : ""}${c.dmg} урона по «${esc(c.targetName)}»</button>`);
   if (c.dmgApplied) rows.push(`<div class="tb-note">Урон нанесён.</div>`);
@@ -266,7 +268,7 @@ export async function rollBreak(actor) {
   const card = {
     type: "break", label: "Break!", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: null,
     ev: actor.system.evasion ?? actor.system.stats?.ev ?? 0, strainable: actor.type === "pilot" || actor.system.tier === "ace",
-    speedDrop: tvc ? 1 : 2, practiced: !!data.practiced, ...thresholds(actor, "dodge", data.storm)
+    speedDrop: tvc ? 1 : 2, combatKey: combatKey(), practiced: !!data.practiced, ...thresholds(actor, "dodge", data.storm)
   };
   const msg = await postCard(actor, card, dice.rolls);
   await applyBreak(actor, card);
@@ -381,7 +383,9 @@ export async function fireMissile(actor) {
   const hv = w?.system.key === "HVAA";
   const tBroken = t?.actor.system.broken === "ma";
   const key = combatKey();
-  notes.push(hv || tBroken ? "Попадает в начале хода цели."
+  const atTurn = (hv || tBroken) && !!key;
+  notes.push(atTurn ? `Ракета ударит в начале хода цели${tBroken ? " (у неё сломан MAWS)" : ""}: посчитается сама.`
+    : hv || tBroken ? "Попадает в начале хода цели."
     : key ? "Ракета долетит в конце раунда: залп посчитается сам, с защитой цели на тот момент."
       : "Ракета долетает в конце раунда. Каждая следующая ракета по той же цели: +1 к атаке самой точной или её урон в сумму.");
   if (t?.kind === "ship") notes.push("Корабль: сравните итог с Occlusion выбранной системы.");
@@ -392,7 +396,7 @@ export async function fireMissile(actor) {
     type: "attack", attack: true, label: `Fox Two! ${w ? w.name : "стандартная ракета"}`, rolled: !!data.improved,
     d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: t && t.kind !== "ship" ? t.defense : null, vsLabel: "защиты",
     vsHint: t?.kind === "ship" ? "по Occlusion системы" : "", strainable: !!data.improved && (actor.type === "pilot" || actor.system.tier === "ace"),
-    practiced: !!data.practiced, dmg, delayed: !(hv || tBroken), combatKey: hv || tBroken ? "" : key,
+    practiced: !!data.practiced, dmg, delayed: atTurn || !(hv || tBroken), atTurn, combatKey: hv || tBroken ? (atTurn ? key : "") : key,
     targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes, maws: mawsOn(t),
     ...thresholds(actor, skill, data.storm)
   };
@@ -458,10 +462,12 @@ export async function fireSam(actor, sysIndex) {
   if (!data) return;
   const parts = [["G-A", ga ?? 0]];
   if (data.mod) parts.push(["мод.", data.mod]);
+  const key = combatKey(), tBroken = t?.actor.system.broken === "ma";
   const card = {
     type: "attack", attack: true, label, rolled: false, parts, strain: 0, dc: t?.defense ?? null, vsLabel: "защиты",
-    dmg: TB.missileDamage, delayed: true, combatKey: combatKey(), targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", maws: mawsOn(t),
-    notes: [combatKey() ? "Ракета долетит в конце раунда: залп посчитается сам." : "Ракета долетает в конце раунда."]
+    dmg: TB.missileDamage, delayed: true, atTurn: tBroken && !!key, combatKey: key, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", maws: mawsOn(t),
+    notes: [tBroken ? (key ? "Ракета ударит в начале хода цели (у неё сломан MAWS): посчитается сама." : "Попадает в начале хода цели: у неё сломан MAWS.")
+      : key ? "Ракета долетит в конце раунда: залп посчитается сам." : "Ракета долетает в конце раунда."]
   };
   return postCard(actor, card);
 }
@@ -482,7 +488,7 @@ function renderVolley(c) {
   const btn = hits.length && !c.applied
     ? `<div class="tb-actions"><button type="button" data-tb-action="volley-damage" class="tb-gm"><i class="fas fa-burst"></i> Нанести урон: ${hits.map(r => `${esc(r.name)} ${r.dmg}`).join(", ")}</button></div>` : "";
   return `<div class="tb-card tb-card-volley">
-    <header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">Конец раунда ${c.round}: залп</span></header>
+    <header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">${c.atTurnOf ? `Начало хода «${esc(c.atTurnOf)}»: ракеты` : `Конец раунда ${c.round}: залп`}</span></header>
     ${rows || `<div class="tb-note">Ракет в воздухе не было.</div>`}
     ${c.applied ? `<div class="tb-note">Урон нанесён.</div>` : ""}${btn}
   </div>`;
@@ -491,13 +497,17 @@ function renderVolley(c) {
 /**
  * Конец раунда: все ракеты этого раунда долетают. По каждой цели берётся самая точная ракета,
  * остальные дают +1 к ней, пока не хватит до защиты, а лишние добавляют свой урон.
+ * Ракеты по цели со сломанным MAWS (и HVAA) ждут начала её хода: target — её uuid, atTurnOf — имя.
+ * all — все ракеты этого боя, что ещё в воздухе (бой завершается).
  */
-export async function resolveVolley(combat) {
-  const key = `${combat.id}:${combat.round}`;
+export async function resolveVolley(combat, { round = combat.round, target = null, atTurnOf = "", all = false } = {}) {
+  const key = `${combat.id}:${round}`, prefix = `${combat.id}:`;
+  const take = c => target ? c.atTurn && c.targetUuid === target && c.combatKey.startsWith(prefix)
+    : all ? c.combatKey.startsWith(prefix) : c.combatKey === key && !c.atTurn;
   const groups = new Map();
   for (const m of game.messages.contents) {
     const c = m.getFlag(SYSTEM_ID, "card");
-    if (!c?.delayed || c.combatKey !== key || c.dmgApplied || c.resolved || !c.targetUuid) continue;
+    if (!c?.delayed || !c.combatKey || c.dmgApplied || c.resolved || !c.targetUuid || !take(c)) continue;
     if (!groups.has(c.targetUuid)) groups.set(c.targetUuid, []);
     groups.get(c.targetUuid).push({ m, c: computeCard(c) });
   }
@@ -528,7 +538,7 @@ export async function resolveVolley(combat) {
     c.resolved = true;
     await m.update({ content: renderCard(c), [`flags.${SYSTEM_ID}.card`]: c });
   }
-  const card = { type: "volley", round: combat.round, roundKey: key, targets, applied: false };
+  const card = { type: "volley", round, roundKey: key, atTurnOf, targets, applied: false };
   return ChatMessage.create({ speaker: { alias: "AWACS" }, content: renderVolley(card), flags: { [SYSTEM_ID]: { card } } });
 }
 
