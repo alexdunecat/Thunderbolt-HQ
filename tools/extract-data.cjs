@@ -93,11 +93,15 @@ const out = {
 };
 fs.writeFileSync(path.join(ROOT, "data/catalog.json"), JSON.stringify(out, null, 1));
 
+/* Рамка силуэтов неквадратных токенов [ширина, длина] в клетках, как TB.footprints в module/config.mjs. */
+const FRAME = { aerial: [6, 2], arkbird: [2, 3], scinfaxi: [1, 3] };
 for (const s of shapes) {
   let svg = fix(Y.silhouette(s)).replace(' role="img" aria-label="Силуэт сверху"', ' xmlns="http://www.w3.org/2000/svg"');
-  // квадратное поле, чтобы токен не растягивался
-  const h = Y.SHAPES[s].h + 20, side = Math.max(220, h), dx = (side - 220) / 2, dy = (side - h) / 2;
-  svg = svg.replace(/viewBox="0 0 220 \d+"/, `viewBox="${-dx} ${-dy} ${side} ${side}" width="512" height="512"`)
+  // поле в пропорциях токена (у больших целей — по их клеткам, у остальных квадрат), чтобы силуэт заполнял рамку
+  const [fw, fh] = FRAME[s] ?? [1, 1], a = fw / fh, h = Y.SHAPES[s].h + 20;
+  const bw = Math.max(220, h * a), bh = bw / a, dx = (bw - 220) / 2, dy = (bh - h) / 2;
+  const px = a >= 1 ? [512, Math.round(512 / a)] : [Math.round(512 * a), 512];
+  svg = svg.replace(/viewBox="0 0 220 \d+"/, `viewBox="${+(-dx).toFixed(2)} ${+(-dy).toFixed(2)} ${+bw.toFixed(2)} ${+bh.toFixed(2)}" width="${px[0]}" height="${px[1]}"`)
     .replace(/<line x1="110" y1="4"[^>]*\/>/, "");
   fs.writeFileSync(path.join(ROOT, "assets/planes", s + ".svg"), svg);
 }
