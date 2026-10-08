@@ -23,6 +23,8 @@ export const TB = {
   altitudes: { low: "Low", med: "Medium", high: "High" },
   // высота токена: 1 = Low, 2 = Medium, 3 = High
   altElevation: { low: 1, med: 2, high: 3 },
+  /* Сторона NPC (лист NPC, «Заметки AWACS»). Пилоты игроков всегда своя сторона: "player". Союзник и игроки друг по другу не стреляют. */
+  sides: { enemy: "Противник", ally: "Союзник", neutral: "Нейтральный" },
   tiers: { conscript: "Конскрипт", duelist: "Дуэлянт", ace: "Ас" },
   npcKinds: { air: "Воздушная цель", ground: "Наземная цель", ship: "Корабль или особая цель" },
   weaponTargets: { air: "по воздуху", ground: "по земле и морю", gun: "пушечный", util: "РЭБ", line: "по линии" },

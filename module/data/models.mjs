@@ -49,6 +49,7 @@ export class PilotData extends foundry.abstract.TypeDataModel {
       twist: bool(),
       wso: str(),
       insignia: str(),
+      side: str("enemy"), priority: bool(),
       ...sortieFields(),
       notes: new f.HTMLField({ required: true, blank: true })
     };

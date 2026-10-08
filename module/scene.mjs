@@ -78,6 +78,18 @@ export function zoneDistance(a, b) {
   return Math.max(dh, da);
 }
 
+/** Сторона: пилот игрока — "player", NPC — enemy, ally или neutral (по умолчанию противник). */
+export function sideOf(actor) {
+  if (actor?.type === "pilot") return "player";
+  return TB.sides[actor?.system?.side] ? actor.system.side : "enemy";
+}
+
+/** Можно ли стрелять: по своей стороне нельзя (игроки и союзники — одна сторона), по противнику и нейтралу можно. */
+export function canFireAt(shooter, target) {
+  const team = s => (s === "player" ? "ally" : s);
+  return team(sideOf(shooter)) !== team(sideOf(target));
+}
+
 export function rangeLabel(r) {
   if (r >= TB.range.operation) return "вся зона операции";
   return r === 0 ? "только своя зона" : r === 1 ? "своя и соседние зоны" : `до ${r} зон`;

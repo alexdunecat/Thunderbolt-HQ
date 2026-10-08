@@ -125,6 +125,7 @@ export async function importMission(input) {
       if (u.skills || !squadLayout(data.name)) await setSquadLayout(data.name, data.system.skills ?? {});
     }
     data.prototypeToken.disposition = SIDE[u.side] ?? CONST.TOKEN_DISPOSITIONS.HOSTILE;
+    data.system.side = ["ally", "player"].includes(u.side) ? "ally" : u.side === "neutral" ? "neutral" : "enemy";
     const actor = await Actor.create(data);
     const elevation = TB.altElevation[actor.system.alt] ?? 1;
     const count = Math.max(1, Number(u.count) || 1);

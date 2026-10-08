@@ -345,3 +345,7 @@ body[data-tb-skin="doc"] {
 .thunderbolt .tb-acts { margin: 0 0 6px; padding: 3px 8px; border: 1px solid var(--tb-line); border-radius: 4px; font-size: 12px; color: var(--tb-muted); }
 .thunderbolt .tb-acts.turn { color: var(--tb-ink); border-color: var(--tb-accent); }
 .thunderbolt .tb-acts.over { color: #b3261e; border-color: #b3261e; }
+
+.thunderbolt .tb-side-row { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; margin: 4px 0 2px; }
+.thunderbolt .tb-side-row label { display: inline-flex; align-items: center; gap: 6px; }
+.thunderbolt .tb-side-row select { width: auto; }

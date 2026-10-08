@@ -137,6 +137,17 @@ Hooks.on("preUpdateActor", (actor, change, options) => {
   if (actor.type === "pilot" && foundry.utils.hasProperty(change, "system.archetype")) options.tbOldArchetype = actor.system.archetype;
 });
 
+/* Сторона NPC меняет и сторону его токенов (цвет рамки Foundry), чтобы сцена и система не расходились. */
+const SIDE_DISPOSITION = { enemy: -1, neutral: 0, ally: 1 };
+Hooks.on("updateActor", (actor, change, options, userId) => {
+  const side = foundry.utils.getProperty(change, "system.side");
+  if (userId !== game.user.id || actor.type !== "npc" || !(side in SIDE_DISPOSITION)) return;
+  const disposition = SIDE_DISPOSITION[side];
+  if (actor.isToken) return actor.token.update({ disposition });
+  actor.update({ "prototypeToken.disposition": disposition });
+  for (const t of actor.getActiveTokens(true, true)) if (t.disposition !== disposition) t.update({ disposition });
+});
+
 Hooks.on("updateActor", async (actor, change, options, userId) => {
   const has = p => foundry.utils.hasProperty(change, p);
   // сваливание: Speed ≤ 0 у летящей машины. Бросает тот, кого назвал конец раунда (владелец пилота), иначе кто менял

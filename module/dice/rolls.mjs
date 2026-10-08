@@ -1,7 +1,7 @@
 /* Броски и чат-карточки: проверки, ракеты, пушка, Break!, Strain, урон, сваливание. */
 import { SYSTEM_ID, TB } from "../config.mjs";
 import { esc, resolveActor } from "../utils.mjs";
-import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach } from "../scene.mjs";
+import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, zoneDistance } from "../scene.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
 import { allowRoll } from "../actions.mjs";
@@ -314,6 +314,7 @@ function lockedTarget(actor) {
 export async function lockOn(actor) {
   const tok = await pickTargetToken(actor, { title: "Lock On!" });
   if (!tok) return;
+  if (!canFireAt(actor, tok.actor)) return ui.notifications.warn(`«${tok.name}» на вашей стороне: захват берётся только на противника или нейтрала (сторона NPC — во вкладке «Заметки AWACS»).`);
   const t = describeTarget(tok.actor, tok.name, tok);
   const longRange = actor.items.find(i => i.type === "weapon" && i.system.reach >= TB.range.operation && (i.system.unlimited || i.system.ammo.value > 0));
   const { dist, far, problems } = reachProblems(actor, t, longRange ? TB.range.operation : TB.range.lockOn);
@@ -413,23 +414,29 @@ export async function fireMissile(actor) {
 const gunReach = pod => pod?.system.reach ?? TB.range.guns;
 
 /**
- * Цели для пушки: противники (другая сторона токена), до которых достаёт хоть одна пушка, без запретов по высоте.
- * null — проверить нельзя (у стрелка нет токена на сцене с сеткой).
+ * Цели для пушки: противники и нейтралы (сторона NPC на вкладке «Заметки AWACS»), до которых достаёт хоть одна пушка,
+ * без запретов по высоте; приоритетные цели первыми. Возвращает { list, why }: why — почему отсеяны ближние токены.
+ * list === null — проверить нельзя (у стрелка нет токена на сцене с сеткой).
  */
 function gunTargets(actor, pods) {
   const me = tokenOf(actor);
-  if (!me || !canvas?.ready || canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return null;
+  if (!me || !canvas?.ready || canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) return { list: null, why: [] };
   const reach = Math.max(TB.range.guns, ...pods.map(gunReach));
-  const out = [];
+  const list = [], why = [];
+  // приоритетные цели — задача для игроков и их союзников
+  const ours = actor.type === "pilot" || actor.system.side === "ally";
   for (const t of canvas.tokens.placeables) {
     if (t === me || !t.actor || t.actor === actor || (t.document.hidden && !game.user.isGM)) continue;
-    if (t.document.disposition === me.document.disposition) continue;
-    if (t.actor.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) continue;
+    const near = (zoneDistance(me, t) ?? 99) <= reach + 1;
+    if (t.actor.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) { if (near) why.push(`${t.name}: сбит`); continue; }
+    if (!canFireAt(actor, t.actor)) { if (near) why.push(`${t.name}: своя сторона`); continue; }
     const d = describeTarget(t.actor, t.name, t);
     const r = reachProblems(actor, d, reach);
-    if (!r.problems.length) out.push({ ...d, dist: r.dist });
+    if (r.problems.length) { if (near) why.push(`${t.name}: ${r.problems[0]}`); continue; }
+    list.push({ ...d, dist: r.dist, priority: ours && !!t.actor.system.priority });
   }
-  return out.sort((x, y) => (x.dist ?? 0) - (y.dist ?? 0) || x.name.localeCompare(y.name));
+  list.sort((x, y) => (y.priority - x.priority) || (x.dist ?? 0) - (y.dist ?? 0) || x.name.localeCompare(y.name));
+  return { list, why };
 }
 
 /** Guns, Guns, Guns!: Strafe − Speed против защиты цели в своей зоне, без захвата. Попадание наносит урон сразу. */
@@ -440,14 +447,14 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
   const podItems = s.broken === "sw" ? [] : actor.items.filter(i => i.type === "weapon" && i.system.target === "gun" && (i.system.unlimited || (i.system.ammo.value ?? 0) > 0));
   const pods = weaponOptions(actor, false);
   // цель: противник в своей зоне; если их несколько, выбор в окне
-  const list = gunTargets(actor, podItems);
-  if (list && !list.length) return ui.notifications.warn("В зоне пушки нет противника: Guns бьёт только по цели в своей зоне.");
+  const { list, why } = gunTargets(actor, podItems);
+  if (list && !list.length) return ui.notifications.warn(`Guns, Guns, Guns!: в своей зоне нет противника.${why.length ? ` Рядом: ${why.join("; ")}.` : ""}`, { permanent: why.length > 0 });
   const picked = currentTarget();
   const pre = list ? (list.find(x => x.uuid === picked?.uuid && x.token === picked?.token) ?? list[0]) : picked ?? lockedTarget(actor);
   const targetField = list
     ? (list.length === 1
-      ? `<p class="tb-hint">Цель: <b>${esc(pre.name)}</b>${pre.defense !== null ? `, защита ${pre.defense}` : ""}. Захват не нужен.</p>`
-      : `<div class="form-group"><label>Цель</label><select name="target">${list.map((x, i) => `<option value="${i}" ${x === pre ? "selected" : ""}>${esc(x.name)}${x.defense !== null ? ` · защита ${x.defense}` : " · по Occlusion системы"}${x.dist ? " · соседняя зона" : ""}</option>`).join("")}</select></div>`)
+      ? `<p class="tb-hint">Цель: <b>${pre.priority ? "★ " : ""}${esc(pre.name)}</b>${pre.defense !== null ? `, защита ${pre.defense}` : ""}. Захват не нужен.</p>`
+      : `<div class="form-group"><label>Цель</label><select name="target">${list.map((x, i) => `<option value="${i}" ${x === pre ? "selected" : ""}>${x.priority ? "★ " : ""}${esc(x.name)}${x.defense !== null ? ` · защита ${x.defense}` : " · по Occlusion системы"}${x.dist ? " · соседняя зона" : ""}</option>`).join("")}</select></div>`)
     : `<p class="tb-hint">${pre ? `Цель: <b>${esc(pre.name)}</b>${pre.defense !== null ? `, защита ${pre.defense}` : ""}` : "Цель не выбрана: итог покажу без сравнения."} Только в своей зоне.</p>`;
   const data = await formDialog("Guns, Guns, Guns!", `
     ${targetField}
