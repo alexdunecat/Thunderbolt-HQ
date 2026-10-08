@@ -2,7 +2,7 @@
   "id": "thunderbolt-shtab",
   "title": "Thunderbolt: Штаб ВВС Юктобании",
   "description": "Система для Thunderbolt: An Aerial Knight RPG v1.3 с правилами стола, ангаром ВВС Юктобании, NPC и целями, памяткой пилота и импортом миссий из Планшета AWACS.",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "compatibility": {
     "minimum": "12",
     "verified": "12.343",
@@ -128,5 +128,5 @@
   "socket": true,
   "url": "https://github.com/alexdunecat/Thunderbolt-HQ",
   "manifest": "https://raw.githubusercontent.com/alexdunecat/Thunderbolt-HQ/main/system.json",
-  "download": "https://raw.githubusercontent.com/alexdunecat/Thunderbolt-HQ/main/dist/thunderbolt-shtab-0.4.7.zip"
+  "download": "https://raw.githubusercontent.com/alexdunecat/Thunderbolt-HQ/main/dist/thunderbolt-shtab-0.4.8.zip"
 }

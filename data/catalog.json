@@ -1663,7 +1663,7 @@
    "sig": [
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig21.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f5.svg"
   },
   {
    "key": "f20a",
@@ -1690,7 +1690,7 @@
    "sig": [
     "QAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig21.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f5.svg"
   },
   {
    "key": "x29a",
@@ -2358,7 +2358,7 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f22.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f35.svg"
   },
   {
    "key": "f2a",
@@ -3136,7 +3136,7 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/wing.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/b2.svg"
   },
   {
    "key": "b52h",
