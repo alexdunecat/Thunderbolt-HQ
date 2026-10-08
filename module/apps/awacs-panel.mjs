@@ -4,7 +4,7 @@ import { esc } from "../utils.mjs";
 import { formDialog } from "../dice/rolls.mjs";
 import { tokenOf, weatherAt, defenseWithWeather, altOf } from "../scene.mjs";
 import { arrangeSceneTokens } from "../tokens.mjs";
-import { SQUAD_POINTS, allSquads, squadPoints, squadMembers, setSquadLayout, deleteSquad, squadFromSelection } from "../squadrons.mjs";
+import { SQUAD_POINTS, allSquads, squadPoints, squadMembers, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
 
 let panel = null;
 let timer = null;
@@ -70,7 +70,7 @@ export class AwacsPanel extends Application {
     }
     const squads = Object.entries(allSquads()).sort(([a], [b]) => a.localeCompare(b, "ru")).map(([name, l]) => {
       const used = squadPoints(l);
-      return { name, used, over: used > SQUAD_POINTS, members: squadMembers(name).map(a => a.token?.name ?? a.name).join(", "),
+      return { name, tag: l.tag ?? "", used, over: used > SQUAD_POINTS, members: squadMembers(name).map(a => a.token?.name ?? a.name).join(", "),
         skills: Object.keys(TB.skills).map(k => ({ key: k, value: l[k] ?? 0 })) };
     });
     return {
@@ -114,6 +114,7 @@ export class AwacsPanel extends Application {
     on("[data-results]", () => sortieResults());
     on("[data-arrange]", () => arrangeSceneTokens());
     on("[data-squad-form]", () => squadFromSelection());
+    on("[data-squad-num]", d => numberSquad(d.squadNum));
     on("[data-squad-del]", async d => {
       if (await Dialog.confirm({ title: "Распустить эскадрилью", content: `<p>Распустить «${esc(d.squadDel)}»? Машины останутся дуэлянтами со своими навыками.</p>` })) deleteSquad(d.squadDel);
     });

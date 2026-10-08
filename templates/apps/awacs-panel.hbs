@@ -53,10 +53,10 @@
       <tr><th>Эскадрилья</th>{{#each skillHeads as |h|}}<th title="{{h.label}}">{{h.en}}</th>{{/each}}<th>Очки</th><th></th></tr>
       {{#each squads as |q|}}
       <tr>
-        <td><b>{{q.name}}</b><br><small>{{#if q.members}}{{q.members}}{{else}}машин на сцене нет{{/if}}</small></td>
+        <td><b>{{q.name}}</b>{{#if q.tag}} · {{q.tag}}{{/if}}<br><small>{{#if q.members}}{{q.members}}{{else}}машин на сцене нет{{/if}}</small></td>
         {{#each q.skills as |sk|}}<td class="tb-num"><input type="number" min="0" data-squad="{{q.name}}" data-squad-key="{{sk.key}}" value="{{sk.value}}"></td>{{/each}}
         <td class="tb-num {{#if q.over}}low{{/if}}">{{q.used}}/{{@root.squadBudget}}</td>
-        <td><a data-squad-del="{{q.name}}" title="Распустить"><i class="fas fa-trash"></i></a></td>
+        <td><a data-squad-num="{{q.name}}" title="Обозначение и номера машин"><i class="fas fa-list-ol"></i></a> <a data-squad-del="{{q.name}}" title="Распустить"><i class="fas fa-trash"></i></a></td>
       </tr>
       {{/each}}
     </table>

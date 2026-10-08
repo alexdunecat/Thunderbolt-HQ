@@ -6,7 +6,7 @@
    и Climb / Dive больше чем на ступень. Ведущий может переставить токен в обход правил, перетаскивая его с Shift.
    Move и Climb / Dive засчитываются в момент перемещения, и двигавший видит об этом сообщение. */
 import { SYSTEM_ID } from "./config.mjs";
-import { PASS } from "./documents/combat.mjs";
+import { PASS, isOut } from "./documents/combat.mjs";
 
 export const ACT_NAMES = {
   lock: "Lock On!", missile: "Fox Two!", guns: "Guns, Guns, Guns!", break: "Break!", recover: "Передышка",
@@ -42,14 +42,18 @@ export function actionProblem(actor, what, { rolled = false, token = null } = {}
   const c = combatantOf(actor, token);
   if (!c) return null;
   const combat = c.parent, name = ACT_NAMES[what] ?? what;
+  if (isOut(c)) return `${c.name} выбыл из боя: действий нет.`;
   if (combat.getFlag(SYSTEM_ID, "ready") !== combat.round) return `${c.name}: сначала заявка действий на этот раунд.`;
   if (combat.combatant?.id !== c.id) return `${c.name}: «${name}» только в свой ход.`;
   const s = spentOf(c), n = declaredOf(c) ?? 0;
-  const free = what === "speed" && s.freeSpeed;
+  const free = what === "speed" && (s.freeSpeed || speedGoing(s));
   if (!free && s.used >= n) return n === 0 ? `${c.name}: ход пропущен, действий нет.` : `${c.name}: все заявленные действия (${n}) уже сделаны.`;
   if (rolled && s.rolled) return `${c.name}: бросок за этот ход уже был, а он один.`;
   return null;
 }
+
+/** Скорость меняли последним действием: подстройка в том же Change Speed (по книге Speed меняется сразу до любого значения). */
+const speedGoing = s => !!s.list.at(-1)?.startsWith(ACT_NAMES.speed);
 
 /** Можно ли действие; если нет, объяснить. */
 export function allowAction(actor, what, opts) {
@@ -75,6 +79,7 @@ export async function spendAction(actor, what, { rolled = false, token = null } 
   if (!c?.isOwner) return;
   const name = ACT_NAMES[what] ?? what;
   const s = foundry.utils.deepClone(spentOf(c));
+  if (what === "speed" && speedGoing(s)) return;   // та же смена скорости, не новое действие
   const free = what === "speed" && s.freeSpeed;
   if (free) s.freeSpeed = false;
   else s.used += 1;
@@ -141,6 +146,15 @@ export function registerActions() {
     if (gmFree && problems.length) return;   // ведущий с Shift: в обход правил и без счёта
     console.log(`${SYSTEM_ID} | ${doc.name}: ${acts.join(", ") || "в своей зоне"}${problems.length ? ` (в обход: ${problems[0]})` : ""}`);
     if (acts.length) countMove(doc, acts);
+  });
+  // Change Speed: кнопки ±, поле листа и полоска токена. Сброс после Break!, сваливание и т. п. идут с options.tbFree.
+  Hooks.on("preUpdateActor", (actor, change, options) => {
+    if (options.tbFree || !foundry.utils.hasProperty(change, "system.speed")) return;
+    const v = Number(change.system.speed);
+    if (!Number.isFinite(v) || v === actor.system.speed || !combatantOf(actor)) return;
+    const p = actionProblem(actor, "speed");
+    if (p) { ui.notifications.warn(p); return false; }
+    spendAction(actor, "speed");
   });
   // смена высоты из листа проверяется так же, как ▲▼ на токене
   Hooks.on("preUpdateActor", (actor, change, options) => {

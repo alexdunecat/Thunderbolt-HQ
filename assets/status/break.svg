@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="256" height="256">
+  <!-- «Брифинг»: Break! — резкий отворот, стрелка зигзагом -->
+  <g fill="none" stroke="#9be3bf" stroke-width="2.2" stroke-linecap="square">
+    <path d="M8 22V8h14M78 8h14v14M92 78v14H78M22 92H8V78"/>
+  </g>
+  <rect x="11" y="11" width="5" height="5" fill="#9be3bf"/>
+  <g fill="none" stroke="#07141a" stroke-width="12" stroke-linejoin="miter">
+    <path d="M24 74L42 46L58 60L74 30"/><path d="M60 28H76V44"/>
+  </g>
+  <g fill="none" stroke="#9be3bf" stroke-width="7" stroke-linejoin="miter">
+    <path d="M24 74L42 46L58 60L74 30"/><path d="M60 28H76V44"/>
+  </g>
+</svg>

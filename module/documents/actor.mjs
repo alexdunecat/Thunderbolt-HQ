@@ -84,6 +84,9 @@ export class TBActor extends Actor {
     amount = Number(amount) || 0;
     if (amount <= 0) return;
     const s = this.system;
+    // по уже сбитой машине урон не идёт: иначе второй сбитый засчитался бы дважды
+    if (this.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) || s.markers?.doom)
+      return this.#say(`<b>${esc(this.name)}</b> уже ${this.type === "pilot" ? "катапультировался" : "сбит"}: урон не нужен.`);
     const opts = { sourceUuid, roundKey };
     if (this.type === "npc" && s.kind === "ship") return this.#damageShip(amount, opts);
     if (this.type === "npc" && s.kind === "ground") {
@@ -157,7 +160,10 @@ export class TBActor extends Actor {
     const c = game.combat;
     if (!c?.started) return;
     const by = sourceUuid ? R.resolveActor(sourceUuid)?.name ?? "" : "";
-    await this.setFlag(SYSTEM_ID, "down", { combat: c.id, round: c.round, by });
+    await this.setFlag(SYSTEM_ID, "down", { combat: c.id, round: c.round, by, byUuid: sourceUuid ?? "" });
+    // в трекере боец выбывает: заявок и хода у него больше нет
+    const cb = c.combatants.find(x => (this.isToken ? x.tokenId === this.token?.id : x.actorId === this.id));
+    if (cb && !cb.defeated && cb.isOwner) await cb.update({ defeated: true });
   }
 
   /** Засчитать сбитого или уничтоженного пилоту-стрелку (для итогов вылета). */
@@ -207,7 +213,7 @@ export class TBActor extends Actor {
         "system.speed": 1, "system.breakEv": null, "system.lock": "", "system.lockUuid": "", "system.twist": false,
         "system.markers": { grit: false, gritSkill: "", structure: false, sys: "", doom: false, lastRound: "" },
         [`flags.${SYSTEM_ID}.-=down`]: null
-      });
+      }, { tbFree: true });
       // после снятия меток и Поворота максимумы пересчитаны
       await this.update({ "system.hp.value": this.system.hp.max, "system.strain.value": this.system.strain.max,
         [`flags.${SYSTEM_ID}.pools`]: this.poolsFlag() });

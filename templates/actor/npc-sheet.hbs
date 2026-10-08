@@ -105,7 +105,8 @@
           <tr><td><input type="number" name="system.ground.ga" value="{{system.ground.ga}}" placeholder="—"></td><td><input type="number" name="system.ground.gg" value="{{system.ground.gg}}" placeholder="—"></td>
             <td><input type="number" name="system.ground.gun" value="{{system.ground.gun}}" placeholder="—"></td><td><input type="number" name="system.ground.strafe" value="{{system.ground.strafe}}"></td></tr></table>
         <div class="tb-actions-bar">
-          {{#if canSam}}<button type="button" data-sam><i class="fas fa-rocket"></i> Пуск ЗРК</button>{{/if}}
+          {{#if canSam}}<button type="button" data-act="lock"><i class="fas fa-crosshairs"></i> Lock On!</button>
+          <button type="button" data-sam><i class="fas fa-rocket"></i> Пуск ЗРК</button>{{/if}}
           {{#if canGun}}<button type="button" data-act="guns"><i class="fas fa-burst"></i> Зенитный огонь</button>{{/if}}
         </div>
       </fieldset>
@@ -131,6 +132,8 @@
           </tr>
           {{/each}}
         </table>
+        {{#if shipSam}}<div class="tb-actions-bar"><button type="button" data-act="lock"><i class="fas fa-crosshairs"></i> Lock On!</button>
+          {{#if system.lock}}<span class="tb-muted">Захват: <b>{{system.lock}}</b> <a data-act="unlock">×</a></span>{{/if}}</div>{{/if}}
         <a class="tb-btn" data-sys-add><i class="fas fa-plus"></i> Система</a>
         <p class="tb-small tb-muted">Корабль тонет, когда уничтожены все системы. Урон по кнопке на карточке атаки спросит, в какую систему попали.</p>
       </fieldset>

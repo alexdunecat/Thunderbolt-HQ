@@ -107,9 +107,8 @@ class TBActorSheet extends ActorSheet {
     });
     on("[data-speed]", async d => {
       const v = Math.min(this.actor.system.maxSpeed + weatherAt(this.actor).spd, this.actor.system.speed + Number(d.speed));
-      if (v === this.actor.system.speed || !allowAction(this.actor, "speed")) return;
-      await this.actor.update({ "system.speed": v });
-      spendAction(this.actor, "speed");
+      if (v === this.actor.system.speed) return;
+      await this.actor.update({ "system.speed": v });   // действие считает хук в actions.mjs
     });
     on("[data-step]", d => {
       const path = d.step, cur = foundry.utils.getProperty(this.actor, path) ?? 0;
@@ -245,7 +244,7 @@ export class PilotSheet extends TBActorSheet {
       // своя картинка игрока остаётся; заглушка или силуэт системы меняется на силуэт нового самолёта
       const replaceable = src => !src || src.includes("mystery-man") || src.includes("/assets/planes/");
       if (p.img && replaceable(a.prototypeToken.texture.src)) upd["prototypeToken.texture.src"] = p.img;
-      await a.update(upd);
+      await a.update(upd, { tbFree: true });
       if (p.img) for (const t of a.getActiveTokens(false, true)) if (replaceable(t.texture.src) && t.texture.src !== p.img) await t.update({ "texture.src": p.img });
       return created;
     });
@@ -281,6 +280,7 @@ export class NpcSheet extends TBActorSheet {
     ctx.tierOptions = TB.tiers;
     ctx.systems = s.systems.map((y, i) => ({ ...y, i, dead: y.value <= 0 }));
     ctx.canSam = ctx.isGround && s.ground.ga !== null;
+    ctx.shipSam = s.kind === "ship" && s.systems.some(y => y.ga !== null && y.ga !== undefined);
     ctx.canGun = ctx.isAir || (ctx.isGround && s.ground.gun !== null);
     return ctx;
   }

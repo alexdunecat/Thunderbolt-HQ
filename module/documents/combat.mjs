@@ -19,7 +19,10 @@ const delayedBy = v => (v > PASS ? v - PASS : 0);
 /** Здание или объект: в заявке не участвует. */
 export const passive = actor => actor?.type === "npc" && actor.system.grp === "obj";
 const npcSide = c => !c.actor?.hasPlayerOwner;
-const acting = combat => combat.combatants.filter(c => !passive(c.actor) && !c.defeated);
+/** Выбыл: сбит (знак X), отступил или помечен побеждённым в трекере. Заявки не делает, ход пропускается. */
+export const isOut = c => !!c?.defeated || !!c?.actor?.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)
+  || !!c?.actor?.statuses?.has("retreat") || c?.actor?.getFlag?.(SYSTEM_ID, "down")?.combat === c?.parent?.id;
+const acting = combat => combat.combatants.filter(c => !passive(c.actor) && !isOut(c));
 const declared = c => Number.isNumeric(c.initiative);
 const leadGM = () => (game.users.activeGM ?? game.users.find(u => u.isGM && u.active))?.id === game.user.id;
 const flag = (combat, k) => combat.getFlag(SYSTEM_ID, k);
@@ -47,7 +50,7 @@ export class TBCombat extends Combat {
     ids = typeof ids === "string" ? [ids] : ids;
     const all = ids.map(id => this.combatants.get(id)).filter(c => c?.isOwner);
     if (all.some(c => passive(c.actor))) ui.notifications.info("Здания и объекты действий не заявляют.");
-    const list = all.filter(c => !passive(c.actor));
+    const list = all.filter(c => !passive(c.actor) && !isOut(c));
     if (!list.length) return this;
     const data = await declareDialog(this, list);
     if (!data) return this;
@@ -102,7 +105,7 @@ async function checkDeclared(combat) {
   if (list.filter(npcSide).every(declared)) await markNpcDone(combat);
   if (!list.length || !list.every(declared) || flag(combat, "ready") === combat.round) return;
   await combat.update({ turn: 0, [`flags.${SYSTEM_ID}.ready`]: combat.round });
-  const order = combat.turns.filter(c => !passive(c.actor) && !c.defeated)
+  const order = combat.turns.filter(c => !passive(c.actor) && !isOut(c))
     .map((c, i) => `${i + 1}. ${esc(c.name)} · ${declareLabel(c.initiative)}`).join("<br>");
   await ChatMessage.create({
     speaker: { alias: "AWACS" },
@@ -114,6 +117,8 @@ async function checkDeclared(combat) {
 async function turnStart(combat) {
   const a = combat.combatant?.actor;
   if (!a || flag(combat, "ready") !== combat.round) return;
+  // сбитый или отступивший ход не делает
+  if (isOut(combat.combatant) || passive(a)) return combat.nextTurn();
   await resolveVolley(combat, { target: a.uuid, atTurnOf: combat.combatant.name });
 }
 
@@ -139,7 +144,7 @@ async function endRound(combat, round) {
     if (a.system.breakEv !== null && a.system.breakEv !== undefined) upd["system.breakEv"] = null;
     const drop = drops.get(a.uuid);
     if (drop) { upd["system.speed"] = (a.system.speed ?? 0) - drop; lines.push(`${esc(c.name)}: Speed −${drop} после Break!`); }
-    if (Object.keys(upd).length) await a.update(upd, { tbStallBy: ownerOf(a) });
+    if (Object.keys(upd).length) await a.update(upd, { tbStallBy: ownerOf(a), tbFree: true });
   }
   // сбитые до этого раунда и отступившие уходят с поля (ракеты залпа, посчитанного сейчас, — в конце следующего)
   const gone = await clearLosses(combat, round);

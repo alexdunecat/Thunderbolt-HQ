@@ -314,6 +314,7 @@ function lockedTarget(actor) {
 export async function lockOn(actor) {
   const tok = await pickTargetToken(actor, { title: "Lock On!" });
   if (!tok) return;
+  if (tok.actor.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) return ui.notifications.warn(`«${tok.name}» уже сбит.`);
   if (!canFireAt(actor, tok.actor)) return ui.notifications.warn(`«${tok.name}» на вашей стороне: захват берётся только на противника или нейтрала (сторона NPC — во вкладке «Заметки AWACS»).`);
   const t = describeTarget(tok.actor, tok.name, tok);
   const longRange = actor.items.find(i => i.type === "weapon" && i.system.reach >= TB.range.operation && (i.system.unlimited || i.system.ammo.value > 0));
@@ -538,13 +539,19 @@ export function initHitSocket() {
 /** Пуск ЗРК или ракета корабельной системы: G-A, Speed 0, без броска. */
 export async function fireSam(actor, sysIndex) {
   const s = actor.system;
-  const t = currentTarget();
+  const t = currentTarget() ?? lockedTarget(actor);
   let ga = s.ground?.ga, label = "Пуск ЗРК";
   if (s.kind === "ship") { const y = s.systems[sysIndex]; ga = y?.ga; label = `Пуск: ${y?.name}`; }
   const data = await formDialog(label, `
     <p class="tb-hint">${t ? `Цель: <b>${esc(t.name)}</b>, защита ${t.defense}` : "Цель не выбрана."} Lock On и пуск: два действия.</p>
     <div class="form-group"><label>Модификатор</label><input type="number" name="mod" value="0"></div>`, { ok: "Пуск" });
   if (!data) return;
+  // ЗРК — та же ракета: нужен захват этой цели (Lock On! на листе), дальность ракеты
+  if (t) {
+    const { problems } = reachProblems(actor, t, TB.range.missile);
+    if (s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
+    if (!(await confirmReach(problems, label))) return;
+  }
   const parts = [["G-A", ga ?? 0]];
   if (data.mod) parts.push(["мод.", data.mod]);
   const key = combatKey(), tBroken = t?.actor.system.broken === "ma";
@@ -677,7 +684,7 @@ export async function onCardAction(message, action, button) {
       if (!actor?.isOwner) return;
       card.speedApplied = true;
       await save();
-      return actor.update({ "system.speed": actor.system.speed - card.speedDrop });
+      return actor.update({ "system.speed": actor.system.speed - card.speedDrop }, { tbFree: true });
     }
     case "recover": {
       if (!actor?.isOwner) return;
@@ -690,7 +697,7 @@ export async function onCardAction(message, action, button) {
     case "stall-ok": {
       if (!actor?.isOwner) return;
       card.applied = true; await save();
-      return actor.update({ "system.speed": 1 });
+      return actor.update({ "system.speed": 1 }, { tbFree: true });
     }
     case "stall-fail": {
       if (!actor?.isOwner) return;

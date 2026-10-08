@@ -3,23 +3,40 @@
    Отступившие (статус «Отступил из боя» на токене) уходят с поля в конце раунда. Всё это записывается в сводку боя,
    а после End combat в чат приходит отчёт с кнопкой «Итоги в личные дела». */
 import { SYSTEM_ID, SYS_PATH } from "./config.mjs";
-import { esc } from "./utils.mjs";
+import { esc, resolveActor } from "./utils.mjs";
 import { sideOf } from "./scene.mjs";
 
 export const RETREAT = "retreat";
 const OURS = ["player", "ally"];
 
+/* Статусы токена: только нужные правилам. Сбит и «Отступил из боя» ставятся вручную или системой,
+   Break! и «Сваливание» система ставит и снимает сама по листу (Break! до конца раунда, сваливание при Speed 0 и ниже). */
+export const BREAK = "break", STALL = "stall";
+const status = (id, name, file) => ({ id, name, img: `${SYS_PATH}assets/status/${file}.svg`, icon: `${SYS_PATH}assets/status/${file}.svg` });
+
 export function registerLosses() {
   const dead = CONFIG.specialStatusEffects.DEFEATED;
-  const fx = CONFIG.statusEffects.find(e => e.id === dead);
-  if (fx) { fx.img = `${SYS_PATH}assets/status/destroyed.svg`; fx.icon = fx.img; }
-  if (!CONFIG.statusEffects.some(e => e.id === RETREAT))
-    CONFIG.statusEffects.push({ id: RETREAT, name: "Отступил из боя", img: `${SYS_PATH}assets/status/retreat.svg`, icon: `${SYS_PATH}assets/status/retreat.svg` });
+  CONFIG.statusEffects = [
+    status(dead, "Сбит", "destroyed"),
+    status(RETREAT, "Отступил из боя", "retreat"),
+    status(BREAK, "Break!", "break"),
+    status(STALL, "Сваливание", "stall")
+  ];
+  Hooks.on("updateActor", (actor, change, options, userId) => {
+    if (userId !== game.user.id || !actor.isOwner || !["pilot", "npc"].includes(actor.type)) return;
+    const has = p => foundry.utils.hasProperty(change, p);
+    if (has("system.breakEv")) syncStatus(actor, BREAK, actor.system.breakEv !== null && actor.system.breakEv !== undefined);
+    if (has("system.speed") && (actor.type === "pilot" || actor.system.kind === "air")) syncStatus(actor, STALL, actor.system.speed <= 0);
+  });
   Hooks.on("deleteCombat", combat => {
     if (!game.users.activeGM?.isSelf || !combat.round) return;
     // урон по пилотам игроков из последнего залпа наносят их клиенты: подождать его
     setTimeout(() => battleReport(combat), 1500);
   });
+}
+
+function syncStatus(actor, id, on) {
+  if (!!actor.statuses?.has(id) !== on) actor.toggleStatusEffect(id, { active: on });
 }
 
 const kindOf = a => (a.type === "pilot" ? "air" : a.system.kind);
@@ -30,7 +47,9 @@ const downOf = a => a?.getFlag(SYSTEM_ID, "down") ?? null;
 /** Запись о потере для сводки. */
 function lossOf(t, how) {
   const a = t.actor, d = downOf(a);
-  return { name: t.name, side: sideOf(a), kind: kindOf(a), pilot: a.type === "pilot", how, by: d?.by ?? "", round: d?.round ?? null };
+  const shooter = d?.byUuid ? resolveActor(d.byUuid) : null;
+  return { name: t.name, side: sideOf(a), kind: kindOf(a), pilot: a.type === "pilot", how, by: d?.by ?? "", round: d?.round ?? null,
+    byPilot: shooter?.type === "pilot" ? shooter.name : "" };
 }
 
 /** Токены сцены боя, которым пора уйти: сбитые в этом бою не позже раунда upTo и отступившие. */
@@ -60,7 +79,13 @@ export async function clearLosses(combat, upTo = Infinity, { keepLog = false } =
   const ids = new Set(list.map(x => x.t.id));
   const cids = combat.combatants?.filter(c => ids.has(c.tokenId)).map(c => c.id) ?? [];
   if (cids.length && game.combats.has(combat.id)) await combat.deleteEmbeddedDocuments("Combatant", cids);
+  const gone = new Set(list.map(x => x.t.actor?.uuid));
   await list[0].t.parent.deleteEmbeddedDocuments("Token", [...ids]);
+  // захваты на ушедшие с поля цели срываются
+  for (const t of list[0].t.parent.tokens) {
+    const a = t.actor;
+    if (a?.system?.lockUuid && gone.has(a.system.lockUuid)) await a.update({ "system.lock": "", "system.lockUuid": "" });
+  }
   return rows;
 }
 
@@ -82,8 +107,14 @@ async function battleReport(combat) {
   const objectives = scene?.getFlag(SYSTEM_ID, "objectives") ?? [];
   const theirs = losses.filter(r => !OURS.includes(r.side));
   const ours = losses.filter(r => OURS.includes(r.side));
-  const pilots = game.actors.filter(a => a.type === "pilot" && a.getFlag(SYSTEM_ID, "kills"))
-    .map(a => { const k = a.getFlag(SYSTEM_ID, "kills"); return `${esc(a.name)}: в воздухе ${k.air ?? 0}, на земле и на море ${k.ground ?? 0}`; });
+  // счёт пилотов — только за этот бой, по записям потерь (личный счёт за весь вылет — в «Итогах вылета»)
+  const score = new Map();
+  for (const r of theirs) if (r.how === "down" && r.byPilot) {
+    const k = score.get(r.byPilot) ?? { air: 0, ground: 0 };
+    k[r.kind === "air" ? "air" : "ground"] += 1;
+    score.set(r.byPilot, k);
+  }
+  const pilots = [...score].sort(([a], [b]) => a.localeCompare(b, "ru")).map(([n, k]) => `${esc(n)}: в воздухе ${k.air}, на земле и на море ${k.ground}`);
   const block = (title, rows, empty = "—") => `<h4>${title}</h4>${rows.length ? `<ul>${rows.map(x => `<li>${x}</li>`).join("")}</ul>` : `<p class="tb-muted">${empty}</p>`}`;
   const date = new Date().toLocaleDateString("ru-RU");
   const html = `<div class="tb-card tb-card-battle">
@@ -93,7 +124,7 @@ async function battleReport(combat) {
     ${block("Отступили", theirs.filter(r => r.how === "retreat").map(lossLine))}
     ${block("Не поражены", survivors.map(s => `${esc(s.name)}${s.hp ? ` (HP ${s.hp})` : ""}`))}
     ${block("Потери авиакрыла и союзников", ours.map(lossLine), "Потерь нет.")}
-    ${pilots.length ? block("Счёт пилотов", pilots) : ""}
+    ${block("Счёт пилотов за бой", pilots, "Пилоты никого не сбили.")}
     ${objectives.length ? block("Задачи операции", objectives.map(esc)) : ""}
     <div class="tb-actions"><button type="button" data-tb-action="battle-results" class="tb-gm"><i class="fas fa-file-signature"></i> Итоги в личные дела</button></div>
   </div>`;

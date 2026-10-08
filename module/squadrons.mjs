@@ -16,6 +16,7 @@ export function registerSquadronSettings() {
     }
   });
   // эскадрилья вписана впервые: её раскладкой становятся навыки этой машины
+  Hooks.on("preCreateToken", doc => autoSquadNumber(doc));
   Hooks.on("updateActor", (actor, change, options, userId) => {
     const name = foundry.utils.getProperty(change, "system.squad");
     if (userId === game.user.id && name && game.user.isGM && !squadLayout(name)) setSquadLayout(name, actor.system.skills);
@@ -83,4 +84,78 @@ export async function squadFromSelection() {
   if (!squadLayout(name)) await setSquadLayout(name, tokens[0].actor.system.skills);
   for (const t of tokens) await t.actor.update({ "system.tier": "duelist", "system.squad": name });
   ui.notifications.info(`Эскадрилья «${name}»: ${tokens.length} маш.`);
+  return numberSquad(name);
+}
+
+/* ---------- номера машин в эскадрилье ---------- */
+
+/** Обозначение эскадрильи для имён токенов (по умолчанию её название). */
+export const squadTag = name => allSquads()[name]?.tag || name;
+
+/** Машина токена: имя актёра-образца без номера. */
+const machineOf = t => t.baseActor?.name ?? t.actor?.name ?? t.name;
+const squadNo = t => Number(t.getFlag?.(SYSTEM_ID, "squadNo")) || null;
+export const squadTokenName = (machine, tag, n) => `${machine} «${tag}-${n}»`;
+
+/** Токены дуэлянтов эскадрильи на открытой сцене. */
+function squadTokens(name, scene = game.scenes?.viewed) {
+  return (scene?.tokens ?? []).filter(t => t.actor?.type === "npc" && t.actor.system.tier === "duelist" && t.actor.system.squad === name);
+}
+
+/** Свободный номер в эскадрилье на сцене. */
+function freeNo(name, scene, taken = new Set()) {
+  for (const t of squadTokens(name, scene)) if (squadNo(t)) taken.add(squadNo(t));
+  let n = 1;
+  while (taken.has(n)) n++;
+  return n;
+}
+
+/**
+ * Ведущий: обозначение эскадрильи и номера её машин на сцене. Имя токена станет «Машина «Обозначение-номер»».
+ * Если в эскадрилье разные машины, номера выбираются в окне по каждой.
+ */
+export async function numberSquad(name) {
+  if (!game.user.isGM) return;
+  const scene = game.scenes.viewed, tokens = squadTokens(name, scene);
+  if (!tokens.length) return ui.notifications.warn(`На сцене нет машин эскадрильи «${name}».`);
+  tokens.sort((a, b) => (squadNo(a) ?? 99) - (squadNo(b) ?? 99) || machineOf(a).localeCompare(machineOf(b), "ru") || a.name.localeCompare(b.name, "ru"));
+  const taken = new Set(tokens.map(squadNo).filter(Boolean));
+  const nos = tokens.map(t => squadNo(t) ?? (() => { const n = freeNo(name, null, taken); taken.add(n); return n; })());
+  const machines = new Set(tokens.map(machineOf));
+  const rows = tokens.map((t, i) => `<tr><td>${esc(machineOf(t))}</td><td><small>${esc(t.name)}</small></td>
+    <td><input type="number" name="n_${t.id}" value="${nos[i]}" min="1" style="width:4em"></td></tr>`).join("");
+  const data = await new Promise(resolve => new Dialog({
+    title: `Номера эскадрильи «${name}»`,
+    content: `<form class="tb-dialog">
+      <div class="form-group"><label>Обозначение</label><input type="text" name="tag" value="${esc(squadTag(name))}" placeholder="например, Жёлтые"></div>
+      <p class="tb-hint">Имя токена станет «Машина «Обозначение-номер»», например «${esc(squadTokenName(machineOf(tokens[0]), squadTag(name), nos[0]))}».${machines.size > 1 ? " В эскадрилье разные машины: проверьте, кому какой номер." : ""} Новые машины эскадрильи получат следующий свободный номер сами.</p>
+      <table class="tb-results"><tr><th>Машина</th><th>Сейчас</th><th>Номер</th></tr>${rows}</table></form>`,
+    buttons: {
+      ok: { icon: '<i class="fas fa-check"></i>', label: "Назначить", callback: html => {
+        const f = html[0].querySelector("form"), out = { tag: f.elements.tag.value.trim() || name };
+        for (const t of tokens) out[t.id] = Math.max(1, Number(f.elements[`n_${t.id}`].value) || 1);
+        resolve(out);
+      } },
+      cancel: { label: "Отмена", callback: () => resolve(null) }
+    },
+    default: "ok", close: () => resolve(null)
+  }, { classes: ["dialog", "thunderbolt"], width: 460 }).render(true));
+  if (!data) return;
+  const dup = tokens.map(t => data[t.id]).filter((n, i, all) => all.indexOf(n) !== i);
+  if (dup.length) ui.notifications.warn(`Номер ${dup[0]} занят дважды: проверьте эскадрилью.`);
+  const all = foundry.utils.deepClone(allSquads());
+  all[name] = { ...blank(), ...(all[name] ?? {}), tag: data.tag };
+  await game.settings.set(SYSTEM_ID, "squadrons", all);
+  await scene.updateEmbeddedDocuments("Token", tokens.map(t => ({
+    _id: t.id, name: squadTokenName(machineOf(t), data.tag, data[t.id]), [`flags.${SYSTEM_ID}.squadNo`]: data[t.id]
+  })));
+  ui.notifications.info(`Эскадрилья «${name}»: номера назначены.`);
+}
+
+/** Новая машина эскадрильи на сцене сама получает обозначение и следующий свободный номер. */
+export function autoSquadNumber(doc) {
+  const a = doc.actor, name = a?.system?.squad;
+  if (a?.type !== "npc" || a.system.tier !== "duelist" || !name || !allSquads()[name]?.tag || squadNo(doc)) return;
+  const n = freeNo(name, doc.parent);
+  doc.updateSource({ name: squadTokenName(machineOf(doc), squadTag(name), n), [`flags.${SYSTEM_ID}.squadNo`]: n });
 }
