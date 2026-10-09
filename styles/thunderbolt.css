@@ -436,3 +436,28 @@ body[data-tb-skin="brief"] select option:checked, body[data-tb-skin="ac5"] selec
 body[data-tb-skin="brief"] select option:hover, body[data-tb-skin="ac5"] select option:hover {
   background: var(--tb-olive-soft); color: var(--tb-olive);
 }
+
+/* ---------- радиообмен AWACS: субтитры сверху и баннер CAUTION (цвета «Брифинга» во всех скинах) ---------- */
+#tb-radio { position: fixed; top: 64px; left: 50%; transform: translate(-50%, -6px); z-index: 70; pointer-events: none;
+  min-width: min(520px, 80vw); max-width: min(780px, 86vw); text-align: center; opacity: 0; transition: opacity .3s, transform .3s;
+  padding: 6px 22px 8px; background: linear-gradient(90deg, rgba(7,20,26,0), rgba(7,20,26,.82) 18%, rgba(7,20,26,.82) 82%, rgba(7,20,26,0));
+  font-family: "Jura", "Exo 2", system-ui, sans-serif; }
+#tb-radio.on { opacity: 1; transform: translate(-50%, 0); }
+#tb-radio .tb-radio-who { display: inline-block; color: #9be3bf; font-weight: 700; font-size: 15px; letter-spacing: .04em; padding: 0 10px 1px; border-bottom: 1px solid currentColor; margin-bottom: 3px; }
+#tb-radio .tb-radio-line { color: #f4fbf8; font-size: 19px; font-weight: 600; line-height: 1.3; text-shadow: 0 1px 2px #000, 0 0 6px rgba(0,0,0,.8); }
+#tb-radio .tb-radio-line .q { color: #9be3bf; font-weight: 700; }
+#tb-radio.tb-radio-warn .tb-radio-who, #tb-radio.tb-radio-warn .q { color: #f2c14e; }
+#tb-radio.tb-radio-danger .tb-radio-who, #tb-radio.tb-radio-danger .q { color: #ff6b4a; }
+
+#tb-caution { position: fixed; top: 38%; left: 50%; transform: translate(-50%, -50%); z-index: 71; pointer-events: none; opacity: 0; transition: opacity .35s; }
+#tb-caution.on { opacity: 1; }
+#tb-caution .tb-caution-frame { min-width: min(640px, 86vw); padding: 8px 28px 10px; text-align: center; background: rgba(7,20,26,.55);
+  border: 1px solid rgba(215,238,230,.75); box-shadow: 0 0 0 1px rgba(7,20,26,.6), 0 0 24px rgba(0,0,0,.5); transform: scaleX(.2); transition: transform .35s ease-out; }
+#tb-caution.on .tb-caution-frame { transform: scaleX(1); }
+#tb-caution .tb-caution-title { font-family: "Jura", system-ui, sans-serif; font-weight: 700; font-size: 34px; letter-spacing: .12em; color: #f2c14e;
+  text-shadow: 0 0 10px rgba(242,193,78,.45); animation: tb-caution-blink .5s steps(1) 4; }
+#tb-caution .tb-caution-sub { font-family: "Jura", system-ui, sans-serif; font-weight: 700; font-size: 18px; letter-spacing: .14em; text-transform: uppercase; color: #f4fbf8; }
+#tb-caution.tb-caution-warning .tb-caution-title { color: #ff6b4a; text-shadow: 0 0 12px rgba(255,107,74,.5); }
+#tb-caution.tb-caution-warning .tb-caution-frame { border-color: rgba(255,107,74,.8); }
+@keyframes tb-caution-blink { 50% { opacity: .15; } }
+.tb-card-radio .tb-radio-caution-line { font-family: var(--tb-data, monospace); font-weight: 700; letter-spacing: .08em; color: var(--tb-warn, #b8860b); text-transform: uppercase; margin-bottom: 4px; }

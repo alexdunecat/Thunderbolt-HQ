@@ -184,7 +184,8 @@ async function lightningStrike(actor) {
   return ChatMessage.create({
     speaker: { alias: "AWACS" },
     content: `<div class="tb-card tb-card-lightning"><header class="tb-card-head"><span class="tb-card-who">ϟ Молния</span><span class="tb-card-what">${esc(actor.token?.name ?? actor.name)}</span></header>
-      <div class="tb-note">Complication в грозе: в самолёт ударила молния. До конца следующего хода <b>−1 Evasion</b>, а ракеты только с броском (Improved Fox Two!).</div></div>`
+      <div class="tb-note">Complication в грозе: в самолёт ударила молния. До конца следующего хода <b>−1 Evasion</b>, а ракеты только с броском (Improved Fox Two!).</div></div>`,
+    flags: { [SYSTEM_ID]: { radio: { to: actor.uuid, text: `${actor.system?.callsign || actor.token?.name || actor.name}, в тебя ударила молния! Проверь приборы.`, tone: "warn" } } }
   });
 }
 

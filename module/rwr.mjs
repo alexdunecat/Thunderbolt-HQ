@@ -55,7 +55,8 @@ function drawBadge(token) {
   }
 }
 
-/** Сигнал владельцу цели: захват (флаг rwr на карточке Lock On!) или пуск по нему (card.maws). */
+/** Сигнал владельцу цели: захват (флаг rwr на карточке Lock On!) или пуск по нему (card.maws).
+    С субтитрами AWACS текст говорит радио, здесь остаётся только короткий звук на пуск. */
 function alertOwner(message) {
   if (game.user.isGM) return;
   const rwr = message.getFlag(SYSTEM_ID, "rwr");
@@ -63,7 +64,11 @@ function alertOwner(message) {
   const uuid = rwr?.target ?? (card?.maws ? card.targetUuid : null);
   const target = uuid ? resolveActor(uuid) : null;
   if (!target?.isOwner) return;
-  if (rwr) ui.notifications.warn(`Облучение! ${rwr.from} держит «${target.name}» на захвате.`);
-  else ui.notifications.error(`Ракета! ${card.actorName}: ${card.label} по «${target.name}». Самое время для Break!`);
-  foundry.audio.AudioHelper.play({ src: CONFIG.sounds.notification, volume: 0.8, autoplay: true, loop: false }, false);
+  let radio = true;
+  try { radio = game.settings.get(SYSTEM_ID, "radioSubtitles"); } catch {}
+  if (!radio) {
+    if (rwr) ui.notifications.warn(`Облучение! ${rwr.from} держит «${target.name}» на захвате.`);
+    else ui.notifications.error(`Ракета! ${card.actorName}: ${card.label} по «${target.name}». Самое время для Break!`);
+  }
+  if (!rwr) foundry.audio.AudioHelper.play({ src: CONFIG.sounds.notification, volume: 0.8, autoplay: true, loop: false }, false);
 }

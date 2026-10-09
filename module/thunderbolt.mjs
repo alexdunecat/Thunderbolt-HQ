@@ -18,6 +18,7 @@ import { registerTokenSettings, arrangeSceneTokens } from "./tokens.mjs";
 import { registerSquadronSettings, squadFromSelection } from "./squadrons.mjs";
 import { registerMacros, actFromMacro } from "./macros.mjs";
 import { registerRwr } from "./rwr.mjs";
+import { registerRadio, sendRadio, say, caution } from "./radio.mjs";
 import { registerMapInfo } from "./mapinfo.mjs";
 import { registerRotate } from "./rotate.mjs";
 import { registerInsignia } from "./insignia.mjs";
@@ -68,6 +69,7 @@ Hooks.once("init", () => {
   registerSquadronSettings();
   registerMacros();
   registerRwr();
+  registerRadio();
   registerMapInfo();
   registerRotate();
   registerAltitude();
@@ -78,7 +80,7 @@ Hooks.once("init", () => {
   registerActions();
 
   game.thunderbolt = { importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
-    squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB };
+    squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB, radio: { send: sendRadio, say, caution } };
 });
 
 Hooks.once("ready", async () => {
