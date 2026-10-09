@@ -2,7 +2,7 @@
   "id": "thunderbolt-shtab",
   "title": "Thunderbolt: Штаб ВВС Юктобании",
   "description": "Система для Thunderbolt: An Aerial Knight RPG v1.3 с правилами стола, ангаром ВВС Юктобании, NPC и целями, памяткой пилота и импортом миссий из Планшета AWACS.",
-  "version": "0.4.48",
+  "version": "0.4.49",
   "compatibility": {
     "minimum": "12",
     "verified": "12.343",
@@ -61,7 +61,8 @@
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
-      }
+      },
+      "banner": "systems/thunderbolt-shtab/assets/banners/planes.svg"
     },
     {
       "name": "weapons",
@@ -72,7 +73,8 @@
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
-      }
+      },
+      "banner": "systems/thunderbolt-shtab/assets/banners/weapons.svg"
     },
     {
       "name": "triggers",
@@ -83,7 +85,8 @@
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
-      }
+      },
+      "banner": "systems/thunderbolt-shtab/assets/banners/triggers.svg"
     },
     {
       "name": "npcs",
@@ -94,7 +97,8 @@
       "ownership": {
         "PLAYER": "NONE",
         "ASSISTANT": "OWNER"
-      }
+      },
+      "banner": "systems/thunderbolt-shtab/assets/banners/npcs.svg"
     },
     {
       "name": "rules",
@@ -104,19 +108,36 @@
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
-      }
+      },
+      "banner": "systems/thunderbolt-shtab/assets/banners/rules.svg"
     }
   ],
   "packFolders": [
     {
       "name": "Штаб ВВС Юктобании",
       "sorting": "m",
-      "packs": [
-        "rules",
-        "planes",
-        "weapons",
-        "triggers",
-        "npcs"
+      "color": "#0b1d24",
+      "packs": [],
+      "folders": [
+        {
+          "name": "Для игроков",
+          "sorting": "m",
+          "color": "#12342c",
+          "packs": [
+            "rules",
+            "planes",
+            "weapons",
+            "triggers"
+          ]
+        },
+        {
+          "name": "Для ведущего",
+          "sorting": "m",
+          "color": "#3a1a14",
+          "packs": [
+            "npcs"
+          ]
+        }
       ]
     }
   ],
@@ -129,5 +150,5 @@
   "socket": true,
   "url": "https://github.com/alexdunecat/Thunderbolt-HQ",
   "manifest": "https://raw.githubusercontent.com/alexdunecat/Thunderbolt-HQ/main/system.json",
-  "download": "https://raw.githubusercontent.com/alexdunecat/Thunderbolt-HQ/main/dist/thunderbolt-shtab-0.4.48.zip"
+  "download": "https://raw.githubusercontent.com/alexdunecat/Thunderbolt-HQ/main/dist/thunderbolt-shtab-0.4.49.zip"
 }

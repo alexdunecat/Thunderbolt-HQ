@@ -8,6 +8,7 @@
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { PASS, isOut } from "./documents/combat.mjs";
 import { landBlocked } from "./scene.mjs";
+import { esc } from "./utils.mjs";
 
 export const ACT_NAMES = {
   lock: "Lock On!", missile: "Fox Two!", guns: "Guns, Guns, Guns!", break: "Break!", recover: "Передышка",
@@ -47,14 +48,11 @@ export function actionProblem(actor, what, { rolled = false, token = null } = {}
   if (combat.getFlag(SYSTEM_ID, "ready") !== combat.round) return `${c.name}: сначала заявка действий на этот раунд.`;
   if (combat.combatant?.id !== c.id) return `${c.name}: «${name}» только в свой ход.`;
   const s = spentOf(c), n = declaredOf(c) ?? 0;
-  const free = what === "speed" && (s.freeSpeed || speedGoing(s));
+  const free = what === "speed" && s.freeSpeed;
   if (!free && s.used >= n) return n === 0 ? `${c.name}: ход пропущен, действий нет.` : `${c.name}: все заявленные действия (${n}) уже сделаны.`;
   if (rolled && s.rolled) return `${c.name}: бросок за этот ход уже был, а он один.`;
   return null;
 }
-
-/** Скорость меняли последним действием: подстройка в том же Change Speed (по книге Speed меняется сразу до любого значения). */
-const speedGoing = s => !!s.list.at(-1)?.startsWith(ACT_NAMES.speed);
 
 /** Можно ли действие; если нет, объяснить. */
 export function allowAction(actor, what, opts) {
@@ -80,7 +78,6 @@ export async function spendAction(actor, what, { rolled = false, token = null } 
   if (!c?.isOwner) return;
   const name = ACT_NAMES[what] ?? what;
   const s = foundry.utils.deepClone(spentOf(c));
-  if (what === "speed" && speedGoing(s)) return;   // та же смена скорости, не новое действие
   const free = what === "speed" && s.freeSpeed;
   if (free) s.freeSpeed = false;
   else s.used += 1;
@@ -97,7 +94,20 @@ export function actsSummary(actor) {
   const s = spentOf(c), n = declaredOf(c);
   const turn = c.parent.combatant?.id === c.id;
   const label = `${turn ? "Ваш ход" : "Ход"}: действий ${s.used}${n === null ? ", заявки ещё нет" : ` из ${n}`}${s.rolled ? " · бросок был" : ""}${s.freeSpeed ? " · скорость можно сменить заодно" : ""}`;
-  return { used: s.used, declared: n, rolled: s.rolled, freeSpeed: s.freeSpeed, list: s.list.join(", "), over: n !== null && s.used > n, turn, label };
+  return { used: s.used, declared: n, rolled: s.rolled, freeSpeed: s.freeSpeed, list: s.list.join(", "), over: n !== null && s.used > n, turn, label,
+    left: n !== null && s.used < n ? n - s.used : 0, canEnd: turn && c.isOwner && c.parent.getFlag(SYSTEM_ID, "ready") === c.parent.round };
+}
+
+/** Завершить свой ход: «Следующий ход», а если действия ещё остались — «Пропустить действия» (с отметкой в чате). */
+export async function endTurn(actor) {
+  const c = combatantOf(actor);
+  const combat = c?.parent;
+  if (!c || combat.combatant?.id !== c.id) return ui.notifications.warn(`${actor.name}: сейчас не ваш ход.`);
+  if (!c.isOwner) return;
+  const s = spentOf(c), n = declaredOf(c) ?? 0, left = Math.max(0, n - s.used);
+  if (left) await ChatMessage.create({ speaker: { alias: "AWACS" },
+    content: `<div class="tb-card tb-card-round"><div class="tb-note">${esc(c.name)} пропускает ${left === 1 ? "оставшееся действие" : `оставшиеся действия (${left})`} и передаёт ход.</div></div>` });
+  return combat.nextTurn();
 }
 
 /** На сколько зон сдвигается токен (по центру): 0 — в своей зоне. */

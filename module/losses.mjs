@@ -27,11 +27,27 @@ export function registerLosses() {
     const has = p => foundry.utils.hasProperty(change, p);
     if (has("system.breakEv")) syncStatus(actor, BREAK, actor.system.breakEv !== null && actor.system.breakEv !== undefined);
     if (has("system.speed") && (actor.type === "pilot" || actor.system.kind === "air")) syncStatus(actor, STALL, actor.system.speed <= 0);
-    // Doom отмечен на листе вручную: машина сбита так же, как от урона
-    if (!options.tbDoom && foundry.utils.getProperty(change, "system.markers.doom") === true) {
-      syncStatus(actor, CONFIG.specialStatusEffects.DEFEATED, true);
-      actor.markDown?.();
-    }
+    // Doom отмечен на листе вручную: машина сбита так же, как от урона (знак X, выбывает из трекера,
+    // уходит с поля в конце раунда, сообщение в чат); снятая галочка возвращает её в бой
+    const doom = options.tbDoom ? undefined : foundry.utils.getProperty(change, "system.markers.doom");
+    if (doom === true) actor.markDoom("отмечено вручную");
+    else if (doom === false) actor.unmarkDown();
+  });
+  // «Сбит» в трекере боя или в меню токена: то же выбытие (флаг потерь, уход с поля в конце раунда)
+  Hooks.on("updateCombatant", (cb, change, options, userId) => {
+    if (userId !== game.user.id || !("defeated" in change) || !cb.actor || !["pilot", "npc"].includes(cb.actor.type)) return;
+    const down = cb.actor.getFlag(SYSTEM_ID, "down")?.combat === cb.parent?.id;
+    if (change.defeated && !down) cb.actor.markDown();
+    else if (!change.defeated && down && !cb.actor.system.markers?.doom) cb.actor.unmarkDown();
+  });
+  const isDead = effect => effect.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) && ["pilot", "npc"].includes(effect.parent?.type);
+  Hooks.on("createActiveEffect", (effect, options, userId) => {
+    if (userId === game.user.id && isDead(effect) && game.combat?.started) effect.parent.markDown();
+  });
+  Hooks.on("deleteActiveEffect", (effect, options, userId) => {
+    const a = effect.parent;
+    if (userId !== game.user.id || !isDead(effect) || a.system.markers?.doom) return;
+    if (a.getFlag(SYSTEM_ID, "down")?.combat === game.combat?.id) a.unmarkDown();
   });
   Hooks.on("deleteCombat", combat => {
     if (!game.users.activeGM?.isSelf || !combat.round) return;

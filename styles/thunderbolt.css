@@ -490,3 +490,32 @@ body[data-tb-skin="brief"] .tb-radio-log b.tb-log-caution { color: #f2c14e; } bo
 .tb-radio-log .tb-log-who { margin: 1px 0 2px 58px; font-size: 11px; opacity: .8; }
 .tb-radio-log .tb-log-who span { display: inline-block; padding: 0 6px; margin-right: 4px; border: 1px solid rgba(127,127,127,.45); border-radius: 8px; }
 .tb-radio-log .tb-log-who span.muted { text-decoration: line-through; opacity: .6; }
+.thunderbolt .tb-acts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.thunderbolt .tb-acts .tb-end-turn { margin-left: auto; padding: 1px 8px; border: 1px solid var(--tb-accent); border-radius: 4px; color: var(--tb-ink); font-weight: 700; cursor: pointer; }
+.thunderbolt .tb-acts .tb-end-turn:hover { background: var(--tb-accent); color: var(--tb-paper, #fff); }
+
+/* ---------- окна системы (диалоги, радиожурнал, обмен делами) в цветах скина ---------- */
+.app.thunderbolt .window-content { background: var(--tb-bg); color: var(--tb-ink); font-family: var(--tb-body); }
+.app.thunderbolt .window-content input, .app.thunderbolt .window-content select, .app.thunderbolt .window-content textarea { color: var(--tb-ink); background: var(--tb-surface); border-color: var(--tb-line); }
+.app.thunderbolt .window-content button, .app.thunderbolt .dialog-buttons button { color: var(--tb-ink); background: var(--tb-surface-2); border: 1px solid var(--tb-line); }
+.app.thunderbolt .window-content button:hover, .app.thunderbolt .dialog-buttons button:hover { border-color: var(--tb-accent); box-shadow: none; }
+.app.thunderbolt .tb-hint { color: var(--tb-muted); }
+
+/* ---------- тёмные окна Foundry (настройка клиента): все стандартные окна в цветах тёмного скина ---------- */
+body.tb-dark-ui .app.window-app .window-content, body.tb-dark-ui .application .window-content {
+  background: var(--tb-bg); color: var(--tb-ink);
+}
+body.tb-dark-ui .app.window-app .window-content :is(input, select, textarea),
+body.tb-dark-ui .application .window-content :is(input, select, textarea) { color: var(--tb-ink); background: var(--tb-surface); border-color: var(--tb-line); }
+body.tb-dark-ui .app.window-app .window-content :is(input, select, textarea)::placeholder { color: var(--tb-muted); }
+body.tb-dark-ui .app.window-app :is(.window-content button, .dialog-buttons button),
+body.tb-dark-ui .application .window-content button { color: var(--tb-ink); background: var(--tb-surface-2); border: 1px solid var(--tb-line); }
+body.tb-dark-ui .app.window-app :is(.window-content button, .dialog-buttons button):hover,
+body.tb-dark-ui .application .window-content button:hover { border-color: var(--tb-accent); box-shadow: 0 0 4px var(--tb-accent); }
+body.tb-dark-ui .app.window-app .window-content :is(.notes, .hint, .notification-hint, label .hint) { color: var(--tb-muted); }
+body.tb-dark-ui .app.window-app .window-content :is(h1, h2, h3, h4) { color: var(--tb-ink); border-color: var(--tb-line); }
+body.tb-dark-ui .app.window-app .window-content a:not(.content-link):not(.tb-btn) { color: var(--tb-accent); }
+body.tb-dark-ui .app.window-app .window-content .form-group, body.tb-dark-ui .app.window-app .window-content .sheet-tabs { border-color: var(--tb-line); }
+body.tb-dark-ui .app.window-app .window-content option { background: var(--tb-surface); color: var(--tb-ink); }
+body.tb-dark-ui .journal-entry-page, body.tb-dark-ui .journal-page-content, body.tb-dark-ui .editor-content { color: var(--tb-ink); }
+body.tb-dark-ui .app.window-app .window-content :is(.content-link, .inline-roll) { background: var(--tb-surface-2); color: var(--tb-ink); border-color: var(--tb-line); }

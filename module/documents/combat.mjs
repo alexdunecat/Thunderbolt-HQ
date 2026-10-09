@@ -89,6 +89,9 @@ function declareDialog(combat, list) {
 
 /** Начало раунда: ведущему форма заявки за NPC. Если NPC нет, сразу очередь игроков. */
 async function beginRound(combat) {
+  // сбитые, что ещё висят на поле до конца раунда, и отступившие пасуют сами
+  const out = combat.combatants.filter(c => isOut(c) && !passive(c.actor) && c.initiative !== PASS);
+  if (out.length) await combat.updateEmbeddedDocuments("Combatant", out.map(c => ({ _id: c.id, initiative: PASS })));
   const npcs = acting(combat).filter(c => npcSide(c) && !declared(c));
   if (!npcs.length) return markNpcDone(combat);
   await combat.rollInitiative(npcs.map(c => c.id), { updateTurn: false });

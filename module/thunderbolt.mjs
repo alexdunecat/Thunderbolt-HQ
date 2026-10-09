@@ -18,7 +18,7 @@ import { registerTokenSettings, arrangeSceneTokens } from "./tokens.mjs";
 import { registerSquadronSettings, squadFromSelection } from "./squadrons.mjs";
 import { registerMacros, actFromMacro } from "./macros.mjs";
 import { registerRwr } from "./rwr.mjs";
-import { registerRadio, sendRadio, say, caution } from "./radio.mjs";
+import { registerRadio, sendRadio, say, caution, openRadioDialog } from "./radio.mjs";
 import { registerRange } from "./range.mjs";
 import { openRadioLog } from "./radio-log.mjs";
 import { openDossierExchange, importDossier, exportDossier } from "./dossier-sync.mjs";
@@ -31,7 +31,15 @@ import { registerAltitude, stepAltitude } from "./altitude.mjs";
 
 function applySkin(skin) {
   document.body.dataset.tbSkin = TB.skins[skin] ? skin : "brief";
+  applyDarkUi();
   for (const app of Object.values(ui.windows)) if (app.options?.classes?.includes("thunderbolt")) app.render(false);
+}
+
+/** Тёмные окна Foundry: при тёмном скине («Брифинг», «ОС AC5») стандартные окна тоже тёмные, если клиент не выключил. */
+function applyDarkUi() {
+  let on = true;
+  try { on = game.settings.get(SYSTEM_ID, "darkUi"); } catch {}
+  document.body.classList.toggle("tb-dark-ui", on && ["brief", "ac5"].includes(document.body.dataset.tbSkin));
 }
 
 // надписи карты рисуются шрифтами «Брифинга»: дождаться их до отрисовки сцены
@@ -65,6 +73,10 @@ Hooks.once("init", () => {
     choices: TB.skins, default: "brief", onChange: applySkin
   });
   // с 0.4.29 оформление по умолчанию — «Брифинг»: один раз переключить и тех, у кого было сохранено прежнее
+  game.settings.register(SYSTEM_ID, "darkUi", {
+    name: "Тёмные окна Foundry", hint: "При тёмном оформлении («Брифинг», «ОС AC5») стандартные окна Foundry (настройки, журналы, диалоги других модулей) тоже тёмные, а не на светлом пергаменте.",
+    scope: "client", config: true, type: Boolean, default: true, onChange: () => applyDarkUi()
+  });
   game.settings.register(SYSTEM_ID, "skinBrief", { scope: "client", config: false, type: Boolean, default: false });
   // шрифты «Брифинга» лежат в системе (assets/fonts): их видят и надписи на карте
   Object.assign(CONFIG.fontDefinitions, { "Jura": { editor: true, fonts: [] }, "JetBrains Mono": { editor: true, fonts: [] } });
@@ -151,8 +163,9 @@ async function breakLocks() {
 /* Панель AWACS: кнопка на панели токенов и в разделе «Актёры» (только ведущему). */
 Hooks.on("getSceneControlButtons", controls => {
   const tokens = controls.find(c => c.name === "token");
-  tokens?.tools.push({ name: "tb-radio-log", title: "Радиожурнал AWACS", icon: "fas fa-tower-broadcast", button: true, onClick: () => openRadioLog() });
+  tokens?.tools.push({ name: "tb-radio-log", title: "Радиожурнал AWACS", icon: "fas fa-book-open", button: true, onClick: () => openRadioLog() });
   if (!game.user.isGM) return;
+  tokens?.tools.push({ name: "tb-radio", title: "Радио AWACS: реплика всем", icon: "fas fa-tower-broadcast", button: true, onClick: () => openRadioDialog() });
   tokens?.tools.push({ name: "tb-awacs", title: "Панель AWACS", icon: "fas fa-satellite-dish", button: true, onClick: () => openAwacs() });
 });
 Hooks.on("renderActorDirectory", (app, html) => {

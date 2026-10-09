@@ -57,14 +57,15 @@
       <tr><th>Эскадрилья</th>{{#each skillHeads as |h|}}<th title="{{h.label}}">{{h.en}}</th>{{/each}}<th>Очки</th><th></th></tr>
       {{#each squads as |q|}}
       <tr>
-        <td><b>{{q.name}}</b>{{#if q.tag}} · {{q.tag}}{{/if}}<br><small>{{#if q.members}}{{q.members}}{{else}}машин на сцене нет{{/if}}</small></td>
+        <td><b>{{q.name}}</b>{{#if q.tag}} · {{q.tag}}{{/if}}<br><small>{{q.members}}</small></td>
         {{#each q.skills as |sk|}}<td class="tb-num"><input type="number" min="0" data-squad="{{q.name}}" data-squad-key="{{sk.key}}" value="{{sk.value}}"></td>{{/each}}
         <td class="tb-num {{#if q.over}}low{{/if}}">{{q.used}}/{{@root.squadBudget}}</td>
         <td><a data-squad-num="{{q.name}}" title="Обозначение и номера машин"><i class="fas fa-list-ol"></i></a> <a data-squad-del="{{q.name}}" title="Распустить"><i class="fas fa-trash"></i></a></td>
       </tr>
       {{/each}}
     </table>
-    {{else}}<p class="tb-empty">Эскадрилий пока нет. Выделите токены NPC и нажмите «Собрать из выделенных»: у них будет одна раскладка навыков на {{squadBudget}} очка.</p>{{/if}}
+    {{else}}<p class="tb-empty">На этой сцене эскадрилий нет. Выделите токены NPC и нажмите «Собрать из выделенных»: у них будет одна раскладка навыков на {{squadBudget}} очка.</p>{{/if}}
+    {{#if squadsElsewhere}}<p class="tb-small tb-muted">На других сценах: {{squadsElsewhere}}.</p>{{/if}}
 
     <h3>Погода над всей сценой {{#if cells}}<small>ещё в {{cells}} клетках из импорта миссии</small>{{/if}}</h3>
     <p class="tb-small"><a class="tb-btn" data-map-update title="Вставить JSON миссии из Планшета: карта и погода на этой сцене перерисуются, токены останутся"><i class="fas fa-cloud-bolt"></i> Карта и погода из Планшета</a></p>

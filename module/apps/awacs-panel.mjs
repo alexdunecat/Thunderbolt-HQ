@@ -81,11 +81,13 @@ export class AwacsPanel extends Application {
     }
     const squads = Object.entries(allSquads()).sort(([a], [b]) => a.localeCompare(b, "ru")).map(([name, l]) => {
       const used = squadPoints(l);
-      return { name, tag: l.tag ?? "", used, over: used > SQUAD_POINTS, members: squadMembers(name).map(a => a.token?.name ?? a.name).join(", "),
+      return { name, tag: l.tag ?? "", used, over: used > SQUAD_POINTS, members: (scene?.tokens ?? []).filter(t => t.actor?.type === "npc" && t.actor.system.tier === "duelist" && t.actor.system.squad === name).map(t => t.name).join(", "),
         skills: Object.keys(TB.skills).map(k => ({ key: k, value: l[k] ?? 0 })) };
     });
+    // в панели только эскадрильи, чьи машины стоят на этой сцене; остальные одной строкой
+    const elsewhere = squads.filter(q => !q.members).map(q => q.name).join(", ");
     return {
-      sceneName: scene?.name ?? "сцена не выбрана", pilots, targets, groups, cells, squads, squadBudget: SQUAD_POINTS,
+      sceneName: scene?.name ?? "сцена не выбрана", pilots, targets, groups, cells, squads: squads.filter(q => q.members), squadsElsewhere: elsewhere, squadBudget: SQUAD_POINTS,
       skillHeads: Object.values(TB.skills).map(v => ({ label: v.label, en: v.en })),
       weather: Object.entries(TB.weather).map(([id, d]) => ({ id, ...d, on: sceneWeather.has(id) })),
       round: combat?.started ? combat.round : null, queued

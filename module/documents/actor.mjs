@@ -175,6 +175,16 @@ export class TBActor extends Actor {
     if (cb && !cb.defeated && cb.isOwner) await cb.update({ defeated: true });
   }
 
+  /** Сбитый вернулся (Doom снят на листе, «Сбит» снят в трекере или в меню токена): снова в бою. */
+  async unmarkDown() {
+    const c = game.combat;
+    const dead = CONFIG.specialStatusEffects.DEFEATED;
+    if (this.getFlag(SYSTEM_ID, "down")) await this.unsetFlag(SYSTEM_ID, "down");
+    if (this.statuses?.has(dead)) await this.toggleStatusEffect(dead, { active: false });
+    const cb = c?.combatants.find(x => (this.isToken ? x.tokenId === this.token?.id : x.actorId === this.id));
+    if (cb?.defeated && cb.isOwner) await cb.update({ defeated: false });
+  }
+
   /** Засчитать сбитого или уничтоженного пилоту-стрелку (для итогов вылета). */
   async #creditKill(sourceUuid) {
     await this.markDown(sourceUuid);
@@ -222,7 +232,7 @@ export class TBActor extends Actor {
         "system.speed": 1, "system.breakEv": null, "system.lock": "", "system.lockUuid": "", "system.twist": false,
         "system.markers": { grit: false, gritSkill: "", structure: false, sys: "", doom: false, lastRound: "" },
         [`flags.${SYSTEM_ID}.-=down`]: null
-      }, { tbFree: true });
+      }, { tbFree: true, tbDoom: true });
       // после снятия меток и Поворота максимумы пересчитаны
       await this.update({ "system.hp.value": this.system.hp.max, "system.strain.value": this.system.strain.max,
         [`flags.${SYSTEM_ID}.pools`]: this.poolsFlag() });

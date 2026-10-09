@@ -6,7 +6,7 @@ import { leadership, formUp, nextMods, dropNext, adjacentOf, breakAdjacent } fro
 import { resolveActor } from "../utils.mjs";
 import { SQUAD_POINTS, allSquads, squadLayout, setSquadLayout, squadMembers } from "../squadrons.mjs";
 import { runAction, ACTIONS, startActionDrag } from "../macros.mjs";
-import { spendAction, actsSummary, allowAction } from "../actions.mjs";
+import { spendAction, actsSummary, allowAction, endTurn } from "../actions.mjs";
 import { openDossierExchange } from "../dossier-sync.mjs";
 import { aimedWeapon, toggleAim } from "../range.mjs";
 
@@ -150,6 +150,7 @@ class TBActorSheet extends ActorSheet {
       if (item) item.update({ "system.stack": Math.max(0, item.system.stack + Number(d.delta)) });
     });
     on("[data-chat-item]", d => this.#itemToChat(this.actor.items.get(d.chatItem)));
+    on("[data-end-turn]", () => endTurn(this.actor));
     // прицел: подсветка дальности по этому спецоружию (повторный щелчок — снова стандартная ракета)
     on("[data-aim]", d => {
       toggleAim(this.actor, d.aim);
