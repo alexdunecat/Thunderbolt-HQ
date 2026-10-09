@@ -39,7 +39,7 @@ function applySkin(skin) {
 function applyDarkUi() {
   let on = true;
   try { on = game.settings.get(SYSTEM_ID, "darkUi"); } catch {}
-  document.body.classList.toggle("tb-dark-ui", on && ["brief", "ac5"].includes(document.body.dataset.tbSkin));
+  document.body.classList?.toggle("tb-dark-ui", on && ["brief", "ac5"].includes(document.body.dataset.tbSkin));
 }
 
 // надписи карты рисуются шрифтами «Брифинга»: дождаться их до отрисовки сцены
