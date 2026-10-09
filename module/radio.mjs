@@ -4,6 +4,7 @@
    Реплики идут строго по очереди; если их скопилось много (конец раунда), лишние сворачиваются в одну строку. */
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
+import { record } from "./radio-log.mjs";
 
 const MAX_QUEUE = 4;
 const queue = [], banners = [];
@@ -117,15 +118,17 @@ const enabled = () => { try { return game.settings.get(SYSTEM_ID, "radioSubtitle
 const sideClass = side => ["ally", "enemy", "neutral"].includes(side) ? side : "ally";
 
 export function say(speaker, text, side = "ally") {
-  if (!enabled() || !text) return;
+  if (!text) return;
   const last = queue.at(-1);
   if (last && last.text === text) return;
+  record({ speaker, text, side: sideClass(side) });
+  if (!enabled()) return;
   queue.push({ speaker, text, side: sideClass(side) });
   // конец раунда: не больше MAX_QUEUE реплик, остальное одной строкой
   if (queue.length > MAX_QUEUE) {
     const extra = queue.splice(MAX_QUEUE - 1);
     const n = extra.reduce((s, x) => s + (x.count ?? 1), 0);
-    queue.push({ speaker: "AWACS", text: `И ещё ${n} ${plural(n, "сообщение", "сообщения", "сообщений")}, подробности в чате.`, side: "ally", count: n });
+    queue.push({ speaker: "AWACS", text: `И ещё ${n} ${plural(n, "сообщение", "сообщения", "сообщений")}, подробности в радиожурнале.`, side: "ally", count: n });
   }
   if (!showing) next();
 }
@@ -150,6 +153,7 @@ function next() {
 }
 
 export function caution({ title = "CAUTION", sub = "", level = "caution" } = {}) {
+  record({ banner: { title, sub, level } });
   if (!enabled()) return;
   banners.push({ title, sub, level });
   if (!bannerOn) nextBanner();

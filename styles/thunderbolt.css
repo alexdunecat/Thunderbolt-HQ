@@ -472,3 +472,17 @@ body[data-tb-skin="brief"] .tb-card-radio b.tb-radio-ally { color: #6cc4ff; } bo
 .tb-radio-form .form-group.stacked { flex-direction: column; align-items: stretch; }
 .thunderbolt .tb-icon.tb-aim { opacity: .45; }
 .thunderbolt .tb-icon.tb-aim.on, .thunderbolt .tb-icon.tb-aim:hover { opacity: 1; color: #f2c14e; }
+
+/* радиожурнал */
+.tb-radio-log .window-content { padding: 0; }
+.tb-radio-log-body { display: flex; flex-direction: column; height: 100%; }
+.tb-radio-log .tb-log-list { flex: 1; overflow-y: auto; padding: 6px 10px; }
+.tb-radio-log h4 { margin: 10px 0 4px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; opacity: .7; border-bottom: 1px solid currentColor; }
+.tb-radio-log .tb-log-row { padding: 3px 0; line-height: 1.35; }
+.tb-radio-log .tb-log-row .t { font-family: var(--tb-data, monospace); font-size: 11px; opacity: .6; margin-right: 6px; }
+.tb-radio-log b.tb-radio-ally { color: #3d8fc4; } .tb-radio-log b.tb-radio-enemy { color: #d4472b; } .tb-radio-log b.tb-radio-neutral { color: #b8860b; }
+body[data-tb-skin="brief"] .tb-radio-log b.tb-radio-ally { color: #6cc4ff; } body[data-tb-skin="brief"] .tb-radio-log b.tb-radio-enemy { color: #ff6b4a; } body[data-tb-skin="brief"] .tb-radio-log b.tb-radio-neutral { color: #f2c14e; }
+.tb-radio-log .tb-log-banner b { letter-spacing: .08em; }
+.tb-radio-log .tb-log-caution b { color: #b8860b; } .tb-radio-log .tb-log-warning b { color: #d4472b; }
+body[data-tb-skin="brief"] .tb-radio-log .tb-log-caution b { color: #f2c14e; } body[data-tb-skin="brief"] .tb-radio-log .tb-log-warning b { color: #ff6b4a; }
+.tb-radio-log footer { padding: 6px 10px; border-top: 1px solid rgba(127,127,127,.3); }

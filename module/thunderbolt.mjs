@@ -20,6 +20,7 @@ import { registerMacros, actFromMacro } from "./macros.mjs";
 import { registerRwr } from "./rwr.mjs";
 import { registerRadio, sendRadio, say, caution } from "./radio.mjs";
 import { registerRange } from "./range.mjs";
+import { openRadioLog } from "./radio-log.mjs";
 import { openDossierExchange, importDossier, exportDossier } from "./dossier-sync.mjs";
 import { registerMapInfo } from "./mapinfo.mjs";
 import { registerRotate } from "./rotate.mjs";
@@ -83,7 +84,7 @@ Hooks.once("init", () => {
   registerActions();
 
   game.thunderbolt = { importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
-    squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB, radio: { send: sendRadio, say, caution }, dossier: { open: openDossierExchange, importDossier, exportDossier } };
+    squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB, radio: { send: sendRadio, say, caution, log: openRadioLog }, dossier: { open: openDossierExchange, importDossier, exportDossier } };
 });
 
 Hooks.once("ready", async () => {
@@ -149,8 +150,9 @@ async function breakLocks() {
 
 /* Панель AWACS: кнопка на панели токенов и в разделе «Актёры» (только ведущему). */
 Hooks.on("getSceneControlButtons", controls => {
-  if (!game.user.isGM) return;
   const tokens = controls.find(c => c.name === "token");
+  tokens?.tools.push({ name: "tb-radio-log", title: "Радиожурнал AWACS", icon: "fas fa-tower-broadcast", button: true, onClick: () => openRadioLog() });
+  if (!game.user.isGM) return;
   tokens?.tools.push({ name: "tb-awacs", title: "Панель AWACS", icon: "fas fa-satellite-dish", button: true, onClick: () => openAwacs() });
 });
 Hooks.on("renderActorDirectory", (app, html) => {
