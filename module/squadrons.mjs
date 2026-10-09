@@ -16,7 +16,7 @@ export function registerSquadronSettings() {
     }
   });
   // эскадрилья вписана впервые: её раскладкой становятся навыки этой машины
-  Hooks.on("preCreateToken", doc => autoSquadNumber(doc));
+  Hooks.on("preCreateToken", (doc, data, options) => { if (!options.tbKeep) autoSquadNumber(doc); });
   Hooks.on("updateActor", (actor, change, options, userId) => {
     const name = foundry.utils.getProperty(change, "system.squad");
     if (userId === game.user.id && name && game.user.isGM && !squadLayout(name)) setSquadLayout(name, actor.system.skills);
@@ -152,10 +152,16 @@ export async function numberSquad(name) {
   ui.notifications.info(`Эскадрилья «${name}»: номера назначены.`);
 }
 
+const recent = new Map();
 /** Новая машина эскадрильи на сцене сама получает обозначение и следующий свободный номер. */
 export function autoSquadNumber(doc) {
   const a = doc.actor, name = a?.system?.squad;
   if (a?.type !== "npc" || a.system.tier !== "duelist" || !name || !allSquads()[name]?.tag || squadNo(doc)) return;
-  const n = freeNo(name, doc.parent);
+  // токены одной вставки создаются разом и на сцене друг друга ещё не видят: номера, выданные только что, тоже заняты
+  const key = `${doc.parent?.id}:${name}`, given = recent.get(key) ?? new Set();
+  const n = freeNo(name, doc.parent, new Set(given));
+  given.add(n);
+  recent.set(key, given);
+  setTimeout(() => { if (recent.get(key) === given) recent.delete(key); }, 2000);
   doc.updateSource({ name: squadTokenName(machineOf(doc), squadTag(name), n), [`flags.${SYSTEM_ID}.squadNo`]: n });
 }

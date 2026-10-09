@@ -104,7 +104,10 @@ async function checkDeclared(combat) {
   const list = acting(combat);
   if (list.filter(npcSide).every(declared)) await markNpcDone(combat);
   if (!list.length || !list.every(declared) || flag(combat, "ready") === combat.round) return;
+  // если очередь уже на первом, Foundry выкинет turn из изменения и хук не начнёт ход: начинаем сами
+  const already = combat.turn === 0;
   await combat.update({ turn: 0, [`flags.${SYSTEM_ID}.ready`]: combat.round });
+  if (already) await turnStart(combat);
   const order = combat.turns.filter(c => !passive(c.actor) && !isOut(c))
     .map((c, i) => `${i + 1}. ${esc(c.name)} · ${declareLabel(c.initiative)}`).join("<br>");
   await ChatMessage.create({

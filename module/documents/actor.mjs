@@ -40,7 +40,8 @@ export class TBActor extends Actor {
   async syncElevation() {
     const elev = TB.altElevation[this.system.alt];
     if (!elev) return;
-    const tokens = this.isToken ? [this.token] : this.getActiveTokens(false, true);
+    // у несвязанных копий своя высота: двигаем только те, что сейчас на той же высоте, что и актёр
+    const tokens = this.isToken ? [this.token] : this.getActiveTokens(false, true).filter(t => t.isLinked || t.actor?.system.alt === this.system.alt);
     for (const t of tokens) if (t && t.elevation !== elev && t.isOwner) await t.update({ elevation: elev }, { tbSync: true });
   }
 
@@ -80,7 +81,15 @@ export class TBActor extends Actor {
    * Нанести урон с учётом меток: не больше одной метки за раунд, лишний урон сгорает.
    * roundKey: раунд, к которому относится урон (залп считается после смены раунда); sourceUuid: кому засчитать сбитого.
    */
-  async applyDamage(amount, { source, sourceUuid, roundKey } = {}) {
+  applyDamage(amount, opts = {}) {
+    // по одной машине урон идёт строго по очереди: пока открыт выбор метки, второе попадание ждёт,
+    // а потом видит уже поставленную метку или сбитую машину (иначе две метки или два засчитанных сбитых)
+    const run = () => this.#applyDamage(amount, opts);
+    this._tbDamage = (this._tbDamage ?? Promise.resolve()).then(run, run);
+    return this._tbDamage;
+  }
+
+  async #applyDamage(amount, { source, sourceUuid, roundKey } = {}) {
     amount = Number(amount) || 0;
     if (amount <= 0) return;
     const s = this.system;

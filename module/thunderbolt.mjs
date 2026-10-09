@@ -106,10 +106,15 @@ Hooks.on("renderChatMessage", (message, html) => R.decorateCard(message, html));
 Hooks.on("createChatMessage", message => R.onVolleyCreated(message));
 
 /* Высота: поле листа и высота токена (1 = Low, 2 = Medium, 3 = High) держатся вместе. */
+let moveTimer = null, locking = false;
 Hooks.on("updateToken", (token, change, options, userId) => {
   const moved = "x" in change || "y" in change || "elevation" in change;
   if (moved && token.actor?.sheet?.rendered) token.actor.sheet.render(false);   // погода и защита в новой клетке
-  if (moved && game.users.activeGM?.isSelf) setTimeout(() => { checkLocks(token.parent); checkAdjacency(); }, 50);
+  if (moved && game.users.activeGM?.isSelf) {
+    // группу токенов двигают одним действием: проверяем один раз после всех перемещений
+    clearTimeout(moveTimer);
+    moveTimer = setTimeout(() => { checkLocks(token.parent); checkAdjacency(); }, 80);
+  }
   if (userId !== game.user.id || !("elevation" in change) || !token.actor) return;
   const alt = Object.entries(TB.altElevation).find(([, v]) => v === change.elevation)?.[0];
   if (alt && token.actor.system.alt !== alt) token.actor.update({ "system.alt": alt }, { tbSync: true });
@@ -117,7 +122,11 @@ Hooks.on("updateToken", (token, change, options, userId) => {
 
 /** Захват срывается, если цель ушла дальше двух зон (кроме дальнобойного спецоружия). */
 async function checkLocks(scene) {
-  if (!canvas?.ready || scene !== canvas.scene) return;
+  if (!canvas?.ready || scene !== canvas.scene || locking) return;
+  locking = true;
+  try { await breakLocks(); } finally { locking = false; }
+}
+async function breakLocks() {
   for (const tok of canvas.tokens.placeables) {
     const a = tok.actor, uuid = a?.system.lockUuid;
     if (!uuid) continue;
