@@ -8,6 +8,7 @@ import { SQUAD_POINTS, allSquads, squadLayout, setSquadLayout, squadMembers } fr
 import { runAction, ACTIONS, startActionDrag } from "../macros.mjs";
 import { spendAction, actsSummary, allowAction } from "../actions.mjs";
 import { openDossierExchange } from "../dossier-sync.mjs";
+import { aimedWeapon, toggleAim } from "../range.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -56,7 +57,8 @@ class TBActorSheet extends ActorSheet {
     ctx.altOptions = TB.altitudes;
     ctx.skillOptions = opts(TB.skills);
     ctx.sysOptions = Object.fromEntries(Object.entries(TB.systems).map(([k, v]) => [k, `${v.label}: ${v.hint}`]));
-    ctx.weapons = a.items.filter(i => i.type === "weapon").map(w => weaponView(w, s.ammoBonus?.[w.id] ?? 0));
+    const aim = aimedWeapon(a)?.id;
+    ctx.weapons = a.items.filter(i => i.type === "weapon").map(w => ({ ...weaponView(w, s.ammoBonus?.[w.id] ?? 0), aimed: w.id === aim }));
     ctx.enrichedNotes = await TextEditor.enrichHTML(s.notes, { secrets: a.isOwner, relativeTo: a });
     ctx.isGM = game.user.isGM;
     const w = weatherAt(a);
@@ -148,6 +150,13 @@ class TBActorSheet extends ActorSheet {
       if (item) item.update({ "system.stack": Math.max(0, item.system.stack + Number(d.delta)) });
     });
     on("[data-chat-item]", d => this.#itemToChat(this.actor.items.get(d.chatItem)));
+    // прицел: подсветка дальности по этому спецоружию (повторный щелчок — снова стандартная ракета)
+    on("[data-aim]", d => {
+      toggleAim(this.actor, d.aim);
+      const t = tokenOf(this.actor);
+      if (t && !t.controlled && t.isOwner) t.control({ releaseOthers: true });
+      this.render(false);
+    });
     on("[data-next-drop]", d => dropNext(this.actor, Number(d.nextDrop)));
     on("[data-adj-drop]", d => breakAdjacent(this.actor, d.adjDrop));
     el.querySelectorAll("[data-item-field]").forEach(n => n.addEventListener("change", ev => {

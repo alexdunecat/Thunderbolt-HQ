@@ -87,7 +87,7 @@
       {{#if weapons.length}}
       <fieldset class="tb-box"><legend>Спецоружие</legend><ul class="tb-list">
         {{#each weapons as |w|}}<li class="tb-item" data-item-id="{{w.id}}"><span class="tb-item-name"><a data-chat-item="{{w.id}}">{{w.name}}</a><small>{{#if w.target}}{{w.target}} · {{/if}}урон {{w.dmg}} · <i class="fas fa-ruler-horizontal"></i> {{w.range}}{{#if w.mods}} · {{w.mods}}{{/if}}</small></span>
-          <a class="tb-icon" data-item-edit="{{w.id}}"><i class="fas fa-pen"></i></a><a class="tb-icon" data-item-delete="{{w.id}}"><i class="fas fa-trash"></i></a></li>{{/each}}
+          <a class="tb-icon tb-aim{{#if w.aimed}} on{{/if}}" data-aim="{{w.id}}" title="{{#if w.aimed}}Подсветка дальности по этому оружию. Щелчок: обратно стандартная ракета{{else}}Подсвечивать дальность этого оружия у выделенного самолёта{{/if}}"><i class="fas fa-crosshairs"></i></a><a class="tb-icon" data-item-edit="{{w.id}}"><i class="fas fa-pen"></i></a><a class="tb-icon" data-item-delete="{{w.id}}"><i class="fas fa-trash"></i></a></li>{{/each}}
       </ul></fieldset>
       {{/if}}
       {{#if system.sig.length}}<p class="tb-small tb-muted">Спецоружие, если машиной управляет ас: {{#each system.sig}}{{this}} {{/each}}. Боезапас врагов не считается.</p>{{/if}}

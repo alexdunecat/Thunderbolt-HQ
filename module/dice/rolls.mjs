@@ -5,6 +5,7 @@ import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, co
 import { takeNext, passOutcome } from "../squad.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
 import { allowRoll } from "../actions.mjs";
+import { aimedWeapon } from "../range.mjs";
 
 const sign = n => (n >= 0 ? "+" : "−") + Math.abs(n);
 
@@ -355,6 +356,7 @@ function weaponOptions(actor, missile, kind = null) {
   const opts = [];
   if (missile && (kind ? stdMissile(actor, kind) : stdMissile(actor, "air") || stdMissile(actor, "ground")))
     opts.push(`<option value="">Стандартная ракета (урон ${TB.missileDamage}, ${rangeLabel(TB.range.missile)})</option>`);
+  const aim = aimedWeapon(actor)?.id;
   if (actor.system.broken !== "sw") {
     for (const w of actor.items.filter(i => i.type === "weapon")) {
       const s = w.system;
@@ -363,7 +365,8 @@ function weaponOptions(actor, missile, kind = null) {
       if (missile && (s.target === "util" || (kind && !weaponFits(w, kind)))) continue;
       const empty = !w.system.unlimited && (s.ammo.value ?? 0) <= 0;
       const vs = s.target === "air" ? "по воздуху" : s.target === "ground" ? "по земле и морю" : "";
-      opts.push(`<option value="${w.id}" ${empty ? "disabled" : ""}>${esc(w.name)}${w.system.unlimited ? "" : ` · ${s.ammo.value}/${s.ammo.max}`} · ${[vs, rangeLabel(s.reach)].filter(Boolean).join(", ")}</option>`);
+      // оружие под прицелом подсветки дальности стоит выбранным
+      opts.push(`<option value="${w.id}" ${empty ? "disabled" : w.id === aim ? "selected" : ""}>${esc(w.name)}${w.system.unlimited ? "" : ` · ${s.ammo.value}/${s.ammo.max}`} · ${[vs, rangeLabel(s.reach)].filter(Boolean).join(", ")}</option>`);
     }
   }
   return opts;

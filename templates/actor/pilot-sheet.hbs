@@ -144,6 +144,7 @@
               <span class="tb-item-name"><a data-chat-item="{{w.id}}" title="В чат">{{w.name}}</a><small>{{#if w.target}}{{w.target}} · {{/if}}урон {{w.dmg}} · <i class="fas fa-ruler-horizontal"></i> {{w.range}}{{#if w.mods}} · {{w.mods}}{{/if}}</small></span>
               {{#if w.unlimited}}<span class="tb-ammo">∞</span>{{else}}
               <span class="tb-ammo" {{#if w.bonus}}title="+{{w.bonus}} от триггера"{{/if}}><a data-ammo="{{w.id}}" data-delta="-1">−</a>{{w.ammo}}/{{w.max}}<a data-ammo="{{w.id}}" data-delta="1">+</a></span>{{/if}}
+              <a class="tb-icon tb-aim{{#if w.aimed}} on{{/if}}" data-aim="{{w.id}}" title="{{#if w.aimed}}Подсветка дальности по этому оружию. Щелчок: обратно стандартная ракета{{else}}Подсвечивать дальность этого оружия у выделенного самолёта{{/if}}"><i class="fas fa-crosshairs"></i></a>
               <a class="tb-icon" data-item-edit="{{w.id}}" title="Открыть"><i class="fas fa-pen"></i></a>
               <a class="tb-icon" data-item-delete="{{w.id}}" title="Убрать"><i class="fas fa-trash"></i></a>
             </li>

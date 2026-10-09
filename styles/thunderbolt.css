@@ -470,3 +470,5 @@ body[data-tb-skin="brief"] .tb-card-radio b.tb-radio-ally { color: #6cc4ff; } bo
 .tb-dossier-sync textarea[readonly] { opacity: .85; }
 .tb-radio-form textarea { width: 100%; resize: vertical; }
 .tb-radio-form .form-group.stacked { flex-direction: column; align-items: stretch; }
+.thunderbolt .tb-icon.tb-aim { opacity: .45; }
+.thunderbolt .tb-icon.tb-aim.on, .thunderbolt .tb-icon.tb-aim:hover { opacity: 1; color: #f2c14e; }
