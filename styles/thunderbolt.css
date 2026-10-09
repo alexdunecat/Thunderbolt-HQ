@@ -425,3 +425,14 @@ h3.tb-side-ally { color: #6cc4ff !important; }
 h3.tb-side-neutral { color: #f2c14e !important; }
 .tb-awacs-table select[data-task] { min-width: 9em; }
 .tb-awacs-table.tb-side-goal th:first-child, .tb-awacs-table.tb-side-enemy th:first-child, .tb-awacs-table.tb-side-ally th:first-child, .tb-awacs-table.tb-side-neutral th:first-child { width: 34%; }
+
+/* выпадающие списки в тёмных скинах: тёмные пункты со светлым текстом, выбранный и наведённый пункт подсвечены */
+body[data-tb-skin="brief"] select, body[data-tb-skin="ac5"] select { color-scheme: dark; }
+body[data-tb-skin="brief"] select option, body[data-tb-skin="ac5"] select option,
+body[data-tb-skin="brief"] select optgroup, body[data-tb-skin="ac5"] select optgroup {
+  background: var(--tb-surface); color: var(--tb-ink);
+}
+body[data-tb-skin="brief"] select option:checked, body[data-tb-skin="ac5"] select option:checked,
+body[data-tb-skin="brief"] select option:hover, body[data-tb-skin="ac5"] select option:hover {
+  background: var(--tb-olive-soft); color: var(--tb-olive);
+}
