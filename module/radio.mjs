@@ -85,7 +85,7 @@ function reinforcements(doc, userId) {
   if (a?.type !== "npc" || (a.system.side ?? "enemy") !== "enemy") return;
   const boss = a.system.grp === "boss", ace = a.system.tier === "ace", squad = a.system.tier === "duelist" && a.system.squad;
   if (!boss && !ace && !squad) return;
-  pending.push({ name: doc.name, base: a.name, boss, ace, squad: squad || "" });
+  pending.push({ name: doc.name, base: a.name, boss, ace, squad: squad || "", launch: a.system.key === "icbm" });
   clearTimeout(pendTimer);
   pendTimer = setTimeout(announce, 400);
 }
@@ -93,7 +93,8 @@ async function announce() {
   const list = pending; pending = [];
   const boss = list.find(x => x.boss), squads = [...new Set(list.map(x => x.squad).filter(Boolean))], aces = list.filter(x => x.ace && !x.boss);
   let caution, text;
-  if (boss) { caution = { level: "warning", title: "WARNING", sub: `Супероружие: ${boss.base}` }; text = `Всем бортам: в районе ${boss.base}. Повторяю, ${boss.base}!`; }
+  if (boss?.launch) { caution = { level: "warning", title: "WARNING", sub: "Пуск баллистической ракеты" }; text = "Всем бортам: зафиксирован пуск баллистической ракеты! Сбейте её, пока она не ушла на High!"; }
+  else if (boss) { caution = { level: "warning", title: "WARNING", sub: `Супероружие: ${boss.base}` }; text = `Всем бортам: в районе ${boss.base}. Повторяю, ${boss.base}!`; }
   else if (squads.length) { caution = { title: "CAUTION", sub: `Вражеская эскадрилья «${squads[0]}»` }; text = `Приближается эскадрилья противника «${squads[0]}». Это не новички, будьте внимательны.`; }
   else if (aces.length) { caution = { title: "CAUTION", sub: `Вражеский ас: ${aces[0].name}` }; text = `Внимание, вражеский ас: ${aces[0].name}. Не дайте ему зайти в хвост.`; }
   else return;
