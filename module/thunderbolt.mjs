@@ -1,4 +1,5 @@
 /* Thunderbolt: Штаб ВВС Юктобании — точка входа системы. */
+import "./delta-bridge.mjs";
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { PilotData, NpcData, PlaneData, WeaponData, TriggerData } from "./data/models.mjs";
 import { TBActor, TBItem } from "./documents/actor.mjs";
@@ -159,8 +160,8 @@ Hooks.on("preUpdateActor", (actor, change, options) => {
 });
 
 /* Сторона NPC меняет и сторону его токенов (цвет рамки Foundry), чтобы сцена и система не расходились.
-   Токены NPC не связаны с актёром: правка листа токена приходит как updateActorDelta, а правка актёра из «Актёров»
-   должна дойти и до уже стоящих токенов (getActiveTokens(true) их не возвращает). */
+   Правка листа токена доходит сюда через мост delta-bridge.mjs, а правка актёра из «Актёров»
+   должна дойти и до уже стоящих несвязанных токенов (getActiveTokens(true) их не возвращает). */
 const SIDE_DISPOSITION = { enemy: -1, neutral: 0, ally: 1 };
 function sideToTokens(actor, side) {
   const disposition = SIDE_DISPOSITION[side];
@@ -172,11 +173,6 @@ function sideToTokens(actor, side) {
 Hooks.on("updateActor", (actor, change, options, userId) => {
   const side = foundry.utils.getProperty(change, "system.side");
   if (userId !== game.user.id || actor.type !== "npc" || !(side in SIDE_DISPOSITION)) return;
-  sideToTokens(actor, side);
-});
-Hooks.on("updateActorDelta", (delta, change, options, userId) => {
-  const side = foundry.utils.getProperty(change, "system.side"), actor = delta.parent?.actor;
-  if (userId !== game.user.id || actor?.type !== "npc" || !(side in SIDE_DISPOSITION)) return;
   sideToTokens(actor, side);
 });
 
