@@ -29,21 +29,21 @@ function fromMessage(message) {
   const r = f.radio;
   if (r) {
     if (r.to && !mine(r.to) && !(game.user.isGM && r.gm)) return;
-    if (r.text) say(r.speaker ?? "AWACS", r.text, r.tone);
+    if (r.text) say(r.speaker ?? "AWACS", r.text, r.side);
     if (r.caution) caution(r.caution);
     return;
   }
   // захват: владелец цели слышит предупреждение (без звука)
   if (f.rwr) {
     const t = mine(f.rwr.target);
-    if (t) say("AWACS", `${callsign(t)}, тебя взяли на захват: ${f.rwr.from}.`, "warn");
+    if (t) say("AWACS", `${callsign(t)}, тебя взяли на захват: ${f.rwr.from}.`);
     return;
   }
   const c = f.card;
   if (!c) return;
   if (c.maws && !c.delayedResolved) {
     const t = mine(c.targetUuid);
-    if (t) say("AWACS", `${callsign(t)}, ракета по тебе! Break!`, "danger");
+    if (t) say("AWACS", `${callsign(t)}, ракета по тебе! Break!`);
     return;
   }
   if (c.type === "volley") return volleyCall(c);
@@ -64,7 +64,7 @@ function volleyCall(c) {
     const hits = (c.targets ?? []).filter(r => r.hit).length, all = (c.targets ?? []).filter(r => !r.missing && !r.ship).length;
     if (all) parts.push(`залп: попаданий ${hits} из ${all}`);
   }
-  if (parts.length) say("AWACS", cap(parts.join(". ")) + ".", parts.some(p => p.includes("по тебе, ")) ? "danger" : "info");
+  if (parts.length) say("AWACS", cap(parts.join(". ")) + ".");
 }
 
 /** Смена погоды над всей сценой. */
@@ -72,7 +72,7 @@ function weatherCall(scene, change) {
   const next = foundry.utils.getProperty(change, `flags.${SYSTEM_ID}.weather`);
   if (!next || scene.id !== game.scenes.viewed?.id) return;
   const names = next.map(id => TB.weather[id]?.name).filter(Boolean);
-  say("AWACS", names.length ? `Внимание, меняется погода над районом: ${names.join(", ").toLowerCase()}.` : "Погода над районом проясняется.", "info");
+  say("AWACS", names.length ? `Внимание, меняется погода над районом: ${names.join(", ").toLowerCase()}.` : "Погода над районом проясняется.");
 }
 
 /* Подкрепления: ведущий объявляет вражеского аса, эскадрилью или супероружие, появившиеся на сцене во время боя. */
@@ -99,10 +99,11 @@ async function announce() {
 }
 
 /** Реплика AWACS всем (и в чат): ведущий из панели, подкрепления и т. п. */
-export function sendRadio({ speaker = "AWACS", text = "", caution = null, tone = caution ? "warn" : "info" }) {
-  const body = [caution ? `<div class="tb-radio-caution-line">-- ${esc(caution.title)} -- ${esc(caution.sub ?? "")}</div>` : "", text ? `<div class="tb-note"><b>${esc(speaker)}:</b> «${esc(text)}»</div>` : ""].join("");
+export function sendRadio({ speaker = "AWACS", text = "", caution = null, side = "ally" }) {
+  side = sideClass(side);
+  const body = [caution ? `<div class="tb-radio-caution-line">-- ${esc(caution.title)} -- ${esc(caution.sub ?? "")}</div>` : "", text ? `<div class="tb-note"><b class="tb-radio-${side}">${esc(speaker)}:</b> «${esc(text)}»</div>` : ""].join("");
   return ChatMessage.create({ speaker: { alias: speaker }, content: `<div class="tb-card tb-card-radio">${body}</div>`,
-    flags: { [SYSTEM_ID]: { radio: { speaker, text, caution, tone } } } });
+    flags: { [SYSTEM_ID]: { radio: { speaker, text, caution, side } } } });
 }
 
 /* ---------- вывод ---------- */
@@ -112,16 +113,19 @@ const plural = (n, one, few, many) => n % 10 === 1 && n % 100 !== 11 ? one : n %
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const enabled = () => { try { return game.settings.get(SYSTEM_ID, "radioSubtitles"); } catch { return true; } };
 
-export function say(speaker, text, tone = "info") {
+/** Цвет говорящего: синий у AWACS и союзников, красный у противника, жёлтый у нейтралов. */
+const sideClass = side => ["ally", "enemy", "neutral"].includes(side) ? side : "ally";
+
+export function say(speaker, text, side = "ally") {
   if (!enabled() || !text) return;
   const last = queue.at(-1);
   if (last && last.text === text) return;
-  queue.push({ speaker, text, tone });
+  queue.push({ speaker, text, side: sideClass(side) });
   // конец раунда: не больше MAX_QUEUE реплик, остальное одной строкой
   if (queue.length > MAX_QUEUE) {
     const extra = queue.splice(MAX_QUEUE - 1);
     const n = extra.reduce((s, x) => s + (x.count ?? 1), 0);
-    queue.push({ speaker: "AWACS", text: `И ещё ${n} ${plural(n, "сообщение", "сообщения", "сообщений")}, подробности в чате.`, tone: extra.some(x => x.tone === "danger") ? "danger" : "info", count: n });
+    queue.push({ speaker: "AWACS", text: `И ещё ${n} ${plural(n, "сообщение", "сообщения", "сообщений")}, подробности в чате.`, side: "ally", count: n });
   }
   if (!showing) next();
 }
@@ -137,7 +141,7 @@ function next() {
   const el = box("tb-radio");
   if (!item) { showing = false; el.classList.remove("on"); return; }
   showing = true;
-  el.className = `tb-radio-${item.tone}`;
+  el.className = `tb-radio-${item.side}`;
   el.innerHTML = `<div class="tb-radio-who">${esc(item.speaker)}</div><div class="tb-radio-line"><span class="q">«</span> ${esc(item.text)} <span class="q">»</span></div>`;
   void el.offsetWidth;
   el.classList.add("on");
@@ -185,6 +189,7 @@ export function openRadioDialog() {
   const content = `<form class="tb-dialog tb-radio-form">
     <div class="form-group"><label>Заготовка</label><select name="preset">${opts}</select></div>
     <div class="form-group"><label>Кто говорит</label><input type="text" name="speaker" value="AWACS"></div>
+    <div class="form-group"><label>Цвет</label><select name="side"><option value="ally">Синий: AWACS, союзник</option><option value="enemy">Красный: противник</option><option value="neutral">Жёлтый: нейтрал</option></select></div>
     <div class="form-group stacked"><label>Реплика</label><textarea name="text" rows="3"></textarea></div>
     <div class="form-group"><label>Баннер</label><select name="banner"><option value="">Без баннера</option><option value="CAUTION">CAUTION (жёлтый)</option><option value="WARNING">WARNING (красный)</option></select></div>
     <div class="form-group"><label>Подпись баннера</label><input type="text" name="sub"></div>
@@ -196,7 +201,7 @@ export function openRadioDialog() {
         const f = html[0].querySelector("form");
         const text = f.text.value.trim(), banner = f.banner.value, sub = f.sub.value.trim();
         if (!text && !banner) return;
-        sendRadio({ speaker: f.speaker.value.trim() || "AWACS", text,
+        sendRadio({ speaker: f.speaker.value.trim() || "AWACS", text, side: f.side.value,
           caution: banner ? { title: banner, sub, level: banner === "WARNING" ? "warning" : "caution" } : null });
       } },
       cancel: { label: "Отмена" }
