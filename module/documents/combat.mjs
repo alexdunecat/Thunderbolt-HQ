@@ -91,6 +91,10 @@ function declareDialog(combat, list) {
 async function beginRound(combat) {
   // сбитые, что ещё висят на поле до конца раунда, и отступившие пасуют сами
   const out = combat.combatants.filter(c => isOut(c) && !passive(c.actor) && c.initiative !== PASS);
+  // срыв «Ступор»: пилот пропускает следующий ход целиком
+  const stunned = combat.combatants.filter(c => !out.includes(c) && c.actor?.getFlag?.(SYSTEM_ID, "stupor"));
+  for (const c of stunned) await c.actor.unsetFlag(SYSTEM_ID, "stupor");
+  out.push(...stunned);
   if (out.length) await combat.updateEmbeddedDocuments("Combatant", out.map(c => ({ _id: c.id, initiative: PASS })));
   const npcs = acting(combat).filter(c => npcSide(c) && !declared(c));
   if (!npcs.length) return markNpcDone(combat);

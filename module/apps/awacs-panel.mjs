@@ -8,6 +8,8 @@ import { openMapUpdateDialog, coreWeatherFor } from "./mission-import.mjs";
 import { targetGoals } from "../losses.mjs";
 import { openRadioDialog } from "../radio.mjs";
 import { openDossierExchange } from "../dossier-sync.mjs";
+import { threats, addThreat, stepThreat, deleteThreat, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
+import { DT } from "../config.mjs";
 import { SQUAD_POINTS, allSquads, squadPoints, squadMembers, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
 
 let panel = null;
@@ -90,7 +92,13 @@ export class AwacsPanel extends Application {
       sceneName: scene?.name ?? "сцена не выбрана", pilots, targets, groups, cells, squads: squads.filter(q => q.members), squadsElsewhere: elsewhere, squadBudget: SQUAD_POINTS,
       skillHeads: Object.values(TB.skills).map(v => ({ label: v.label, en: v.en })),
       weather: Object.entries(TB.weather).map(([id, d]) => ({ id, ...d, on: sceneWeather.has(id) })),
-      round: combat?.started ? combat.round : null, queued
+      round: combat?.started ? combat.round : null, queued,
+      threats: threats().map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size })),
+      ground: game.actors.filter(a => a.type === "pilot").sort((a, b) => a.name.localeCompare(b.name, "ru")).map(a => {
+        const s = a.system;
+        return { id: a.id, name: a.name, nerves: s.nerves, nervesCls: s.nerves >= 5 ? "edge" : s.nerves >= 3 ? "high" : "", edgeFly: s.edgeFly,
+          resolve: s.resolve, actions: s.downtime.actions, edges: s.edges.map(e => edgeLabel(e, a)).join("; "), bonds: s.bonds.filter(b => !b.dead && b.value).map(b => `${b.name} ${b.value}`).join(", ") };
+      })
     };
   }
 
@@ -132,6 +140,12 @@ export class AwacsPanel extends Application {
     on("[data-radio]", () => openRadioDialog());
     on("[data-shtab]", () => openDossierExchange());
     on("[data-arrange]", () => arrangeSceneTokens());
+    on("[data-base-event]", () => baseEvent());
+    on("[data-threat-add]", () => addThreat());
+    on("[data-threat-step]", d => stepThreat(d.threatStep, Number(d.delta)));
+    on("[data-threat-del]", async d => {
+      if (await Dialog.confirm({ title: "Шкала угрозы", content: "<p>Убрать эту шкалу?</p>" })) deleteThreat(d.threatDel);
+    });
     on("[data-all-fight]", () => allToCombat());
     on("[data-squad-form]", () => squadFromSelection());
     on("[data-squad-num]", d => numberSquad(d.squadNum));
@@ -213,12 +227,14 @@ export async function sortieResults() {
   const rows = pilots.map(a => {
     const k = a.getFlag(SYSTEM_ID, "kills") ?? {};
     const mentor = a.items.some(i => i.type === "trigger" && i.system.key === "mentor");
+    const nh = nervesHint(a);
     return `<tr>
       <td><label><input type="checkbox" name="fly_${a.id}" ${a.hasPlayerOwner ? "checked" : ""}> ${esc(a.name)}</label></td>
       <td><input type="number" name="air_${a.id}" value="${k.air ?? 0}" min="0"></td>
       <td><input type="number" name="gnd_${a.id}" value="${k.ground ?? 0}" min="0"></td>
       <td><input type="checkbox" name="eject_${a.id}" ${a.system.markers.doom ? "checked" : ""}></td>
       <td><input type="number" name="pts_${a.id}" value="1" min="0"></td>
+      <td><input type="number" name="nerves_${a.id}" value="${nh.up}" min="0" max="2" title="${esc(nh.why || "две метки урона, гибель товарища со Связью или тяжёлое решение")}" ${a.system.edgeFly ? "disabled" : ""}> <small>${a.system.nerves}${nh.why ? ` · ${esc(nh.why)}` : ""}</small></td>
       <td>${mentor ? `<label title="Урок наставника выполнен: +1 очко"><input type="checkbox" name="lesson_${a.id}"> урок</label>` : ""}</td>
     </tr>`;
   }).join("");
@@ -226,7 +242,8 @@ export async function sortieResults() {
     `<div class="form-group"><label><input type="checkbox" name="obj_${i}"> ${esc(o)}</label></div>`).join("")}` : "";
   const data = await formDialog("Итоги вылета", `
     <p class="tb-hint">Сбитые подсчитаны по урону, нанесённому с карточек атак; поправьте, если нужно. Очки навыков добавляются к «Доп. очкам». Катапульта отмечена у тех, кто получил Doom.</p>
-    <table class="tb-results"><tr><th>Летал</th><th>Сбито в воздухе</th><th>Уничтожено на земле</th><th>Катапульта</th><th>Очки</th><th></th></tr>${rows}</table>
+    <p class="tb-hint">Нервы: +1 за две метки урона, гибель товарища со Связью или тяжёлое решение, не больше +2 за вылет; на пределе не растут. У летавших Заделы сгорают, начинается даунтайм с двумя действиями.</p>
+    <table class="tb-results"><tr><th>Летал</th><th>Сбито в воздухе</th><th>Уничтожено на земле</th><th>Катапульта</th><th>Очки</th><th>Нервы +</th><th></th></tr>${rows}</table>
     ${goals}
     <div class="form-group"><label>Операция</label><input type="text" name="op" value="${esc(scene?.getFlag(SYSTEM_ID, "mission") || scene?.name || "")}" placeholder="название вылета"></div>
     <div class="form-group"><label><input type="checkbox" name="journal" checked> Записать разбор полёта в журнал</label></div>`, { ok: "Записать в личные дела", width: 640 });
@@ -245,13 +262,15 @@ export async function sortieResults() {
     // в личное дело: в какой операции был вылет; новая операция прибавляет счётчик операций
     const log = [...(sv.log ?? []), { op, date: new Date().toLocaleDateString("ru-RU"), air, ground: gnd, eject }];
     const newOp = !(sv.log ?? []).some(x => x.op === op);
+    const dt = afterSortieUpdate(a, data[`nerves_${a.id}`] ?? 0);
     await a.update({
+      ...dt.upd,
       "system.service.log": log, "system.service.ops": sv.ops + (newOp ? 1 : 0),
       "system.service.sorties": sortie, "system.service.air": sv.air + air, "system.service.ground": sv.ground + gnd,
       "system.service.eject": sv.eject + (eject ? 1 : 0), "system.bonusPoints": a.system.bonusPoints + pts,
       [`flags.${SYSTEM_ID}.-=kills`]: null
     });
-    lines.push(`<b>${esc(a.name)}</b>: вылет ${sortie}${air ? `, сбито ${air}` : ""}${gnd ? `, на земле ${gnd}` : ""}${eject ? ", катапультировался" : ""}${pts ? `, +${pts} ${pts === 1 ? "очко" : "очка"} навыков` : ""}`);
+    lines.push(`<b>${esc(a.name)}</b>: вылет ${sortie}${air ? `, сбито ${air}` : ""}${gnd ? `, на земле ${gnd}` : ""}${eject ? ", катапультировался" : ""}${pts ? `, +${pts} ${pts === 1 ? "очко" : "очка"} навыков` : ""}${dt.notes.length ? `, ${dt.notes.map(esc).join(", ")}` : ""}`);
   }
   if (!lines.length) return;
   const entry = data.journal ? await writeDebrief({ op, rows: report, targets: sceneTargets(),

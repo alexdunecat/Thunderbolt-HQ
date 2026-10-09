@@ -6,6 +6,7 @@ import { takeNext, passOutcome } from "../squad.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
 import { allowRoll } from "../actions.mjs";
 import { aimedWeapon } from "../range.mjs";
+import { renderGround, renderBreakdown, resolveButton, groundAction, checkBreakdown, practiceFor } from "../downtime.mjs";
 
 const sign = n => (n >= 0 ? "+" : "−") + Math.abs(n);
 
@@ -103,6 +104,8 @@ export function computeCard(c) {
 
 export function renderCard(card) {
   if (card.type === "volley") return renderVolley(card);
+  if (card.type === "ground") return renderGround(card);
+  if (card.type === "breakdown") return renderBreakdown(card);
   const c = computeCard(card);
   const rows = [];
   const parts = c.parts.map(([l, v]) => `<span class="tb-part">${esc(l)} ${sign(v)}</span>`).join(" ");
@@ -135,6 +138,13 @@ export function renderCard(card) {
   if (c.rolled && c.comp && !c.compPassed) btn.push(`<button type="button" data-tb-action="comp-next" class="tb-owner">Complication: −1 к следующей</button>`);
   if (c.perkPassed) rows.push(`<div class="tb-note">Perk: +1 к следующей проверке, ${esc(c.perkPassed)}.</div>`);
   if (c.compPassed) rows.push(`<div class="tb-note">Complication: −1 к следующей проверке, ${esc(c.compPassed)}.</div>`);
+  // Решимость (d4 = 4) и Наработка (переброс d10 навыка раз за вылет) из даунтайма
+  const who = resolveActor(c.actorUuid);
+  btn.push(...resolveButton(c, who));
+  if (c.resolveUsed) rows.push(`<div class="tb-note">Решимость: d4 считается за 4.</div>`);
+  if (c.rolled && !c.practiced && !c.reroll && !c.resolved && !c.dmgApplied && practiceFor(who, c.skill, c.d10))
+    btn.push(`<button type="button" data-tb-action="dt-practice" class="tb-owner" title="Задел «Наработка»: раз за вылет перебросить d10 и взять лучший"><i class="fas fa-rotate"></i> Наработка: перебросить d10</button>`);
+  if (c.reroll) rows.push(`<div class="tb-note">Наработка: d10 переброшен (${c.reroll.join(" → ")}), взят лучший.</div>`);
   if (c.rolled && c.strainable && !c.resolved) btn.push(`<button type="button" data-tb-action="strain" class="tb-owner"><i class="fas fa-bolt"></i> +1 Strain</button>`);
   if (c.type === "break" && !c.speedApplied) btn.push(`<button type="button" data-tb-action="break-speed" class="tb-owner">Speed −${c.speedDrop} после атак</button>`);
   if (c.type === "break" && !c.speedApplied && c.combatKey) rows.push(`<div class="tb-note">Speed −${c.speedDrop} спишется сам в конце раунда.</div>`);
@@ -158,7 +168,7 @@ export function renderCard(card) {
   </div>`;
 }
 
-async function postCard(actor, card, rolls = []) {
+export async function postCard(actor, card, rolls = []) {
   card.actorUuid = actor.uuid;
   card.actorName = actor.name;
   const msg = await ChatMessage.create({
@@ -169,6 +179,8 @@ async function postCard(actor, card, rolls = []) {
     flags: { [SYSTEM_ID]: { card } }
   });
   if (card.rolled && computeCard(card).comp) await lightningStrike(actor);
+  // на пределе: первая d4 = 1 в вылете — срыв
+  if (card.rolled && card.type !== "ground" && card.d4 === 1) await checkBreakdown(actor, "на d4 выпала 1");
   return msg;
 }
 
@@ -195,7 +207,7 @@ async function lightningStrike(actor) {
 /** Пороги Perk/Complication с учётом погоды «Ураган» (Complication на 1–2). */
 function thresholds(actor, skill, extraComp) {
   const s = actor.system;
-  return { perkOn: s.perkOn?.[skill] ?? 4, compOn: Math.max(s.compOn?.[skill] ?? 1, extraComp ? 2 : 1) };
+  return { perkOn: s.perkOn?.[skill] ?? 4, compOn: Math.max(s.compOn?.[skill] ?? 1, extraComp ? 2 : 1), skill };
 }
 
 /** Триггер «Отточенное мастерство» (Practiced Competence), ещё не использованный в этом вылете. */
@@ -819,6 +831,20 @@ export async function onCardAction(message, action, button) {
       card[action === "perk-next" ? "perkPassed" : "compPassed"] = who.name;
       return save();
     }
+    case "dt-practice": {
+      if (!actor?.isOwner || card.reroll) return;
+      const edge = practiceFor(actor, card.skill, card.d10);
+      if (!edge) return ui.notifications.warn("Наработки по этому навыку нет или она уже потрачена.");
+      const r = await roll("1d10");
+      if (game.dice3d) await game.dice3d.showForRoll(r, game.user, true);
+      card.reroll = [card.d10, r.total];
+      card.d10 = Math.max(card.d10, r.total);
+      await actor.update({ "system.edges": actor.system.edges.map(e => e.id === edge.id ? { ...e, used: true } : e) });
+      await save();
+      if (card.type === "break") await applyBreak(actor, card);
+      if (card.instant) await autoHit(message);
+      return;
+    }
     case "battle-results": {
       if (game.user.isGM) game.thunderbolt.sortieResults();
       return;
@@ -833,6 +859,7 @@ export async function onCardAction(message, action, button) {
       }
       return;
     }
+    default: return groundAction(message, card, action, button, actor, save);
   }
 }
 

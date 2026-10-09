@@ -5,6 +5,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { planeItem, weaponItem, triggerItem, npcActor } from "../module/data/catalog-docs.mjs";
+import { DT } from "../module/config.mjs";
 
 // CLI можно указать путём к index.mjs через FVTT_CLI, если node_modules лежит в другом месте
 const { compilePack } = await import(process.env.FVTT_CLI ?? "@foundryvtt/foundryvtt-cli");
@@ -74,6 +75,19 @@ add("rules", "journal", {
     name: p.name, type: "text", title: { show: true, level: 1 }, text: { format: 1, content: p.html },
     sort: (i + 1) * 100000, ownership: { default: -1 }, flags: {}, _stats: stats
   }))
+});
+
+// таблицы AWACS: события на базе (d10) для даунтайма
+const tid = id("table:base-events");
+add("tables", "tables", {
+  _id: tid, name: "События на базе", img: "icons/svg/d10-grey.svg", formula: "1d10", replacement: true, displayRoll: true,
+  description: "<p>Бросок в начале даунтайма: событие задаёт тон и подкидывает крючок для общей сцены, действий оно не отнимает. Тот же бросок есть кнопкой «Событие на базе» в панели AWACS.</p>",
+  folder: null, sort: 0, ownership: { default: 0 }, flags: {}, _stats: stats,
+  results: DT.events.map(([name, text, hook], i) => {
+    const rid = id(`table:base-events:${i + 1}`);
+    return { _id: rid, _key: `!tables.results!${tid}.${rid}`, type: "text", text: `<b>${name}.</b> ${text} Крючок: «${hook}»`, img: "icons/svg/d10-grey.svg",
+      weight: 1, range: [i + 1, i + 1], drawn: false, flags: {}, _stats: stats };
+  })
 });
 
 // LevelDB не работает на некоторых сетевых дисках: тогда собирайте в PACKS_TMP и копируйте в packs/

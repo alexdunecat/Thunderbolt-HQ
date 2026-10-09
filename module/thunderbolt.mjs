@@ -20,6 +20,7 @@ import { registerMacros, actFromMacro } from "./macros.mjs";
 import { registerRwr } from "./rwr.mjs";
 import { registerRadio, sendRadio, say, caution, openRadioDialog } from "./radio.mjs";
 import { registerRange } from "./range.mjs";
+import * as Downtime from "./downtime.mjs";
 import { openRadioLog } from "./radio-log.mjs";
 import { openDossierExchange, importDossier, exportDossier } from "./dossier-sync.mjs";
 import { registerMapInfo } from "./mapinfo.mjs";
@@ -86,6 +87,7 @@ Hooks.once("init", () => {
   registerRwr();
   registerRadio();
   registerRange();
+  Downtime.registerDowntime();
   registerMapInfo();
   registerRotate();
   registerAltitude();
@@ -96,7 +98,8 @@ Hooks.once("init", () => {
   registerActions();
 
   game.thunderbolt = { importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
-    squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB, radio: { send: sendRadio, say, caution, log: openRadioLog }, dossier: { open: openDossierExchange, importDossier, exportDossier } };
+    squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB, radio: { send: sendRadio, say, caution, log: openRadioLog }, dossier: { open: openDossierExchange, importDossier, exportDossier },
+    refreshAwacs, downtime: { ground: Downtime.rollGround, baseEvent: Downtime.baseEvent, threats: Downtime.threats, addThreat: Downtime.addThreat, stepThreat: Downtime.stepThreat } };
 });
 
 Hooks.once("ready", async () => {

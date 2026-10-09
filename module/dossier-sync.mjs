@@ -1,9 +1,9 @@
 /* Личные дела: обмен кодом с «Личным делом» Штаба (kind "yukto-dossier" и "yukto-dossiers").
    Из Штаба в Foundry: анкета, послужной список, навыки, триггеры, самолёт со своими характеристиками, спецоружие с боезапасом,
-   состояние вылета и фото (если игроку можно загружать файлы). Из Foundry в Штаб — то же самое, с номером дела Штаба:
+   состояние вылета, даунтайм (Нервы, Решимость, Заделы, Связи, цели, долги) и фото (если игроку можно загружать файлы). Из Foundry в Штаб — то же самое, с номером дела Штаба:
    Штаб обновит дело с этим номером, а не заведёт новое. Номер дела и бортовое имя хранятся во флаге shtab,
    заметки к триггерам — во флагах триггеров. */
-import { SYSTEM_ID, TB } from "./config.mjs";
+import { SYSTEM_ID, TB, DT } from "./config.mjs";
 import { esc } from "./utils.mjs";
 
 const STAT_MAP = [["spd", "spd"], ["eva", "ev"], ["aa", "aa"], ["ag", "ag"], ["hp", "hp"], ["str", "str"], ["gun", "gun"], ["hpts", "hard"]];
@@ -95,6 +95,7 @@ export async function importDossier(raw, actor = null) {
   const trigUpd = created.filter(it => it.type === "trigger" && it.getFlag(SYSTEM_ID, "slot") !== null && it.getFlag(SYSTEM_ID, "slot") !== undefined)
     .map(it => ({ _id: it.id, "system.weapon": weaponIds[Number(it.getFlag(SYSTEM_ID, "slot"))] ?? "" }));
   if (trigUpd.length) await actor.updateEmbeddedDocuments("Item", trigUpd);
+  if (raw.ground && typeof raw.ground === "object") Object.assign(system, groundFrom(raw.ground, weaponIds));
 
   const upd = { name, ...Object.fromEntries(Object.entries(system).map(([k, v]) => [`system.${k}`, v])), [`flags.${SYSTEM_ID}.shtab`]: flag };
   if (raw.callsign) upd["prototypeToken.name"] = raw.callsign;
@@ -177,8 +178,58 @@ export function exportDossier(actor) {
       const max = w.system.ammo.max === null ? null : w.system.ammo.max + (s.ammoBonus?.[w.id] ?? 0);
       return { code: w.system.key, ammo: max === null || w.system.ammo.value >= max ? null : w.system.ammo.value };
     }),
+    ground: groundTo(actor, weapons),
     sortie: { speed: s.speed, hp: s.hp.value >= s.hp.max ? null : s.hp.value, strain: s.strain.value >= s.strain.max ? null : s.strain.value,
       alt: s.alt, grit: s.markers.grit, gritSkill: s.markers.gritSkill, structure: s.markers.structure, sys: s.markers.sys, doom: s.markers.doom, twist: s.twist }
+  };
+}
+
+/* ---------- даунтайм: Нервы, Решимость, Заделы, Связи, цели, долги ---------- */
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, num(v) ?? lo));
+
+/** Даунтайм из Штаба в поля листа. Узел подвески Задела «боекомплект» становится ссылкой на предмет; Связь с пилотом — по номеру дела Штаба. */
+function groundFrom(g, weaponIds) {
+  const byShtab = id => game.actors.find(a => a.type === "pilot" && (a.getFlag(SYSTEM_ID, "shtab")?.id === id || `pf${a.id}` === id));
+  const edges = (g.edges ?? []).filter(e => e && DT.edges[e.kind]).map(e => ({
+    id: foundry.utils.randomID(), kind: e.kind, stat: e.stat ?? "", minus: e.minus ?? "", minus2: e.minus2 ?? "",
+    weapon: e.slot !== undefined && e.slot !== "" && e.slot !== null ? weaponIds[Number(e.slot)] ?? "" : "",
+    skill: e.skill ?? "", mode: e.mode ?? "", text: e.text ?? "", value: num(e.value) ?? 0, comp: !!e.comp, used: !!e.used
+  }));
+  const bonds = (g.bonds ?? []).filter(b => b?.name).map(b => {
+    const other = b.pid ? byShtab(b.pid) : game.actors.find(a => a.type === "pilot" && a.name === b.name);
+    return { name: b.name, uuid: !b.npc && other ? other.uuid : "", npc: !!b.npc, value: clamp(b.value, 0, b.npc ? DT.maxNpcBond : DT.maxBond),
+      was: (b.was ?? []).map(Number).filter(Number.isFinite), dead: !!b.dead, used: false, usedGround: false, grown: false };
+  });
+  return {
+    nerves: clamp(g.nerves, 0, DT.maxNerves), onEdge: g.onEdge === "fly" ? "fly" : "", resolve: clamp(g.resolve, 0, DT.maxResolve),
+    "downtime.actions": clamp(g.actions ?? 2, 0, 2), "downtime.resolveGot": !!g.resolveGot,
+    edges, bonds,
+    goals: (g.goals ?? []).filter(x => x?.name || x?.value).map(x => { const size = num(x.size) === 6 ? 6 : 4; return { name: x.name ?? "", size, value: clamp(x.value, 0, size) }; }),
+    debts: (g.debts ?? []).filter(x => x?.text).map(x => ({ text: x.text, struck: !!x.struck }))
+  };
+}
+
+/** Даунтайм листа в формате Штаба. */
+function groundTo(actor, weapons) {
+  const s = actor.system;
+  const shtabId = a => a.getFlag(SYSTEM_ID, "shtab")?.id || `pf${a.id}`;
+  return {
+    nerves: s.nerves, onEdge: s.onEdge, resolve: s.resolve, actions: s.downtime.actions, resolveGot: s.downtime.resolveGot,
+    edges: s.edges.map(e => {
+      const out = { kind: e.kind, text: e.text, comp: e.comp, used: e.used };
+      for (const k of ["stat", "minus", "minus2", "skill", "mode"]) if (e[k]) out[k] = e[k];
+      if (e.kind === "memory") out.value = e.value;
+      const wi = e.weapon ? weapons.findIndex(w => w.id === e.weapon) : -1;
+      if (wi >= 0) out.slot = String(wi);
+      return out;
+    }),
+    bonds: s.bonds.map(b => {
+      const other = b.uuid ? fromUuidSync(b.uuid) : null;
+      return { name: b.name, value: b.value, was: b.was ?? [], npc: b.npc, dead: b.dead, ...(other ? { pid: shtabId(other) } : {}) };
+    }),
+    goals: s.goals.map(g => ({ name: g.name, size: g.size, value: g.value })),
+    debts: s.debts.map(d => ({ text: d.text, struck: d.struck }))
   };
 }
 

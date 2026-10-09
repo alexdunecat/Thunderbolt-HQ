@@ -1,5 +1,5 @@
 /* Листы пилота и NPC (ActorSheet v1, стабильный API Foundry v12). */
-import { SYSTEM_ID, SYS_PATH, TB } from "../config.mjs";
+import { SYSTEM_ID, SYS_PATH, TB, DT } from "../config.mjs";
 import { esc } from "../utils.mjs";
 import { weatherAt, defenseWithWeather, tokenOf, zoneDistance, rangeLabel, gunVs } from "../scene.mjs";
 import { leadership, formUp, nextMods, dropNext, adjacentOf, breakAdjacent } from "../squad.mjs";
@@ -9,6 +9,7 @@ import { runAction, ACTIONS, startActionDrag } from "../macros.mjs";
 import { spendAction, actsSummary, allowAction, endTurn } from "../actions.mjs";
 import { openDossierExchange } from "../dossier-sync.mjs";
 import { aimedWeapon, toggleAim } from "../range.mjs";
+import { rollGround, chooseEdge, edgeLabel, dropBond, useBond, useEdge, threats, clockPips, stepThreat } from "../downtime.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -189,6 +190,103 @@ function lockInfo(actor) {
   };
 }
 
+/* ---------- даунтайм на листе ---------- */
+
+const NERVES_NOTE = ["Спокоен.", "Держится.", "Держится, но устал.", "Нервы 3: вылет со Strain на 2 ниже максимума.",
+  "Нервы 4: вылет со Strain на 2 ниже максимума.", "Нервы 5, на пределе: перед вылетом выбрать, лететь на пределе или подать рапорт об отдыхе."];
+
+const EDGE_HINT = {
+  tune: "временная настройка машины на один вылет", ammo: "+1 к боезапасу на вылет", rare: "то, чего нет в обычном ангаре",
+  intel: "вопрос AWACS до брифинга или +2 к одной атаке по врагу", practice: "раз за вылет перебросить d10 этого навыка: кнопка на карточке броска",
+  fresh: "+2 Strain сверх максимума на старте", memory: "раз в вылете к любому броску", fatigue: "последствие на вылет", trauma: "последствие на вылет", custom: "по договорённости с AWACS"
+};
+
+function downtimeView(a) {
+  const s = a.system;
+  const pips = (n, val, from = 1) => Array.from({ length: n }, (_, k) => ({ i: k + from, on: k + from <= val }));
+  const edges = s.edges.map(e => ({ ...e, label: edgeLabel(e, a), hint: EDGE_HINT[e.kind] ?? "", notEdge: DT.notEdges.includes(e.kind),
+    needsMinus: e.kind === "tune" && ["ev", "spd"].includes(e.stat), isAmmo: e.kind === "ammo" }));
+  const live = s.bonds.map((b, i) => ({ ...b, i })).filter(b => !b.dead && b.value > 0);
+  const edgeChips = s.edges.filter(e => e.kind === "memory" || (e.kind === "intel" && e.mode === "weak"))
+    .map(e => ({ id: e.id, used: e.used, label: e.kind === "memory" ? `Память: ${e.text} +${e.value}` : `Слабое место${e.text ? `: ${e.text}` : ""} +2`,
+      hint: e.used ? "Уже использовано в этом вылете" : "Щелчок: прибавить к следующему броску" }));
+  const passive = s.edges.filter(e => !["memory", "intel"].includes(e.kind) || (e.kind === "intel" && e.mode !== "weak")).map(e => edgeLabel(e, a));
+  const breakdown = s.breakdown && DT.breakdowns[s.breakdown] ? DT.breakdowns[s.breakdown] : null;
+  return {
+    nervesPips: pips(5, s.nerves).map(p => ({ ...p, cls: p.i >= 5 ? "edge" : p.i >= 3 ? "high" : "" })),
+    nervesNote: NERVES_NOTE[s.nerves] ?? "", nervesWarn: s.nerves >= 3,
+    edgeAsk: s.nerves >= DT.maxNerves && !s.onEdge, edgeFly: s.edgeFly, breakdown,
+    alert: s.nerves >= DT.maxNerves && !s.onEdge,
+    resolvePips: pips(DT.maxResolve, s.resolve), actionPips: pips(2, s.downtime.actions),
+    actions: Object.entries(DT.actions).map(([key, x]) => ({ key, label: x.label, hint: x.hint, roll: x.skills.length > 0,
+      off: key === "breakdown" && s.nerves < DT.maxNerves })),
+    edges, maxEdges: DT.maxEdges, edgesOver: s.edgeCount > DT.maxEdges,
+    minusOptions: Object.fromEntries(Object.entries(DT.tuneMinus).map(([k, v]) => [k, `${v[1]} −1`])),
+    bonds: s.bonds.map((b, i) => ({ ...b, i, was: (b.was ?? []).join(", "), pips: pips(b.npc ? DT.maxNpcBond : DT.maxBond, b.value) })),
+    goals: s.goals.map((g, i) => ({ ...g, i, small: g.size <= 4, done: g.value >= g.size, pips: clockPips(g.value, g.size) })),
+    debts: s.debts.map((d, i) => ({ ...d, i })),
+    threats: threats().map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size })),
+    bondChips: live, edgeChips, passive,
+    sortie: live.length || edgeChips.length || passive.length || s.edgeFly || !!breakdown
+  };
+}
+
+/** Простое окно ввода без кнопки броска. */
+function formDialogLite(title, content) {
+  return new Promise(resolve => new Dialog({
+    title, content: `<form class="tb-dialog">${content}</form>`,
+    buttons: {
+      ok: { icon: '<i class="fas fa-check"></i>', label: "Записать", callback: html => {
+        const out = {};
+        for (const el of html[0].querySelector("form").elements) if (el.name) out[el.name] = el.type === "checkbox" ? el.checked : el.value;
+        resolve(out);
+      } },
+      cancel: { icon: '<i class="fas fa-times"></i>', label: "Отмена", callback: () => resolve(null) }
+    },
+    default: "ok", close: () => resolve(null)
+  }, { classes: ["dialog", "thunderbolt"], width: 420 }).render(true));
+}
+
+/** Новая Связь: с другим пилотом (запишется на обоих листах) или с NPC. */
+async function addBondDialog(actor) {
+  const pilots = game.actors.filter(p => p.type === "pilot" && p.id !== actor.id && !actor.system.bonds.some(b => b.uuid === p.uuid));
+  const data = await formDialogLite("Связь", `
+    <div class="form-group"><label>С кем</label><select name="who">${pilots.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}<option value="npc">NPC…</option></select></div>
+    <div class="form-group"><label>Имя NPC</label><input type="text" name="npc" placeholder="старший техник Ершов"></div>
+    <div class="form-group"><label>Связь</label><select name="value"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select></div>
+    <p class="tb-hint">Связь с пилотом записывается на листах обоих. С NPC Связей не больше двух, и сама Связь не выше 2.</p>`);
+  if (!data) return;
+  const list = foundry.utils.deepClone(actor.system.bonds);
+  const p = data.who !== "npc" ? game.actors.get(data.who) : null;
+  const npc = !p;
+  const name = p?.name ?? data.npc;
+  if (!name) return;
+  if (npc && list.filter(b => b.npc && !b.dead).length >= 2) return ui.notifications.warn("Связей с NPC уже две.");
+  const value = Math.min(npc ? DT.maxNpcBond : DT.maxBond, Number(data.value) || 1);
+  list.push({ name, uuid: p?.uuid ?? "", npc, value, was: [], dead: false, used: false, usedGround: false, grown: false });
+  return actor.update({ "system.bonds": list });
+}
+
+/** Задел или последствие вручную (по решению AWACS). */
+async function addEdgeDialog(actor) {
+  const opt = obj => Object.entries(obj).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  const data = await formDialogLite("Задел вручную", `
+    <div class="form-group"><label>Вид</label><select name="kind">${opt(DT.edges)}</select></div>
+    <div class="form-group"><label>Доводка</label><select name="stat">${opt(Object.fromEntries(Object.entries(DT.tune).map(([k, v]) => [k, v[2]])))}</select></div>
+    <div class="form-group"><label>Навык</label><select name="skill">${opt(Object.fromEntries(Object.entries(TB.skills).map(([k, v]) => [k, v.label])))}</select></div>
+    <div class="form-group"><label>Разведданные</label><select name="mode"><option value="question">вопрос</option><option value="weak">слабое место: +2 к атаке</option></select></div>
+    <div class="form-group"><label>Текст или имя</label><input type="text" name="text"></div>
+    <div class="form-group"><label>Размер (для Памяти)</label><input type="number" name="value" value="1"></div>
+    <p class="tb-hint">Нужны только поля, подходящие к виду: доводке параметр, Наработке и Травме навык, Разведданным режим.</p>`);
+  if (!data) return;
+  if (!DT.notEdges.includes(data.kind) && actor.system.edgeCount >= DT.maxEdges) return ui.notifications.warn(`Заделов уже ${DT.maxEdges}: уберите один.`);
+  const e = { id: foundry.utils.randomID(), kind: data.kind, text: data.text ?? "", value: Number(data.value) || 0 };
+  if (data.kind === "tune") e.stat = data.stat;
+  if (["practice", "trauma"].includes(data.kind)) e.skill = data.skill;
+  if (data.kind === "intel") e.mode = data.mode;
+  return actor.update({ "system.edges": [...foundry.utils.deepClone(actor.system.edges), e] });
+}
+
 export class PilotSheet extends TBActorSheet {
   static get defaultOptions() {
     return foundry.utils.mergeObject(super.defaultOptions, {
@@ -234,6 +332,7 @@ export class PilotSheet extends TBActorSheet {
     ctx.weaponsOver = ctx.weapons.length > (s.hardpoints ?? 0);
     ctx.dossier = s.dossier.map((d, i) => ({ ...d, i }));
     ctx.alertSpeed = s.speed <= 0;
+    ctx.dt = downtimeView(a);
     return ctx;
   }
 
@@ -249,6 +348,7 @@ export class PilotSheet extends TBActorSheet {
       log.splice(Number(n.dataset.oplogDel), 1);
       this.actor.update({ "system.service.log": log });
     }));
+    this.#downtimeListeners(el);
     el.querySelector("[data-dossier-add]")?.addEventListener("click", ev => {
       ev.preventDefault();
       const list = foundry.utils.deepClone(this.actor.system.dossier);
@@ -262,6 +362,73 @@ export class PilotSheet extends TBActorSheet {
       if (list[i]) list[i].struck = !list[i].struck;
       this.actor.update({ "system.dossier": list });
     }));
+  }
+
+  /** Вкладка «Даунтайм» и полоска Связей и Заделов на боевой карточке. */
+  #downtimeListeners(el) {
+    const a = this.actor;
+    const on = (sel, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); fn(n.dataset, n); }));
+    const clone = k => foundry.utils.deepClone(a.system[k]);
+    on("[data-nerves]", d => { const v = Number(d.nerves); a.update({ "system.nerves": v === a.system.nerves ? v - 1 : v }); });
+    on("[data-edge-choice]", d => chooseEdge(a, d.edgeChoice));
+    on("[data-vent]", () => {
+      if (a.system.downtime.nervesDown) return ui.notifications.info("Выговориться в общей сцене можно раз за даунтайм.");
+      if (!a.system.nerves) return;
+      a.update({ "system.nerves": a.system.nerves - 1, "system.downtime.nervesDown": true });
+    });
+    on("[data-resolve]", d => {
+      const v = Number(d.resolve), next = v === a.system.resolve ? v - 1 : v;
+      if (next > a.system.resolve && a.system.downtime.resolveGot && !game.user.isGM) return ui.notifications.warn("Решимость в этом даунтайме уже получена: не больше одной.");
+      a.update({ "system.resolve": next, ...(next > a.system.resolve ? { "system.downtime.resolveGot": true } : {}) });
+    });
+    on("[data-dt-actions]", d => { const v = Number(d.dtActions); a.update({ "system.downtime.actions": v === a.system.downtime.actions ? v - 1 : v }); });
+    on("[data-dt-action]", d => rollGround(a, d.dtAction));
+    on("[data-ground]", () => rollGround(a));
+    on("[data-edge-del]", d => a.update({ "system.edges": clone("edges").filter(e => e.id !== d.edgeDel) }));
+    el.querySelectorAll("[data-edge-field]").forEach(n => n.addEventListener("change", ev => {
+      ev.stopPropagation();
+      a.update({ "system.edges": clone("edges").map(e => e.id === n.dataset.edgeId ? { ...e, [n.dataset.edgeField]: n.value } : e) });
+    }));
+    on("[data-edge-add]", () => addEdgeDialog(a));
+    on("[data-edge-use]", d => useEdge(a, d.edgeUse));
+    on("[data-bond-use]", d => useBond(a, Number(d.bondUse)));
+    on("[data-bond-add]", () => addBondDialog(a));
+    on("[data-bond-set]", d => {
+      const i = Number(d.bondSet), b = a.system.bonds[i];
+      if (!b) return;
+      const v = Number(d.v), next = v === b.value ? v - 1 : v;
+      if (next < b.value) return a.update({ "system.bonds": dropBond(a.system.bonds, i, next) });
+      const list = clone("bonds");
+      list[i].value = Math.min(b.npc ? DT.maxNpcBond : DT.maxBond, next);
+      a.update({ "system.bonds": list });
+    });
+    on("[data-bond-del]", async d => {
+      const b = a.system.bonds[Number(d.bondDel)];
+      if (!b || !(await Dialog.confirm({ title: "Связь", content: `<p>Убрать Связь с «${esc(b.name)}» с листа? Обычно разрыв зачёркивают, а не стирают.</p>` }))) return;
+      a.update({ "system.bonds": clone("bonds").filter((_, i) => i !== Number(d.bondDel)) });
+    });
+    on("[data-goal-add]", () => a.update({ "system.goals": [...clone("goals"), { name: "", size: 4, value: 0 }] }));
+    on("[data-goal-del]", d => a.update({ "system.goals": clone("goals").filter((_, i) => i !== Number(d.goalDel)) }));
+    on("[data-goal-set]", d => {
+      const list = clone("goals"), g = list[Number(d.goalSet)];
+      if (!g) return;
+      const v = Number(d.v) + 1;
+      g.value = v === g.value ? v - 1 : v;
+      a.update({ "system.goals": list });
+    });
+    el.querySelectorAll("[data-goal-field]").forEach(n => n.addEventListener("change", ev => {
+      ev.stopPropagation();
+      const list = clone("goals"), g = list[Number(n.dataset.goal)];
+      if (!g) return;
+      if (n.dataset.goalField === "size") { g.size = Number(n.value) || 4; g.value = Math.min(g.value, g.size); } else g.name = n.value;
+      a.update({ "system.goals": list });
+    }));
+    on("[data-debt-add]", async () => {
+      const data = await formDialogLite("Долг", `<div class="form-group"><label>Кому и что должен</label><input type="text" name="text"></div>`);
+      if (data?.text) a.update({ "system.debts": [...clone("debts"), { text: data.text, struck: false }] });
+    });
+    on("[data-debt-strike]", d => { const list = clone("debts"), x = list[Number(d.debtStrike)]; if (x) { x.struck = !x.struck; a.update({ "system.debts": list }); } });
+    on("[data-threat-step]", d => stepThreat(d.threatStep, Number(d.delta)));
   }
 
   #saveDossier(el) {

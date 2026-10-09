@@ -1,5 +1,5 @@
 /* Модели данных (TypeDataModel) для пилота, NPC, самолёта, спецоружия и триггера. */
-import { SYSTEM_ID, TB } from "../config.mjs";
+import { SYSTEM_ID, TB, DT } from "../config.mjs";
 import { squadLayout, squadPoints } from "../squadrons.mjs";
 
 const f = foundry.data.fields;
@@ -23,6 +23,32 @@ function sortieFields() {
     markers: new f.SchemaField({
       grit: bool(), gritSkill: str(), structure: bool(), sys: str(), doom: bool(), lastRound: str()
     })
+  };
+}
+
+/* Даунтайм: Нервы, «На пределе», Решимость, Заделы на следующий вылет, Связи, личные цели, долги. */
+function downtimeFields() {
+  return {
+    nerves: int(0, { min: 0, max: DT.maxNerves }),
+    onEdge: str(),                 // на Нервах 5 перед вылетом: "fly" — летит на пределе
+    breakdown: str(),              // срыв в этом вылете: stupor, rage, panic ("" — ещё не было)
+    resolve: int(0, { min: 0, max: DT.maxResolve }),
+    downtime: new f.SchemaField({
+      actions: int(2, { min: 0, max: 2 }),   // сколько действий осталось в этом даунтайме
+      resolveGot: bool(),                     // Решимость за этот даунтайм уже получена
+      nervesDown: bool()                      // −1 Нервы в общей сцене уже было
+    }),
+    edges: new f.ArrayField(new f.SchemaField({
+      id: str(), kind: str("custom"), stat: str(), minus: str(), minus2: str(), weapon: str(), skill: str(), mode: str(), text: str(),
+      value: int(0), comp: bool(), used: bool()
+    })),
+    bonds: new f.ArrayField(new f.SchemaField({
+      name: str(), uuid: str(), npc: bool(), value: int(0, { min: 0, max: DT.maxBond }),
+      was: new f.ArrayField(new f.NumberField({ integer: true })),   // прежние значения, зачёркнутые
+      dead: bool(), used: bool(), usedGround: bool(), grown: bool()
+    })),
+    goals: new f.ArrayField(new f.SchemaField({ name: str(), size: int(4), value: int(0, { min: 0 }) })),
+    debts: new f.ArrayField(new f.SchemaField({ text: str(), struck: bool() }))
   };
 }
 
@@ -52,6 +78,7 @@ export class PilotData extends foundry.abstract.TypeDataModel {
       wso: str(),
       insignia: str(),
       ...sortieFields(),
+      ...downtimeFields(),
       notes: new f.HTMLField({ required: true, blank: true })
     };
   }
@@ -85,6 +112,21 @@ export class PilotData extends foundry.abstract.TypeDataModel {
         else push(c.target, t.name, v);
       }
     }
+    // Заделы и последствия даунтайма действуют до конца следующего вылета
+    for (const e of this.edges) {
+      const label = DT.edges[e.kind] ?? "Задел";
+      if (e.kind === "tune" && DT.tune[e.stat]) {
+        const [target, v] = DT.tune[e.stat];
+        push(target, `Доводка`, v);
+        for (const m of [e.minus, e.minus2]) if (m && DT.tuneMinus[m]) push(DT.tuneMinus[m][0], "Доводка: встречная цена", -1);
+      } else if (e.kind === "ammo" && e.weapon) this.ammoBonus[e.weapon] = (this.ammoBonus[e.weapon] ?? 0) + 1;
+      else if (e.kind === "fatigue") push("strainMax", label, -2);
+      else if (e.kind === "trauma" && SKILL_KEYS.includes(e.skill)) push(`skill.${e.skill}`, label, -1);
+    }
+    // на пределе: Complication на 1–2 во всех проверках
+    this.edgeFly = this.nerves >= DT.maxNerves && this.onEdge === "fly";
+    if (this.edgeFly) for (const k of SKILL_KEYS) this.compOn[k] = Math.max(this.compOn[k], 2);
+    this.edgeCount = this.edges.filter(e => !DT.notEdges.includes(e.kind)).length;
     // «В строю» у союзника вплотную: + его ранги Lead к Evasion
     try {
       for (const uuid of actor.getFlag?.(SYSTEM_ID, "adjacent") ?? []) {

@@ -2,7 +2,7 @@
   "id": "thunderbolt-shtab",
   "title": "Thunderbolt: Штаб ВВС Юктобании",
   "description": "Система для Thunderbolt: An Aerial Knight RPG v1.3 с правилами стола, ангаром ВВС Юктобании, NPC и целями, памяткой пилота и импортом миссий из Планшета AWACS.",
-  "version": "0.4.50",
+  "version": "0.4.51",
   "compatibility": {
     "minimum": "12",
     "verified": "12.343",
@@ -110,6 +110,18 @@
         "ASSISTANT": "OWNER"
       },
       "banner": "systems/thunderbolt-shtab/assets/banners/rules.svg"
+    },
+    {
+      "name": "tables",
+      "label": "Таблицы AWACS",
+      "path": "packs/tables",
+      "type": "RollTable",
+      "system": "thunderbolt-shtab",
+      "ownership": {
+        "PLAYER": "NONE",
+        "ASSISTANT": "OWNER"
+      },
+      "banner": "systems/thunderbolt-shtab/assets/banners/tables.svg"
     }
   ],
   "packFolders": [
@@ -135,7 +147,8 @@
           "sorting": "m",
           "color": "#3a1a14",
           "packs": [
-            "npcs"
+            "npcs",
+            "tables"
           ]
         }
       ]

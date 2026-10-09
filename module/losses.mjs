@@ -32,6 +32,9 @@ export function registerLosses() {
     const doom = options.tbDoom ? undefined : foundry.utils.getProperty(change, "system.markers.doom");
     if (doom === true) actor.markDoom("отмечено вручную");
     else if (doom === false) actor.unmarkDown();
+    // на пределе: первая метка урона в вылете — срыв
+    if (actor.type === "pilot" && ["grit", "structure", "doom"].some(k => foundry.utils.getProperty(change, `system.markers.${k}`) === true))
+      import("./downtime.mjs").then(m => m.checkBreakdown(actor, "отмечена метка урона"));
   });
   // «Сбит» в трекере боя или в меню токена: то же выбытие (флаг потерь, уход с поля в конце раунда)
   Hooks.on("updateCombatant", (cb, change, options, userId) => {

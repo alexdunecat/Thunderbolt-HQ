@@ -67,6 +67,33 @@
     {{else}}<p class="tb-empty">На этой сцене эскадрилий нет. Выделите токены NPC и нажмите «Собрать из выделенных»: у них будет одна раскладка навыков на {{squadBudget}} очка.</p>{{/if}}
     {{#if squadsElsewhere}}<p class="tb-small tb-muted">На других сценах: {{squadsElsewhere}}.</p>{{/if}}
 
+    <h3>Даунтайм <button type="button" class="tb-inline-btn" data-base-event title="Бросить d10 по таблице событий на базе: событие и вопрос-крючок для общей сцены"><i class="fas fa-dice-d10"></i> Событие на базе</button>
+      <button type="button" class="tb-inline-btn" data-threat-add><i class="fas fa-plus"></i> Шкала угрозы</button></h3>
+    {{#if threats.length}}
+    <div class="tb-threats">
+      {{#each threats as |t|}}
+      <div class="tb-threat {{#if t.full}}full{{/if}}" title="{{t.note}}">
+        <span class="tb-threat-name">{{t.name}}</span>
+        <span class="tb-clock">{{#each t.pips as |p|}}<i class="{{#if p.on}}on{{/if}}"></i>{{/each}}</span>
+        <span class="tb-num">{{t.value}}/{{t.size}}</span>
+        <a data-threat-step="{{t.id}}" data-delta="-1" title="Снять деление">−</a> <a data-threat-step="{{t.id}}" data-delta="1" title="Добавить деление">+</a>
+        <a data-threat-del="{{t.id}}" title="Убрать шкалу"><i class="fas fa-trash"></i></a>
+      </div>
+      {{/each}}
+    </div>
+    {{else}}<p class="tb-small tb-muted">Шкал угроз нет. Цена «Эскалация» на карточке проверки на земле добавляет деление на шкалу; её же можно завести здесь. Шкалы видят все пилоты на вкладке «Даунтайм».</p>{{/if}}
+    {{#if ground.length}}
+    <table class="tb-awacs-table tb-ground-table">
+      <tr><th>Пилот</th><th title="Нервы 0–5">Нервы</th><th title="Решимость 0–2">Реш.</th><th title="Действий в этом даунтайме">Дейст.</th><th>Заделы и последствия на вылет</th><th>Связи</th></tr>
+      {{#each ground as |p|}}
+      <tr><td><a data-open="{{p.id}}"><b>{{p.name}}</b></a></td>
+        <td class="tb-num tb-nerves-{{p.nervesCls}}">{{p.nerves}}{{#if p.edgeFly}} <small>на пределе</small>{{/if}}</td>
+        <td class="tb-num">{{p.resolve}}</td><td class="tb-num">{{p.actions}}</td>
+        <td><small>{{#if p.edges}}{{p.edges}}{{else}}—{{/if}}</small></td><td><small>{{#if p.bonds}}{{p.bonds}}{{else}}—{{/if}}</small></td></tr>
+      {{/each}}
+    </table>
+    {{/if}}
+
     <h3>Погода над всей сценой {{#if cells}}<small>ещё в {{cells}} клетках из импорта миссии</small>{{/if}}</h3>
     <p class="tb-small"><a class="tb-btn" data-map-update title="Вставить JSON миссии из Планшета: карта и погода на этой сцене перерисуются, токены останутся"><i class="fas fa-cloud-bolt"></i> Карта и погода из Планшета</a></p>
     <div class="tb-awacs-weather">

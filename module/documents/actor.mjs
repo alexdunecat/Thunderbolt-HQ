@@ -1,7 +1,8 @@
 /* Актёр: пилот в самолёте или NPC. Урон, метки, высота, подготовка к вылету. */
-import { SYSTEM_ID, TB } from "../config.mjs";
+import { SYSTEM_ID, TB, DT } from "../config.mjs";
 import * as R from "../dice/rolls.mjs";
 import { esc } from "../utils.mjs";
+import { startStrain } from "../downtime.mjs";
 
 
 export class TBActor extends Actor {
@@ -227,15 +228,29 @@ export class TBActor extends Actor {
   /* ---------- вылет ---------- */
   /** Перед вылетом: Strain и HP до максимума, Speed 1, метки и Поворот сняты, ситуативные триггеры выключены, боезапас полный. */
   async prepareSortie() {
+    const notes = [];
     await this.withoutPoolSync(async () => {
       await this.update({
         "system.speed": 1, "system.breakEv": null, "system.lock": "", "system.lockUuid": "", "system.twist": false,
         "system.markers": { grit: false, gritSkill: "", structure: false, sys: "", doom: false, lastRound: "" },
         [`flags.${SYSTEM_ID}.-=down`]: null
       }, { tbFree: true, tbDoom: true });
-      // после снятия меток и Поворота максимумы пересчитаны
-      await this.update({ "system.hp.value": this.system.hp.max, "system.strain.value": this.system.strain.max,
-        [`flags.${SYSTEM_ID}.pools`]: this.poolsFlag() });
+      // после снятия меток и Поворота максимумы пересчитаны; Strain с учётом Нервов и «Свежей головы»
+      const upd = { "system.hp.value": this.system.hp.max, "system.strain.value": this.system.strain.max, [`flags.${SYSTEM_ID}.pools`]: this.poolsFlag() };
+      if (this.type === "pilot") {
+        const st = startStrain(this);
+        upd["system.strain.value"] = st.value;
+        notes.push(...st.notes);
+        upd["system.breakdown"] = "";
+        upd["system.bonds"] = foundry.utils.deepClone(this.system.bonds).map(b => ({ ...b, used: false }));
+        upd[`flags.${SYSTEM_ID}.-=stupor`] = null;
+        if (this.system.edgeFly) notes.push("на пределе");
+        else if (this.system.nerves >= DT.maxNerves) {
+          notes.push("Нервы 5: на листе выберите «Лететь на пределе» или «Рапорт об отдыхе»");
+          ui.notifications.warn(`${this.name}: Нервы 5. На вкладке «Даунтайм» выберите, лететь на пределе или подать рапорт об отдыхе.`);
+        }
+      }
+      await this.update(upd);
     });
     const items = [];
     for (const i of this.items) {
@@ -246,7 +261,7 @@ export class TBActor extends Actor {
     }
     if (items.length) await this.updateEmbeddedDocuments("Item", items);
     await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: false }).catch(() => null);
-    return this.#say(`<b>${esc(this.name)}</b> готов к вылету: Speed 1, Strain ${this.system.strain.max}, HP ${this.system.hp.max}.`);
+    return this.#say(`<b>${esc(this.name)}</b> готов к вылету: Speed 1, Strain ${this.system.strain.value}, HP ${this.system.hp.max}${notes.length ? ` (${notes.map(esc).join("; ")})` : ""}.`);
   }
 }
 

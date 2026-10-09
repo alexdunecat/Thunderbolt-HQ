@@ -24,6 +24,7 @@
     <a class="item" data-tab="combat">Боевая карточка</a>
     <a class="item" data-tab="plane">Самолёт</a>
     <a class="item" data-tab="triggers">Триггеры</a>
+    <a class="item" data-tab="ground">Даунтайм{{#if dt.alert}} <i class="fas fa-circle-exclamation tb-warn"></i>{{/if}}</a>
     <a class="item" data-tab="file">Личное дело</a>
     <a class="item" data-tab="notes">Заметки</a>
   </nav>
@@ -103,6 +104,13 @@
       </div>
       <p class="tb-small tb-muted tb-dice-legend"><i class="fas fa-dice-d10"></i> — действие с броском (за ход одна проверка). <i class="fas fa-dice-d10"></i>? — бросок по желанию (Improved). Без значка — без броска: Lock On!, Leadership, Вплотную, пуск ЗРК, Move, Climb / Dive, Change Speed.</p>
       {{#if nextMods.length}}<p class="tb-fx-now tb-small"><span class="tb-muted">К следующему броску:</span> {{#each nextMods as |m|}}<span class="tb-chip">{{m.sval}} {{m.label}} <a data-next-drop="{{m.i}}" title="Убрать">×</a></span>{{/each}}</p>{{/if}}
+      {{#if dt.sortie}}<div class="tb-dt-strip tb-small">
+        {{#if dt.edgeFly}}<span class="tb-chip tb-edge-fly" title="Complication на 1–2 во всех проверках, срыв при первой d4 = 1 или метке урона">на пределе</span>{{/if}}
+        {{#if dt.breakdown}}<span class="tb-chip tb-edge-fly" title="{{dt.breakdown.text}}">Срыв: {{dt.breakdown.label}}</span>{{/if}}
+        {{#each dt.bondChips as |b|}}<a class="tb-chip tb-dt-use {{#if b.used}}used{{/if}}" {{#unless b.used}}data-bond-use="{{b.i}}"{{/unless}} title="{{#if b.used}}В этом вылете уже прибавлена{{else}}Раз за вылет: к броску, который помогает этому товарищу или защищает его{{/if}}"><i class="fas fa-link"></i> Связь: {{b.name}} +{{b.value}}</a>{{/each}}
+        {{#each dt.edgeChips as |e|}}<a class="tb-chip tb-dt-use {{#if e.used}}used{{/if}}" {{#unless e.used}}data-edge-use="{{e.id}}"{{/unless}} title="{{e.hint}}"><i class="fas fa-bookmark"></i> {{e.label}}</a>{{/each}}
+        {{#each dt.passive as |e|}}<span class="tb-chip" title="Задел на этот вылет">{{e}}</span>{{/each}}
+      </div>{{/if}}
       {{#if adjacent.length}}<p class="tb-fx-now tb-small"><span class="tb-muted">Вплотную с:</span> {{#each adjacent as |x|}}<span class="tb-chip">{{x.name}} <a data-adj-drop="{{x.uuid}}" title="Отрыв">×</a></span>{{/each}}</p>{{/if}}
 
       {{#if situational.length}}
@@ -209,6 +217,93 @@
         {{/each}}
       </ul>
       {{else}}<p class="tb-empty">Перетащите триггеры из компендиума «Триггеры». Core-триггер архетипа берётся при создании пилота.</p>{{/if}}
+    </div>
+
+    {{!-- ================= ДАУНТАЙМ ================= --}}
+    <div class="tab tb-ground" data-group="primary" data-tab="ground">
+      <div class="tb-grid2">
+        <fieldset class="tb-box">
+          <legend>Нервы <span class="tb-muted">0–5</span></legend>
+          <div class="tb-pips tb-nerves">{{#each dt.nervesPips as |p|}}<a class="tb-pip {{#if p.on}}on{{/if}} {{p.cls}}" data-nerves="{{p.i}}" title="Нервы {{p.i}}">{{p.i}}</a>{{/each}}</div>
+          <p class="tb-small {{#if dt.nervesWarn}}tb-warn{{else}}tb-muted{{/if}}">{{dt.nervesNote}}</p>
+          {{#if dt.edgeAsk}}<div class="tb-row tb-edge-ask"><button type="button" data-edge-choice="fly" title="Strain −2, Complication на 1–2 во всех проверках, раз за вылет срыв"><i class="fas fa-jet-fighter"></i> Лететь на пределе</button><button type="button" data-edge-choice="rest" title="Пропустить вылет, Нервы 0"><i class="fas fa-bed"></i> Рапорт об отдыхе</button></div>{{/if}}
+          {{#if dt.edgeFly}}<p class="tb-small tb-warn"><b>Летит на пределе:</b> Strain −2, Complication на 1–2 во всех проверках (со страхом 1–3), Нервы больше не растут. Раз за вылет срыв.</p>{{/if}}
+          <p class="tb-small"><a class="tb-btn {{#if system.downtime.nervesDown}}disabled{{/if}}" data-vent title="Пилот всерьёз выговорился в общей сцене: −1 Нервы, раз за даунтайм"><i class="fas fa-comments"></i> Выговорился: −1</a></p>
+        </fieldset>
+        <fieldset class="tb-box">
+          <legend>Решимость и действия</legend>
+          <div class="tb-row"><span>Решимость</span> <span class="tb-pips">{{#each dt.resolvePips as |p|}}<a class="tb-pip {{#if p.on}}on{{/if}}" data-resolve="{{p.i}}">◆</a>{{/each}}</span>
+            <small class="tb-muted">досье изменилось: +1, не больше 1 за даунтайм; тратится кнопкой на карточке: d4 = 4</small></div>
+          <div class="tb-row"><span>Действия даунтайма</span> <span class="tb-pips">{{#each dt.actionPips as |p|}}<a class="tb-pip {{#if p.on}}on{{/if}}" data-dt-actions="{{p.i}}">●</a>{{/each}}</span> <small class="tb-muted">осталось {{system.downtime.actions}} из 2; в госпитале и после цены «Время» одно</small></div>
+          <div class="tb-dt-actions">
+            {{#each dt.actions as |x|}}<button type="button" data-dt-action="{{x.key}}" title="{{x.hint}}" {{#if x.off}}disabled{{/if}}>{{#if x.roll}}<i class="fas fa-dice-d10"></i> {{/if}}{{x.label}}</button>{{/each}}
+          </div>
+          <button type="button" class="tb-wide" data-ground><i class="fas fa-dice-d10"></i> Проверка на земле без действия</button>
+        </fieldset>
+      </div>
+
+      <fieldset class="tb-box">
+        <legend>Заделы на следующий вылет <span class="tb-budget {{#if dt.edgesOver}}over{{/if}}">{{system.edgeCount}} из {{dt.maxEdges}}</span> <span class="tb-muted">сгорают после вылета</span></legend>
+        {{#if dt.edges.length}}
+        <ul class="tb-list tb-edges">
+          {{#each dt.edges as |e|}}
+          <li class="tb-item {{#if e.used}}used{{/if}} {{#if e.notEdge}}tb-edge-cost{{/if}}">
+            <span class="tb-item-name"><b>{{e.label}}</b>{{#if e.comp}} <small class="tb-warn">Компромисс</small>{{/if}}{{#if e.used}} <small class="tb-muted">использован</small>{{/if}}<small>{{e.hint}}</small></span>
+            {{#if e.needsMinus}}<label class="tb-small">встречная цена <select data-edge-field="minus" data-edge-id="{{e.id}}">{{selectOptions @root.dt.minusOptions selected=e.minus blank="нет"}}</select></label>{{/if}}
+            {{#if e.isAmmo}}<label class="tb-small"><select data-edge-field="weapon" data-edge-id="{{e.id}}">{{selectOptions @root.weaponOpts selected=e.weapon blank="спецоружие…"}}</select></label>{{/if}}
+            <a class="tb-icon" data-edge-del="{{e.id}}" title="Убрать"><i class="fas fa-trash"></i></a>
+          </li>
+          {{/each}}
+        </ul>
+        {{else}}<p class="tb-muted tb-small">Пока пусто. Успешное действие даунтайма даёт Задел кнопкой на карточке броска.</p>{{/if}}
+        <a class="tb-btn" data-edge-add><i class="fas fa-plus"></i> Записать вручную</a>
+      </fieldset>
+
+      <div class="tb-grid2">
+        <fieldset class="tb-box">
+          <legend>Связи <span class="tb-muted">0–3, с NPC до 2</span></legend>
+          {{#if dt.bonds.length}}
+          <ul class="tb-list tb-bonds">
+            {{#each dt.bonds as |b|}}
+            <li class="tb-item {{#if b.dead}}dead{{/if}}">
+              <span class="tb-item-name"><b>{{b.name}}</b>{{#if b.npc}} <small>NPC</small>{{/if}}{{#if b.dead}} <small class="tb-warn">погиб</small>{{/if}}</span>
+              {{#if b.was}}<s class="tb-muted" title="прежние значения">{{b.was}}</s>{{/if}}
+              <span class="tb-pips">{{#each b.pips as |p|}}<a class="tb-pip {{#if p.on}}on{{/if}}" data-bond-set="{{b.i}}" data-v="{{p.i}}">{{p.i}}</a>{{/each}}</span>
+              <a class="tb-icon" data-bond-del="{{b.i}}" title="Убрать"><i class="fas fa-trash"></i></a>
+            </li>
+            {{/each}}
+          </ul>
+          {{else}}<p class="tb-muted tb-small">При создании пилот может назвать одного знакомого товарища: Связь 1. Растёт в сценах, где пилоты всерьёз ответили друг другу на крючок.</p>{{/if}}
+          <a class="tb-btn" data-bond-add><i class="fas fa-plus"></i> Связь</a>
+        </fieldset>
+        <fieldset class="tb-box">
+          <legend>Личные цели</legend>
+          {{#if dt.goals.length}}
+          <ul class="tb-list tb-goals">
+            {{#each dt.goals as |g|}}
+            <li class="tb-item {{#if g.done}}done{{/if}}">
+              <input type="text" data-goal-field="name" data-goal="{{g.i}}" value="{{g.name}}" placeholder="найти пропавшего брата">
+              <select data-goal-field="size" data-goal="{{g.i}}"><option value="4" {{#if g.small}}selected{{/if}}>4</option><option value="6" {{#unless g.small}}selected{{/unless}}>6</option></select>
+              <span class="tb-clock">{{#each g.pips as |p|}}<i class="{{#if p.on}}on{{/if}}" data-goal-set="{{g.i}}" data-v="{{p.i}}"></i>{{/each}}</span>
+              <a class="tb-icon" data-goal-del="{{g.i}}" title="Убрать"><i class="fas fa-trash"></i></a>
+            </li>
+            {{/each}}
+          </ul>
+          {{/if}}
+          <a class="tb-btn" data-goal-add><i class="fas fa-plus"></i> Цель</a>
+          <p class="tb-small tb-muted">4 деления для обычной цели, 6 для большой. Действие «Личное дело»: 7+ даёт +2, 4–6 даёт +1. Полная шкала: строка в досье и Решимость.</p>
+          <h4>Долги</h4>
+          {{#if dt.debts.length}}<ul class="tb-list tb-debts">{{#each dt.debts as |d|}}<li class="{{#if d.struck}}struck{{/if}}">{{d.text}} <a class="tb-icon" data-debt-strike="{{d.i}}" title="{{#if d.struck}}Вернуть{{else}}Расплатился{{/if}}"><i class="fas fa-strikethrough"></i></a></li>{{/each}}</ul>{{else}}<p class="tb-muted tb-small">Нет.</p>{{/if}}
+          <a class="tb-btn" data-debt-add><i class="fas fa-plus"></i> Долг</a>
+        </fieldset>
+      </div>
+
+      <fieldset class="tb-box">
+        <legend>Шкалы угроз <span class="tb-muted">над эскадрильей, их ведёт AWACS</span></legend>
+        {{#if dt.threats.length}}
+        <div class="tb-threats">{{#each dt.threats as |t|}}<div class="tb-threat {{#if t.full}}full{{/if}}" title="{{t.note}}"><span class="tb-threat-name">{{t.name}}</span><span class="tb-clock">{{#each t.pips as |p|}}<i class="{{#if p.on}}on{{/if}}"></i>{{/each}}</span><span class="tb-num">{{t.value}}/{{t.size}}</span>{{#if @root.isGM}} <a data-threat-step="{{t.id}}" data-delta="-1">−</a> <a data-threat-step="{{t.id}}" data-delta="1">+</a>{{/if}}</div>{{/each}}</div>
+        {{else}}<p class="tb-muted tb-small">Угроз пока нет.</p>{{/if}}
+      </fieldset>
     </div>
 
     {{!-- ================= ЛИЧНОЕ ДЕЛО ================= --}}
