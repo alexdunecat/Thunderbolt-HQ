@@ -4,13 +4,14 @@
    Реплики идут строго по очереди; если их скопилось много (конец раунда), лишние сворачиваются в одну строку. */
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
-import { record } from "./radio-log.mjs";
+import { record, registerRadioLog } from "./radio-log.mjs";
 
 const MAX_QUEUE = 4;
 const queue = [], banners = [];
 let showing = false, bannerOn = false;
 
 export function registerRadio() {
+  registerRadioLog();
   game.settings.register(SYSTEM_ID, "radioSubtitles", {
     name: "Радиообмен AWACS субтитрами", hint: "Реплики AWACS (захват, пуск по вам, итоги залпа, подкрепления) вверху экрана. Всё остаётся и в чате.",
     scope: "client", config: true, type: Boolean, default: true
@@ -121,7 +122,7 @@ export function say(speaker, text, side = "ally") {
   if (!text) return;
   const last = queue.at(-1);
   if (last && last.text === text) return;
-  record({ speaker, text, side: sideClass(side) });
+  record({ speaker, text, side: sideClass(side), muted: !enabled() });
   if (!enabled()) return;
   queue.push({ speaker, text, side: sideClass(side) });
   // конец раунда: не больше MAX_QUEUE реплик, остальное одной строкой
@@ -153,7 +154,7 @@ function next() {
 }
 
 export function caution({ title = "CAUTION", sub = "", level = "caution" } = {}) {
-  record({ banner: { title, sub, level } });
+  record({ banner: { title, sub, level }, muted: !enabled() });
   if (!enabled()) return;
   banners.push({ title, sub, level });
   if (!bannerOn) nextBanner();
