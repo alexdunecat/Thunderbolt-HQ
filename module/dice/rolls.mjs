@@ -106,6 +106,7 @@ export function renderCard(card) {
   if (card.type === "volley") return renderVolley(card);
   if (card.type === "ground") return renderGround(card);
   if (card.type === "breakdown") return renderBreakdown(card);
+  if (card.type === "doomfate") return renderDoomFate(card);
   const c = computeCard(card);
   const rows = [];
   const parts = c.parts.map(([l, v]) => `<span class="tb-part">${esc(l)} ${sign(v)}</span>`).join(" ");
@@ -124,7 +125,8 @@ export function renderCard(card) {
     verdict = `<div class="tb-total">Итог <b>${c.total}</b>${c.vsHint ? ` · ${esc(c.vsHint)}` : ""}</div>`;
   }
   rows.push(verdict);
-  if (c.rolled) {
+  if (c.rolled && c.type === "eject") rows.push(`<div class="tb-d4">d4 = ${c.d4}</div>`);
+  else if (c.rolled) {
     const d4 = c.perk ? `<div class="tb-d4 perk">d4 = ${c.d4}: <b>Perk</b> (по умолчанию +1 к следующей проверке)</div>`
       : c.comp ? `<div class="tb-d4 comp">d4 = ${c.d4}: <b>Complication</b> (по умолчанию −1)</div>`
         : `<div class="tb-d4">d4 = ${c.d4}</div>`;
@@ -134,22 +136,29 @@ export function renderCard(card) {
   if (c.type === "recover" && c.success) rows.push(`<div class="tb-note">Вернуть <b>${c.regain}</b> Strain.</div>`);
 
   const btn = [];
-  if (c.rolled && c.perk && !c.perkPassed) btn.push(`<button type="button" data-tb-action="perk-next" class="tb-owner">Perk: +1 к следующей</button>`);
-  if (c.rolled && c.comp && !c.compPassed) btn.push(`<button type="button" data-tb-action="comp-next" class="tb-owner">Complication: −1 к следующей</button>`);
+  if (c.rolled && c.type !== "eject" && c.perk && !c.perkPassed) btn.push(`<button type="button" data-tb-action="perk-next" class="tb-owner">Perk: +1 к следующей</button>`);
+  if (c.rolled && c.type !== "eject" && c.comp && !c.compPassed) btn.push(`<button type="button" data-tb-action="comp-next" class="tb-owner">Complication: −1 к следующей</button>`);
   if (c.perkPassed) rows.push(`<div class="tb-note">Perk: +1 к следующей проверке, ${esc(c.perkPassed)}.</div>`);
   if (c.compPassed) rows.push(`<div class="tb-note">Complication: −1 к следующей проверке, ${esc(c.compPassed)}.</div>`);
   // Решимость (d4 = 4) и Наработка (переброс d10 навыка раз за вылет) из даунтайма
   const who = resolveActor(c.actorUuid);
-  btn.push(...resolveButton(c, who));
+  const settled = c.type === "eject" && c.applied;
+  if (!settled) btn.push(...resolveButton(c, who));
   if (c.resolveUsed) rows.push(`<div class="tb-note">Решимость: d4 считается за 4.</div>`);
-  if (c.rolled && !c.practiced && !c.reroll && !c.resolved && !c.dmgApplied && practiceFor(who, c.skill, c.d10))
+  if (c.rolled && !settled && !c.practiced && !c.reroll && !c.resolved && !c.dmgApplied && practiceFor(who, c.skill, c.d10))
     btn.push(`<button type="button" data-tb-action="dt-practice" class="tb-owner" title="Задел «Наработка»: раз за вылет перебросить d10 и взять лучший"><i class="fas fa-rotate"></i> Наработка: перебросить d10</button>`);
   if (c.reroll) rows.push(`<div class="tb-note">Наработка: d10 переброшен (${c.reroll.join(" → ")}), взят лучший.</div>`);
-  if (c.rolled && c.strainable && !c.resolved) btn.push(`<button type="button" data-tb-action="strain" class="tb-owner"><i class="fas fa-bolt"></i> +1 Strain</button>`);
+  if (c.rolled && c.strainable && !c.resolved && !settled) btn.push(`<button type="button" data-tb-action="strain" class="tb-owner"><i class="fas fa-bolt"></i> +1 Strain</button>`);
   if (c.type === "break" && !c.speedApplied) btn.push(`<button type="button" data-tb-action="break-speed" class="tb-owner">Speed −${c.speedDrop} после атак</button>`);
   if (c.type === "break" && !c.speedApplied && c.combatKey) rows.push(`<div class="tb-note">Speed −${c.speedDrop} спишется сам в конце раунда.</div>`);
   if (c.type === "break" && c.speedApplied) rows.push(`<div class="tb-note">Speed −${c.speedDrop} списан.</div>`);
   if (c.type === "recover" && c.success && !c.applied) btn.push(`<button type="button" data-tb-action="recover" class="tb-owner">Вернуть ${c.regain} Strain</button>`);
+  if (c.type === "eject") {
+    const f = ejectFate(c);
+    rows.push(`<div class="tb-note tb-eject-${f.key}"><b>${f.title}.</b> ${f.text}</div>`);
+    if (c.applied) rows.push(`<div class="tb-note">В личное дело записано: ${esc(TB.status[c.applied] ?? c.applied)}.</div>`);
+    else btn.push(`<button type="button" data-tb-action="eject-apply" class="tb-owner"><i class="fas fa-file-signature"></i> Записать в личное дело</button>`);
+  }
   if (c.type === "stall" && !c.applied) {
     if (c.success) btn.push(`<button type="button" data-tb-action="stall-ok" class="tb-owner">Выровняться: Speed 1</button>`);
     else btn.push(`<button type="button" data-tb-action="stall-fail" class="tb-owner">${c.alt === "low" ? "Удар о землю: Doom" : "Потерять высоту"}</button>`);
@@ -168,19 +177,21 @@ export function renderCard(card) {
   </div>`;
 }
 
-export async function postCard(actor, card, rolls = []) {
+export async function postCard(actor, card, rolls = [], { author } = {}) {
   card.actorUuid = actor.uuid;
   card.actorName = actor.name;
   const msg = await ChatMessage.create({
+    ...(author ? { author } : {}),
     speaker: ChatMessage.getSpeaker({ actor }),
     content: renderCard(card),
     rolls,
     sound: rolls.length ? CONFIG.sounds.dice : null,
     flags: { [SYSTEM_ID]: { card } }
   });
-  if (card.rolled && computeCard(card).comp) await lightningStrike(actor);
+  // бросок на катапультирование идёт уже после Doom: ни молнии, ни срыва
+  if (card.rolled && card.type !== "eject" && computeCard(card).comp) await lightningStrike(actor);
   // на пределе: первая d4 = 1 в вылете — срыв
-  if (card.rolled && card.type !== "ground" && card.d4 === 1) await checkBreakdown(actor, "на d4 выпала 1");
+  if (card.rolled && !["ground", "eject"].includes(card.type) && card.d4 === 1) await checkBreakdown(actor, "на d4 выпала 1");
   return msg;
 }
 
@@ -301,6 +312,43 @@ export async function rollStall(actor) {
     type: "stall", label: "Сваливание: Push против 7", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: 7,
     strainable: actor.type === "pilot" || actor.system.tier === "ace", alt: actor.system.alt, ...thresholds(actor, "push", w.comp2),
     notes: ["Успех: Speed 1. Провал: минус уровень высоты и повтор на следующем ходу, на Low сразу Doom."]
+  };
+  return postCard(actor, card, dice.rolls);
+}
+
+/* ---------- метка Doom: судьба пилота ---------- */
+
+/** Исход броска на катапультирование: успех — катапульта; провал решает d4 того же броска. */
+export function ejectFate(c) {
+  if (c.success) return { key: "ok", status: "ejected", title: "Катапультировался",
+    text: "Как пилот вернётся, решают три проверки на земле: выжить при приземлении (Push), уйти от поисковых групп (Dodge), выйти к своим (Aim или Lead). Ни одной 3 и ниже: вернулся к следующему вылету; одна: пропускает вылет; две и больше: плен или окружение, спасение становится миссией." };
+  if (c.d4 >= 4) return { key: "hurt", status: "hospital", title: "Провал, d4 = 4: ранен, но подобран", text: "Пилот жив и попадает в госпиталь." };
+  if (c.d4 >= 2) return { key: "mia", status: "mia", title: `Провал, d4 = ${c.d4}: пропал без вести или в плену`, text: "Спасение становится миссией. Если пилот в плену, поменяйте статус в личном деле." };
+  return { key: "kia", status: "kia", title: "Провал, d4 = 1: гибель", text: "Последние слова остаются за пилотом. Стол получает «Достойное отступление»." };
+}
+
+function renderDoomFate(c) {
+  const done = c.chosen === "eject" ? `<div class="tb-note">Бросок на катапультирование сделан.</div>`
+    : c.chosen === "hero" ? `<div class="tb-note"><b>Героическая гибель.</b> Последние слова за пилотом, кубики в этом вылете больше не бросаем. Стол выбирает: «Победа любой ценой» (ещё одна драматичная жертва) или «Достойное отступление».</div>` : "";
+  const btn = c.chosen ? "" : `<div class="tb-actions">
+    <button type="button" data-tb-action="doom-eject" class="tb-owner"><i class="fas fa-parachute-box"></i> Бросок на катапультирование</button>
+    <button type="button" data-tb-action="doom-hero" class="tb-owner"><i class="fas fa-skull"></i> Героическая гибель</button></div>`;
+  return `<div class="tb-card tb-card-doomfate">
+    <header class="tb-card-head"><span class="tb-card-who">${esc(c.actorName)}</span><span class="tb-card-what">Метка Doom</span></header>
+    <div class="tb-note">Машина обречена${c.reason ? ` (${esc(c.reason)})` : ""}. Судьбу решает <b>бросок на катапультирование</b>: Push против 7, Strain можно, ничья за пилотом. Успех: катапультировался. Провал, смотри d4: 4 ранен, но подобран; 2–3 пропал без вести или в плену; 1 гибель.</div>
+    <div class="tb-note">Вместо броска можно выбрать <b>героическую гибель</b> с последними словами: только она открывает «Победу любой ценой».</div>
+    ${done}${btn}
+  </div>`;
+}
+
+/** Бросок на катапультирование: Push против 7, Strain можно; d4 того же броска решает исход провала. */
+export async function rollEject(actor) {
+  const dice = await rollDice(actor, false, { turnRoll: false });
+  if (!dice) return;
+  const card = {
+    type: "eject", label: "Бросок на катапультирование: Push против 7", rolled: true, d10: dice.d10, d4: dice.d4,
+    parts: [...skillParts(actor, "push", "Форсаж"), ...await takeNext(actor)], strain: 0, dc: 7, strainable: true,
+    skill: "push", perkOn: 4, compOn: 1
   };
   return postCard(actor, card, dice.rolls);
 }
@@ -801,6 +849,22 @@ export async function onCardAction(message, action, button) {
       await save();
       const s = actor.system.strain;
       return actor.update({ "system.strain.value": Math.min(s.max, s.value + c.regain) });
+    }
+    case "doom-eject":
+    case "doom-hero": {
+      if (!actor?.isOwner || card.chosen) return;
+      if (action === "doom-hero" && !(await Dialog.confirm({ title: "Героическая гибель", content: `<p>${esc(actor.name)} погибает с последними словами, статус в личном деле станет «${TB.status.kia}». Точно?</p>` }))) return;
+      card.chosen = action === "doom-eject" ? "eject" : "hero";
+      await save();
+      if (card.chosen === "hero") return actor.update({ "system.service.status": "kia" });
+      return rollEject(actor);
+    }
+    case "eject-apply": {
+      if (!actor?.isOwner || card.applied) return;
+      const f = ejectFate(computeCard(card));
+      card.applied = f.status;
+      await save();
+      return actor.update({ "system.service.status": f.status });
     }
     case "stall-ok": {
       if (!actor?.isOwner) return;

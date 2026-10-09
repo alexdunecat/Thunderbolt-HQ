@@ -146,10 +146,13 @@ export class TBActor extends Actor {
     await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
     if (this.type === "pilot") await this.markDown(sourceUuid);
     else await this.#creditKill(sourceUuid);
-    const pilot = this.type === "pilot";
-    return this.#say(`<b>${esc(this.name)}</b>: метка <b>Doom</b>${reason ? ` (${esc(reason)})` : ""}. ${pilot
-      ? "Катапультироваться или последние слова. Если пилот погибнет, стол выбирает: «Победа любой ценой» или «Достойное отступление»."
-      : "Машина сбита."}`);
+    // пилоту: судьбу решает бросок на катапультирование, либо героическая гибель по своему выбору
+    // карточку пишем от имени игрока пилота, чтобы кнопки достались ему, даже если урон нанёс ведущий
+    if (this.type === "pilot") {
+      const player = game.users.find(u => !u.isGM && u.active && this.testUserPermission(u, "OWNER"));
+      return R.postCard(this, { type: "doomfate", reason: reason ?? "" }, [], { author: player?.id });
+    }
+    return this.#say(`<b>${esc(this.name)}</b>: метка <b>Doom</b>${reason ? ` (${esc(reason)})` : ""}. Машина сбита.`);
   }
 
   #chooseMarker() {
@@ -161,7 +164,7 @@ export class TBActor extends Actor {
       <p class="tb-hint">Отметьте одну метку. HP восстановится до максимума.</p>
       ${radio("grit", "Grit: навык недоступен", `<select name="skill">${skills}</select>`, m.grit)}
       ${radio("structure", "Structure: сломана система", `<select name="sys">${systems}</select>`, m.structure)}
-      ${radio("doom", "Doom: катапульта или смерть", "", m.doom)}`, { ok: "Отметить" })
+      ${radio("doom", "Doom: машина обречена, бросок на катапультирование", "", m.doom)}`, { ok: "Отметить" })
       .then(d => (d?.marker ? d : null));
   }
 

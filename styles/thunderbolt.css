@@ -571,3 +571,10 @@ body.tb-dark-ui .app.window-app .window-content :is(.content-link, .inline-roll)
 .thunderbolt .tb-dt-actions button:hover:not([disabled]), .thunderbolt .tb-edge-ask button:hover, .thunderbolt .tb-ground .tb-wide:hover { border-color: var(--tb-olive); color: var(--tb-olive); box-shadow: none; }
 .thunderbolt .tb-dt-actions button[disabled] { opacity: .4; }
 .thunderbolt .tb-edges .tb-item { gap: 8px; align-items: center; }
+
+/* метка Doom: судьба пилота */
+.tb-card-doomfate .tb-card-head { color: var(--tb-accent); }
+.tb-card-doomfate .tb-actions button { flex: 1 1 45%; }
+.tb-card-eject .tb-eject-ok b { color: #5fbf7a; }
+.tb-card-eject .tb-eject-hurt b, .tb-card-eject .tb-eject-mia b { color: #e0b04a; }
+.tb-card-eject .tb-eject-kia b { color: var(--tb-accent); }
