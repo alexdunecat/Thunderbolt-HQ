@@ -13,11 +13,16 @@ export function tokenOf(actor) {
 
 const propKeys = a => [...(a?.system?.props ?? []), ...(a?.system?.rules ?? [])].map(p => p?.key ?? p);
 
-/** Воздушный босс: летающий крейсер (Medium или High) или Аркбёрд (всегда High). Иначе null. */
+/**
+ * Воздушный босс: летающий крейсер, Аркбёрд или падающий SOLG (Medium или High). Иначе null.
+ * Стратосферы в системе нет: Аркбёрд и SOLG в ней стоят на High и опускаются на Medium (правила strato, solgfall).
+ */
 export function flyingBoss(actor) {
   if (actor?.type !== "npc") return null;
   const keys = propKeys(actor);
-  if (actor.system.key === "arkbird" || keys.includes("highonly")) return ["high"];
+  if (actor.system.key === "arkbird" || keys.includes("strato") || keys.includes("solgfall")) return ["med", "high"];
+  // старые миры: Аркбёрд из компендиума до 0.4.54
+  if (keys.includes("highonly")) return ["high"];
   if (keys.includes("aerialship")) return ["med", "high"];
   return null;
 }

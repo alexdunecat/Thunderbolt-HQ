@@ -124,7 +124,7 @@ export const TB = {
 export function footprintOf(sys) {
   if (!sys) return null;
   const props = [...(sys.props ?? []), ...(sys.rules ?? [])].map(p => p?.key ?? p);
-  if (sys.key === "arkbird") return TB.footprints.arkbird;
+  if (sys.key === "arkbird" || sys.key === "solg") return TB.footprints.arkbird;
   if (/стратегическ/i.test(sys.cls ?? "") || sys.key === "b2a") return TB.footprints.strategic;
   // крупные самолёты: транспорт, ДРЛО, патрульные и AC-130
   if (sys.kind === "air" && (sys.grp === "support" || ["ac130", "widebody", "cargojet"].includes(sys.key))) return TB.footprints.large;
