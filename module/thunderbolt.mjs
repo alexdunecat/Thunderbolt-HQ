@@ -19,6 +19,8 @@ import { registerSquadronSettings, squadFromSelection } from "./squadrons.mjs";
 import { registerMacros, actFromMacro } from "./macros.mjs";
 import { registerRwr } from "./rwr.mjs";
 import { registerRadio, sendRadio, say, caution } from "./radio.mjs";
+import { registerRange } from "./range.mjs";
+import { openDossierExchange, importDossier, exportDossier } from "./dossier-sync.mjs";
 import { registerMapInfo } from "./mapinfo.mjs";
 import { registerRotate } from "./rotate.mjs";
 import { registerInsignia } from "./insignia.mjs";
@@ -70,6 +72,7 @@ Hooks.once("init", () => {
   registerMacros();
   registerRwr();
   registerRadio();
+  registerRange();
   registerMapInfo();
   registerRotate();
   registerAltitude();
@@ -80,7 +83,7 @@ Hooks.once("init", () => {
   registerActions();
 
   game.thunderbolt = { importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
-    squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB, radio: { send: sendRadio, say, caution } };
+    squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB, radio: { send: sendRadio, say, caution }, dossier: { open: openDossierExchange, importDossier, exportDossier } };
 });
 
 Hooks.once("ready", async () => {
@@ -151,9 +154,18 @@ Hooks.on("getSceneControlButtons", controls => {
   tokens?.tools.push({ name: "tb-awacs", title: "Панель AWACS", icon: "fas fa-satellite-dish", button: true, onClick: () => openAwacs() });
 });
 Hooks.on("renderActorDirectory", (app, html) => {
-  if (!game.user.isGM) return;
   const root = html[0] ?? html;
   const bar = root.querySelector(".header-actions");
+  if (bar && !bar.querySelector(".tb-shtab-sync")) {
+    const s = document.createElement("button");
+    s.type = "button";
+    s.className = "tb-shtab-sync";
+    s.title = "Перенести личные дела пилотов из Штаба и обратно кодом";
+    s.innerHTML = `<i class="fas fa-id-card"></i> Пилоты из Штаба`;
+    s.addEventListener("click", () => openDossierExchange());
+    bar.append(s);
+  }
+  if (!game.user.isGM) return;
   if (!bar || bar.querySelector(".tb-awacs-open")) return;
   const b = document.createElement("button");
   b.type = "button";

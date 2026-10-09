@@ -7,6 +7,7 @@ import { resolveActor } from "../utils.mjs";
 import { SQUAD_POINTS, allSquads, squadLayout, setSquadLayout, squadMembers } from "../squadrons.mjs";
 import { runAction, ACTIONS, startActionDrag } from "../macros.mjs";
 import { spendAction, actsSummary, allowAction } from "../actions.mjs";
+import { openDossierExchange } from "../dossier-sync.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -185,6 +186,13 @@ export class PilotSheet extends TBActorSheet {
       template: SYS_PATH + "templates/actor/pilot-sheet.hbs",
       tabs: [{ navSelector: ".tb-tabs", contentSelector: ".tb-body", initial: "combat" }]
     });
+  }
+
+  /** Кнопка «Штаб» в шапке: обмен личным делом с Штабом кодом. */
+  _getHeaderButtons() {
+    const buttons = super._getHeaderButtons();
+    if (this.actor.isOwner) buttons.unshift({ label: "Штаб", class: "tb-shtab-sync", icon: "fas fa-id-card", onclick: () => openDossierExchange(this.actor) });
+    return buttons;
   }
 
   async getData(options) {

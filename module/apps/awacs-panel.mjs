@@ -7,6 +7,7 @@ import { arrangeSceneTokens } from "../tokens.mjs";
 import { openMapUpdateDialog, coreWeatherFor } from "./mission-import.mjs";
 import { targetGoals } from "../losses.mjs";
 import { openRadioDialog } from "../radio.mjs";
+import { openDossierExchange } from "../dossier-sync.mjs";
 import { SQUAD_POINTS, allSquads, squadPoints, squadMembers, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
 
 let panel = null;
@@ -127,6 +128,7 @@ export class AwacsPanel extends Application {
     });
     on("[data-results]", () => sortieResults());
     on("[data-radio]", () => openRadioDialog());
+    on("[data-shtab]", () => openDossierExchange());
     on("[data-arrange]", () => arrangeSceneTokens());
     on("[data-all-fight]", () => allToCombat());
     on("[data-squad-form]", () => squadFromSelection());

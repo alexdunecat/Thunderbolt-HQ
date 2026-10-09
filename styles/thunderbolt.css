@@ -461,3 +461,10 @@ body[data-tb-skin="brief"] select option:hover, body[data-tb-skin="ac5"] select 
 #tb-caution.tb-caution-warning .tb-caution-frame { border-color: rgba(255,107,74,.8); }
 @keyframes tb-caution-blink { 50% { opacity: .15; } }
 .tb-card-radio .tb-radio-caution-line { font-family: var(--tb-data, monospace); font-weight: 700; letter-spacing: .08em; color: var(--tb-warn, #b8860b); text-transform: uppercase; margin-bottom: 4px; }
+
+/* обмен личными делами со Штабом */
+.tb-dossier-sync label { display: block; font-weight: 700; margin: 8px 0 3px; }
+.tb-dossier-sync textarea { width: 100%; font-family: var(--tb-data, "JetBrains Mono", monospace); font-size: 11px; resize: vertical; }
+.tb-dossier-sync textarea[readonly] { opacity: .85; }
+.tb-radio-form textarea { width: 100%; resize: vertical; }
+.tb-radio-form .form-group.stacked { flex-direction: column; align-items: stretch; }
