@@ -64,7 +64,7 @@ const weapons = Object.entries(Y.WEAPONS).map(([k, w]) => ({
   key: k, name: w.name, ammo: w.ammo, dmg: w.dmg, aa: w.aa, ag: w.ag, aim: w.aim, dep: w.dep, kind: w.kind, target: w.target, fx: w.fx, group: wgroup[k] || ""
 }));
 const npcs = Y.NPCS.map(n => {
-  const base = { key: n.id, kind: n.kind, grp: n.grp, grpName: grpName[n.grp] || "", name: n.name, nato: n.nato, cls: n.cls, desc: n.desc || "", service: n.service || "", short: n.short };
+  const base = { key: n.id, kind: n.kind, grp: n.grp, grpName: grpName[n.grp] || "", side: n.side || "enemy", name: n.name, nato: n.nato, cls: n.cls, desc: n.desc || "", service: n.service || "", short: n.short };
   if (n.kind === "air") return Object.assign(base, {
     seats: n.seats || 1, carrier: !!n.carrier,
     stats: { spd: n.tb.spd, ev: n.tb.ev, aa: n.tb.aa, ag: n.tb.ag, hp: n.tb.hp, gun: n.tb.gun },
@@ -97,7 +97,7 @@ fs.writeFileSync(path.join(ROOT, "data/catalog.json"), JSON.stringify(out, null,
    (Гигес и Коттос занимают одну зону, но сами шире, чем длиннее). */
 const FRAME = { aerial: [3, 2], arkbird: [2, 3], scinfaxi: [1, 3], topol: [1, 2] };
 // корабли флота крупнее катера (TB.footprints.fleet)
-for (const k of ["nimitz", "kuznetsov", "iowa", "kirov", "ticonderoga", "burke", "sovremenny", "udaloy", "krivak", "perry", "ropucha", "tanker", "la688"]) FRAME[k] = [1, 2];
+for (const k of ["ferry", "nimitz", "kuznetsov", "iowa", "kirov", "ticonderoga", "burke", "sovremenny", "udaloy", "krivak", "perry", "ropucha", "tanker", "la688"]) FRAME[k] = [1, 2];
 /* Токены в стиле «Брифинг» (стекло): белые линии, цвет стороны даёт тонировка в Foundry (module/sidecolor.mjs).
    Пишем все силуэты и все старые мишени: на них могут ссылаться актёры старых миров. */
 const { tokenIcon } = require("./token-icon.cjs");

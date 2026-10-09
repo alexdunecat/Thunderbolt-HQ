@@ -56,6 +56,14 @@ cat.npcs.forEach((n, i) => {
     items: [], effects: [], flags: {}, _stats: stats,
     prototypeToken: { ...d.prototypeToken, bar1: { attribute: "hp" }, bar2: { attribute: null }, displayBars: 20, displayName: 30 } });
 });
+// самолёты ангара игроков тоже бывают противниками или союзниками: отдельная папка в конце
+const hangar = cat.planeNpcs.filter(n => n.grp === "player");
+hangar.forEach((n, i) => {
+  const d = npcActor(n, { tier: "conscript" });
+  add("npcs", "actors", { _id: id("npc:player:" + n.key), ...d, folder: folder("npcs", "Actor", "Ангар Юктобании", grpOrder.length), sort: 10000 + i,
+    items: [], effects: [], flags: {}, _stats: stats,
+    prototypeToken: { ...d.prototypeToken, bar1: { attribute: "hp" }, bar2: { attribute: null }, displayBars: 20, displayName: 30 } });
+});
 // памятка пилота
 const jid = id("journal:memo");
 add("rules", "journal", {

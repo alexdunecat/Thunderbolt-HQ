@@ -39,7 +39,7 @@ export function npcActor(n, { tier = "conscript", bonus = 0, name } = {}) {
   const sys = {
     kind: n.kind, key: n.key, grp: n.grp, grpName: n.grpName, nato: n.nato ?? "", cls: n.cls ?? "", seats: n.seats ?? 1,
     tier, bonus, props: n.props ?? [], rules: n.rules ?? [], sig: n.sig ?? [], desc: n.desc ?? "", service: n.service ?? "",
-    speed: 1, alt: n.kind === "air" ? "med" : "low"
+    speed: 1, alt: n.kind === "air" ? "med" : "low", side: n.side ?? "enemy"
   };
   if (n.kind === "air") {
     sys.stats = { spd: n.stats.spd ?? 3, ev: n.stats.ev ?? 0, aa: n.stats.aa, ag: n.stats.ag, gun: n.stats.gun, str: null };
@@ -55,6 +55,6 @@ export function npcActor(n, { tier = "conscript", bonus = 0, name } = {}) {
   const fp = footprintOf(sys);
   return {
     name: name ?? n.name, type: "npc", img: n.img, system: sys,
-    prototypeToken: { name: name ?? n.name, texture: { src: fp ? footprintTexture(n.img) : n.img }, actorLink: false, disposition: -1 }
+    prototypeToken: { name: name ?? n.name, texture: { src: fp ? footprintTexture(n.img) : n.img }, actorLink: false, disposition: { ally: 1, neutral: 0 }[n.side] ?? -1 }
   };
 }

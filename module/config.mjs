@@ -127,11 +127,11 @@ export function footprintOf(sys) {
   if (sys.key === "arkbird") return TB.footprints.arkbird;
   if (/стратегическ/i.test(sys.cls ?? "") || sys.key === "b2a") return TB.footprints.strategic;
   // крупные самолёты: транспорт, ДРЛО, патрульные и AC-130
-  if (sys.kind === "air" && (sys.grp === "support" || sys.key === "ac130")) return TB.footprints.large;
+  if (sys.kind === "air" && (sys.grp === "support" || ["ac130", "widebody", "cargojet"].includes(sys.key))) return TB.footprints.large;
   if (props.includes("aerialship")) return TB.footprints.aerialCruiser;
   if (props.includes("superdive")) return TB.footprints.superSub;
   if (sys.kind === "ground" && TB.longVehicles.includes(sys.key)) return TB.footprints.longVehicle;
-  if (sys.kind === "ship" && sys.grp === "sea" && sys.key !== "patrolboat") return TB.footprints.fleet;
+  if (sys.kind === "ship" && ["sea", "civil"].includes(sys.grp) && sys.key !== "patrolboat") return TB.footprints.fleet;
   return null;
 }
 
