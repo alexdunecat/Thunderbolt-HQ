@@ -68,6 +68,7 @@ function fromMessage(message) {
   const f = message.flags?.[SYSTEM_ID] ?? {};
   if (f.rwr) {
     if (f.rwr.fromUuid) queue({ event: "lock", speaker: f.rwr.fromUuid, target: nameOf(resolveActor(f.rwr.target)) });
+    // дальше цели берутся по uuid: имя в эфире, а не имя на карточке
     queue({ event: "locked", speaker: f.rwr.target });
     return;
   }
@@ -77,7 +78,7 @@ function fromMessage(message) {
     for (const r of c.targets ?? []) {
       if (r.missing || r.ship) continue;
       const shooter = [r.sourceUuid, ...(r.shooterUuids ?? [])].find(u => resolveActor(u)?.type === "npc");
-      if (shooter) queue({ event: r.hit ? "hit" : "miss", speaker: shooter, target: r.name });
+      if (shooter) queue({ event: r.hit ? "hit" : "miss", speaker: shooter, target: radioName(r.uuid, r.name) });
       if (!r.hit) queue({ event: "evade", speaker: r.uuid });
     }
     return;
@@ -85,14 +86,16 @@ function fromMessage(message) {
   if (!c.attack || !c.actorUuid) return;
   // пушка: стрелок кричит «огонь», исход слышен от цели (ушёл, подбит, сбит — урон и сбитого пришлёт actor.mjs)
   if (c.instant) {
-    queue({ event: "guns", speaker: c.actorUuid, target: c.targetName });
+    queue({ event: "guns", speaker: c.actorUuid, target: radioName(c.targetUuid, c.targetName) });
     if (c.targetUuid && c.dc !== null && c.dc !== undefined && !succeeded(c)) queue({ event: "evade", speaker: c.targetUuid });
     return;
   }
   // ракета по наземной или морской цели: у авиации это удар по земле (бомбы, ракеты по объекту)
-  queue({ event: c.tkind === "ground" ? "bomb" : "fire", speaker: c.actorUuid, target: c.targetName });
+  queue({ event: c.tkind === "ground" ? "bomb" : "fire", speaker: c.actorUuid, target: radioName(c.targetUuid, c.targetName) });
   if (c.targetUuid) queue({ event: "incoming", speaker: c.targetUuid });
 }
+
+const radioName = (uuid, fallback) => (uuid && nameOf(resolveActor(uuid))) || fallback || "";
 
 /** Попала ли атака (как computeCard: ничья за атакующим). */
 function succeeded(c) {
@@ -184,10 +187,20 @@ function tokenDoc(actor) {
   return actor.getActiveTokens?.(false, true)?.[0] ?? null;
 }
 
-/** Имя в эфире: позывной пилота или имя токена. */
-function nameOf(actor) {
+/**
+ * Имя в эфире: «Позывной в эфире» с листа NPC, позывной пилота, имя, которое дали копии на листе токена
+ * (у несвязанного токена оно расходится с именем токена), иначе имя токена. own: false — без поля «Позывной в эфире».
+ */
+export function nameOf(actor, { own = true } = {}) {
   if (!actor) return "";
-  return actor.system?.callsign || tokenDoc(actor)?.name || actor.name;
+  const call = own ? String(actor.getFlag?.(SYSTEM_ID, "callsign") ?? "").trim() : "";
+  if (call) return call;
+  if (actor.system?.callsign) return actor.system.callsign;
+  if (actor.isToken) {
+    const base = actor.token?.baseActor ?? game.actors?.get?.(actor.token?.actorId);
+    if (base && actor.name && actor.name !== base.name) return actor.name;
+  }
+  return tokenDoc(actor)?.name || actor.name;
 }
 
 /** Ближайший к from живой открытый NPC, который может говорить и подходит под fits. */
@@ -261,7 +274,7 @@ function lineFor(e) {
   if (!tok || tok.hidden) return null;
   if (e.event !== "destroyed" && dead(actor)) return null;
   const side = bankSide(actor, type);
-  const self = tok.name || actor.name;
+  const self = nameOf(actor);
   const vars = { target: e.target, fallen: e.fallen, killer: e.killer, self };
   // ас со своими репликами говорит ими (и когда его тип молчит); если ни одна не подошла, общими фразами
   const own = isAce(actor) ? actor.getFlag?.(SYSTEM_ID, "replies")?.[event] : null;
@@ -288,9 +301,9 @@ const splitLines = v => v.split("\n").map(s => s.trim()).filter(Boolean);
 /** Асы: на сцене боя (или открытой) — токены, у каждого свои реплики; в актёрах — заготовка для всех его токенов. */
 function aceList() {
   const scene = game.combat?.scene ?? game.scenes?.viewed;
-  const onScene = (scene?.tokens ?? []).filter(t => isAce(t.actor)).map(t => ({ actor: t.actor, name: t.name, where: "сцена" }));
+  const onScene = (scene?.tokens ?? []).filter(t => isAce(t.actor)).map(t => ({ actor: t.actor, name: nameOf(t.actor), where: "сцена" }));
   const seen = new Set(onScene.map(x => x.actor.uuid));
-  const inDir = (game.actors ?? []).filter(a => isAce(a) && !seen.has(a.uuid)).map(a => ({ actor: a, name: a.name, where: "актёр" }));
+  const inDir = (game.actors ?? []).filter(a => isAce(a) && !seen.has(a.uuid)).map(a => ({ actor: a, name: nameOf(a), where: "актёр" }));
   return { onScene, inDir };
 }
 
@@ -378,8 +391,7 @@ class ChatterEditor extends FormApplication {
     const type = chatterType(ace) ?? "air", side = bankSide(ace, type);
     const own = ace.getFlag(SYSTEM_ID, "replies") ?? {};
     const events = eventsFor(type, side);
-    const tok = tokenDoc(ace);
-    const name = ace.isToken ? tok?.name ?? ace.name : ace.name;
+    const name = nameOf(ace);
     const rows = events.map(ev => {
       const e = CHATTER_EVENTS[ev], lines = Array.isArray(own[ev]) ? own[ev] : [];
       return this.#row({ key: `ace.${ev}`, label: e.label, hint: e.hint, value: lines.join("\n"), placeholder: linesFor(type, side, ev).join("\n"),
@@ -388,6 +400,7 @@ class ChatterEditor extends FormApplication {
     const where = ace.isToken ? "Токен на сцене: реплики только у этого токена."
       : "Актёр: реплики получат все его токены, у которых нет своих.";
     return `<header><h3>${esc(name)}</h3>
+        <label class="tb-chatter-call">Позывной в эфире <input type="text" data-callsign value="${esc(ace.getFlag(SYSTEM_ID, "callsign") ?? "")}" placeholder="${esc(nameOf(ace, { own: false }))}"></label>
         <p class="tb-hint">Ас · ${esc(CHATTER_TYPES[type].label)} · ${esc(CHATTER_SIDES[side] ?? "")}. ${where} Пустое поле: говорит общими фразами типа (видны серым). {target} — цель, {fallen} — сбитый свой, {killer} — пилот игрока, {self} — его имя.</p></header>
       <div class="tb-chatter-list">${rows}</div>`;
   }
@@ -398,6 +411,10 @@ class ChatterEditor extends FormApplication {
     const ace = this.ace;
     root.querySelectorAll("[data-type]").forEach(b => b.addEventListener("click", () => { this.type = b.dataset.type; this.render(false); }));
     root.querySelectorAll("[data-side]").forEach(b => b.addEventListener("click", () => { this.side = b.dataset.side; this.render(false); }));
+    root.querySelector("[data-callsign]")?.addEventListener("change", async ev => {
+      await setCallsign(ace, ev.target.value);
+      this.render(false);
+    });
     root.querySelector("[data-voice]")?.addEventListener("change", async ev => {
       const m = { ...muted() };
       if (ev.target.checked) delete m[this.type]; else m[this.type] = true;
@@ -421,7 +438,7 @@ class ChatterEditor extends FormApplication {
         const lines = splitLines(area.value || area.placeholder);
         const type = ace ? chatterType(ace) ?? "air" : key.split(".")[0];
         const side = ace ? bankSide(ace, type) : key.split(".")[1];
-        const self = ace ? (tokenDoc(ace)?.name ?? ace.name) : CHATTER_TYPES[type].label;
+        const self = ace ? nameOf(ace) : CHATTER_TYPES[type].label;
         const text = pickLine(`test:${key}`, lines, { ...SAMPLE, self });
         if (!text) return ui.notifications.info("В этом поле нет фраз: в этом случае NPC молчит.");
         say(self, text, ace ? sideOf(ace) : side === "civil" ? "neutral" : side, { log: false });
@@ -439,6 +456,13 @@ class ChatterEditor extends FormApplication {
   }
 
   async _updateObject() {}
+}
+
+/** «Позывной в эфире»: пусто — снова имя с листа или токена. */
+export async function setCallsign(actor, value) {
+  const v = String(value ?? "").trim();
+  if (v) return actor.setFlag(SYSTEM_ID, "callsign", v);
+  if (actor.getFlag(SYSTEM_ID, "callsign") !== undefined) return actor.update({ [`flags.${SYSTEM_ID}.-=callsign`]: null });
 }
 
 /** Личные реплики аса: флаг replies на актёре (у несвязанного токена — в его дельте). Пустой список убирает поле. */

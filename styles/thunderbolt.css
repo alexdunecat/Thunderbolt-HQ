@@ -376,6 +376,7 @@ body[data-tb-skin="doc"] {
 .thunderbolt .tb-side-row { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; margin: 4px 0 2px; }
 .thunderbolt .tb-side-row label { display: inline-flex; align-items: center; gap: 6px; }
 .thunderbolt .tb-side-row select { width: auto; }
+.thunderbolt .tb-side-row input[type="text"] { width: 170px; }
 .tb-card-battle h4 { margin: 6px 0 2px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; border: none; }
 .tb-card-battle ul { margin: 0 0 2px; padding-left: 18px; }
 .tb-card-battle p { margin: 0 0 2px; }
@@ -527,6 +528,8 @@ body[data-tb-skin="brief"] .tb-radio-log b.tb-log-caution { color: #f2c14e; } bo
 .tb-chatter-foot label { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
 .tb-chatter-foot select { width: auto; }
 .tb-chatter-foot .tb-spacer { flex: 1; }
+.tb-chatter-call { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; }
+.tb-chatter-call input { width: 220px; }
 .tb-chatter-voice { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 4px; }
 .tb-chatter-list.muted { opacity: .5; }
 .app.tb-chatter .tb-chatter-nav button.muted:not(.on) { opacity: .6; }

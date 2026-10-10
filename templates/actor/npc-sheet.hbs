@@ -154,6 +154,7 @@
         <label>Сторона <select data-tb-side>{{selectOptions sides selected=system.side}}</select></label>
         <label class="tb-check"><input type="checkbox" data-tb-priority {{checked system.priority}}> Приоритетная цель</label>
         <label class="tb-check" title="Реплики этого NPC в эфире (переговоры NPC). Снимите, если ему нечего сказать."><input type="checkbox" data-tb-voice {{checked voice}}> Говорит в эфире</label>
+        <label title="Под этим именем NPC говорит в эфире и под ним его называют другие. Пусто: имя с листа, если копию переименовали, иначе имя токена.">Позывной в эфире <input type="text" data-tb-callsign value="{{radioCall}}" placeholder="{{radioName}}"></label>
         {{#if system.priority}}<label>Задача <select data-tb-task>{{selectOptions taskOptions selected=system.task}}</select></label>{{/if}}
       </div>
       {{#if (eq system.tier "ace")}}<p><button type="button" class="tb-wide" data-tb-replies title="Свои фразы этого аса в эфире: захват, пуск, сбил, подбит, сбит и т. д."><i class="fas fa-comments"></i> Реплики аса в эфире</button></p>{{/if}}

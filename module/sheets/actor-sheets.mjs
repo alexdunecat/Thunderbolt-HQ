@@ -11,7 +11,7 @@ import { openDossierExchange } from "../dossier-sync.mjs";
 import { aimedWeapon, toggleAim } from "../range.mjs";
 import { rollGround, chooseEdge, edgeLabel, dropBond, useBond, useEdge, threats, clockPips, stepThreat, bondCap } from "../downtime.mjs";
 import { gloryView } from "../glory.mjs";
-import { openChatterEditor } from "../chatter.mjs";
+import { openChatterEditor, nameOf, setCallsign } from "../chatter.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -503,6 +503,8 @@ export class NpcSheet extends TBActorSheet {
     ctx.gunLabel = gunVs(this.actor) === "air" ? "Зенитный огонь" : "Огонь по земле";
     ctx.taskOptions = TB.tasks;
     ctx.voice = !this.actor.getFlag(SYSTEM_ID, "quiet");
+    ctx.radioCall = this.actor.getFlag(SYSTEM_ID, "callsign") ?? "";
+    ctx.radioName = nameOf(this.actor, { own: false });
     return ctx;
   }
 
@@ -526,6 +528,7 @@ export class NpcSheet extends TBActorSheet {
       ev.stopPropagation();
       this.actor.update({ [`flags.${SYSTEM_ID}.quiet`]: !ev.currentTarget.checked });
     });
+    el.querySelector("[data-tb-callsign]")?.addEventListener("change", ev => { ev.stopPropagation(); setCallsign(this.actor, ev.currentTarget.value); });
     el.querySelector("[data-tb-replies]")?.addEventListener("click", () => openChatterEditor(this.actor));
     el.querySelectorAll("[data-sys-field]").forEach(n => n.addEventListener("change", () => {
       const list = foundry.utils.deepClone(this.actor.system.systems);

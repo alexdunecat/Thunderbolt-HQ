@@ -130,6 +130,17 @@ C.chatter({ event: "down", victim: extra[0].uuid, killer: "" });
 extra[0].statuses.add("dead");
 step("пять событий сразу");
 
+// имя в эфире: копию переименовали на листе токена, потом дали «Позывной в эфире»
+mig1.token.baseActor = { name: "Беркут-1" }; mig1.name = "Юстициар-1";
+fire(msg({ card: { attack: true, delayed: true, actorUuid: mig1.uuid, targetUuid: ship.uuid, targetName: "Адмирал", parts: [] } }));
+step("копия переименована на листе: говорит под новым именем");
+mig1.flags.callsign = "Страж";
+ship.flags.callsign = "Ковчег";
+fire(msg({ card: { attack: true, delayed: true, actorUuid: mig1.uuid, targetUuid: ship.uuid, targetName: "Адмирал", parts: [] } }));
+step("позывной в эфире у стрелка и у цели");
+console.log("имя без позывного:", C.nameOf(mig1, { own: false }), "| токен без переименования:", C.nameOf(mig2));
+delete mig1.flags.callsign; delete ship.flags.callsign; mig1.name = "Беркут-1";
+
 // файл: только отличия от стандартных
 const file = C.fullBank(); file["ship.ally.kill"] = ["Цель потоплена!"]; file["нет.такого.ключа"] = ["x"];
 const { ov, n } = C.bankFromFile(file);
