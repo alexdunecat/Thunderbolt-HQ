@@ -107,12 +107,14 @@ export class TBActor extends Actor {
         await this.#creditKill(sourceUuid);
         return this.#say(`<b>${esc(this.name)}</b> уничтожена.`);
       }
+      this.#chatter("damaged");
       return this.#say(`<b>${esc(this.name)}</b>: −${amount} HP, осталось ${hp}.`);
     }
 
     const hp = s.hp.value - amount;
     if (hp > 0) {
       await this.update({ "system.hp.value": hp });
+      this.#chatter("damaged");
       return this.#say(`<b>${esc(this.name)}</b>: −${amount} HP, осталось ${hp} из ${s.hp.max}.`);
     }
     const key = roundKey ?? this.roundKey;
@@ -135,6 +137,7 @@ export class TBActor extends Actor {
     if (choice.marker === "grit") Object.assign(upd, { "system.markers.grit": true, "system.markers.gritSkill": choice.skill });
     if (choice.marker === "structure") Object.assign(upd, { "system.markers.structure": true, "system.markers.sys": choice.sys });
     await this.update(upd);
+    this.#chatter("damaged");
     const what = choice.marker === "grit" ? `Grit: недоступен навык «${TB.skills[choice.skill]?.label}»`
       : `Structure: сломано «${TB.systems[choice.sys]?.label}» (${TB.systems[choice.sys]?.hint})`;
     return this.#say(`<b>${esc(this.name)}</b> получает метку ${what}. HP восстановлен до ${s.hp.max}.${this.system.markerCount >= 2 ? " После двух меток пора уходить из боя." : ""}`);
@@ -175,6 +178,7 @@ export class TBActor extends Actor {
     if (!c?.started || this.getFlag(SYSTEM_ID, "down")?.combat === c.id) return;
     const by = sourceUuid ? R.resolveActor(sourceUuid)?.name ?? "" : "";
     await this.setFlag(SYSTEM_ID, "down", { combat: c.id, round: c.round, by, byUuid: sourceUuid ?? "" });
+    this.#chatter("down", { victim: this.uuid, killer: sourceUuid ?? "" });
     // в трекере боец выбывает: заявок и хода у него больше нет
     const cb = c.combatants.find(x => (this.isToken ? x.tokenId === this.token?.id : x.actorId === this.id));
     if (cb && !cb.defeated && cb.isOwner) await cb.update({ defeated: true });
@@ -214,12 +218,19 @@ export class TBActor extends Actor {
     y.value = Math.max(0, y.value - amount);
     await this.update({ "system.systems": systems });
     const left = systems.filter(s => s.value > 0).length;
+    if (left) this.#chatter("damaged");
     if (!left) {
       await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
       await this.#creditKill(sourceUuid);
       return this.#say(`<b>${esc(this.name)}</b>: уничтожена последняя система. Цель потоплена.`);
     }
     return this.#say(`<b>${esc(this.name)}</b>: «${esc(y.name)}» −${amount} HP${y.value ? `, осталось ${y.value}` : ", система уничтожена"}. Целых систем: ${left}.`);
+  }
+
+  /** Переговоры NPC (chatter.mjs): подбит, сбит. Модуль грузится лениво, как радио в даунтайме. */
+  #chatter(event, data = {}) {
+    import("../chatter.mjs").then(m => m.chatter(event === "down" ? { event, ...data } : { event, speaker: this.uuid, ...data }))
+      .catch(err => console.warn(`${SYSTEM_ID} | переговоры`, err));
   }
 
   #say(text) {

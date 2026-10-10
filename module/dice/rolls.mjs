@@ -531,7 +531,7 @@ export async function lockOn(actor) {
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
     content: `<div class="tb-card tb-card-lock"><header class="tb-card-head"><span class="tb-card-who">${esc(actor.name)}</span><span class="tb-card-what">Lock On!</span></header><div class="tb-note">Захват: <b>${esc(t.name)}</b>${dist !== null ? `, ${dist} зон.` : "."}${longNote} Срывается, если цель уйдёт дальше двух зон.</div></div>`,
-    flags: { [SYSTEM_ID]: { rwr: { target: t.uuid, from: actor.name } } }
+    flags: { [SYSTEM_ID]: { rwr: { target: t.uuid, from: actor.name, fromUuid: actor.uuid } } }
   });
 }
 
@@ -862,7 +862,7 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
       uuid, name: info.name, count: list.length, shooters, best: best.total, defense: info.defense, hit,
       broke: (actor.system.breakEv ?? -Infinity) > ev,
       boosts: hit ? need : 0, added: adders.length, dmg: (best.dmg ?? 0) + adders.reduce((s, x) => s + (x.dmg ?? 0), 0),
-      sourceUuid: best.actorUuid, source: best.actorName,
+      sourceUuid: best.actorUuid, source: best.actorName, shooterUuids: [...new Set(list.map(x => x.c.actorUuid))],
       // урон наносит клиент владельца-игрока (у него откроется выбор метки), иначе ведущий
       by: damageUser(actor) ?? game.user.id
     });

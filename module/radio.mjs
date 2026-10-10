@@ -13,7 +13,7 @@ let showing = false, bannerOn = false;
 export function registerRadio() {
   registerRadioLog();
   game.settings.register(SYSTEM_ID, "radioSubtitles", {
-    name: "Радиообмен AWACS субтитрами", hint: "Реплики AWACS (захват, пуск по вам, итоги залпа, подкрепления) вверху экрана. Всё остаётся и в чате.",
+    name: "Радиообмен субтитрами", hint: "Реплики AWACS (захват, пуск по вам, итоги залпа, подкрепления) и переговоры NPC вверху экрана. Всё остаётся в радиожурнале.",
     scope: "client", config: true, type: Boolean, default: true
   });
   Hooks.on("createChatMessage", message => { try { fromMessage(message); } catch (err) { console.warn(`${SYSTEM_ID} | радио`, err); } });
@@ -119,12 +119,14 @@ const enabled = () => { try { return game.settings.get(SYSTEM_ID, "radioSubtitle
 /** Цвет говорящего: синий у AWACS и союзников, красный у противника, жёлтый у нейтралов. */
 const sideClass = side => ["ally", "enemy", "neutral"].includes(side) ? side : "ally";
 
-export function say(speaker, text, side = "ally") {
+/** low: переговоры NPC — при занятой очереди только в журнал; log: false — проба из окна «Реплики NPC», без журнала. */
+export function say(speaker, text, side = "ally", { low = false, log = true } = {}) {
   if (!text) return;
   const last = queue.at(-1);
   if (last && last.text === text) return;
-  record({ speaker, text, side: sideClass(side), muted: !enabled() });
+  if (log) record({ speaker, text, side: sideClass(side), muted: !enabled() });
   if (!enabled()) return;
+  if (low && queue.length >= 2) return;
   queue.push({ speaker, text, side: sideClass(side) });
   // конец раунда: не больше MAX_QUEUE реплик, остальное одной строкой
   if (queue.length > MAX_QUEUE) {

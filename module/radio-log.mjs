@@ -66,7 +66,7 @@ export function openRadioLog() {
 class RadioLog extends Application {
   static get defaultOptions() {
     return foundry.utils.mergeObject(super.defaultOptions, {
-      id: "tb-radio-log", title: "Радиожурнал AWACS", classes: ["thunderbolt", "tb-radio-log"],
+      id: "tb-radio-log", title: "Радиожурнал", classes: ["thunderbolt", "tb-radio-log"],
       width: 440, height: 520, resizable: true
     });
   }
@@ -91,8 +91,8 @@ class RadioLog extends Application {
       html += `<div class="tb-log-row${e.banner ? " tb-log-banner" : ""}"><span class="t">${time}</span>${line}${who}</div>`;
     }
     const empty = gm
-      ? "Пока тихо. Здесь соберутся реплики AWACS со всех клиентов: под каждой видно, кто из игроков её услышал. Игроки должны быть в игре с версией системы не ниже этой."
-      : "Пока тихо. Здесь соберутся реплики AWACS, которые слышали вы: захваты, пуски по вам, итоги залпов, погода, подкрепления и радио ведущего.";
+      ? "Пока тихо. Здесь соберутся реплики AWACS и переговоры NPC со всех клиентов: под каждой видно, кто из игроков её услышал. Игроки должны быть в игре с версией системы не ниже этой."
+      : "Пока тихо. Здесь соберутся реплики, которые слышали вы: AWACS (захваты, пуски по вам, итоги залпов, погода, подкрепления, радио ведущего) и переговоры союзников, противника и гражданских.";
     const users = gm ? game.users.filter(u => !u.isGM || u.isSelf) : [];
     const pick = gm ? `<select data-filter><option value="">Все слушатели</option>${users.map(u => `<option value="${u.id}" ${u.id === filter ? "selected" : ""}>${esc(u.name)}${u.active ? "" : " (не в игре)"}</option>`).join("")}</select>` : "";
     return $(`<div class="tb-radio-log-body">${pick ? `<header>${pick}</header>` : ""}<div class="tb-log-list">${html || `<p class="tb-hint">${empty}</p>`}</div>

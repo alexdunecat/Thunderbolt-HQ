@@ -8,6 +8,7 @@ import { openMapUpdateDialog, coreWeatherFor } from "./mission-import.mjs";
 import { targetGoals } from "../losses.mjs";
 import { gloryView, gloryDialog, gloryFields, gloryPrefill, applyGlory, setGlory } from "../glory.mjs";
 import { openRadioDialog } from "../radio.mjs";
+import { openChatterEditor } from "../chatter.mjs";
 import { openDossierExchange } from "../dossier-sync.mjs";
 import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMarkAt, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
 import { DT } from "../config.mjs";
@@ -144,6 +145,7 @@ export class AwacsPanel extends Application {
     });
     on("[data-results]", () => sortieResults());
     on("[data-radio]", () => openRadioDialog());
+    on("[data-chatter]", () => openChatterEditor());
     on("[data-shtab]", () => openDossierExchange());
     on("[data-arrange]", () => arrangeSceneTokens());
     on("[data-base-event]", () => baseEvent());
