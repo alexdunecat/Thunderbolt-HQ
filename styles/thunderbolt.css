@@ -531,6 +531,8 @@ body[data-tb-skin="brief"] .tb-radio-log b.tb-log-caution { color: #f2c14e; } bo
 .tb-chatter-main { grid-row: 1; display: flex; flex-direction: column; min-height: 0; }
 .tb-chatter-main > header { padding: 6px 12px 8px; border-bottom: 1px solid var(--tb-line, rgba(127,127,127,.3)); }
 .tb-chatter-main > header h3 { margin: 2px 0 4px; border: 0; font-family: var(--tb-display, inherit); }
+.tb-chatter-main > header h3 small { font-family: var(--tb-font, inherit); font-size: 12px; font-weight: normal; }
+.app.tb-chatter .tb-chatter-main > header h3 .tb-chatter-legacy { width: auto; float: right; font-size: 11px; line-height: 20px; padding: 0 8px; }
 .tb-chatter-main > header .tb-hint { margin: 0 0 6px; font-size: 12px; }
 .tb-chatter-sides { display: flex; gap: 6px; }
 .tb-chatter-sides button { flex: 0 0 auto; width: auto; padding: 0 14px; line-height: 1.8; }

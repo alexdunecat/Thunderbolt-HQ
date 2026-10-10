@@ -2,7 +2,8 @@
    когда их подбили или сбили и когда рядом сбили своего. Гражданские зовут на помощь.
    События собирает клиент ведущего (сообщения чата, урон из actor.mjs, токены на сцене), раз в FLUSH_MS выбирает
    до MAX_LINES реплик и рассылает всем: каждый клиент показывает их субтитрами (если очередь свободна) и пишет в радиожурнал.
-   Фразы берутся из data/chatter-bank.mjs с правками ведущего из окна «Реплики NPC» (настройка мира chatterBank). */
+   Фразы берутся из data/chatter-bank.mjs с правками ведущего из окна «Реплики NPC». Правки и «Говорит в эфире» у каждой сцены свои
+   (флаги сцены chatterBank и chatterMuted), новая сцена начинает со стандартных фраз. */
 import { SYSTEM_ID } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
 import { sideOf, hasRule } from "./scene.mjs";
@@ -30,8 +31,8 @@ export function registerChatter() {
     name: "Переговоры NPC: как часто о мелочах", hint: "Вероятность реплики на захват, пуск, промах и появление в бою, в процентах. Сбитый, подбитый, сбивший и ведомый сбитого говорят всегда.",
     scope: "world", config: true, type: Number, range: { min: 0, max: 100, step: 10 }, default: 60
   });
+  // общие правки до 0.5.6, когда фразы были одни на весь мир: их можно перенести в сцену кнопкой в окне
   game.settings.register(SYSTEM_ID, "chatterBank", { scope: "world", config: false, type: Object, default: {} });
-  // типы, которые молчат (галочка «Говорит в эфире» в окне): { boss: true }
   game.settings.register(SYSTEM_ID, "chatterMuted", { scope: "world", config: false, type: Object, default: {} });
   game.settings.registerMenu(SYSTEM_ID, "chatterEditor", {
     name: "Реплики NPC", label: "Открыть реплики", hint: "Все фразы NPC по типам техники, сторонам и событиям: посмотреть, поменять, вернуть стандартные.",
@@ -48,6 +49,8 @@ export function registerChatter() {
   // подкрепление или засада: NPC появился на сцене боя или ведущий его открыл
   Hooks.on("createToken", doc => { if (isLead() && inCombat(doc) && !doc.hidden) queue({ event: "arrive", speaker: doc.actor?.uuid }); });
   Hooks.on("updateToken", (doc, change) => { if (isLead() && change.hidden === false && inCombat(doc)) queue({ event: "arrive", speaker: doc.actor?.uuid }); });
+  // окно показывает фразы открытой сцены
+  Hooks.on("canvasReady", () => { if (editor?.rendered) editor.render(false); });
 }
 
 /* ---------- откуда берутся события ---------- */
@@ -177,7 +180,10 @@ export function chatterType(actor) {
 const isCivil = type => !!CHATTER_TYPES[type]?.civil;
 const isAce = a => a?.type === "npc" && a.system?.tier === "ace" && !!chatterType(a);
 const quiet = a => !!a?.getFlag?.(SYSTEM_ID, "quiet");
-const muted = () => { try { return game.settings.get(SYSTEM_ID, "chatterMuted") ?? {}; } catch { return {}; } };
+/** Сцена, чьи фразы правит окно: открытая у ведущего. */
+const editScene = () => game.scenes?.viewed ?? game.combat?.scene ?? null;
+/** Типы, которые молчат на сцене (галочка «Говорит в эфире»): { boss: true }. */
+const muted = (scene = editScene()) => ({ ...(scene?.getFlag?.(SYSTEM_ID, "chatterMuted") ?? {}) });
 const team = s => (s === "player" ? "ally" : s);
 const dead = a => !!a?.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) || !!a?.system?.markers?.doom;
 
@@ -225,7 +231,25 @@ function nearestMate(victim) {
 
 const bankSide = (actor, type) => (isCivil(type) ? "civil" : sideOf(actor) === "ally" ? "ally" : "enemy");
 export const bankKey = (type, side, event) => `${type}.${side}.${event}`;
-const overrides = () => { try { return game.settings.get(SYSTEM_ID, "chatterBank") ?? {}; } catch { return {}; } };
+const legacy = k => { try { return game.settings.get(SYSTEM_ID, k) ?? {}; } catch { return {}; } };
+
+/** Правки сцены плоским списком { "air.enemy.fire": [...] }. Во флаге они вложены: chatterBank.air.enemy.fire. */
+function overrides(scene = editScene()) {
+  const out = {};
+  for (const [type, sides] of Object.entries(scene?.getFlag?.(SYSTEM_ID, "chatterBank") ?? {}))
+    for (const [side, evs] of Object.entries(sides ?? {}))
+      for (const [ev, lines] of Object.entries(evs ?? {})) if (Array.isArray(lines)) out[bankKey(type, side, ev)] = lines;
+  return out;
+}
+/** Плоский список правок → вложенный объект для флага сцены. */
+function nest(flat) {
+  const out = {};
+  for (const [key, lines] of Object.entries(flat)) {
+    const [type, side, ev] = key.split(".");
+    ((out[type] ??= {})[side] ??= {})[ev] = lines;
+  }
+  return out;
+}
 
 /** Стандартные фразы (с подстановкой из запасного типа: вертолёт → самолёт и т. п.). */
 export function defaultLines(type, side, event) {
@@ -235,9 +259,9 @@ export function defaultLines(type, side, event) {
   return fb ? defaultLines(fb, side, event) : [];
 }
 
-/** Фразы с правками ведущего. Пустой список в правках — тип молчит в этом событии. */
-export function linesFor(type, side, event) {
-  const o = overrides()[bankKey(type, side, event)];
+/** Фразы с правками ведущего на этой сцене. Пустой список в правках — тип молчит в этом событии. */
+export function linesFor(type, side, event, scene = editScene()) {
+  const o = overrides(scene)[bankKey(type, side, event)];
   return Array.isArray(o) ? o : defaultLines(type, side, event);
 }
 
@@ -279,8 +303,9 @@ function lineFor(e) {
   // ас со своими репликами говорит ими (и когда его тип молчит); если ни одна не подошла, общими фразами
   const own = isAce(actor) ? actor.getFlag?.(SYSTEM_ID, "replies")?.[event] : null;
   let text = Array.isArray(own) && own.length ? pickLine(`ace:${actor.uuid}:${event}`, own, vars) : null;
-  if (!text && muted()[type]) return null;
-  text ??= pickLine(bankKey(type, side, event), linesFor(type, side, event), vars);
+  const scene = tok.parent ?? editScene();
+  if (!text && muted(scene)[type]) return null;
+  text ??= pickLine(bankKey(type, side, event), linesFor(type, side, event, scene), vars);
   return text ? { speaker: self, text, side: sideOf(actor) } : null;
 }
 
@@ -300,7 +325,7 @@ const splitLines = v => v.split("\n").map(s => s.trim()).filter(Boolean);
 
 /** Асы: на сцене боя (или открытой) — токены, у каждого свои реплики; в актёрах — заготовка для всех его токенов. */
 function aceList() {
-  const scene = game.combat?.scene ?? game.scenes?.viewed;
+  const scene = editScene();
   const onScene = (scene?.tokens ?? []).filter(t => isAce(t.actor)).map(t => ({ actor: t.actor, name: nameOf(t.actor), where: "сцена" }));
   const seen = new Set(onScene.map(x => x.actor.uuid));
   const inDir = (game.actors ?? []).filter(a => isAce(a) && !seen.has(a.uuid)).map(a => ({ actor: a, name: nameOf(a), where: "актёр" }));
@@ -332,7 +357,8 @@ class ChatterEditor extends FormApplication {
 
   async _renderInner() {
     if (this.type?.startsWith("ace:") && !this.ace) this.type = "air";
-    const ov = overrides(), mute = muted();
+    const scene = editScene();
+    const ov = overrides(scene), mute = muted(scene);
     const aces = aceList();
     const nav = Object.entries(CHATTER_TYPES).map(([k, t], i, all) => {
       const changed = Object.keys(ov).some(x => x.startsWith(`${k}.`));
@@ -347,7 +373,7 @@ class ChatterEditor extends FormApplication {
     const aceNav = `<h4>Асы на сцене</h4>${aces.onScene.map(aceBtn).join("") || `<p class="tb-hint">Нет: уровень «Ас» на листе NPC.</p>`}`
       + (aces.inDir.length ? `<h4>Асы в актёрах</h4>${aces.inDir.map(aceBtn).join("")}` : "");
     const ace = this.ace;
-    const main = ace ? this.#aceView(ace) : this.#typeView(ov, mute);
+    const main = ace ? this.#aceView(ace) : scene ? this.#typeView(ov, mute, scene) : `<p class="tb-hint">Откройте сцену: фразы по типам у каждой сцены свои.</p>`;
     const pct = chance();
     return $(`<form class="tb-chatter-body">
       <nav class="tb-chatter-nav">${nav}${aceNav}</nav>
@@ -356,9 +382,9 @@ class ChatterEditor extends FormApplication {
         <label><input type="checkbox" data-enabled ${enabled() ? "checked" : ""}> Переговоры в эфире</label>
         <label>О мелочах: <select data-chance>${[0, 20, 40, 60, 80, 100].map(n => `<option value="${n}" ${n === pct ? "selected" : ""}>${n}%</option>`).join("")}${[0, 20, 40, 60, 80, 100].includes(pct) ? "" : `<option selected value="${pct}">${pct}%</option>`}</select></label>
         <span class="tb-spacer"></span>
-        <button type="button" data-export title="Сохранить все фразы типов в файл JSON (личные реплики асов хранятся в самих асах)"><i class="fas fa-file-export"></i> В файл</button>
-        <button type="button" data-import title="Загрузить фразы типов из файла JSON"><i class="fas fa-file-import"></i> Из файла</button>
-        <button type="button" data-reset-all title="Вернуть все стандартные фразы типов"><i class="fas fa-rotate-left"></i> Всё стандартное</button>
+        <button type="button" data-export ${scene ? "" : "disabled"} title="Сохранить фразы типов этой сцены в файл JSON: так их можно перенести в другую сцену (личные реплики асов хранятся в самих асах)"><i class="fas fa-file-export"></i> В файл</button>
+        <button type="button" data-import ${scene ? "" : "disabled"} title="Загрузить фразы типов из файла JSON в эту сцену"><i class="fas fa-file-import"></i> Из файла</button>
+        <button type="button" data-reset-all ${scene ? "" : "disabled"} title="Вернуть на этой сцене все стандартные фразы типов"><i class="fas fa-rotate-left"></i> Всё стандартное</button>
       </footer></form>`);
   }
 
@@ -370,7 +396,7 @@ class ChatterEditor extends FormApplication {
       <textarea rows="3" spellcheck="true" placeholder="${esc(placeholder)}">${esc(value)}</textarea></div>`;
   }
 
-  #typeView(ov, mute) {
+  #typeView(ov, mute, scene) {
     const civil = isCivil(this.type);
     const side = civil ? "civil" : this.side;
     const events = eventsFor(this.type, side);
@@ -379,11 +405,13 @@ class ChatterEditor extends FormApplication {
       `<button type="button" data-side="${k}" class="tb-side-${k} ${k === side ? "on" : ""}">${esc(l)}</button>`).join("")}</div>`;
     const rows = events.map(ev => {
       const key = bankKey(this.type, side, ev), e = CHATTER_EVENTS[ev];
-      return this.#row({ key, label: e.label, hint: e.hint, value: linesFor(this.type, side, ev).join("\n"), changed: Array.isArray(ov[key]), resetTitle: "Вернуть стандартные фразы" });
+      return this.#row({ key, label: e.label, hint: e.hint, value: linesFor(this.type, side, ev, scene).join("\n"), changed: Array.isArray(ov[key]), resetTitle: "Вернуть стандартные фразы" });
     }).join("");
-    return `<header><h3>${esc(t.label)}</h3>
+    const old = Object.keys(legacy("chatterBank")).length + Object.keys(legacy("chatterMuted")).length;
+    const carry = old ? ` <button type="button" data-legacy class="tb-chatter-legacy" title="До версии 0.5.6 фразы были одни на весь мир. Перенести те правки в эту сцену"><i class="fas fa-file-import"></i> Общие правки прошлой версии</button>` : "";
+    return `<header><h3>${esc(t.label)} <small class="tb-muted">· сцена «${esc(scene.name)}»</small>${carry}</h3>
         <label class="tb-chatter-voice"><input type="checkbox" data-voice ${mute[this.type] ? "" : "checked"}> Говорит в эфире</label>
-        <p class="tb-hint">${esc(t.hint)}. Одна фраза на строку, из них выбирается случайная. {target} — цель, {fallen} — сбитый свой, {killer} — пилот игрока, {self} — сам говорящий. Пустое поле: в этом случае молчит.${civil ? "" : " Асы со своими репликами говорят ими, даже если тип молчит."}</p>${sides}</header>
+        <p class="tb-hint">${esc(t.hint)}. Одна фраза на строку, из них выбирается случайная. {target} — цель, {fallen} — сбитый свой, {killer} — пилот игрока, {self} — сам говорящий. Пустое поле: в этом случае молчит. Фразы и галочка действуют только на этой сцене, новая сцена начинает со стандартных.${civil ? "" : " Асы со своими репликами говорят ими, даже если тип молчит."}</p>${sides}</header>
       <div class="tb-chatter-list${mute[this.type] ? " muted" : ""}">${rows}</div>`;
   }
 
@@ -392,9 +420,10 @@ class ChatterEditor extends FormApplication {
     const own = ace.getFlag(SYSTEM_ID, "replies") ?? {};
     const events = eventsFor(type, side);
     const name = nameOf(ace);
+    const scene = editScene();
     const rows = events.map(ev => {
       const e = CHATTER_EVENTS[ev], lines = Array.isArray(own[ev]) ? own[ev] : [];
-      return this.#row({ key: `ace.${ev}`, label: e.label, hint: e.hint, value: lines.join("\n"), placeholder: linesFor(type, side, ev).join("\n"),
+      return this.#row({ key: `ace.${ev}`, label: e.label, hint: e.hint, value: lines.join("\n"), placeholder: linesFor(type, side, ev, scene).join("\n"),
         changed: lines.length > 0, resetTitle: "Убрать свои фразы: снова общие фразы типа" });
     }).join("");
     const where = ace.isToken ? "Токен на сцене: реплики только у этого токена."
@@ -408,7 +437,7 @@ class ChatterEditor extends FormApplication {
   activateListeners(html) {
     super.activateListeners(html);
     const root = html[0] ?? html;
-    const ace = this.ace;
+    const ace = this.ace, scene = editScene();
     root.querySelectorAll("[data-type]").forEach(b => b.addEventListener("click", () => { this.type = b.dataset.type; this.render(false); }));
     root.querySelectorAll("[data-side]").forEach(b => b.addEventListener("click", () => { this.side = b.dataset.side; this.render(false); }));
     root.querySelector("[data-callsign]")?.addEventListener("change", async ev => {
@@ -416,9 +445,8 @@ class ChatterEditor extends FormApplication {
       this.render(false);
     });
     root.querySelector("[data-voice]")?.addEventListener("change", async ev => {
-      const m = { ...muted() };
-      if (ev.target.checked) delete m[this.type]; else m[this.type] = true;
-      await game.settings.set(SYSTEM_ID, "chatterMuted", m);
+      if (ev.target.checked) await scene.unsetFlag(SYSTEM_ID, `chatterMuted.${this.type}`);
+      else await scene.setFlag(SYSTEM_ID, `chatterMuted.${this.type}`, true);
       this.render(false);
     });
     root.querySelectorAll(".tb-chatter-ev").forEach(row => {
@@ -431,8 +459,8 @@ class ChatterEditor extends FormApplication {
         row.querySelector("[data-reset]").addEventListener("click", async () => { await saveAceLines(ace, event, []); this.render(false); });
       } else {
         const [type, side, event] = key.split(".");
-        area.addEventListener("change", async () => mark(await saveLines(key, splitLines(area.value), defaultLines(type, side, event))));
-        row.querySelector("[data-reset]").addEventListener("click", async () => { await saveLines(key, null); this.render(false); });
+        area.addEventListener("change", async () => mark(await saveLines(scene, key, splitLines(area.value), defaultLines(type, side, event))));
+        row.querySelector("[data-reset]").addEventListener("click", async () => { await saveLines(scene, key, null); this.render(false); });
       }
       row.querySelector("[data-test]").addEventListener("click", () => {
         const lines = splitLines(area.value || area.placeholder);
@@ -446,11 +474,17 @@ class ChatterEditor extends FormApplication {
     });
     root.querySelector("[data-enabled]")?.addEventListener("change", ev => game.settings.set(SYSTEM_ID, "npcChatter", ev.target.checked));
     root.querySelector("[data-chance]")?.addEventListener("change", ev => game.settings.set(SYSTEM_ID, "chatterChance", Number(ev.target.value)));
-    root.querySelector("[data-export]")?.addEventListener("click", () => exportBank());
-    root.querySelector("[data-import]")?.addEventListener("click", () => importBank().then(ok => ok && this.render(false)));
+    root.querySelector("[data-export]")?.addEventListener("click", () => exportBank(scene));
+    root.querySelector("[data-import]")?.addEventListener("click", () => importBank(scene).then(ok => ok && this.render(false)));
     root.querySelector("[data-reset-all]")?.addEventListener("click", async () => {
-      if (!(await Dialog.confirm({ title: "Реплики NPC", content: "<p>Вернуть все стандартные фразы типов? Ваши правки пропадут. Личные реплики асов останутся.</p>" }))) return;
-      await game.settings.set(SYSTEM_ID, "chatterBank", {});
+      if (!(await Dialog.confirm({ title: "Реплики NPC", content: `<p>Вернуть на сцене «${esc(scene.name)}» все стандартные фразы типов? Правки этой сцены пропадут. Другие сцены и личные реплики асов останутся.</p>` }))) return;
+      await scene.unsetFlag(SYSTEM_ID, "chatterBank");
+      this.render(false);
+    });
+    root.querySelector("[data-legacy]")?.addEventListener("click", async () => {
+      const bank = { ...legacy("chatterBank"), ...overrides(scene) }, mute = { ...legacy("chatterMuted"), ...muted(scene) };
+      await setSceneBank(scene, bank, mute);
+      ui.notifications.info(`Сцена «${scene.name}»: перенесены общие правки прошлой версии (полей: ${Object.keys(legacy("chatterBank")).length}). Правки самой сцены остались поверх.`);
       this.render(false);
     });
   }
@@ -471,29 +505,39 @@ async function saveAceLines(actor, event, lines) {
   if (actor.getFlag(SYSTEM_ID, `replies.${event}`) !== undefined) return actor.update({ [`flags.${SYSTEM_ID}.replies.-=${event}`]: null });
 }
 
-/** Записать фразы одного поля; совпадающие со стандартными правкой не считаются. Вернёт, есть ли правка. */
-async function saveLines(key, lines, defaults = []) {
-  const ov = foundry.utils.deepClone(overrides());
+/** Записать фразы одного поля на сцене; совпадающие со стандартными правкой не считаются. Вернёт, есть ли правка. */
+async function saveLines(scene, key, lines, defaults = []) {
   const same = lines && lines.length === defaults.length && lines.every((l, i) => l === defaults[i]);
-  if (!lines || same) delete ov[key];
-  else ov[key] = lines;
-  await game.settings.set(SYSTEM_ID, "chatterBank", ov);
+  if (!lines || same) { if (key in overrides(scene)) await scene.unsetFlag(SYSTEM_ID, `chatterBank.${key}`); }
+  else await scene.setFlag(SYSTEM_ID, `chatterBank.${key}`, lines);
   return !!lines && !same;
 }
 
-/** Все фразы (стандартные с правками) одним файлом: им можно поделиться с другим ведущим. */
-export function fullBank() {
+/** Заменить все правки сцены (setFlag слил бы старые и новые, поэтому сначала убрать). mute — заодно галочки «Говорит в эфире». */
+export async function setSceneBank(scene, flat, mute = null) {
+  const data = { [`flags.${SYSTEM_ID}.-=chatterBank`]: null };
+  if (mute) data[`flags.${SYSTEM_ID}.-=chatterMuted`] = null;
+  await scene.update(data);
+  const set = {};
+  if (Object.keys(flat).length) set[`flags.${SYSTEM_ID}.chatterBank`] = nest(flat);
+  if (mute && Object.keys(mute).length) set[`flags.${SYSTEM_ID}.chatterMuted`] = mute;
+  if (Object.keys(set).length) await scene.update(set);
+}
+
+/** Все фразы сцены (стандартные с правками) одним файлом: им можно поделиться с другим ведущим или перенести в другую сцену. */
+export function fullBank(scene = editScene()) {
   const out = {};
   for (const type of Object.keys(CHATTER_TYPES)) {
     const civil = isCivil(type);
     for (const side of civil ? ["civil"] : Object.keys(CHATTER_SIDES))
-      for (const ev of eventsFor(type, side)) out[bankKey(type, side, ev)] = linesFor(type, side, ev);
+      for (const ev of eventsFor(type, side)) out[bankKey(type, side, ev)] = linesFor(type, side, ev, scene);
   }
   return out;
 }
 
-function exportBank() {
-  saveDataToFile(JSON.stringify(fullBank(), null, 2), "application/json", "thunderbolt-replies.json");
+function exportBank(scene) {
+  const slug = String(scene?.name ?? "").trim().replace(/[\\/:*?"<>|\s]+/g, "-").slice(0, 40);
+  saveDataToFile(JSON.stringify(fullBank(scene), null, 2), "application/json", `thunderbolt-replies${slug ? "-" + slug : ""}.json`);
 }
 
 /** Из файла: известные ключи со списком строк; в правки идёт только отличающееся от стандартного. */
@@ -512,7 +556,7 @@ export function bankFromFile(data) {
   return { ov, n };
 }
 
-async function importBank() {
+async function importBank(scene) {
   const file = await new Promise(resolve => {
     const input = document.createElement("input");
     input.type = "file"; input.accept = ".json,application/json";
@@ -524,7 +568,7 @@ async function importBank() {
   try { data = JSON.parse(await readTextFromFile(file)); } catch { ui.notifications.error("Не получилось прочитать файл: это не JSON."); return false; }
   const { ov, n } = bankFromFile(data);
   if (!n) { ui.notifications.warn("В файле нет фраз для NPC."); return false; }
-  await game.settings.set(SYSTEM_ID, "chatterBank", ov);
-  ui.notifications.info(`Фразы загружены: ${n} полей, из них изменено ${Object.keys(ov).length}.`);
+  await setSceneBank(scene, ov);
+  ui.notifications.info(`Сцена «${scene.name}»: фразы загружены, ${n} полей, из них изменено ${Object.keys(ov).length}.`);
   return true;
 }
