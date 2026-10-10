@@ -75,10 +75,23 @@ intro = f"""<div class="tb-m-cover">
 </section>"""
 pages.append(page("Содержание", "", intro))
 
+STRAT = """<section class="tb-m-blk"><h2>Стратосфера</h2>
+<ul>
+<li>Четвёртая высота над High, граничит только с High. Подняться можно только со <b>Speed 3</b> и выше.</li>
+<li>Разреженный воздух: <b>Evasion −1, Max Speed +1</b>. Break! снижает Speed на 3 (с управляемым вектором тяги на 2).</li>
+<li>Сваливание не опасно: провал Push означает спуск на High без метки Doom.</li>
+<li>Отсюда бьют только по целям в стратосфере и на High, по земле нельзя. С High ракета по цели в стратосфере идёт с <b>A-A −2</b>, с Medium и Low не достать.</li>
+<li>Погоды нет: облака, дождь, буря, молния и ветер сюда не достают. Шрапнельные ракеты рвутся ниже.</li>
+<li>Здесь летают «Аркбёрд», падающий SOLG и баллистические ракеты на середине пути.</li>
+</ul></section>"""
+
 used = set()
 total = len(GROUPS) + 2
 for n, (name, sub, titles) in enumerate(GROUPS, 1):
     html = "\n".join(blocks[t] for t in titles if t in blocks)
+    # стратосфера: только в журнале Foundry, печатная памятка остаётся на трёх листах
+    if "Зоны и высота" in titles:
+        html += "\n" + STRAT
     used.update(titles)
     pages.append(page(name, f"Памятка пилота · раздел {n} из {total}", html))
 missing = [t for t in blocks if t not in used]

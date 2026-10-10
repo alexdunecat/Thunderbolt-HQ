@@ -7,7 +7,7 @@ import { zonePacker } from "../tokens.mjs";
 
 const COL_LETTERS = "АБВГДЕЖИКЛМНОПРСТУФХЦЧШЭЮЯ";
 const cellName = (c, r) => (COL_LETTERS[c] ?? "?") + (r + 1);
-const ALT = { L: "low", M: "med", H: "high" };
+const ALT = { L: "low", M: "med", H: "high", S: "strat" };
 const SIDE = {
   enemy: CONST.TOKEN_DISPOSITIONS.HOSTILE, ally: CONST.TOKEN_DISPOSITIONS.FRIENDLY,
   player: CONST.TOKEN_DISPOSITIONS.FRIENDLY, neutral: CONST.TOKEN_DISPOSITIONS.NEUTRAL

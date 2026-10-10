@@ -3,9 +3,9 @@
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { altOf, tokenOf, isFlying, flyingBoss } from "./scene.mjs";
 
-const ORDER = ["low", "med", "high"];
-const LETTER = { low: "L", med: "M", high: "H" };
-const SHADOW = { low: { off: 0.05, alpha: 0.45 }, med: { off: 0.14, alpha: 0.32 }, high: { off: 0.26, alpha: 0.2 } };
+const ORDER = ["low", "med", "high", "strat"];
+const LETTER = { low: "L", med: "M", high: "H", strat: "S" };
+const SHADOW = { low: { off: 0.05, alpha: 0.45 }, med: { off: 0.14, alpha: 0.32 }, high: { off: 0.26, alpha: 0.2 }, strat: { off: 0.38, alpha: 0.1 } };
 const DIM = 0.4;
 
 const isAir = isFlying;
@@ -25,7 +25,7 @@ export function registerAltitude() {
   Hooks.on("destroyToken", t => { if (t.tbShadow && !t.tbShadow.destroyed) t.tbShadow.destroy(); t.tbShadow = null; });
   for (const ev of ["controlToken", "updateToken", "updateActor", "createToken", "deleteToken", "canvasReady"]) Hooks.on(ev, refreshSoon);
   Hooks.on("renderTokenHUD", addHudButtons);
-  // воздушный босс встаёт на свою высоту: Аркбёрд на High, летающий крейсер на Medium или High
+  // воздушный босс встаёт на свою высоту: Аркбёрд, SOLG и баллистическая ракета в стратосфере, летающий крейсер на Medium или High
   Hooks.on("preCreateToken", doc => {
     if (!flyingBoss(doc.actor)) return;
     const elevation = TB.altElevation[altOf({ document: doc }, doc.actor)];
@@ -121,7 +121,7 @@ export async function stepAltitude(token, delta) {
   if (next === allowed[cur]) {
     if (allowed.length === 1) return ui.notifications.info(`«${doc.name}» всегда на ${TB.altitudes[next]}.`);
     if (allowed !== ORDER && delta < 0) return ui.notifications.info(`«${doc.name}» не опускается ниже ${TB.altitudes[allowed[0]]}.`);
-    return ui.notifications.info(delta > 0 ? "Выше High подниматься некуда." : "Ниже Low только земля.");
+    return ui.notifications.info(delta > 0 ? "Выше стратосферы подниматься некуда." : "Ниже Low только земля.");
   }
   return doc.update({ elevation: TB.altElevation[next] });
 }

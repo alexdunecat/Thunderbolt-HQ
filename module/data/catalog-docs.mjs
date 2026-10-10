@@ -52,6 +52,10 @@ export function npcActor(n, { tier = "conscript", bonus = 0, name } = {}) {
     sys.systems = n.systems.map(y => ({ name: y.name, occ: y.occ ?? 4, hp: y.hp ?? 3, value: y.hp ?? 3, ga: y.ga, gg: y.gg, gun: y.gun, note: y.note ?? "" }));
     sys.speed = 0;
   }
+  // Аркбёрд, SOLG и баллистическая ракета начинают в стратосфере; ракета всегда на Max Speed
+  const keys = [...sys.props, ...sys.rules].map(p => p?.key ?? p);
+  if (keys.some(k => ["strato", "solgfall", "ballistic"].includes(k))) sys.alt = "strat";
+  if (keys.includes("ballistic") && sys.stats) sys.speed = sys.stats.spd;
   const fp = footprintOf(sys);
   return {
     name: name ?? n.name, type: "npc", img: n.img, system: sys,

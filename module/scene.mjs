@@ -2,7 +2,7 @@
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { esc } from "./utils.mjs";
 
-const ALT_ORDER = ["low", "med", "high"];
+export const ALT_ORDER = ["low", "med", "high", "strat"];
 
 /** Токен актёра на текущей сцене (для несвязанных токенов — свой токен). */
 export function tokenOf(actor) {
@@ -14,13 +14,14 @@ export function tokenOf(actor) {
 const propKeys = a => [...(a?.system?.props ?? []), ...(a?.system?.rules ?? [])].map(p => p?.key ?? p);
 
 /**
- * Воздушный босс: летающий крейсер, Аркбёрд или падающий SOLG (Medium или High). Иначе null.
- * Стратосферы в системе нет: Аркбёрд и SOLG в ней стоят на High и опускаются на Medium (правила strato, solgfall).
+ * Воздушный босс: летающий крейсер (Medium или High), Аркбёрд и падающий SOLG (от стратосферы до Medium),
+ * баллистическая ракета (только стратосфера: ниже её не перехватить). Иначе null.
  */
 export function flyingBoss(actor) {
   if (actor?.type !== "npc") return null;
   const keys = propKeys(actor);
-  if (actor.system.key === "arkbird" || keys.includes("strato") || keys.includes("solgfall")) return ["med", "high"];
+  if (actor.system.key === "arkbird" || keys.includes("strato") || keys.includes("solgfall")) return ["med", "high", "strat"];
+  if (actor.system.key === "icbm" || keys.includes("ballistic")) return ["strat"];
   // старые миры: Аркбёрд из компендиума до 0.4.54
   if (keys.includes("highonly")) return ["high"];
   if (keys.includes("aerialship")) return ["med", "high"];
@@ -42,7 +43,7 @@ export function gunVs(actor) {
 /** Летит ли машина: пилот, воздушный NPC или воздушный босс. */
 export const isFlying = actor => actor?.type === "pilot" || (actor?.type === "npc" && actor.system.kind === "air") || !!flyingBoss(actor);
 
-/** Высота токена: по elevation (1 Low, 2 Medium, 3 High), иначе по листу актёра. Воздушный босс не выходит из своих высот. */
+/** Высота токена: по elevation (1 Low, 2 Medium, 3 High, 4 стратосфера), иначе по листу актёра. Воздушный босс не выходит из своих высот. */
 export function altOf(token, actor = token?.actor) {
   const elev = token?.document?.elevation;
   const byElev = Object.entries(TB.altElevation).find(([, v]) => v === elev)?.[0];
@@ -129,9 +130,26 @@ export function reachProblems(attacker, target, range) {
     problems.push(`Цель в ${dist} ${dist === 1 ? "зоне" : "зонах"} от вас, а дальность: ${rangeLabel(range)}.${dusty ? " Пыльная буря: цели только в своей зоне." : ""}`);
   const altA = altOf(a, attacker), altB = altOf(b, target.actor);
   const air = target.kind === "air";
-  if (altA === "high" && (!air || altB === "low")) problems.push("С High нельзя бить по земле и по целям на Low.");
+  // зенитные ракеты Аркбёрда бьют вниз на все высоты
+  const downAll = air && hasRule(attacker, "strato");
+  if (altA === "strat" && !downAll && (!air || !["strat", "high"].includes(altB))) problems.push("Из стратосферы бьют только по целям в стратосфере и на High.");
+  else if (air && altB === "strat" && !["strat", "high"].includes(altA)) problems.push("До стратосферы достают только из стратосферы и с High.");
+  else if (altA === "high" && !downAll && (!air || altB === "low")) problems.push("С High нельзя бить по земле и по целям на Low.");
   else if (air && altB === "low" && altA !== "low") problems.push("По воздушной цели на Low бьют только с Low.");
   return { dist, far, problems };
+}
+
+/** Ракета с High по цели в стратосфере: A-A −2 (ракета на пределе высоты). Строка для карточки броска или null. */
+export function stratLift(attacker, target) {
+  const a = tokenOf(attacker), b = target?.token ?? tokenOf(target?.actor);
+  if (!a || !b || target.kind !== "air") return null;
+  return altOf(a, attacker) === "high" && altOf(b, target.actor) === "strat" ? ["предел высоты", -2] : null;
+}
+
+/** Что мешает подняться на эту высоту: в стратосферу только со Speed 3 и выше. null — можно. */
+export function climbProblem(actor, to) {
+  if (to !== "strat" || flyingBoss(actor)) return null;
+  return (actor?.system?.speed ?? 0) >= 3 ? null : `${actor.name}: в стратосферу поднимаются только со Speed 3 и выше.`;
 }
 
 /** Спросить ведущего или игрока, стрелять ли вне правил дальности. true — продолжать. */
@@ -155,6 +173,8 @@ export function weatherAt(actor, token = tokenOf(actor)) {
   if (cell) for (const id of scene?.getFlag(SYSTEM_ID, "weatherCells")?.[`${cell.col},${cell.row}`] ?? []) ids.add(id);
   const alt = token ? altOf(token, actor) : (actor?.system.alt ?? "med");
   const w = { list: [], ev: 0, aa: 0, ag: 0, push: 0, spd: 0, comp2: false, ownZone: false };
+  // в стратосферу погода не достаёт
+  if (alt === "strat") ids.clear();
   for (const id of ids) {
     const d = TB.weather[id];
     if (!d || (d.alts && !d.alts.includes(alt))) continue;

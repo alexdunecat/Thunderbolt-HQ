@@ -7,7 +7,7 @@
    Move и Climb / Dive засчитываются в момент перемещения, и двигавший видит об этом сообщение. */
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { PASS, isOut } from "./documents/combat.mjs";
-import { landBlocked } from "./scene.mjs";
+import { landBlocked, climbProblem, ALT_ORDER } from "./scene.mjs";
 import { esc } from "./utils.mjs";
 
 export const ACT_NAMES = {
@@ -165,10 +165,12 @@ export function registerActions() {
       }
     }
     // токен без высоты (0, брошен на сцену вручную) стоит на высоте листа
-    const was = [1, 2, 3].includes(doc.elevation) ? doc.elevation : TB.altElevation[doc.actor.system.alt];
-    if ("elevation" in change && change.elevation !== was && [1, 2, 3].includes(change.elevation)) {
+    const levels = Object.values(TB.altElevation);
+    const was = levels.includes(doc.elevation) ? doc.elevation : TB.altElevation[doc.actor.system.alt];
+    if ("elevation" in change && change.elevation !== was && levels.includes(change.elevation)) {
       acts.push("climb");
-      const p = actionProblem(doc.actor, "climb", { token: doc });
+      const to = Object.keys(TB.altElevation).find(k => TB.altElevation[k] === change.elevation);
+      const p = actionProblem(doc.actor, "climb", { token: doc }) ?? climbProblem(doc.actor, to);
       if (p) problems.push(p);
       else if (was && Math.abs(change.elevation - was) > 1) problems.push(`${doc.name}: Climb / Dive меняет высоту только на одну ступень.`);
     }
@@ -190,8 +192,9 @@ export function registerActions() {
   Hooks.on("preUpdateActor", (actor, change, options) => {
     if (options.tbSync || options.tbFree || !foundry.utils.hasProperty(change, "system.alt") || change.system.alt === actor.system.alt) return;
     if (!combatantOf(actor)) return;
-    const order = ["low", "med", "high"], step = Math.abs(order.indexOf(change.system.alt) - order.indexOf(actor.system.alt));
-    const p = actionProblem(actor, "climb") ?? (step > 1 ? `${actor.name}: Climb / Dive меняет высоту только на одну ступень.` : null);
+    const step = Math.abs(ALT_ORDER.indexOf(change.system.alt) - ALT_ORDER.indexOf(actor.system.alt));
+    const p = actionProblem(actor, "climb") ?? climbProblem(actor, change.system.alt)
+      ?? (step > 1 ? `${actor.name}: Climb / Dive меняет высоту только на одну ступень.` : null);
     if (p) { ui.notifications.warn(p); return false; }
     countMove(actor, ["climb"]);
   });

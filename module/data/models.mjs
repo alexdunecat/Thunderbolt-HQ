@@ -148,10 +148,12 @@ export class PilotData extends foundry.abstract.TypeDataModel {
 
     // самолёт с поправками триггеров и поломок
     const broken = this.markers.structure ? this.markers.sys : "";
-    this.maxSpeed = Math.max(1, ps.spd + sum("maxSpeed") - (broken === "en" ? 1 : 0));
+    // разреженный воздух стратосферы: Max Speed +1, Evasion −1
+    const thin = this.alt === "strat" ? 1 : 0;
+    this.maxSpeed = Math.max(1, ps.spd + sum("maxSpeed") - (broken === "en" ? 1 : 0) + thin);
     this.hp.max = Math.max(1, ps.hp + sum("hpMax"));
     this.strain.max = broken === "fl" ? 0 : Math.max(0, (ps.str ?? 0) + sum("strainMax"));
-    let ev = ps.ev + sum("evasion");
+    let ev = ps.ev + sum("evasion") - thin;
     if (propKeys.has("swing") && this.speed >= this.maxSpeed) ev += 1;
     if (propKeys.has("terrain") && this.alt === "low") ev += 1;
     this.evasion = ev;
@@ -208,9 +210,11 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       this.defense = this.ground.occ;
       this.maxSpeed = 0;
     } else {
-      this.maxSpeed = Math.max(1, this.stats.spd - (this.broken === "en" ? 1 : 0));
-      this.evasion = this.stats.ev;
-      this.defense = airDefense(this, this.stats.ev);
+      // баллистическая ракета идёт по своей траектории: Defense 6 и в стратосфере
+      const thin = this.alt === "strat" && !this.props.some(p => p.key === "ballistic") ? 1 : 0;
+      this.maxSpeed = Math.max(1, this.stats.spd - (this.broken === "en" ? 1 : 0) + thin);
+      this.evasion = this.stats.ev - thin;
+      this.defense = airDefense(this, this.evasion);
       this.aa = this.stats.aa; this.ag = this.stats.ag; this.gun = this.stats.gun;
       this.strain.max = this.tier === "ace" ? (this.stats.str ?? 0) : 0;
     }

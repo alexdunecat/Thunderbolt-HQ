@@ -1,7 +1,7 @@
 /* Броски и чат-карточки: проверки, ракеты, пушка, Break!, Strain, урон, сваливание. */
 import { SYSTEM_ID, TB } from "../config.mjs";
 import { esc, resolveActor } from "../utils.mjs";
-import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, zoneDistance, rangeLabel, isFlying, struckBy, gunVs } from "../scene.mjs";
+import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, stratLift, zoneDistance, rangeLabel, isFlying, struckBy, gunVs } from "../scene.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
 import { allowRoll } from "../actions.mjs";
@@ -162,7 +162,7 @@ export function renderCard(card) {
   }
   if (c.type === "stall" && !c.applied) {
     if (c.success) btn.push(`<button type="button" data-tb-action="stall-ok" class="tb-owner">Выровняться: Speed 1</button>`);
-    else btn.push(`<button type="button" data-tb-action="stall-fail" class="tb-owner">${c.alt === "low" ? "Удар о землю: Doom" : "Потерять высоту"}</button>`);
+    else btn.push(`<button type="button" data-tb-action="stall-fail" class="tb-owner">${c.alt === "low" ? "Удар о землю: Doom" : c.alt === "strat" ? "Спуститься на High" : "Потерять высоту"}</button>`);
   }
   const queued = c.delayed && c.combatKey && !c.resolved && !c.dmgApplied;
   if (queued) rows.push(`<div class="tb-note tb-queued"><i class="fas fa-hourglass-half"></i> ${c.atTurn ? "Ждёт начала хода цели." : "В очереди залпа конца раунда."}</div>`);
@@ -369,10 +369,12 @@ export async function rollBreak(actor) {
   parts.push(...await takeNext(actor));
   if (data.mod) parts.push(["мод.", data.mod]);
   const tvc = actor.system.planeProps?.has?.("tvc") || actor.system.props?.some?.(p => p.key === "tvc");
+  // в разреженном воздухе стратосферы Break! стоит на 1 Speed больше
+  const thin = actor.system.alt === "strat" ? 1 : 0;
   const card = {
     type: "break", label: "Break!", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: null,
     ev: actor.system.evasion ?? actor.system.stats?.ev ?? 0, strainable: actor.type === "pilot" || actor.system.tier === "ace",
-    speedDrop: tvc ? 1 : 2, combatKey: combatKey(), practiced: !!dice.practiced, ...thresholds(actor, "dodge", data.storm)
+    speedDrop: (tvc ? 1 : 2) + thin, combatKey: combatKey(), practiced: !!dice.practiced, ...thresholds(actor, "dodge", data.storm)
   };
   const msg = await postCard(actor, card, dice.rolls);
   await applyBreak(actor, card);
@@ -529,6 +531,8 @@ export async function fireMissile(actor) {
     if (m) parts.push([`мод ${w.name}`, m]);
     parts.push(...weatherParts(wx, air ? "aa" : "ag"));
   }
+  const lift = t && air ? stratLift(actor, t) : null;
+  if (lift) parts.push(lift);
   if (speed) parts.push(["Speed", -speed]);
   if (data.mod) parts.push(["мод.", data.mod]);
 
@@ -876,7 +880,7 @@ export async function onCardAction(message, action, button) {
       if (!actor?.isOwner) return;
       card.applied = true; await save();
       if (actor.system.alt === "low") return actor.markDoom("Сваливание на Low");
-      const down = { high: "med", med: "low" }[actor.system.alt] ?? "low";
+      const down = { strat: "high", high: "med", med: "low" }[actor.system.alt] ?? "low";
       return actor.setAltitude(down, { tbFree: true });
     }
     case "damage": {

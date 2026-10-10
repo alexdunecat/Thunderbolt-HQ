@@ -226,7 +226,12 @@ Hooks.on("updateActor", async (actor, change, options, userId) => {
     if (flying && !hover) R.rollStall(actor);
   }
   if (userId !== game.user.id) return;
-  if (has("system.alt")) actor.syncElevation();
+  if (has("system.alt")) {
+    actor.syncElevation();
+    // спуск из стратосферы: Max Speed снова меньше на 1
+    if ((actor.system.speed ?? 0) > (actor.system.maxSpeed ?? Infinity) && actor.system.maxSpeed > 0)
+      actor.update({ "system.speed": actor.system.maxSpeed }, { tbFree: true });
+  }
   if (actor.type === "pilot" && (has("system.twist") || has("system.markers"))) actor.syncPools();
 
   // архетип сменился: убрать Core-триггер прежнего архетипа и добавить Core нового из компендиума
