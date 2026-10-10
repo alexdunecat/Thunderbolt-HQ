@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-09",
+ "generated": "2026-10-10",
  "planes": [
   {
    "key": "mig21bis",
@@ -7093,7 +7093,7 @@
      "text": "По книге уничтожение супероружия — последняя миссия операции. Поставь рядом эскорт и подкрепления, и не забудь про Twist."
     }
    ],
-   "img": "systems/thunderbolt-shtab/assets/targets/ship.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/solg.svg"
   },
   {
    "key": "bookbomber",

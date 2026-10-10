@@ -95,7 +95,7 @@ fs.writeFileSync(path.join(ROOT, "data/catalog.json"), JSON.stringify(out, null,
 
 /* Пропорции поля силуэтов неквадратных токенов [ширина, длина], по TB.footprints в module/config.mjs
    (Гигес и Коттос занимают одну зону, но сами шире, чем длиннее). */
-const FRAME = { aerial: [3, 2], arkbird: [2, 3], scinfaxi: [1, 3], topol: [1, 2] };
+const FRAME = { aerial: [3, 2], arkbird: [2, 3], solg: [2, 3], scinfaxi: [1, 3], topol: [1, 2] };
 // корабли флота крупнее катера (TB.footprints.fleet)
 for (const k of ["ferry", "nimitz", "kuznetsov", "iowa", "kirov", "ticonderoga", "burke", "sovremenny", "udaloy", "krivak", "perry", "ropucha", "tanker", "la688"]) FRAME[k] = [1, 2];
 /* Токены в стиле «Брифинг» (стекло): белые линии, цвет стороны даёт тонировка в Foundry (module/sidecolor.mjs).
