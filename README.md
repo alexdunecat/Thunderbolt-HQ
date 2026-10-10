@@ -48,3 +48,7 @@ npm install
 npm run build
 ./tools/make-dist.sh   # архив dist/thunderbolt-shtab-<версия>.zip
 ```
+
+## Проверки
+
+`npm test` (или `node tests/run.mjs`) гоняет боевые карточки, залпы, пушки, потери, задачи, радио, дальности, даунтайм, катапульту и обмен с «Личным делом» на заглушках Foundry и сверяет вывод со снимками в `tests/snapshots`. После намеренного изменения: `node tests/run.mjs --update` и просмотр diff снимков. CI (workflow Tests) запускает их на каждый push, `tools/make-dist.sh` не соберёт архив, если они не проходят.

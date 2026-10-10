@@ -1,0 +1,20 @@
+ok derived ev 5 gun 2 str 6 aim 1 hp 5 aa 5
+ok edgeCount ignores costs 2
+ok on edge comp 1-2
+ok start strain nerves3 + fresh = max 8
+ok nerves hint two markers
+ok after sortie ["Нервы +2 (5)","Заделы сгорели"]
+ok on edge nerves do not grow
+ok 7 clean (tie to pilot)
+ok 4 cost
+ok 3 fail
+ok opposed -3 cost
+ok cost card: edge button, costs without trauma
+ok fail allows trauma
+ok perk clean: evasion without counter-cost
+WARN Одна и та же доводка на вылет только одна.
+ok duplicate tune refused
+ok resolve makes d4 = 4
+ok goal filled -> resolve Цель «Брат»: 4 из 4. Цель достигнута: допишите строку в досье. +1 Решимость (1 из 2).
+ok leave clean+perk: nerves -2 1
+ok bond drop keeps old value struck

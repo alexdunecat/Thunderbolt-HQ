@@ -1,0 +1,17 @@
+# Проверки системы на заглушках Foundry: вывод каждого tests/*.test.mjs сверяется со снимком в tests/snapshots.
+name: Tests
+on:
+  push:
+  pull_request:
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Загрузка системы
+        run: node tools/load-test.mjs
+      - name: Проверки
+        run: node tests/run.mjs

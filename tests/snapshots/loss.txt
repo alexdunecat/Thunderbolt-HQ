@@ -1,0 +1,8 @@
+ICON dead:systems/thunderbolt-shtab/assets/status/destroyed.svg retreat:systems/thunderbolt-shtab/assets/status/retreat.svg break:systems/thunderbolt-shtab/assets/status/break.svg stall:systems/thunderbolt-shtab/assets/status/stall.svg
+DEL-COMBATANTS cМиГ-гун,cТанкер
+DELETE МиГ-гун,Танкер
+END R2: МиГ-гун: сбит (Гроза); Танкер: отступил | left Су-ракета,Ворон,Ангар,Союзный
+DEL-COMBATANTS cСу-ракета,cВорон
+DELETE Су-ракета,Ворон
+CHAT AWACS Итоги боя: Операция «Гром» Залив · 10.10.2026 · раундов: 3 Поражённые цели МиГ-гун: сбит (Гроза) Су-ракета: сбит (Ворон) Отступили Танкер: отступил Не поражены Ангар (HP 2/4) Потери авиакрыла и союзников Ворон: сбит, катапульта (Су-ракета) Счёт пилотов за бой Ворон: в воздухе 1, на земле и на море 0 Гроза: в воздухе 1, на земле и на море 0 Задачи операции Сбить ДРЛО Итоги в личные дела
+LAST ["МиГ-гун:down","Танкер:retreat","Су-ракета:down","Ворон:down"]

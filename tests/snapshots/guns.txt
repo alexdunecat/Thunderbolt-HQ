@@ -1,0 +1,13 @@
+DIALOG Guns, Guns, Guns! fields=target,mod,storm options=★ Нейтрал · защита 5 | МиГ · защита 5 | Су · защита 8 hint=
+TARGET Су
+CARD1 {"t":"Су","dc":8,"applied":true} sent=[{"type":"hit","to":"gm","hit":{"uuid":"Actor.Су","name":"Су","dmg":3,"source":"Гроза","sourceUuid":"Actor.Гроза","gun":true}}]
+DIALOG Guns, Guns, Guns! fields=target,mod,storm options=★ Нейтрал · защита 5 | МиГ · защита 5 | Су · защита 8 hint=
+TARGET Нейтрал
+CARD2 {"t":"Нейтрал","dc":5,"applied":false}
+CARD2+strain {"strain":1,"applied":true} sent=2
+DIALOG Guns, Guns, Guns! fields=target,mod,storm options=Ведомый · защита 5 | Гроза · защита 5 | Нейтрал · защита 5 | Союзный · защита 5 hint=
+TARGET Ведомый
+CARD3 {"t":"Ведомый","applied":true} sent={"type":"hit","to":"pl","hit":{"uuid":"Actor.Ведомый","name":"Ведомый","dmg":3,"source":"МиГ","sourceUuid":"Actor.МиГ","gun":true}}
+LEFT Гроза,Далёкий,Союзный
+WARN Guns, Guns, Guns!: в своей зоне нет противника. Рядом: Союзный: своя сторона.
+CARD4 fired

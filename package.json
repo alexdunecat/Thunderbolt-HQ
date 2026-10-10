@@ -7,7 +7,10 @@
     "extract": "node tools/extract-data.cjs",
     "memo": "python3 tools/memo-to-journal.py",
     "packs": "node tools/build-packs.mjs",
-    "build": "npm run extract && npm run memo && npm run packs"
+    "build": "npm run extract && npm run memo && npm run packs",
+    "test": "node tests/run.mjs"
   },
-  "devDependencies": { "@foundryvtt/foundryvtt-cli": "^3.0.0" }
+  "devDependencies": {
+    "@foundryvtt/foundryvtt-cli": "^3.0.0"
+  }
 }

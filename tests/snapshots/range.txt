@@ -1,0 +1,7 @@
+standard: 25 { '9be3bf': 1, f2c14e: 16, '6cc4ff': 8 }
+laam 80 { '9be3bf': 1, f2c14e: 79 }
+aam4 9 { '9be3bf': 1, f2c14e: 8 }
+rcl 1 { '9be3bf': 1 }
+emrg 31 { '9be3bf': 1, f2c14e: 30 }
+emrg+target 5 { '9be3bf': 1, f2c14e: 4 }
+back to std 25

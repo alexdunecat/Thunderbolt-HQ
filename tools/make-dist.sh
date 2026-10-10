@@ -7,6 +7,7 @@ VERSION=$(jq -r .version system.json)
 ZIP="dist/thunderbolt-shtab-$VERSION.zip"
 CDN="https://cdn.jsdelivr.net/gh/alexdunecat/Thunderbolt-HQ@main"
 node tools/load-test.mjs > /dev/null   # система должна загружаться
+node tests/run.mjs > /dev/null || { node tests/run.mjs | grep -v "^✓"; exit 1; }   # и проходить проверки
 for f in module/*.mjs module/*/*.mjs; do node --check "$f"; done
 # ссылка download всегда на архив этой версии: старые архивы удаляются, и устаревшая ссылка даёт 404 при установке
 RAW="https://raw.githubusercontent.com/alexdunecat/Thunderbolt-HQ/main"

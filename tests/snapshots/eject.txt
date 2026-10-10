@@ -1,0 +1,3 @@
+UPD {"system.service.status":"mia"}
+UPD {"system.service.status":"kia"}
+all ok (10)
