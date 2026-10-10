@@ -33,6 +33,7 @@ function downtimeFields() {
     onEdge: str(),                 // на Нервах 5 перед вылетом: "fly" — летит на пределе
     breakdown: str(),              // срыв в этом вылете: stupor, rage, panic ("" — ещё не было)
     resolve: int(0, { min: 0, max: DT.maxResolve }),
+    fee: int(0, { min: 0, max: 3 }),   // Гонорар Наёмника
     downtime: new f.SchemaField({
       actions: int(2, { min: 0, max: 2 }),   // сколько действий осталось в этом даунтайме
       resolveGot: bool(),                     // Решимость за этот даунтайм уже получена
@@ -50,6 +51,19 @@ function downtimeFields() {
     goals: new f.ArrayField(new f.SchemaField({ name: str(), size: int(4), value: int(0, { min: 0 }) })),
     debts: new f.ArrayField(new f.SchemaField({ text: str(), struck: bool() }))
   };
+}
+
+/**
+ * Опытная машина для «Испытателя»: шаблон Experimental Prototype, опытная или экспериментальная машина ангара,
+ * Задел «Редкая машина» или «Доводка» на этот вылет. Флаг самолёта proto (true/false) решает вручную.
+ */
+export function isProto(plane, edges = []) {
+  const flag = plane?.getFlag?.("thunderbolt-shtab", "proto");
+  if (typeof flag === "boolean") return flag;
+  if (edges.some(e => (e.kind === "rare" || e.kind === "tune") && !e.used)) return true;
+  if (!plane) return false;
+  const s = plane.system;
+  return s.key === "prt" || s.base === "Experimental Prototype" || /опытн|эксперимент/i.test(s.cls ?? "");
 }
 
 /* Защита воздушной цели: Evasion (или Break!, если он выше) + Speed. */
@@ -98,6 +112,8 @@ export class PilotData extends foundry.abstract.TypeDataModel {
     this.ammoBonus = {};
     this.perkOn = Object.fromEntries(SKILL_KEYS.map(k => [k, 4]));
     this.compOn = Object.fromEntries(SKILL_KEYS.map(k => [k, 1]));
+    this.proto = isProto(plane, this.edges);
+    const planeD4 = [];   // «Испытатель»: пороги d4 от машины, только в воздухе
     for (const t of triggers) {
       const s = t.system;
       const chosen = [s.skill, s.skills > 1 ? s.skill2 : ""].filter(k => SKILL_KEYS.includes(k));
@@ -108,6 +124,7 @@ export class PilotData extends foundry.abstract.TypeDataModel {
         if (c.target === "skill.chosen") chosen.forEach(k => push(`skill.${k}`, t.name, v));
         else if (c.target === "perk.chosen") chosen.forEach(k => { this.perkOn[k] = Math.min(this.perkOn[k], c.value); });
         else if (c.target === "comp.chosen") chosen.forEach(k => { this.compOn[k] = Math.max(this.compOn[k], c.value); });
+        else if (c.target === "perk.all" || c.target === "comp.all") planeD4.push(c);
         else if (c.target === "ammo") { if (s.weapon) this.ammoBonus[s.weapon] = (this.ammoBonus[s.weapon] ?? 0) + v; }
         else push(c.target, t.name, v);
       }
@@ -126,6 +143,12 @@ export class PilotData extends foundry.abstract.TypeDataModel {
     // на пределе: Complication на 1–2 во всех проверках
     this.edgeFly = this.nerves >= DT.maxNerves && this.onEdge === "fly";
     if (this.edgeFly) for (const k of SKILL_KEYS) this.compOn[k] = Math.max(this.compOn[k], 2);
+    this.groundPerkOn = { ...this.perkOn };
+    this.groundCompOn = { ...this.compOn };
+    for (const c of planeD4) for (const k of SKILL_KEYS) {
+      if (c.target === "perk.all") this.perkOn[k] = Math.min(this.perkOn[k], c.value);
+      else this.compOn[k] = Math.max(this.compOn[k], c.value);
+    }
     this.edgeCount = this.edges.filter(e => !DT.notEdges.includes(e.kind)).length;
     // «В строю» у союзника вплотную: + его ранги Lead к Evasion
     try {
@@ -279,6 +302,8 @@ export class TriggerData extends foundry.abstract.TypeDataModel {
       case "twist": return actorSystem.twist ? 1 : 0;
       case "toggle": return this.active ? 1 : 0;
       case "stack": return this.stack;
+      case "proto": return actorSystem.proto ? 1 : 0;
+      case "serial": return actorSystem.proto ? 0 : 1;
       default: return 1;
     }
   }

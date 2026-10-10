@@ -203,7 +203,7 @@ function groundFrom(g, weaponIds) {
       was: (b.was ?? []).map(Number).filter(Number.isFinite), dead: !!b.dead, used: false, usedGround: false, grown: false };
   });
   return {
-    nerves: clamp(g.nerves, 0, DT.maxNerves), onEdge: g.onEdge === "fly" ? "fly" : "", resolve: clamp(g.resolve, 0, DT.maxResolve),
+    nerves: clamp(g.nerves, 0, DT.maxNerves), onEdge: g.onEdge === "fly" ? "fly" : "", resolve: clamp(g.resolve, 0, DT.maxResolve), fee: clamp(g.fee ?? 0, 0, 3),
     "downtime.actions": clamp(g.actions ?? 2, 0, 2), "downtime.resolveGot": !!g.resolveGot,
     edges, bonds,
     goals: (g.goals ?? []).filter(x => x?.name || x?.value).map(x => { const size = num(x.size) === 6 ? 6 : 4; return { name: x.name ?? "", size, value: clamp(x.value, 0, size) }; }),
@@ -216,7 +216,7 @@ function groundTo(actor, weapons) {
   const s = actor.system;
   const shtabId = a => a.getFlag(SYSTEM_ID, "shtab")?.id || `pf${a.id}`;
   return {
-    nerves: s.nerves, onEdge: s.onEdge, resolve: s.resolve, actions: s.downtime.actions, resolveGot: s.downtime.resolveGot,
+    nerves: s.nerves, onEdge: s.onEdge, resolve: s.resolve, fee: s.fee ?? 0, actions: s.downtime.actions, resolveGot: s.downtime.resolveGot,
     edges: s.edges.map(e => {
       const out = { kind: e.kind, text: e.text, comp: e.comp, used: e.used };
       for (const k of ["stat", "minus", "minus2", "skill", "mode"]) if (e[k]) out[k] = e[k];

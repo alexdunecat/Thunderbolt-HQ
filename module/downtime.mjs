@@ -273,8 +273,8 @@ export async function rollGround(actor, action = "") {
     opposed = { d10: rn.total, skill: npcSkill };
     dc = rn.total + npcSkill;
   }
-  const perkOn = data.strong ? Math.min(3, s.perkOn?.[skill] ?? 4) : s.perkOn?.[skill] ?? 4;
-  const compOn = (s.compOn?.[skill] ?? 1) + (data.fear ? 1 : 0);
+  const perkOn = Math.min(data.strong ? 3 : 4, (s.groundPerkOn ?? s.perkOn)?.[skill] ?? 4);
+  const compOn = ((s.groundCompOn ?? s.compOn)?.[skill] ?? 1) + (data.fear ? 1 : 0);
   const spec = act ? edgeSpec(actor, action, data) : null;
   const card = {
     type: "ground", label: act ? act.label : `Проверка на земле: ${TB.skills[skill].label}`, rolled: true,
@@ -321,7 +321,7 @@ async function simpleAction(actor, action) {
     else { name = data.npcName; npc = true; }
     if (data.hook) notes.push(`Крючок: «${esc(data.hook)}»`);
     if (name && data.grow) {
-      const r = growBond(s.bonds, { name, uuid, npc });
+      const r = growBond(s.bonds, { name, uuid, npc, cap: bondCap(actor, npc) });
       if (r.list) upd["system.bonds"] = r.list;
       notes.push(r.note);
     } else if (name) notes.push(`Сцена с ${esc(name)}.`);
@@ -350,11 +350,16 @@ function resolveGain(actor) {
   return { upd: { "system.resolve": s.resolve + 1, "system.downtime.resolveGot": true }, note: `+1 Решимость (${s.resolve + 1} из ${DT.maxResolve}).` };
 }
 
+/** Предел Связи: с NPC 2, у Наёмника с Контрактом тоже 2, иначе 3. */
+export function bondCap(actor, npc) {
+  if (npc) return DT.maxNpcBond;
+  return actor?.items?.some?.(i => i.type === "trigger" && i.system.key === "contract") ? DT.maxNpcBond : DT.maxBond;
+}
+
 /** Рост Связи на 1 (не больше раза на пару за даунтайм); новая Связь с пилотом или NPC начинается с 1. */
-function growBond(bonds, { name, uuid, npc }) {
+function growBond(bonds, { name, uuid, npc, cap = npc ? DT.maxNpcBond : DT.maxBond }) {
   const list = foundry.utils.deepClone(bonds);
   const b = list.find(x => (uuid && x.uuid === uuid) || (!uuid && x.name === name));
-  const cap = npc ? DT.maxNpcBond : DT.maxBond;
   if (!b) {
     if (npc && list.filter(x => x.npc && !x.dead).length >= 2) return { note: `Связей с NPC уже две: с ${esc(name)} Связь не заводится.` };
     list.push({ name, uuid, npc, value: 1, was: [], dead: false, used: false, usedGround: false, grown: true });

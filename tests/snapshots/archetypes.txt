@@ -1,0 +1,21 @@
+archetypes: oldguard rookie hotshot chatterbox soldier knight merc techno borderless | catalog: oldguard rookie hotshot chatterbox soldier knight merc techno borderless
+oldguard: Ветеран (Old Guard), core practiced ok, триггеров 7: practiced cautious_og everything follow formup skies warnever
+rookie: Новичок (Rookie), core mentor ok, триггеров 7: mentor cautious_rk handle legacy notyou million tellme
+hotshot: Сорвиголова (Hotshot), core reckless ok, триггеров 9: reckless enough fakeout fated guns holding blessing punch nevercome
+chatterbox: Болтун (Chatterbox), core outside ok, триггеров 7: outside intel cutchatter nicejob philosophy taunt trash
+soldier: Солдат (Soldier), core byside ok, триггеров 10: byside advevasion armor divebomb drawattn gotsix heart shotfirst inelement rearguard
+knight: Рыцарь (Knight), core code ok, триггеров 6: code salute mercy oldschool gauntlet wreath
+merc: Наёмник (Mercenary), core contract ok, триггеров 7: contract finish noquestions oldfriends expartner renegotiate bill
+techno: Технократ (Technocrat), core tester ok, триггеров 7: tester limiter bypass overcharge weakspot knowmachine projlegacy
+borderless: Анархист (Borderless), core noborders ok, триггеров 7: noborders sharedfreq nomarks turncoat notatthis ibelieved voice
+effects without trigger: — | toggles without hint: —
+proto: Experimental Prototype=true | Су-47=true | Falken=true | МиГ-29А=false | МиГ-29А + Доводка=true | МиГ-29А + Редкая машина=true | МиГ-29А, флаг proto=true | Су-47, флаг serial=false | без машины=false
+tester proto: proto true perk[aim3,deploy3,dodge3,lead3,push3,strafe3] comp[aim1,deploy1,dodge1,lead1,push1,strafe1] ground perk 4 comp 1 aim 1 evasion 4 gun 3 maxSpeed 5
+tester serial: proto false perk[aim4,deploy4,dodge4,lead4,push4,strafe4] comp[aim2,deploy2,dodge2,lead2,push2,strafe2] ground perk 4 comp 1 aim 1 evasion 4 gun 3 maxSpeed 5
+tester serial + tune: proto true perk[aim3,deploy3,dodge3,lead3,push3,strafe3] comp[aim1,deploy1,dodge1,lead1,push1,strafe1] ground perk 4 comp 1 aim 1 evasion 4 gun 3 maxSpeed 5
+no tester: proto true perk[aim4,deploy4,dodge4,lead4,push4,strafe4] comp[aim1,deploy1,dodge1,lead1,push1,strafe1] ground perk 4 comp 1 aim 1 evasion 4 gun 3 maxSpeed 5
+code off: proto false perk[aim4,deploy4,dodge4,lead4,push4,strafe4] comp[aim1,deploy1,dodge1,lead1,push1,strafe1] ground perk 4 comp 1 aim 1 evasion 4 gun 3 maxSpeed 5
+code on: proto false perk[aim4,deploy4,dodge4,lead4,push4,strafe4] comp[aim1,deploy1,dodge1,lead1,push1,strafe1] ground perk 4 comp 1 aim 2 evasion 5 gun 3 maxSpeed 5
+code + gauntlet + oldschool: proto false perk[aim4,deploy4,dodge4,lead4,push4,strafe4] comp[aim1,deploy1,dodge1,lead1,push1,strafe1] ground perk 4 comp 1 aim 3 evasion 6 gun 5 maxSpeed 5
+limiter on: proto false perk[aim4,deploy4,dodge4,lead4,push4,strafe4] comp[aim1,deploy1,dodge1,lead1,push1,strafe1] ground perk 4 comp 1 aim 1 evasion 4 gun 3 maxSpeed 7
+bond cap: pilot 3 | merc 2 | npc 2

@@ -9,7 +9,7 @@ import { runAction, ACTIONS, startActionDrag } from "../macros.mjs";
 import { spendAction, actsSummary, allowAction, endTurn } from "../actions.mjs";
 import { openDossierExchange } from "../dossier-sync.mjs";
 import { aimedWeapon, toggleAim } from "../range.mjs";
-import { rollGround, chooseEdge, edgeLabel, dropBond, useBond, useEdge, threats, clockPips, stepThreat } from "../downtime.mjs";
+import { rollGround, chooseEdge, edgeLabel, dropBond, useBond, useEdge, threats, clockPips, stepThreat, bondCap } from "../downtime.mjs";
 import { gloryView } from "../glory.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
@@ -223,7 +223,8 @@ function downtimeView(a) {
       off: key === "breakdown" && s.nerves < DT.maxNerves })),
     edges, maxEdges: DT.maxEdges, edgesOver: s.edgeCount > DT.maxEdges,
     minusOptions: Object.fromEntries(Object.entries(DT.tuneMinus).map(([k, v]) => [k, `${v[1]} −1`])),
-    bonds: s.bonds.map((b, i) => ({ ...b, i, was: (b.was ?? []).join(", "), pips: pips(b.npc ? DT.maxNpcBond : DT.maxBond, b.value) })),
+    bonds: s.bonds.map((b, i) => ({ ...b, i, was: (b.was ?? []).join(", "), pips: pips(bondCap(a, b.npc), b.value) })),
+    fee: a.items.some(i => i.type === "trigger" && i.system.key === "contract") ? pips(3, s.fee) : null,
     goals: s.goals.map((g, i) => ({ ...g, i, small: g.size <= 4, done: g.value >= g.size, pips: clockPips(g.value, g.size) })),
     debts: s.debts.map((d, i) => ({ ...d, i })),
     threats: threats().filter(t => t.kind !== "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size })),
@@ -263,7 +264,7 @@ async function addBondDialog(actor) {
   const name = p?.name ?? data.npc;
   if (!name) return;
   if (npc && list.filter(b => b.npc && !b.dead).length >= 2) return ui.notifications.warn("Связей с NPC уже две.");
-  const value = Math.min(npc ? DT.maxNpcBond : DT.maxBond, Number(data.value) || 1);
+  const value = Math.min(bondCap(actor, npc), Number(data.value) || 1);
   list.push({ name, uuid: p?.uuid ?? "", npc, value, was: [], dead: false, used: false, usedGround: false, grown: false });
   return actor.update({ "system.bonds": list });
 }
@@ -385,6 +386,7 @@ export class PilotSheet extends TBActorSheet {
       if (next > a.system.resolve && a.system.downtime.resolveGot && !game.user.isGM) return ui.notifications.warn("Решимость в этом даунтайме уже получена: не больше одной.");
       a.update({ "system.resolve": next, ...(next > a.system.resolve ? { "system.downtime.resolveGot": true } : {}) });
     });
+    on("[data-fee]", d => { const v = Number(d.fee); a.update({ "system.fee": v === a.system.fee ? v - 1 : v }); });
     on("[data-dt-actions]", d => { const v = Number(d.dtActions); a.update({ "system.downtime.actions": v === a.system.downtime.actions ? v - 1 : v }); });
     on("[data-dt-action]", d => rollGround(a, d.dtAction));
     on("[data-ground]", () => rollGround(a));
@@ -403,7 +405,7 @@ export class PilotSheet extends TBActorSheet {
       const v = Number(d.v), next = v === b.value ? v - 1 : v;
       if (next < b.value) return a.update({ "system.bonds": dropBond(a.system.bonds, i, next) });
       const list = clone("bonds");
-      list[i].value = Math.min(b.npc ? DT.maxNpcBond : DT.maxBond, next);
+      list[i].value = Math.min(bondCap(a, b.npc), next);
       a.update({ "system.bonds": list });
     });
     on("[data-bond-del]", async d => {

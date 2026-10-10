@@ -235,6 +235,8 @@
           <legend>Решимость и действия</legend>
           <div class="tb-row"><span>Решимость</span> <span class="tb-pips">{{#each dt.resolvePips as |p|}}<a class="tb-pip {{#if p.on}}on{{/if}}" data-resolve="{{p.i}}">◆</a>{{/each}}</span>
             <small class="tb-muted">досье изменилось: +1, не больше 1 за даунтайм; тратится кнопкой на карточке: d4 = 4</small></div>
+          {{#if dt.fee}}<div class="tb-row"><span>Гонорар</span> <span class="tb-pips">{{#each dt.fee as |p|}}<a class="tb-pip {{#if p.on}}on{{/if}}" data-fee="{{p.i}}">₽</a>{{/each}}</span>
+            <small class="tb-muted">Контракт: +1 за сбитого Duelist или Ace, +1 за задачу, не больше 2 за вылет; 1 Гонорар = Задел без броска</small></div>{{/if}}
           <div class="tb-row"><span>Действия даунтайма</span> <span class="tb-pips">{{#each dt.actionPips as |p|}}<a class="tb-pip {{#if p.on}}on{{/if}}" data-dt-actions="{{p.i}}">●</a>{{/each}}</span> <small class="tb-muted">осталось {{system.downtime.actions}} из 2; в госпитале и после цены «Время» одно</small></div>
           <div class="tb-dt-actions">
             {{#each dt.actions as |x|}}<button type="button" data-dt-action="{{x.key}}" title="{{x.hint}}" {{#if x.off}}disabled{{/if}}>{{#if x.roll}}<i class="fas fa-dice-d10"></i> {{/if}}{{x.label}}</button>{{/each}}

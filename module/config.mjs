@@ -44,7 +44,11 @@ export const TB = {
     rookie: { label: "Новичок (Rookie)", core: "mentor" },
     hotshot: { label: "Сорвиголова (Hotshot)", core: "reckless" },
     chatterbox: { label: "Болтун (Chatterbox)", core: "outside" },
-    soldier: { label: "Солдат (Soldier)", core: "byside" }
+    soldier: { label: "Солдат (Soldier)", core: "byside" },
+    knight: { label: "Рыцарь (Knight)", core: "code" },
+    merc: { label: "Наёмник (Mercenary)", core: "contract" },
+    techno: { label: "Технократ (Technocrat)", core: "tester" },
+    borderless: { label: "Анархист (Borderless)", core: "noborders" }
   },
   status: {
     active: "В строю, годен к полётам", hospital: "На лечении", ejected: "Катапультировался, ждёт эвакуации",
@@ -92,9 +96,10 @@ export const TB = {
     "skill.aim": "Навык Aim", "skill.deploy": "Навык Deploy", "skill.dodge": "Навык Dodge",
     "skill.lead": "Навык Lead", "skill.push": "Навык Push", "skill.strafe": "Навык Strafe",
     "perk.chosen": "Perk у выбранного навыка выпадает от", "comp.chosen": "Complication у выбранного навыка выпадает до",
+    "perk.all": "Perk во всех проверках выпадает от", "comp.all": "Complication во всех проверках выпадает до",
     points: "Очки навыков"
   },
-  effectWhen: { always: "всегда", twist: "после Поворота", toggle: "пока включён", stack: "× счётчик серии" },
+  effectWhen: { always: "всегда", twist: "после Поворота", toggle: "пока включён", stack: "× счётчик серии", proto: "на опытной машине", serial: "на серийной машине" },
   /* Встроенные эффекты книжных триггеров (если у триггера не задан свой список). */
   triggerEffects: {
     armor: [{ target: "hpMax", value: 1, when: "always" }],
@@ -111,12 +116,26 @@ export const TB = {
     byside: [{ target: "allRolls", value: 1, when: "toggle" }],
     advevasion: [{ target: "skill.dodge", value: 2, when: "toggle" }],
     divebomb: [{ target: "skill.deploy", value: 2, when: "toggle" }],
-    guns: [{ target: "skill.strafe", value: 1, when: "stack" }]
+    guns: [{ target: "skill.strafe", value: 1, when: "stack" }],
+    // архетипы Стрэйнджриала
+    code: [{ target: "skill.aim", value: 1, when: "toggle" }, { target: "skill.strafe", value: 1, when: "toggle" }, { target: "evasion", value: 1, when: "toggle" }],
+    gauntlet: [{ target: "skill.aim", value: 1, when: "toggle" }, { target: "skill.strafe", value: 1, when: "toggle" }, { target: "evasion", value: 1, when: "toggle" }],
+    wreath: [{ target: "skill.aim", value: 1, when: "toggle" }, { target: "skill.strafe", value: 1, when: "toggle" }, { target: "evasion", value: 1, when: "toggle" }],
+    oldschool: [{ target: "gun", value: 2, when: "toggle" }],
+    finish: [{ target: "skill.aim", value: 1, when: "toggle" }, { target: "skill.strafe", value: 1, when: "toggle" }],
+    expartner: [{ target: "allRolls", value: 1, when: "toggle" }],
+    bill: [{ target: "skill.aim", value: 2, when: "toggle" }, { target: "skill.strafe", value: 2, when: "toggle" }],
+    tester: [{ target: "perk.all", value: 3, when: "proto" }, { target: "comp.all", value: 2, when: "serial" }],
+    limiter: [{ target: "maxSpeed", value: 2, when: "toggle" }],
+    notatthis: [{ target: "allRolls", value: 2, when: "toggle" }]
   },
   /* Подсказка на кнопке включения ситуативных триггеров. */
   toggleHints: {
     notyou: "против Nemesis", handle: "один на один с Nemesis", cutchatter: "пока молчишь", tellme: "союзник даёт Lead после Поворота",
-    byside: "защищаешь своего союзника", advevasion: "снизился на уровень высоты", divebomb: "снизился перед атакой"
+    byside: "защищаешь своего союзника", advevasion: "снизился на уровень высоты", divebomb: "снизился перед атакой",
+    code: "Поединок: бьёшь только его, союзники не вмешиваются", gauntlet: "перчатка брошена: Поединок +2", wreath: "первый бой с Немезидой: Поединок +2",
+    oldschool: "Guns по цели Поединка", finish: "цель уже отметила метку урона", expartner: "против Немезиды", bill: "по виновному",
+    limiter: "до конца хода, в конце Push против 7", notatthis: "мешаешь удару супероружия или по гражданским"
   }
 };
 

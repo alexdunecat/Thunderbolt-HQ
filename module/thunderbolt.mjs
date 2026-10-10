@@ -32,6 +32,7 @@ import { registerInsignia } from "./insignia.mjs";
 import { registerSideColor } from "./sidecolor.mjs";
 import { registerLosses } from "./losses.mjs";
 import { registerAltitude, stepAltitude } from "./altitude.mjs";
+import { registerPopout, mirrorPopouts } from "./popout.mjs";
 
 function applySkin(skin) {
   document.body.dataset.tbSkin = TB.skins[skin] ? skin : "brief";
@@ -44,6 +45,7 @@ function applyDarkUi() {
   let on = true;
   try { on = game.settings.get(SYSTEM_ID, "darkUi"); } catch {}
   document.body.classList?.toggle("tb-dark-ui", on && ["brief", "ac5"].includes(document.body.dataset.tbSkin));
+  mirrorPopouts();
 }
 
 // надписи карты рисуются шрифтами «Брифинга»: дождаться их до отрисовки сцены
@@ -94,6 +96,7 @@ Hooks.once("init", () => {
   registerGlory();
   registerStealth();
   registerTunnel();
+  registerPopout();
   registerMapInfo();
   registerRotate();
   registerAltitude();
