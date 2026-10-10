@@ -23,6 +23,9 @@ jobs:
           VERSION=$(jq -r .version system.json)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           test -f "dist/thunderbolt-shtab-$VERSION.zip" || { echo "Нет dist/thunderbolt-shtab-$VERSION.zip: запустите tools/make-dist.sh"; exit 1; }
+          for m in system.json dist/system-jsdelivr.json; do
+            jq -r .download "$m" | grep -q "/dist/thunderbolt-shtab-$VERSION.zip$" || { echo "В $m ссылка download не на архив $VERSION: запустите tools/make-dist.sh"; exit 1; }
+          done
           if gh release view "v$VERSION" >/dev/null 2>&1; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
       - name: Архив для релиза
         if: steps.v.outputs.exists == 'false'

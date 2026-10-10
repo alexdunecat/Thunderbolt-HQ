@@ -163,5 +163,5 @@
   "socket": true,
   "url": "https://github.com/alexdunecat/Thunderbolt-HQ",
   "manifest": "https://raw.githubusercontent.com/alexdunecat/Thunderbolt-HQ/main/system.json",
-  "download": "https://raw.githubusercontent.com/alexdunecat/Thunderbolt-HQ/main/dist/thunderbolt-shtab-0.4.50.zip"
+  "download": "https://raw.githubusercontent.com/alexdunecat/Thunderbolt-HQ/main/dist/thunderbolt-shtab-0.4.54.zip"
 }
