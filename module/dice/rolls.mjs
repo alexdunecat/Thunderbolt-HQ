@@ -165,13 +165,18 @@ export function renderCard(card) {
     verdict = `<div class="tb-total">${c.total} ÷ 2 = <b>${c.value}</b> · Evasion ${c.ev} → ${c.applies
       ? `<b class="ok">Evasion ${c.value} до конца раунда</b>` : `<b class="fail">не выше Evasion, остаётся ${c.ev}</b>`}</div>`;
   } else if (c.dc !== null && c.dc !== undefined) {
-    const vs = c.vsLabel ?? "сложность";
+    const vs = c.vsLabel ?? "сложности";
     verdict = `<div class="tb-total">Итог <b>${c.total}</b> против ${vs} ${c.dc} → <b class="${c.success ? "ok" : "fail"}">${c.success ? (c.attack ? "Попадание" : "Успех") : (c.attack ? "Промах" : "Провал")}</b></div>`;
   } else {
     verdict = `<div class="tb-total">Итог <b>${c.total}</b>${c.vsHint ? ` · ${esc(c.vsHint)}` : ""}</div>`;
   }
   rows.push(verdict);
-  if (c.rolled && c.type === "eject") rows.push(`<div class="tb-d4">d4 = ${c.d4}</div>`);
+  if (c.rolled && c.type === "eject") {
+    // d4 судьбы: при провале решает, выжил ли пилот, поэтому крупно, как d10
+    const f = ejectFate(c);
+    rows.push(c.success ? `<div class="tb-d4">d4 = ${c.d4} (при успехе не нужен)</div>`
+      : `<div class="tb-dice tb-fate"><span class="tb-die d4 fate-${f.key}">${c.d4}</span><span class="tb-part">d4 судьбы</span><b class="tb-fate-word fate-${f.key}">${FATE_WORD[f.key]}</b></div>`);
+  }
   else if (c.rolled) {
     const d4 = c.perk ? `<div class="tb-d4 perk">d4 = ${c.d4}: <b>Perk</b> (по умолчанию +1 к следующей проверке)</div>`
       : c.comp ? `<div class="tb-d4 comp">d4 = ${c.d4}: <b>Complication</b> (по умолчанию −1)</div>`
@@ -368,6 +373,8 @@ export async function rollStall(actor) {
 }
 
 /* ---------- метка Doom: судьба пилота ---------- */
+
+const FATE_WORD = { ok: "катапультировался", hurt: "жив, ранен", mia: "пропал без вести", kia: "погиб" };
 
 /** Исход броска на катапультирование: успех — катапульта; провал решает d4 того же броска. */
 export function ejectFate(c) {

@@ -3,24 +3,24 @@
 /* ---------- скины: те же цвета, что в Штабе ---------- */
 body {
   --tb-bg: #e9ece7; --tb-surface: #f7f8f5; --tb-surface-2: #dfe4dc; --tb-ink: #1b221d; --tb-muted: #59645c; --tb-line: #c3cbc1;
-  --tb-accent: #a8281f; --tb-accent-ink: #ffffff; --tb-olive: #4c6a37; --tb-olive-soft: #cfdcc4; --tb-warn: #9a6400;
+  --tb-accent: #a8281f; --tb-accent-ink: #ffffff; --tb-bad: #a8281f; --tb-olive: #4c6a37; --tb-olive-soft: #cfdcc4; --tb-warn: #9a6400;
   --tb-display: "Russo One", "Arial Black", system-ui, sans-serif; --tb-body: "IBM Plex Sans", system-ui, sans-serif; --tb-data: "IBM Plex Mono", ui-monospace, monospace;
 }
 body[data-tb-skin="ac5"] {
   --tb-bg: #05090d; --tb-surface: #0a1219; --tb-surface-2: #112230; --tb-ink: #cfe9e2; --tb-muted: #6f9a93; --tb-line: #1f4152;
-  --tb-accent: #ff4b3a; --tb-accent-ink: #12040a; --tb-olive: #57f2b3; --tb-olive-soft: #0f3a2f; --tb-warn: #ffb347;
+  --tb-accent: #ff4b3a; --tb-accent-ink: #12040a; --tb-bad: #ff4b3a; --tb-olive: #57f2b3; --tb-olive-soft: #0f3a2f; --tb-warn: #ffb347;
   --tb-display: "Exo 2", "Russo One", system-ui, sans-serif; --tb-body: "Exo 2", system-ui, sans-serif; --tb-data: "JetBrains Mono", ui-monospace, monospace;
 }
 /* «Брифинг» (как в Штабе и Планшете AWACS): тёмная бирюза, мятные линии, Jura и JetBrains Mono */
 body[data-tb-skin="brief"] {
   --tb-bg: #07141a; --tb-surface: #0b1d24; --tb-surface-2: #10272f; --tb-ink: #d7eee6; --tb-muted: #7fa79d; --tb-line: #2c5a52;
-  --tb-accent: #9be3bf; --tb-accent-ink: #08161b; --tb-olive: #9be3bf; --tb-olive-soft: #12342c; --tb-warn: #f2c14e;
+  --tb-accent: #9be3bf; --tb-accent-ink: #08161b; --tb-bad: #ff6b4a; --tb-olive: #9be3bf; --tb-olive-soft: #12342c; --tb-warn: #f2c14e;
   --tb-hostile: #ff6b4a; --tb-friend: #6cc4ff; --tb-player: #f2c14e;
   --tb-display: "Jura", "Exo 2", system-ui, sans-serif; --tb-body: "Jura", "Exo 2", system-ui, sans-serif; --tb-data: "JetBrains Mono", ui-monospace, monospace;
 }
 body[data-tb-skin="doc"] {
   --tb-bg: #d9d5c9; --tb-surface: #f2efe6; --tb-surface-2: #e4e0d3; --tb-ink: #1d1b17; --tb-muted: #5e584c; --tb-line: #9c9584;
-  --tb-accent: #b0261c; --tb-accent-ink: #fff8f0; --tb-olive: #2f3b52; --tb-olive-soft: #d6dae2; --tb-warn: #8a4b00;
+  --tb-accent: #b0261c; --tb-accent-ink: #fff8f0; --tb-bad: #b0261c; --tb-olive: #2f3b52; --tb-olive-soft: #d6dae2; --tb-warn: #8a4b00;
   --tb-display: "PT Serif", Georgia, serif; --tb-body: "PT Serif", Georgia, serif; --tb-data: "PT Mono", "Courier New", monospace;
 }
 
@@ -117,7 +117,7 @@ body[data-tb-skin="doc"] {
 .thunderbolt .tb-marker { display: grid; grid-template-columns: 110px 1fr; gap: 6px; align-items: center; padding: 4px; border-radius: 3px; }
 .thunderbolt .tb-marker select { width: 100%; min-width: 0; }
 .thunderbolt .tb-marker.on { background: var(--tb-olive-soft); }
-.thunderbolt .tb-marker.doom.on { background: var(--tb-accent); color: var(--tb-accent-ink); }
+.thunderbolt .tb-marker.doom.on { background: var(--tb-bad); color: var(--tb-accent-ink); }
 .thunderbolt .tb-marker.doom.on .tb-muted { color: var(--tb-accent-ink); }
 .thunderbolt .tb-check { display: inline-flex; gap: 4px; align-items: center; }
 .thunderbolt .tb-check input { margin: 0; }
@@ -186,10 +186,16 @@ body[data-tb-skin="doc"] {
 .tb-total { margin: 4px 0; font-size: 13px; }
 .tb-total b { font-family: var(--tb-data); font-size: 15px; }
 .tb-total .ok { color: var(--tb-olive); }
-.tb-total .fail { color: var(--tb-accent); }
+.tb-total .fail { color: var(--tb-bad); }
 .tb-d4 { font-size: 12px; color: var(--tb-muted); }
+/* d4 судьбы на карточке катапультирования: крупно и цветом исхода */
+.tb-fate { margin: 2px 0 4px; }
+.tb-fate .tb-die.d4 { font-size: 20px; min-width: 32px; border-width: 2px; }
+.tb-fate-word { font-family: var(--tb-display); font-size: 15px; text-transform: uppercase; letter-spacing: 0.04em; margin-left: 4px; }
+.tb-die.fate-kia, .tb-fate-word.fate-kia { border-color: var(--tb-bad); color: var(--tb-bad); }
+.tb-die.fate-mia, .tb-fate-word.fate-mia, .tb-die.fate-hurt, .tb-fate-word.fate-hurt { border-color: var(--tb-warn); color: var(--tb-warn); }
 .tb-d4.perk { color: var(--tb-olive); }
-.tb-d4.comp { color: var(--tb-accent); }
+.tb-d4.comp { color: var(--tb-bad); }
 .tb-note { font-size: 12px; margin-top: 3px; }
 .tb-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .tb-actions button { flex: 1 1 auto; line-height: 22px; font-size: 12px; background: var(--tb-ink); color: var(--tb-surface); border: none; border-radius: 3px; }
@@ -302,8 +308,8 @@ body[data-tb-skin="doc"] {
 .tb-memo .tb-m-dmg { display: grid; gap: 5px; }
 .tb-memo .tb-m-dmg > div { display: grid; grid-template-columns: 7em minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 5px 8px; background: var(--tb-surface-2); border-radius: 3px; }
 .tb-memo .tb-m-dmg b { font-family: var(--tb-data); font-weight: 600; }
-.tb-memo .tb-m-dmg .tb-m-doom { box-shadow: inset 3px 0 0 var(--tb-accent); }
-.tb-memo .tb-m-dmg .tb-m-doom b { color: var(--tb-accent); }
+.tb-memo .tb-m-dmg .tb-m-doom { box-shadow: inset 3px 0 0 var(--tb-bad); }
+.tb-memo .tb-m-dmg .tb-m-doom b { color: var(--tb-bad); }
 .tb-memo .tb-m-arch { display: grid; gap: 8px; }
 .tb-memo .tb-m-arch > div { border-left: 3px solid var(--tb-olive); padding-left: 10px; }
 .tb-memo .tb-m-arch i { font-style: normal; font-family: var(--tb-data); font-size: .85em; color: var(--tb-olive); }
@@ -333,7 +339,7 @@ body[data-tb-skin="doc"] {
 .tb-awacs-table tr.off td { opacity: .55; }
 .tb-awacs-table tr.down td { text-decoration: line-through; opacity: .6; }
 .tb-mk { display: inline-block; font-family: var(--tb-data); font-size: 10.5px; padding: 0 5px; margin: 1px 2px 1px 0; border-radius: 3px; background: var(--tb-surface-2); border: 1px solid var(--tb-line); }
-.tb-mk.doom { background: var(--tb-accent); color: var(--tb-accent-ink); border-color: var(--tb-accent); }
+.tb-mk.doom { background: var(--tb-bad); color: var(--tb-accent-ink); border-color: var(--tb-bad); }
 .tb-mk.structure { border-color: var(--tb-warn); color: var(--tb-warn); }
 .tb-awacs-weather { display: flex; flex-wrap: wrap; gap: 6px; }
 .tb-awacs-weather input { display: none; }
@@ -601,7 +607,7 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 /* карточка проверки на земле */
 .tb-card .tb-tier.clean { color: var(--tb-olive); }
 .tb-card .tb-tier.cost { color: var(--tb-warn); }
-.tb-card .tb-tier.fail { color: var(--tb-accent); }
+.tb-card .tb-tier.fail { color: var(--tb-bad); }
 .tb-card .tb-cost { border-left: 2px solid var(--tb-warn); padding-left: 6px; }
 .tb-card .tb-cost-row { display: flex; flex-wrap: wrap; gap: 3px; width: 100%; }
 .tb-card .tb-cost-row button { flex: 1 1 30%; font-size: 11px; padding: 1px 4px; line-height: 1.6; }
@@ -613,11 +619,11 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .thunderbolt .tb-edges .tb-item { gap: 8px; align-items: center; }
 
 /* метка Doom: судьба пилота */
-.tb-card-doomfate .tb-card-head { color: var(--tb-accent); }
+.tb-card-doomfate .tb-card-head { color: var(--tb-bad); }
 .tb-card-doomfate .tb-actions button { flex: 1 1 45%; }
 .tb-card-eject .tb-eject-ok b { color: #5fbf7a; }
 .tb-card-eject .tb-eject-hurt b, .tb-card-eject .tb-eject-mia b { color: #e0b04a; }
-.tb-card-eject .tb-eject-kia b { color: var(--tb-accent); }
+.tb-card-eject .tb-eject-kia b { color: var(--tb-bad); }
 
 /* шкалы боя: реплики AWACS под шкалой */
 .thunderbolt .tb-boss-clocks .tb-threat { flex-wrap: wrap; }
@@ -645,7 +651,7 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 /* Тревога стелс-миссии: открытая шкала на листе и карточка конца хода */
 .thunderbolt .tb-open-clock { margin: 0 0 6px; padding: 3px 6px; border: 1px solid var(--tb-line); background: var(--tb-surface-2); }
 .thunderbolt .tb-open-clock .fa-bell { color: var(--tb-accent); }
-.tb-card-alarm { border-left: 3px solid var(--tb-accent); }
-.tb-card-alarm .tb-note b { color: var(--tb-accent); }
+.tb-card-alarm { border-left: 3px solid var(--tb-bad); }
+.tb-card-alarm .tb-note b { color: var(--tb-bad); }
 .tb-card-tunnel { border-left: 3px solid var(--tb-warn); }
 .tb-card-tunnel .tb-note b { color: var(--tb-warn); }
