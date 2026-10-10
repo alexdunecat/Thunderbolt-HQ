@@ -54,6 +54,7 @@
 
         <fieldset class="tb-box tb-flight">
           <legend>В воздухе</legend>
+          {{#each openClocks as |t|}}<div class="tb-threat tb-open-clock {{#if t.full}}full{{/if}}" title="{{t.note}}"><span class="tb-threat-name">{{#if t.alarm}}<i class="fas fa-bell"></i> {{/if}}{{t.name}}</span><span class="tb-clock">{{#each t.pips as |p|}}<i class="{{#if p.on}}on{{/if}}"></i>{{/each}}</span><span class="tb-num">{{t.value}}/{{t.size}}</span></div>{{/each}}
           {{#if acts}}<div class="tb-acts {{#if acts.over}}over{{/if}} {{#if acts.turn}}turn{{/if}}" title="{{acts.list}}">
             <i class="fas fa-list-check"></i> {{acts.label}}
             {{#if acts.canEnd}}<a class="tb-end-turn" data-end-turn title="{{#if acts.left}}Оставшиеся действия пропадают, ход переходит к следующему{{else}}Передать ход следующему{{/if}}"><i class="fas fa-forward-step"></i> {{#if acts.left}}Пропустить действия{{else}}Следующий ход{{/if}}</a>{{/if}}

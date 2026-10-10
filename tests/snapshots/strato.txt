@@ -23,3 +23,6 @@ bosses: arkbird=med/high/strat icbm=strat
 alt of ark (sheet med): strat | icbm (elev high): strat
 weather: Страт: — ev 0 | High: clouds,wind ev 1 | Low: clouds,dust,wind ev 3
 Аркбёрд на Medium → Танк: dist 0 | ok
+pilot high: maxSpeed 5, evasion 4, defense 9 | swing high: maxSpeed 5, evasion 5, defense 10
+pilot strat: maxSpeed 6, evasion 3, defense 8 | swing strat: maxSpeed 6, evasion 3, defense 8
+npc strat: maxSpeed 6, evasion 0, defense 5 | icbm strat: maxSpeed 5, evasion 1, defense 6

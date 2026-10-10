@@ -641,3 +641,9 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .thunderbolt .tb-glory-block summary { cursor: pointer; margin: 6px 0 4px; }
 .tb-card-glory .tb-glory-up { border-left: 3px solid var(--tb-olive); padding-left: 6px; }
 .tb-card-glory .tb-glory-up ul { margin: 4px 0 0; padding-left: 16px; }
+
+/* Тревога стелс-миссии: открытая шкала на листе и карточка конца хода */
+.thunderbolt .tb-open-clock { margin: 0 0 6px; padding: 3px 6px; border: 1px solid var(--tb-line); background: var(--tb-surface-2); }
+.thunderbolt .tb-open-clock .fa-bell { color: var(--tb-accent); }
+.tb-card-alarm { border-left: 3px solid var(--tb-accent); }
+.tb-card-alarm .tb-note b { color: var(--tb-accent); }

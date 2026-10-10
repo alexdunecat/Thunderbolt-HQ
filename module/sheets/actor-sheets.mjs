@@ -335,6 +335,8 @@ export class PilotSheet extends TBActorSheet {
     ctx.alertSpeed = s.speed <= 0;
     ctx.dt = downtimeView(a);
     ctx.glory = gloryView();
+    // открытые шкалы боя (Тревога стелс-миссии): игроки видят их на боевой карточке
+    ctx.openClocks = threats().filter(t => t.kind === "boss" && t.open).map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size }));
     return ctx;
   }
 

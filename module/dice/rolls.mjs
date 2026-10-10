@@ -2,6 +2,7 @@
 import { SYSTEM_ID, TB } from "../config.mjs";
 import { esc, resolveActor } from "../utils.mjs";
 import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, stratLift, zoneDistance, rangeLabel, isFlying, struckBy, gunVs } from "../scene.mjs";
+import { alarmRows, raiseAlarm, surprise, quietAA } from "../stealth.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
 import { allowRoll } from "../actions.mjs";
@@ -103,7 +104,39 @@ export function computeCard(c) {
   return out;
 }
 
+/** Карточка Тревоги в конце хода: что засветило пилота, кнопки ведущему и проверка Dodge игроку. */
+function renderAlarm(c) {
+  const btn = [];
+  if (c.add && !c.applied) btn.push(`<button type="button" data-tb-action="alarm-up" data-n="${c.add}" class="tb-gm"><i class="fas fa-bell"></i> Тревога +${c.add}</button>`);
+  if (c.dodge?.length && !c.dodged) btn.push(`<button type="button" data-tb-action="alarm-dodge" class="tb-owner"><i class="fas fa-dice-d10"></i> Dodge против 7</button>`);
+  if (!c.patrol) btn.push(`<button type="button" data-tb-action="alarm-patrol" class="tb-gm" title="Патруль увидел пилота (та же зона, любая высота) и дожил до конца раунда"><i class="fas fa-eye"></i> Патруль: +2</button>`);
+  const done = [c.applied ? `Тревога +${c.add} записана.` : "", c.patrol ? "Патруль увидел: Тревога +2." : "", c.dodged ? "Dodge брошен." : ""].filter(Boolean);
+  return `<div class="tb-card tb-card-alarm">
+    <header class="tb-card-head"><span class="tb-card-who">${esc(c.actorName)}</span><span class="tb-card-what">${esc(c.label)}</span></header>
+    ${alarmRows(c).join("")}${done.length ? `<div class="tb-note">${done.join(" ")}</div>` : ""}
+    ${btn.length ? `<div class="tb-actions">${btn.join("")}</div>` : ""}
+  </div>`;
+}
+
+/**
+ * Проверка вне хода: не считается броском хода (Тревога, пролёт в туннеле).
+ * onFail: "alarm" — кнопка ведущему «Тревога +1»; failDmg — урон при провале (кнопка владельцу).
+ */
+export async function rollSideCheck(actor, skill, { dc = 7, label, notes = [], onFail = "", failDmg = 0 } = {}) {
+  if (blocked(actor, skill)) return;
+  const dice = await rollDice(actor, false, { turnRoll: false });
+  const w = weatherAt(actor);
+  const parts = [...skillParts(actor, skill), ...(skill === "push" ? weatherParts(w, "push") : []), ...await takeNext(actor)];
+  const card = {
+    type: "side", label: label ?? `${TB.skills[skill].label} против ${dc}`, rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc,
+    strainable: actor.type === "pilot" || actor.system.tier === "ace", skill, onFail, failDmg, notes: ["Не считается броском хода.", ...notes.map(esc)],
+    ...thresholds(actor, skill, w.comp2)
+  };
+  return postCard(actor, card, dice.rolls);
+}
+
 export function renderCard(card) {
+  if (card.type === "alarm") return renderAlarm(card);
   if (card.type === "volley") return renderVolley(card);
   if (card.type === "ground") return renderGround(card);
   if (card.type === "breakdown") return renderBreakdown(card);
@@ -150,6 +183,11 @@ export function renderCard(card) {
     btn.push(`<button type="button" data-tb-action="dt-practice" class="tb-owner" title="Задел «Наработка»: раз за вылет перебросить d10 и взять лучший"><i class="fas fa-rotate"></i> Наработка: перебросить d10</button>`);
   if (c.reroll) rows.push(`<div class="tb-note">Наработка: d10 переброшен (${c.reroll.join(" → ")}), взят лучший.</div>`);
   if (c.rolled && c.strainable && !c.resolved && !settled) btn.push(`<button type="button" data-tb-action="strain" class="tb-owner"><i class="fas fa-bolt"></i> +1 Strain</button>`);
+  if (c.type === "side" && !c.success && !c.applied) {
+    if (c.onFail === "alarm") btn.push(`<button type="button" data-tb-action="alarm-up" data-n="1" class="tb-gm"><i class="fas fa-bell"></i> Тревога +1</button>`);
+    if (c.failDmg) btn.push(`<button type="button" data-tb-action="side-dmg" class="tb-owner"><i class="fas fa-burst"></i> ${c.failDmg} урона</button>`);
+  }
+  if (c.type === "side" && c.applied) rows.push(`<div class="tb-note">${c.onFail === "alarm" ? "Тревога +1 записана." : "Урон нанесён."}</div>`);
   if (c.type === "break" && !c.speedApplied) btn.push(`<button type="button" data-tb-action="break-speed" class="tb-owner">Speed −${c.speedDrop} после атак</button>`);
   if (c.type === "break" && !c.speedApplied && c.combatKey) rows.push(`<div class="tb-note">Speed −${c.speedDrop} спишется сам в конце раунда.</div>`);
   if (c.type === "break" && c.speedApplied) rows.push(`<div class="tb-note">Speed −${c.speedDrop} списан.</div>`);
@@ -533,6 +571,8 @@ export async function fireMissile(actor) {
   }
   const lift = t && air ? stratLift(actor, t) : null;
   if (lift) parts.push(lift);
+  const sneak = surprise(actor, t);
+  if (sneak) parts.push(sneak);
   if (speed) parts.push(["Speed", -speed]);
   if (data.mod) parts.push(["мод.", data.mod]);
 
@@ -627,6 +667,8 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
     if (vs === "air" && t.kind !== "air") problems.unshift("зенитное орудие не бьёт по земле и морю.");
     if (vs === "ground" && t.kind === "air") problems.unshift("по воздуху это орудие не стреляет.");
     if (problems.length) return ui.notifications.warn(`Guns, Guns, Guns!: ${problems[0]}`);
+    const quiet = t.kind === "air" ? quietAA(actor) : null;
+    if (quiet && !(await confirmReach([quiet], "Guns, Guns, Guns!"))) return;
     if (t.token) selectTarget(t.token);
   }
   const dice = await rollDice(actor, data.practiced);
@@ -645,6 +687,8 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
   if (pod?.system.key === "MGP") { parts.push(["MGP", 1]); gun += 3; label += " (MGP)"; }
   if (pod?.system.key === "PLSL") { parts.push(["PLSL", 1]); gun = 6; label = "Импульсный лазер"; }
   parts.push(...await takeNext(actor));
+  const sneak = surprise(actor, t);
+  if (sneak) parts.push(sneak);
   const speed = actor.type === "npc" && s.kind !== "air" ? 0 : (s.speed ?? 0);
   if (speed) parts.push(["Speed", -speed]);
   if (data.mod) parts.push(["мод.", data.mod]);
@@ -711,6 +755,8 @@ export async function fireSam(actor, sysIndex) {
   if (t) {
     const { problems } = reachProblems(actor, t, TB.range.missile);
     if (s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
+    const quiet = quietAA(actor);
+    if (quiet) problems.unshift(quiet);
     if (!(await confirmReach(problems, label))) return;
   }
   const parts = [["G-A", ga ?? 0]];
@@ -870,6 +916,26 @@ export async function onCardAction(message, action, button) {
       card.applied = f.status;
       await save();
       return actor.update({ "system.service.status": f.status });
+    }
+    case "alarm-up": {
+      if (!game.user.isGM || card.applied) return;
+      card.applied = true; await save();
+      return raiseAlarm(Number(button?.dataset.n) || 1);
+    }
+    case "alarm-patrol": {
+      if (!game.user.isGM || card.patrol) return;
+      card.patrol = true; await save();
+      return raiseAlarm(2);
+    }
+    case "alarm-dodge": {
+      if (!actor?.isOwner || card.dodged) return;
+      card.dodged = true; await save();
+      return rollSideCheck(actor, "dodge", { dc: 7, label: "Тревога: Dodge против 7", notes: card.dodge, onFail: "alarm" });
+    }
+    case "side-dmg": {
+      if (!actor?.isOwner || card.applied) return;
+      card.applied = true; await save();
+      return actor.applyDamage(card.failDmg, { source: card.label });
     }
     case "stall-ok": {
       if (!actor?.isOwner) return;

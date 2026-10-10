@@ -268,7 +268,7 @@ export async function importMission(input) {
   const pages = [
     { name: "Брифинг", type: "text", text: { content: `${m.type ? `<p><b>${esc(m.type)}</b>${m.players ? ` · игроков: ${m.players}` : ""}</p>` : ""}${p(m.briefing)}` } },
     { name: "Задачи и поворот", type: "text", text: { content:
-      `<h2>Задачи</h2><ol>${(m.objectives ?? []).map(o => `<li>${esc(o)}</li>`).join("")}</ol>` +
+      `${m.alarm ? `<p><b>Стелс-миссия:</b> шкала Тревоги на ${Number(m.alarm)} делений (в панели AWACS, видна игрокам).</p>` : ""}<h2>Задачи</h2><ol>${(m.objectives ?? []).map(o => `<li>${esc(o)}</li>`).join("")}</ol>` +
       `${m.twistType || m.twist ? `<h2>Поворот${m.twistType ? `: ${esc(m.twistType)}` : ""}</h2>${p(m.twist)}` : ""}` +
       `${m.fail ? `<h2>Если провалят</h2>${p(m.fail)}` : ""}${m.notes ? `<h2>Заметки</h2>${p(m.notes)}` : ""}` } },
     { name: "Силы на карте", type: "text", text: { content: `<table><tr><th>Клетка</th><th>Кто</th><th>Что</th><th>Заметки</th></tr>${roster.map(x =>
@@ -277,6 +277,9 @@ export async function importMission(input) {
   pages.push({ name: "Условные обозначения", type: "text", text: { content: await legendHtml(m) } });
   const journal = await JournalEntry.create({ name: `Миссия: ${title}`, pages });
   await scene.update({ journal: journal.id });
-  ui.notifications.info(`Миссия «${title}» импортирована: сцена, ${tokens.length} токенов, журнал брифинга.`);
+  // стелс-миссия: шкала Тревоги на 8, 6 или 4 деления
+  const alarm = [4, 6, 8].includes(Number(m.alarm)) ? Number(m.alarm) : 0;
+  if (alarm) await (await import("../stealth.mjs")).setupAlarm(alarm);
+  ui.notifications.info(`Миссия «${title}» импортирована: сцена, ${tokens.length} токенов, журнал брифинга${alarm ? `, шкала Тревоги на ${alarm}` : ""}.`);
   return { scene, journal, folder };
 }

@@ -106,6 +106,9 @@ export async function bossClockDialog(existing = null) {
     <div class="form-group"><label>Название</label><input type="text" name="name" value="${esc(cur.name)}" placeholder="«Аркбёрд»: сброс"></div>
     <div class="form-group"><label>Делений</label><input type="number" name="size" min="2" max="12" value="${cur.size}"></div>
     <div class="form-group"><label><input type="checkbox" name="tick" ${cur.tick ? "checked" : ""}> +1 деление в конце каждого раунда</label></div>
+    <div class="form-group"><label><input type="checkbox" name="open" ${cur.open ? "checked" : ""}> Видна игрокам на листе</label></div>
+    <div class="form-group"><label title="Радарное поле на карте, проверки в конце хода пилота, внезапность +2 к первой атаке по цели, ЗРК и зенитки молчат"><input type="checkbox" name="alarm" ${cur.alarm ? "checked" : ""}> Тревога стелс-миссии</label></div>
+    <p class="tb-hint">Тревога: обычно 6 делений, 8 для лёгкой миссии, где шуметь можно много, 4 для очень тихой.</p>
     <div class="form-group"><label>Когда заполнится</label><input type="text" name="note" value="${esc(cur.note ?? "")}"></div>
     <p class="tb-hint">Реплики AWACS звучат у всех, когда шкала доходит до отметки. Пустую отметку AWACS пропускает. На 6 делениях отметки 50 %, 75 % и 90 % стоят на 3, 4 и 5, на 10 делениях на 5, 7 и 9. Если две отметки попали на одно деление, звучит старшая.</p>
     ${lines}`, { ok: existing ? "Сохранить" : "Завести", width: 460, render: root => {
@@ -113,15 +116,16 @@ export async function bossClockDialog(existing = null) {
       sel?.addEventListener("change", () => {
         const v = T[sel.value];
         const set = (n, val) => { const el = root.querySelector(`[name="${n}"]`); if (el.type === "checkbox") el.checked = !!val; else el.value = val ?? ""; };
-        set("name", v.name); set("size", v.size); set("tick", v.tick); set("note", v.note);
+        set("name", v.name); set("size", v.size); set("tick", v.tick); set("note", v.note); set("open", v.open); set("alarm", v.alarm);
         for (const [k] of DT.bossMarks) set(`line_${k}`, v.lines[k]);
       });
     } });
   if (!data?.name) return null;
   const patch = { kind: "boss", name: data.name, size: Math.max(2, Math.min(12, Number(data.size) || 6)), tick: !!data.tick, note: data.note ?? "",
+    open: !!data.open, alarm: !!data.alarm,
     lines: Object.fromEntries(DT.bossMarks.map(([k]) => [k, data[`line_${k}`] ?? ""])) };
   if (existing) { await editThreat(existing.id, { ...patch, value: Math.min(existing.value, patch.size) }); return { ...existing, ...patch }; }
-  const t = { id: randomID(), value: 0, ...patch };
+  const t = { id: randomID(), value: 0, created: Date.now(), ...patch };
   await saveThreats([...threats(), t]);
   return t;
 }

@@ -39,3 +39,29 @@ const wx = u => { const w = S.weatherAt(u.actor, u.token); return `${u.actor.nam
 console.log("weather:", [st, hi, lo].map(wx).join(" | "));
 const arkMed = N("Аркбёрд на Medium", 0, "med", { kind: "ship", key: "arkbird", rules: [{ key: "strato" }] });
 console.log(reach(arkMed, tank, 2));
+// производные пилота и NPC в стратосфере: Evasion −1, Max Speed +1; у баллистической ракеты без изменений
+const Fd = class { constructor(...a) { this.a = a; } };
+globalThis.foundry = { utils: { deepClone: x => structuredClone(x) }, abstract: { TypeDataModel: class {} },
+  data: { fields: { NumberField: Fd, StringField: Fd, BooleanField: Fd, SchemaField: Fd, ArrayField: Fd, HTMLField: Fd, ObjectField: Fd } } };
+globalThis.game.settings = { get: () => ({}) };
+const { PilotData, NpcData } = await import(`${root}/module/data/models.mjs`);
+function pilotSys(alt, props = []) {
+  const s = Object.assign(Object.create(PilotData.prototype), {
+    skills: { aim: 0, deploy: 0, dodge: 0, lead: 0, push: 0, strafe: 0 }, archetype: "", bonusPoints: 0, twist: false, speed: 5, alt, breakEv: null,
+    markers: { grit: false, gritSkill: "", structure: false, sys: "", doom: false }, hp: { value: 3, max: 3 }, strain: { value: 0, max: 0 },
+    nerves: 0, onEdge: "", breakdown: "", resolve: 0, downtime: { actions: 2 }, edges: [], bonds: [], goals: [], debts: [], service: { status: "active" }, questions: {}, dossier: []
+  });
+  const plane = { type: "plane", system: { stats: { spd: 5, ev: 4, aa: 6, ag: 5, hp: 4, str: 8, gun: 3, hard: 2 }, props: props.map(key => ({ key })) } };
+  s.parent = { items: Object.assign([plane], { filter: Array.prototype.filter, find: Array.prototype.find }), getFlag: () => [] };
+  Object.defineProperty(s, "plane", { get: () => plane });
+  s.prepareDerivedData();
+  return `${alt}: maxSpeed ${s.maxSpeed}, evasion ${s.evasion}, defense ${s.defense}`;
+}
+for (const alt of ["high", "strat"]) console.log("pilot", pilotSys(alt), "| swing", pilotSys(alt, ["swing"]));
+function npcSys(alt, props = []) {
+  const s = Object.assign(Object.create(NpcData.prototype), { kind: "air", tier: "conscript", bonus: 0, skills: {}, squad: "", alt, speed: 5, breakEv: null,
+    markers: { grit: false, structure: false, sys: "", doom: false }, stats: { spd: 5, ev: 1, aa: null, ag: null, gun: null, str: 0 }, hp: { value: 2, max: 2 }, strain: { value: 0, max: 0 }, props: props.map(key => ({ key })), rules: [] });
+  try { s.prepareDerivedData(); } catch (e) { return `${alt}: ${e.message}`; }
+  return `${alt}: maxSpeed ${s.maxSpeed}, evasion ${s.evasion}, defense ${s.defense}`;
+}
+console.log("npc", npcSys("strat"), "| icbm", npcSys("strat", ["ballistic"]));

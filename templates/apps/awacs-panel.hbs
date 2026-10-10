@@ -67,12 +67,12 @@
     {{else}}<p class="tb-empty">На этой сцене эскадрилий нет. Выделите токены NPC и нажмите «Собрать из выделенных»: у них будет одна раскладка навыков на {{squadBudget}} очка.</p>{{/if}}
     {{#if squadsElsewhere}}<p class="tb-small tb-muted">На других сценах: {{squadsElsewhere}}.</p>{{/if}}
 
-    <h3>Шкалы боя <button type="button" class="tb-inline-btn" data-boss-add title="Шкала со своим названием и делениями: шаблоны «Аркбёрд», SOLG, ракетная шахта, рейлган. AWACS говорит заготовленные реплики на 50 %, 75 %, 90 % и при заполнении"><i class="fas fa-hourglass-half"></i> Шкала боя</button></h3>
+    <h3>Шкалы боя <button type="button" class="tb-inline-btn" data-boss-add title="Шкала со своим названием и делениями: шаблоны «Аркбёрд», SOLG, ракетная шахта, рейлган, Тревога стелс-миссии. AWACS говорит заготовленные реплики на 50 %, 75 %, 90 % и при заполнении"><i class="fas fa-hourglass-half"></i> Шкала боя</button></h3>
     {{#if bossClocks.length}}
     <div class="tb-threats tb-boss-clocks">
       {{#each bossClocks as |t|}}
       <div class="tb-threat {{#if t.full}}full{{/if}}" title="{{t.note}}">
-        <span class="tb-threat-name">{{t.name}}{{#if t.tick}} <i class="fas fa-rotate" title="+1 в конце каждого раунда"></i>{{/if}}</span>
+        <span class="tb-threat-name">{{t.name}}{{#if t.tick}} <i class="fas fa-rotate" title="+1 в конце каждого раунда"></i>{{/if}}{{#if t.alarm}} <i class="fas fa-bell" title="Тревога стелс-миссии: радарное поле на карте, проверки в конце хода пилота, внезапность +2"></i>{{/if}}{{#if t.open}} <i class="fas fa-eye" title="Видна игрокам на листе"></i>{{/if}}</span>
         <span class="tb-clock">{{#each t.pips as |p|}}<i class="{{#if p.on}}on{{/if}}"></i>{{/each}}</span>
         <span class="tb-num">{{t.value}}/{{t.size}} <small>{{t.pct}} %</small></span>
         <a data-threat-step="{{t.id}}" data-delta="-1" title="Снять деление">−</a> <a data-threat-step="{{t.id}}" data-delta="1" title="Добавить деление">+</a>
@@ -82,7 +82,7 @@
       </div>
       {{/each}}
     </div>
-    {{else}}<p class="tb-small tb-muted">Шкал боя нет. «Шкала боя» заводит сброс «Аркбёрда», падение SOLG, пуск из шахты, заряд рейлгана или свою шкалу, с репликами AWACS на отметках.</p>{{/if}}
+    {{else}}<p class="tb-small tb-muted">Шкал боя нет. «Шкала боя» заводит сброс «Аркбёрда», падение SOLG, пуск из шахты, заряд рейлгана, Тревогу стелс-миссии или свою шкалу, с репликами AWACS на отметках.</p>{{/if}}
 
     <h3>Слава эскадрильи <button type="button" class="tb-inline-btn" data-glory-add title="Начислить Славу по сводке последнего боя на сцене: задачи, рядовые, дуэлянты, асы, Немезида, корабли, супероружие"><i class="fas fa-star"></i> Начислить</button></h3>
     <div class="tb-glory">
