@@ -89,7 +89,7 @@ used = set()
 total = len(GROUPS) + 2
 for n, (name, sub, titles) in enumerate(GROUPS, 1):
     html = "\n".join(blocks[t] for t in titles if t in blocks)
-    # стратосфера: только в журнале Foundry, печатная памятка остаётся на трёх листах
+    # стратосфера подробнее, чем строка в печатной памятке (та остаётся на трёх листах)
     if "Зоны и высота" in titles:
         html += "\n" + STRAT
     used.update(titles)
