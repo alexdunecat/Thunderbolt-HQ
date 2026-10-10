@@ -1,4 +1,4 @@
-сигналы: lock=lock.wav locked=locked.wav missile=missile.wav stall=stall.wav lowAlt=lowAlt.wav
+сигналы: lock=lock.wav locked=locked.wav missile=missile.wav stall=stall.wav lowAlt=lowAlt.wav fire=fire.wav guns=guns.wav missionWin=missionWin.wav missionFail=missionFail.wav priority=priority.wav
 createChatMessage: lock.wav @0.7
 createChatMessage: locked.wav @0.7
 createChatMessage: тишина
@@ -13,3 +13,12 @@ createChatMessage: тишина
 createChatMessage: тишина
 createChatMessage: тишина
 createChatMessage: missile.wav @0.5
+createChatMessage: fire.wav @0.5
+createChatMessage: guns.wav @0.5
+createChatMessage: тишина
+createChatMessage: тишина
+тревога Actor.convoy: priority.wav @0.5 | разослано: priority
+тревога Actor.liner: priority.wav @0.5 | разослано: priority
+тревога Actor.plant: нет | разослано: —
+тревога Actor.truck: нет | разослано: —
+итог миссии: missionWin.wav @0.5, missionFail.wav @0.5

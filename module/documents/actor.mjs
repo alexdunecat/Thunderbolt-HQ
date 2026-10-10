@@ -98,6 +98,7 @@ export class TBActor extends Actor {
     if (this.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) || s.markers?.doom)
       return this.#say(`<b>${esc(this.name)}</b> уже ${this.type === "pilot" ? "катапультировался" : "сбит"}: урон не нужен.`);
     const opts = { sourceUuid, roundKey };
+    this.#alarm();
     if (this.type === "npc" && s.kind === "ship") return this.#damageShip(amount, opts);
     if (this.type === "npc" && s.kind === "ground") {
       const hp = s.hp.value - amount;
@@ -178,6 +179,7 @@ export class TBActor extends Actor {
     if (!c?.started || this.getFlag(SYSTEM_ID, "down")?.combat === c.id) return;
     const by = sourceUuid ? R.resolveActor(sourceUuid)?.name ?? "" : "";
     await this.setFlag(SYSTEM_ID, "down", { combat: c.id, round: c.round, by, byUuid: sourceUuid ?? "" });
+    this.#alarm();
     this.#chatter("down", { victim: this.uuid, killer: sourceUuid ?? "" });
     // в трекере боец выбывает: заявок и хода у него больше нет
     const cb = c.combatants.find(x => (this.isToken ? x.tokenId === this.token?.id : x.actorId === this.id));
@@ -225,6 +227,11 @@ export class TBActor extends Actor {
       return this.#say(`<b>${esc(this.name)}</b>: уничтожена последняя система. Цель потоплена.`);
     }
     return this.#say(`<b>${esc(this.name)}</b>: «${esc(y.name)}» −${amount} HP${y.value ? `, осталось ${y.value}` : ", система уничтожена"}. Целых систем: ${left}.`);
+  }
+
+  /** Тревога у всех, если это приоритетная цель союзников или гражданских (sounds.mjs). */
+  #alarm() {
+    import("../sounds.mjs").then(m => m.priorityAlarm(this)).catch(err => console.warn(`${SYSTEM_ID} | звук`, err));
   }
 
   /** Переговоры NPC (chatter.mjs): подбит, сбит. Модуль грузится лениво, как радио в даунтайме. */

@@ -172,6 +172,7 @@ function nextBanner() {
   if (!b) { bannerOn = false; el.classList.remove("on"); return; }
   bannerOn = true;
   if (b.mission) {
+    import("./sounds.mjs").then(m => m.cueAll(["success", "complete"].includes(b.level) ? "missionWin" : "missionFail")).catch(() => {});
     // итог миссии как в Ace Combat: плашка сверху, крупная рамка с надписью, подпись ниже; держится дольше, щелчок убирает
     el.className = `tb-mission tb-mission-${b.level}`;
     el.innerHTML = `<div class="tb-mission-tag">AWACS</div><div class="tb-mission-title">${esc(b.title)}</div>${b.sub ? `<div class="tb-mission-sub">${esc(b.sub)}</div>` : ""}`;

@@ -1,6 +1,7 @@
-"""Сигналы кабины для assets/sounds (WAV, 22 кГц, моно): захват, облучение, ракета, сваливание, малая высота.
+"""Сигналы для assets/sounds (WAV, 22 кГц, моно): захват, облучение, ракета, сваливание, малая высота,
+пуск, пушка, итог миссии и тревога по приоритетной цели.
 Синтез без внешних файлов, в духе тонов Ace Combat. Запуск: python3 tools/make-sounds.py"""
-import math, os, struct, wave
+import math, os, random, struct, wave
 
 SR = 22050
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "sounds")
@@ -21,6 +22,24 @@ def tone(freq, ms, amp=0.35, to=None):
 def gap(ms):
     return [0.0] * int(SR * ms / 1000)
 
+def noise(ms, amp=0.5, decay=8.0, lp=0.15, seed=1, start=None):
+    """Шум с экспоненциальным спадом и простым фильтром нижних частот (lp от 0 до 1: чем меньше, тем глуше)."""
+    rnd = random.Random(seed)
+    n = int(SR * ms / 1000)
+    out, y = [], 0.0
+    for i in range(n):
+        k = lp if start is None else start + (lp - start) * i / n
+        y += k * (rnd.uniform(-1, 1) - y)
+        out.append(y * amp * math.exp(-decay * i / n) * min(1, i / 40))
+    return out
+
+def mix(*parts):
+    n = max(len(p) for p in parts)
+    return [sum(p[i] for p in parts if i < len(p)) for i in range(n)]
+
+def chord(freqs, ms, amp=0.18):
+    return mix(*(tone(f, ms, amp=amp) for f in freqs))
+
 def beeps(freq, on, off, count, **kw):
     out = []
     for i in range(count):
@@ -38,6 +57,16 @@ SOUNDS = {
     "stall": sum((tone(520 if i % 2 == 0 else 700, 80, amp=0.3) for i in range(15)), []),
     # малая высота: три нисходящих свипа, «Pull up»
     "lowAlt": sum((tone(950, 260, to=600) + gap(110) for _ in range(3)), []),
+    # пуск ракеты игроком: щелчок пиропатрона и уходящий рёв двигателя
+    "fire": mix(noise(60, amp=0.4, decay=10, lp=0.6, seed=2), gap(30) + noise(900, amp=1.0, decay=3.2, start=0.5, lp=0.05, seed=3)),
+    # очередь из пушки: 18 коротких хлопков
+    "guns": sum((noise(28, amp=2.2, decay=6, lp=0.35, seed=10 + i) + gap(14) for i in range(18)), []),
+    # миссия выполнена или завершена: восходящая мажорная фанфара
+    "missionWin": tone(523, 140, amp=0.25) + tone(659, 140, amp=0.25) + tone(784, 140, amp=0.25) + chord([523, 659, 784, 1047], 900),
+    # миссия провалена или отменена: нисходящий минор
+    "missionFail": tone(587, 260, amp=0.25) + tone(523, 260, amp=0.25) + tone(466, 260, amp=0.25) + chord([392, 466, 587], 1100, amp=0.16),
+    # приоритетная цель союзников или гражданских подбита: ревун из двух тонов и резкий высокий сигнал
+    "priority": sum((tone(740, 170, amp=0.34) + tone(554, 170, amp=0.34) for _ in range(3)), []) + gap(60) + beeps(1760, 70, 50, 3, amp=0.3),
 }
 
 os.makedirs(OUT, exist_ok=True)

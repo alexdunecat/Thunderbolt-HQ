@@ -3,13 +3,20 @@ import { fileURLToPath as __f } from "node:url";
 process.argv[2] ??= __f(new URL("..", import.meta.url)).replace(/\/$/, "");
 const root = process.argv[2];
 const hooks = {}, played = [], settings = { soundVolume: 70, soundGM: false };
-globalThis.Hooks = { on: (n, f) => (hooks[n] ??= []).push(f) };
+globalThis.Hooks = { on: (n, f) => (hooks[n] ??= []).push(f), once: (n, f) => (hooks[n] ??= []).push(f) };
 let now = 0; Date.now = () => now;
+globalThis.CONFIG = {};
 globalThis.foundry = { utils: { getProperty: (o, p) => p.split(".").reduce((x, k) => x?.[k], o) }, audio: { AudioHelper: { play: d => played.push(`${d.src.split("/").pop()} @${d.volume}`) } } };
-globalThis.game = { combat: { started: true }, user: { isGM: false }, settings: { register: (s, k, o) => { if (!(k in settings)) settings[k] = o.default; }, get: (s, k) => settings[k] } };
+globalThis.game = { socket: { emit: (c, m) => emitted.push(m.key), on() {} }, combat: { started: true }, user: { isGM: false }, settings: { register: (s, k, o) => { if (!(k in settings)) settings[k] = o.default; }, get: (s, k) => settings[k] } };
 const actors = {};
 const mk = (uuid, type, isOwner) => (actors[uuid] = { uuid, type, isOwner });
 const me = mk("Actor.me", "pilot", true), mate = mk("Actor.mate", "pilot", false), mig = mk("Actor.mig", "npc", true);
+const npcSys = (side, priority, rules = []) => ({ side, priority, kind: "ground", props: [], rules: rules.map(key => ({ key })) });
+const convoy = Object.assign(mk("Actor.convoy", "npc", false), { system: npcSys("ally", true) });
+const liner = Object.assign(mk("Actor.liner", "npc", false), { system: npcSys("neutral", true, ["civilian"]) });
+const plant = Object.assign(mk("Actor.plant", "npc", false), { system: npcSys("enemy", true) });
+const truck = Object.assign(mk("Actor.truck", "npc", false), { system: npcSys("ally", false) });
+const emitted = [];
 globalThis.fromUuidSync = u => actors[u] ?? null;
 const S = await import(`${root}/module/sounds.mjs`);
 S.registerSounds();
@@ -34,3 +41,14 @@ settings.soundVolume = 50; game.user.isGM = true;
 fire("createChatMessage", msg({ card: { maws: true, targetUuid: me.uuid } }));         // ведущий не слышит
 settings.soundGM = true; mate.isOwner = true; // у ведущего все пилоты свои
 fire("createChatMessage", msg({ card: { maws: true, targetUuid: mate.uuid } }));       // ведущий с галочкой слышит
+// свой пуск и пушка: слышит стрелок
+settings.soundGM = false; game.user.isGM = false; mate.isOwner = false;
+fire("createChatMessage", msg({ card: { attack: true, actorUuid: me.uuid, targetUuid: mig.uuid } }));
+fire("createChatMessage", msg({ card: { attack: true, instant: true, actorUuid: me.uuid, targetUuid: mig.uuid } }));
+fire("createChatMessage", msg({ card: { attack: true, actorUuid: mate.uuid, targetUuid: mig.uuid } }));   // чужой пуск — не слышно
+fire("createChatMessage", msg({ card: { attack: true, actorUuid: mig.uuid, targetUuid: mate.uuid } }));   // пуск NPC — не слышно
+// тревога по приоритетной цели: у всех, плюс рассылка остальным
+for (const a of [convoy, liner, plant, truck]) { const ok = S.priorityAlarm(a); console.log(`тревога ${a.uuid}: ${ok ? played.splice(0).join(", ") : "нет"} | разослано: ${emitted.splice(0).join(",") || "—"}`); now += 2000; }
+// итог миссии: общий звук у всех, и у ведущего
+game.user.isGM = true; S.cueAll("missionWin"); now += 2000; S.cueAll("missionFail");
+console.log("итог миссии:", played.splice(0).join(", "));
