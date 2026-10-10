@@ -84,6 +84,16 @@
     </div>
     {{else}}<p class="tb-small tb-muted">Шкал боя нет. «Шкала боя» заводит сброс «Аркбёрда», падение SOLG, пуск из шахты, заряд рейлгана или свою шкалу, с репликами AWACS на отметках.</p>{{/if}}
 
+    <h3>Слава эскадрильи <button type="button" class="tb-inline-btn" data-glory-add title="Начислить Славу по сводке последнего боя на сцене: задачи, рядовые, дуэлянты, асы, Немезида, корабли, супероружие"><i class="fas fa-star"></i> Начислить</button></h3>
+    <div class="tb-glory">
+      <span class="tb-glory-level lv-{{glory.key}}">{{glory.name}}</span>
+      <span class="tb-num"><a data-glory-step="-1" title="Снять 1 Славу">−</a> <b>{{glory.points}}</b> <a data-glory-step="1" title="Добавить 1 Славу">+</a></span>
+      <span class="tb-glory-bar" title="{{#if glory.next}}До уровня «{{glory.next}}»: {{glory.toNext}}{{else}}Высший уровень{{/if}}"><i style="width:{{glory.pct}}%"></i></span>
+      <small class="tb-muted">{{#if glory.next}}до «{{glory.next}}» {{glory.toNext}}{{else}}высший уровень{{/if}} · рядовых в копилке {{glory.conscripts}} из 10</small>
+      <label class="tb-glory-nick">Прозвище от врага <input type="text" data-glory-nick value="{{glory.nickname}}" placeholder="{{#if glory.nickOpen}}впишите прозвище{{else}}появится на уровне «На слуху»{{/if}}"></label>
+      {{#if glory.recent.length}}<small class="tb-muted tb-glory-log">{{#each glory.recent as |r|}}{{r}}{{#unless @last}}; {{/unless}}{{/each}}</small>{{/if}}
+    </div>
+
     <h3>Даунтайм <button type="button" class="tb-inline-btn" data-base-event title="Бросить d10 по таблице событий на базе: событие и вопрос-крючок для общей сцены"><i class="fas fa-dice-d10"></i> Событие на базе</button>
       <button type="button" class="tb-inline-btn" data-threat-add><i class="fas fa-plus"></i> Шкала угрозы</button></h3>
     {{#if threats.length}}

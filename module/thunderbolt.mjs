@@ -11,6 +11,7 @@ import * as R from "./dice/rolls.mjs";
 import { openImportDialog, importMission } from "./apps/mission-import.mjs";
 import { TBMemoSheet } from "./apps/memo-sheet.mjs";
 import { openAwacs, refreshAwacs, sortieResults } from "./apps/awacs-panel.mjs";
+import { registerGlory, gloryDialog } from "./glory.mjs";
 import { tokenOf, zoneDistance } from "./scene.mjs";
 import { esc } from "./utils.mjs";
 import { initSocket, checkAdjacency, leadership, formUp } from "./squad.mjs";
@@ -88,6 +89,7 @@ Hooks.once("init", () => {
   registerRadio();
   registerRange();
   Downtime.registerDowntime();
+  registerGlory();
   registerMapInfo();
   registerRotate();
   registerAltitude();
@@ -97,7 +99,7 @@ Hooks.once("init", () => {
   registerCombat();
   registerActions();
 
-  game.thunderbolt = { importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
+  game.thunderbolt = { gloryDialog, importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
     squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB, radio: { send: sendRadio, say, caution, log: openRadioLog }, dossier: { open: openDossierExchange, importDossier, exportDossier },
     refreshAwacs, downtime: { ground: Downtime.rollGround, baseEvent: Downtime.baseEvent, threats: Downtime.threats, addThreat: Downtime.addThreat, stepThreat: Downtime.stepThreat } };
 });

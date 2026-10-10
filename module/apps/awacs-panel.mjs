@@ -6,6 +6,7 @@ import { tokenOf, weatherAt, defenseWithWeather, altOf, sideOf } from "../scene.
 import { arrangeSceneTokens } from "../tokens.mjs";
 import { openMapUpdateDialog, coreWeatherFor } from "./mission-import.mjs";
 import { targetGoals } from "../losses.mjs";
+import { gloryView, gloryDialog, gloryFields, gloryPrefill, applyGlory, setGlory } from "../glory.mjs";
 import { openRadioDialog } from "../radio.mjs";
 import { openDossierExchange } from "../dossier-sync.mjs";
 import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMarkAt, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
@@ -93,6 +94,8 @@ export class AwacsPanel extends Application {
       skillHeads: Object.values(TB.skills).map(v => ({ label: v.label, en: v.en })),
       weather: Object.entries(TB.weather).map(([id, d]) => ({ id, ...d, on: sceneWeather.has(id) })),
       round: combat?.started ? combat.round : null, queued,
+      glory: (() => { const g = gloryView(); return { ...g, pct: g.nextAt !== null ? Math.round(100 * g.points / g.nextAt) : 100,
+        recent: (g.log ?? []).slice(-3).reverse().map(x => `${x.date} · ${x.op}: ${x.total >= 0 ? "+" : "−"}${Math.abs(x.total)}`) }; })(),
       threats: threats().filter(t => t.kind !== "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size })),
       bossClocks: threats().filter(t => t.kind === "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size,
         pct: Math.round(100 * t.value / t.size),
@@ -146,6 +149,9 @@ export class AwacsPanel extends Application {
     on("[data-base-event]", () => baseEvent());
     on("[data-threat-add]", () => addThreat());
     on("[data-boss-add]", () => bossClockDialog());
+    on("[data-glory-add]", () => gloryDialog());
+    on("[data-glory-step]", d => setGlory({ points: gloryView().points + Number(d.gloryStep) }));
+    el.querySelector("[data-glory-nick]")?.addEventListener("change", ev => setGlory({ nickname: ev.target.value.trim() }));
     on("[data-boss-edit]", d => { const t = threats().find(x => x.id === d.bossEdit); if (t) bossClockDialog(t); });
     on("[data-threat-step]", d => stepThreat(d.threatStep, Number(d.delta)));
     on("[data-threat-del]", async d => {
@@ -243,6 +249,10 @@ export async function sortieResults() {
       <td>${mentor ? `<label title="Урок наставника выполнен: +1 очко"><input type="checkbox" name="lesson_${a.id}"> урок</label>` : ""}</td>
     </tr>`;
   }).join("");
+  const last = scene?.getFlag(SYSTEM_ID, "lastBattle");
+  const gloryBlock = `<details class="tb-glory-block" open><summary><label><input type="checkbox" name="g_on" checked> Слава эскадрильи</label>
+    <small class="tb-muted">${last ? "подсказка по сводке последнего боя на сцене" : "сводки боя нет, заполните вручную"}</small></summary>
+    ${gloryFields(gloryPrefill(last?.losses ?? [], last?.survivors ?? []))}</details>`;
   const goals = objectives.length ? `<p class="tb-hint">Задачи миссии: отметьте выполненные.</p>${objectives.map((o, i) =>
     `<div class="form-group"><label><input type="checkbox" name="obj_${i}"> ${esc(o)}</label></div>`).join("")}` : "";
   const data = await formDialog("Итоги вылета", `
@@ -250,6 +260,7 @@ export async function sortieResults() {
     <p class="tb-hint">Нервы: +1 за две метки урона, гибель товарища со Связью или тяжёлое решение, не больше +2 за вылет; на пределе не растут. У летавших Заделы сгорают, начинается даунтайм с двумя действиями.</p>
     <table class="tb-results"><tr><th>Летал</th><th>Сбито в воздухе</th><th>Уничтожено на земле</th><th>Катапульта</th><th>Очки</th><th>Нервы +</th><th></th></tr>${rows}</table>
     ${goals}
+    ${gloryBlock}
     <div class="form-group"><label>Операция</label><input type="text" name="op" value="${esc(scene?.getFlag(SYSTEM_ID, "mission") || scene?.name || "")}" placeholder="название вылета"></div>
     <div class="form-group"><label><input type="checkbox" name="journal" checked> Записать разбор полёта в журнал</label></div>`, { ok: "Записать в личные дела", width: 640 });
   if (!data) return;
@@ -277,6 +288,7 @@ export async function sortieResults() {
     });
     lines.push(`<b>${esc(a.name)}</b>: вылет ${sortie}${air ? `, сбито ${air}` : ""}${gnd ? `, на земле ${gnd}` : ""}${eject ? ", катапультировался" : ""}${pts ? `, +${pts} ${pts === 1 ? "очко" : "очка"} навыков` : ""}${dt.notes.length ? `, ${dt.notes.map(esc).join(", ")}` : ""}`);
   }
+  if (data.g_on) await applyGlory(data, op);
   if (!lines.length) return;
   const entry = data.journal ? await writeDebrief({ op, rows: report, targets: sceneTargets(),
     objectives: objectives.map((text, i) => ({ text, done: !!data[`obj_${i}`] })) }) : null;

@@ -10,6 +10,7 @@ import { spendAction, actsSummary, allowAction, endTurn } from "../actions.mjs";
 import { openDossierExchange } from "../dossier-sync.mjs";
 import { aimedWeapon, toggleAim } from "../range.mjs";
 import { rollGround, chooseEdge, edgeLabel, dropBond, useBond, useEdge, threats, clockPips, stepThreat } from "../downtime.mjs";
+import { gloryView } from "../glory.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -333,6 +334,7 @@ export class PilotSheet extends TBActorSheet {
     ctx.dossier = s.dossier.map((d, i) => ({ ...d, i }));
     ctx.alertSpeed = s.speed <= 0;
     ctx.dt = downtimeView(a);
+    ctx.glory = gloryView();
     return ctx;
   }
 

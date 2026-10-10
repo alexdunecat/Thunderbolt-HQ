@@ -622,3 +622,22 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 /* шкалы боя: реплики AWACS под шкалой */
 .thunderbolt .tb-boss-clocks .tb-threat { flex-wrap: wrap; }
 .thunderbolt .tb-boss-marks { flex-basis: 100%; font-size: 11px; }
+
+/* Слава эскадрильи: панель AWACS, лист пилота, карточка в чате */
+.thunderbolt .tb-glory { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 4px 0 8px; font-size: 13px; }
+.thunderbolt .tb-glory .tb-num a { cursor: pointer; padding: 0 3px; }
+.thunderbolt .tb-glory-bar { flex: 1 1 120px; height: 7px; border: 1px solid var(--tb-line); background: var(--tb-surface-2); transform: skewX(-12deg); }
+.thunderbolt .tb-glory-bar i { display: block; height: 100%; background: var(--tb-olive); }
+.thunderbolt .tb-glory-nick { display: flex; align-items: center; gap: 6px; flex-basis: 100%; }
+.thunderbolt .tb-glory-nick input { flex: 1; }
+.thunderbolt .tb-glory-log { flex-basis: 100%; font-size: 11px; }
+.tb-glory-level { font-weight: bold; letter-spacing: .04em; text-transform: uppercase; }
+.tb-glory-level.lv-noticed { color: var(--tb-olive); }
+.tb-glory-level.lv-known, .tb-glory-level.lv-terror { color: var(--tb-warn); }
+.tb-glory-level.lv-legend { color: var(--tb-accent); }
+.thunderbolt .tb-glory-sheet p { margin: 2px 0 4px; }
+.thunderbolt .tb-glory-award td:nth-child(2) { white-space: nowrap; text-align: center; }
+.thunderbolt .tb-glory-award input[type=number] { width: 56px; }
+.thunderbolt .tb-glory-block summary { cursor: pointer; margin: 6px 0 4px; }
+.tb-card-glory .tb-glory-up { border-left: 3px solid var(--tb-olive); padding-left: 6px; }
+.tb-card-glory .tb-glory-up ul { margin: 4px 0 0; padding-left: 16px; }

@@ -242,6 +242,12 @@
         </fieldset>
       </div>
 
+      <fieldset class="tb-box tb-glory-sheet">
+        <legend>Слава эскадрильи <span class="tb-budget">{{glory.points}}</span> <span class="tb-muted">{{#if glory.next}}до «{{glory.next}}» {{glory.toNext}}{{else}}высший уровень{{/if}}</span></legend>
+        <p><b class="tb-glory-level lv-{{glory.key}}">{{glory.name}}</b>{{#if glory.nickname}} · враг зовёт вас <b>«{{glory.nickname}}»</b>{{/if}}. <span class="tb-muted">{{glory.mean}}.</span></p>
+        {{#if glory.effects.length}}<ul class="tb-list tb-small">{{#each glory.effects as |e|}}<li><b>{{e.title}}</b> {{e.text}}</li>{{/each}}</ul>{{/if}}
+      </fieldset>
+
       <fieldset class="tb-box">
         <legend>Заделы на следующий вылет <span class="tb-budget {{#if dt.edgesOver}}over{{/if}}">{{system.edgeCount}} из {{dt.maxEdges}}</span> <span class="tb-muted">сгорают после вылета</span></legend>
         {{#if dt.edges.length}}

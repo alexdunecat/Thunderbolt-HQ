@@ -4,7 +4,7 @@
    а после End combat в чат приходит отчёт с кнопкой «Итоги в личные дела». */
 import { SYSTEM_ID, SYS_PATH, TB } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
-import { sideOf } from "./scene.mjs";
+import { sideOf, hasRule } from "./scene.mjs";
 
 export const RETREAT = "retreat";
 const OURS = ["player", "ally"];
@@ -74,7 +74,10 @@ function lossOf(t, how) {
   const shooter = d?.byUuid ? resolveActor(d.byUuid) : null;
   return { name: t.name, side: sideOf(a), kind: kindOf(a), pilot: a.type === "pilot", how, by: d?.by ?? "", round: d?.round ?? null,
     byPilot: shooter?.type === "pilot" ? shooter.name : "",
-    task: a.type === "npc" && a.system.priority ? a.system.task || "" : null };
+    task: a.type === "npc" && a.system.priority ? a.system.task || "" : null,
+    // для Славы эскадрильи: уровень, эскадрилья дуэлянтов, супероружие или летающая крепость
+    tier: a.type === "npc" ? a.system.tier ?? "" : "", squad: a.type === "npc" ? a.system.squad ?? "" : "", grp: a.system.grp ?? "",
+    boss: hasRule(a, "boss") || hasRule(a, "aerialship") };
 }
 
 /** Токены сцены боя, которым пора уйти: сбитые в этом бою не позже раунда upTo и отступившие. */
@@ -146,7 +149,7 @@ async function battleReport(combat) {
     const a = t.actor;
     if (a?.type !== "npc" || t.hidden || OURS.includes(sideOf(a))) continue;
     if (a.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) continue;
-    survivors.push({ name: t.name, hp: a.system.hp ? `${a.system.hp.value}/${a.system.hp.max}` : "" });
+    survivors.push({ name: t.name, hp: a.system.hp ? `${a.system.hp.value}/${a.system.hp.max}` : "", squad: a.system.squad ?? "" });
   }
   const op = scene?.getFlag(SYSTEM_ID, "mission") || scene?.name || "Вылет";
   const objectives = scene?.getFlag(SYSTEM_ID, "objectives") ?? [];

@@ -5,6 +5,7 @@
    заметки к триггерам — во флагах триггеров. */
 import { SYSTEM_ID, TB, DT } from "./config.mjs";
 import { esc } from "./utils.mjs";
+import { glory, setGlory } from "./glory.mjs";
 
 const STAT_MAP = [["spd", "spd"], ["eva", "ev"], ["aa", "aa"], ["ag", "ag"], ["hp", "hp"], ["str", "str"], ["gun", "gun"], ["hpts", "hard"]];
 const SKILLS = Object.keys(TB.skills);
@@ -233,9 +234,12 @@ function groundTo(actor, weapons) {
   };
 }
 
-export const codeFor = actors => actors.length === 1
+export const codeFor = (actors, extra = null) => actors.length === 1 && !extra
   ? JSON.stringify({ kind: "yukto-dossier", v: 1, pilot: exportDossier(actors[0]) })
-  : JSON.stringify({ kind: "yukto-dossiers", v: 1, pilots: actors.map(exportDossier) });
+  : JSON.stringify({ kind: "yukto-dossiers", v: 1, pilots: actors.map(exportDossier), ...(extra ?? {}) });
+
+/** Слава эскадрильи для Штаба: ведущий передаёт её вместе со всеми делами. */
+const gloryOut = () => { const g = glory(); return { points: g.points, conscripts: g.conscripts, nickname: g.nickname ?? "" }; };
 
 /* ---------- окна ---------- */
 
@@ -246,7 +250,7 @@ async function copy(text) {
 /** Окно обмена: код показан и скопирован, ниже поле для кода из Штаба. actor — один пилот, иначе все пилоты (ведущий). */
 export function openDossierExchange(actor = null) {
   const own = actor ? [actor] : game.actors.filter(a => a.type === "pilot" && (game.user.isGM || a.isOwner));
-  const out = own.length ? codeFor(own) : "";
+  const out = own.length ? codeFor(own, !actor && game.user.isGM ? { glory: gloryOut() } : null) : "";
   const title = actor ? `Личное дело: ${actor.name}` : "Личные дела и Штаб";
   const intro = actor
     ? "Код ниже — дело этого пилота для Штаба: в «Личном деле» Штаба кнопка «Код дела» → вставить → «Завести или обновить из кода». Чтобы перенести дело из Штаба сюда, вставьте его код в нижнее поле: анкета, навыки, триггеры, самолёт, спецоружие и состояние вылета заменят текущие."
@@ -279,6 +283,14 @@ async function loadFrom(text, actor) {
     if (!ok) return;
     await importDossier(list[0], actor);
     return ui.notifications.info(`Дело «${actor.name}» загружено из Штаба.`);
+  }
+  // Слава эскадрильи из Штаба: только ведущему и только с его согласия, если она отличается
+  let g = null;
+  try { g = JSON.parse(String(text).trim()).glory ?? null; } catch { /* без Славы */ }
+  const now = glory();
+  if (g && game.user.isGM && Number.isFinite(g.points) && (g.points !== now.points || (g.conscripts ?? 0) !== now.conscripts || (g.nickname ?? "") !== (now.nickname ?? ""))) {
+    const take = await Dialog.confirm({ title: "Слава эскадрильи", content: `<p>В коде из Штаба Слава ${g.points}${g.nickname ? ` («${esc(g.nickname)}»)` : ""}, в мире ${now.points}${now.nickname ? ` («${esc(now.nickname)}»)` : ""}. Взять из кода?</p>` });
+    if (take) await setGlory({ points: g.points, conscripts: Math.max(0, Math.min(9, g.conscripts ?? 0)), nickname: g.nickname ?? "" });
   }
   const made = [], upd = [];
   for (const raw of list) {
