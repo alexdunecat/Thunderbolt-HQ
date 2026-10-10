@@ -527,6 +527,11 @@ body[data-tb-skin="brief"] .tb-radio-log b.tb-log-caution { color: #f2c14e; } bo
 .tb-chatter-foot label { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
 .tb-chatter-foot select { width: auto; }
 .tb-chatter-foot .tb-spacer { flex: 1; }
+.tb-chatter-voice { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.tb-chatter-list.muted { opacity: .5; }
+.app.tb-chatter .tb-chatter-nav button.muted:not(.on) { opacity: .6; }
+.tb-chatter-nav .tb-hint { margin: 2px 4px 6px; font-size: 11px; }
+.tb-chatter-ev textarea::placeholder { color: var(--tb-muted); opacity: .8; font-style: italic; }
 .tb-chatter-foot button { width: auto; flex: 0 0 auto; padding: 0 8px; line-height: 1.8; margin: 0; }
 @media (max-width: 640px) { .tb-chatter-body { grid-template-columns: 1fr; } .tb-chatter-nav { max-height: 120px; border-right: 0; } }
 .tb-radio-log header { padding: 6px 10px; border-bottom: 1px solid rgba(127,127,127,.3); }

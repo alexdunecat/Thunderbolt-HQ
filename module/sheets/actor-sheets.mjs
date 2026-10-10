@@ -11,6 +11,7 @@ import { openDossierExchange } from "../dossier-sync.mjs";
 import { aimedWeapon, toggleAim } from "../range.mjs";
 import { rollGround, chooseEdge, edgeLabel, dropBond, useBond, useEdge, threats, clockPips, stepThreat, bondCap } from "../downtime.mjs";
 import { gloryView } from "../glory.mjs";
+import { openChatterEditor } from "../chatter.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -501,6 +502,7 @@ export class NpcSheet extends TBActorSheet {
     ctx.canGun = ctx.isAir || (ctx.isGround && s.ground.gun !== null);
     ctx.gunLabel = gunVs(this.actor) === "air" ? "Зенитный огонь" : "Огонь по земле";
     ctx.taskOptions = TB.tasks;
+    ctx.voice = !this.actor.getFlag(SYSTEM_ID, "quiet");
     return ctx;
   }
 
@@ -519,6 +521,12 @@ export class NpcSheet extends TBActorSheet {
     own("[data-tb-side]", "system.side", n => n.value);
     own("[data-tb-priority]", "system.priority", n => n.checked);
     own("[data-tb-task]", "system.task", n => n.value);
+    // молчит в эфире: флаг quiet (у несвязанного токена — только у этого токена)
+    el.querySelector("[data-tb-voice]")?.addEventListener("change", ev => {
+      ev.stopPropagation();
+      this.actor.update({ [`flags.${SYSTEM_ID}.quiet`]: !ev.currentTarget.checked });
+    });
+    el.querySelector("[data-tb-replies]")?.addEventListener("click", () => openChatterEditor(this.actor));
     el.querySelectorAll("[data-sys-field]").forEach(n => n.addEventListener("change", () => {
       const list = foundry.utils.deepClone(this.actor.system.systems);
       const i = Number(n.dataset.sysIndex), k = n.dataset.sysField;

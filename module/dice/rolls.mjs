@@ -627,7 +627,7 @@ export async function fireMissile(actor) {
     d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) : null, vsLabel: "защиты",
     vsHint: t?.kind === "ship" ? "по Occlusion системы" : "", strainable: !!data.improved && (actor.type === "pilot" || actor.system.tier === "ace"),
     practiced: !!dice.practiced, dmg, delayed: atTurn || !(hv || tBroken), atTurn, combatKey: hv || tBroken ? (atTurn ? key : "") : key,
-    targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes, maws: mawsOn(t),
+    targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes, maws: mawsOn(t), tkind: air ? "air" : "ground",
     ...thresholds(actor, skill, data.storm)
   };
   return postCard(actor, card, dice.rolls);

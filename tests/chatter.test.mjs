@@ -9,7 +9,7 @@ const timers = []; globalThis.setTimeout = f => { timers.push(f); return timers.
 const run = () => { while (timers.length) timers.shift()(); };
 const els = {};
 globalThis.document = { getElementById: id => els[id], createElement: () => ({ classList: { add(){}, remove(){} }, setAttribute(){}, set innerHTML(v){ said.push(v.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()); } }), body: { append(e){ els[e.id] = e; } } };
-const settings = { npcChatter: true, chatterChance: 100, chatterBank: {}, radioSubtitles: true };
+const settings = { npcChatter: true, chatterChance: 100, chatterBank: {}, chatterMuted: {}, radioSubtitles: true };
 globalThis.CONFIG = { specialStatusEffects: { DEFEATED: "dead" } };
 globalThis.Application = class {}; globalThis.FormApplication = class {};
 const ls = {}; globalThis.localStorage = { getItem: k => ls[k] ?? null, setItem: (k, v) => { ls[k] = v; } };
@@ -21,7 +21,7 @@ const scene = { id: "S", tokens: [] };
 const actors = {};
 function npc(id, name, sys, { hidden = false, dead = false, x = 0 } = {}) {
   const a = { type: "npc", name, uuid: `Scene.S.Token.${id}.Actor.${id}`, isToken: true, system: { side: "enemy", kind: "air", grp: "fighter", props: [], rules: [], markers: {}, ...sys },
-    statuses: new Set(dead ? ["dead"] : []) };
+    statuses: new Set(dead ? ["dead"] : []), flags: {}, getFlag(scope, k) { return k.split(".").reduce((x, p) => x?.[p], this.flags); } };
   const t = { id, name, hidden, x, y: 0, parent: scene, actor: a };
   a.token = t;
   scene.tokens.push(t);
@@ -56,7 +56,7 @@ const step = label => { run(); console.log(`— ${label}`); for (const s of sent
 let holes = 0;
 for (const [type, t] of Object.entries(B.CHATTER_TYPES))
   for (const side of t.civil ? ["civil"] : ["ally", "enemy"])
-    for (const ev of t.civil ? B.CIVIL_EVENTS : Object.keys(B.CHATTER_EVENTS)) {
+    for (const ev of B.eventsFor(type, side)) {
       const n = (B.CHATTER_BANK[type]?.[side]?.[ev] ?? []).length;
       if (n < 2 || n > 3) { holes++; console.log("дыра в банке:", type, side, ev, n); }
     }
@@ -70,7 +70,7 @@ step("игрок захватил МиГ-2");
 fire(msg({ card: { attack: true, delayed: true, actorUuid: mig1.uuid, targetUuid: pilot.uuid, targetName: "Гроза-1", parts: [] } }));
 step("пуск МиГа по игроку");
 fire(msg({ card: { attack: true, instant: true, actorUuid: ship.uuid, targetUuid: mig1.uuid, targetName: "Беркут-1", rolled: true, d10: 2, parts: [["Strafe", 1]], dc: 7 } }));
-step("корабль промахнулся пушкой по МиГу");
+step("корабль бьёт пушкой по МиГу и промахивается");
 fire(msg({ card: { type: "volley", targets: [
   { uuid: pilot.uuid, name: "Гроза-1", hit: true, sourceUuid: mig1.uuid, shooterUuids: [mig1.uuid] },
   { uuid: mig2.uuid, name: "Беркут-2", hit: false, sourceUuid: pilot.uuid, shooterUuids: [pilot.uuid] } ] } }));
@@ -95,6 +95,33 @@ settings.chatterChance = 0;
 fire(msg({ rwr: { target: ship.uuid, from: "Беркут-1", fromUuid: mig1.uuid } }));
 step("частота мелочей 0%: захват без реплик");
 settings.chatterChance = 100; settings.chatterBank = {};
+
+fire(msg({ card: { attack: true, delayed: true, tkind: "ground", actorUuid: mig1.uuid, targetUuid: ship.uuid, targetName: "Адмирал", parts: [] } }));
+step("МиГ бьёт по кораблю: удар по земле");
+fire(msg({ card: { attack: true, delayed: true, tkind: "ground", actorUuid: ship.uuid, targetUuid: mig1.uuid, targetName: "Беркут-1", parts: [] } }));
+step("у корабля нет «удара по земле»: звучит обычный пуск");
+ship.flags.quiet = true;
+fire(msg({ card: { attack: true, delayed: true, actorUuid: mig1.uuid, targetUuid: ship.uuid, targetName: "Адмирал", parts: [] } }));
+step("корабль с выключенной галочкой «Говорит в эфире» молчит");
+delete ship.flags.quiet;
+
+// ас со своими репликами; тип «Самолёт» выключен — обычный МиГ молчит, ас говорит своими
+mig1.system.tier = "ace";
+mig1.flags.replies = { fire: ["Это Беркут-1. {target}, ты мой!"], lock: [] };
+settings.chatterMuted = { air: true };
+fire(msg({ card: { attack: true, delayed: true, actorUuid: mig1.uuid, targetUuid: ship.uuid, targetName: "Адмирал", parts: [] } }));
+step("ас со своей фразой пуска при выключенном типе «Самолёт»");
+fire(msg({ rwr: { target: ship.uuid, from: "Беркут-1", fromUuid: mig1.uuid } }));
+step("пустое личное поле аса и выключенный тип: молчит");
+settings.chatterMuted = {};
+fire(msg({ rwr: { target: ship.uuid, from: "Беркут-1", fromUuid: mig1.uuid } }));
+step("пустое личное поле аса: общими фразами типа");
+const boss = npc("bo", "Хримфакси", { kind: "ship", grp: "boss" }, { x: 2000 });
+settings.chatterMuted = { boss: true };
+fire(msg({ card: { attack: true, delayed: true, actorUuid: boss.uuid, targetUuid: ship.uuid, targetName: "Адмирал", parts: [] } }));
+step("супероружие выключено: молчит, говорит только цель");
+settings.chatterMuted = {};
+mig1.system.tier = "conscript";
 
 // много событий сразу: не больше трёх реплик, сначала важные
 const extra = [npc("e1", "Ворон-1", {}, { x: 10 }), npc("e2", "Ворон-2", {}, { x: 20 }), npc("e3", "Ворон-3", {}, { x: 30 }), npc("e4", "Ворон-4", {}, { x: 40 })];

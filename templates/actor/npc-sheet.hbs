@@ -153,8 +153,10 @@
       <div class="tb-side-row">
         <label>Сторона <select data-tb-side>{{selectOptions sides selected=system.side}}</select></label>
         <label class="tb-check"><input type="checkbox" data-tb-priority {{checked system.priority}}> Приоритетная цель</label>
+        <label class="tb-check" title="Реплики этого NPC в эфире (переговоры NPC). Снимите, если ему нечего сказать."><input type="checkbox" data-tb-voice {{checked voice}}> Говорит в эфире</label>
         {{#if system.priority}}<label>Задача <select data-tb-task>{{selectOptions taskOptions selected=system.task}}</select></label>{{/if}}
       </div>
+      {{#if (eq system.tier "ace")}}<p><button type="button" class="tb-wide" data-tb-replies title="Свои фразы этого аса в эфире: захват, пуск, сбил, подбит, сбит и т. д."><i class="fas fa-comments"></i> Реплики аса в эфире</button></p>{{/if}}
       <p class="tb-hint">По противнику и нейтралу можно стрелять, по союзнику нет. Приоритетная цель первой предлагается в окне пушки, стоит в панели AWACS в разделе «Цели» с задачей и попадает с итогом в отчёт о бое.</p>
       {{editor enrichedNotes target="system.notes" button=true editable=editable engine="prosemirror"}}
     </div>

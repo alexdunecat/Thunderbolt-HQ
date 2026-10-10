@@ -7,16 +7,16 @@ import { SYSTEM_ID } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
 import { sideOf, hasRule } from "./scene.mjs";
 import { say } from "./radio.mjs";
-import { CHATTER_BANK, CHATTER_TYPES, CHATTER_SIDES, CHATTER_EVENTS, CIVIL_EVENTS } from "./data/chatter-bank.mjs";
+import { CHATTER_BANK, CHATTER_TYPES, CHATTER_SIDES, CHATTER_EVENTS, eventsFor } from "./data/chatter-bank.mjs";
 
 const CHANNEL = `system.${SYSTEM_ID}`;
 const FLUSH_MS = 700, MAX_LINES = 3;
 // какие реплики выбирать первыми, если событий больше MAX_LINES
-const PRIORITY = ["destroyed", "kill", "wingmanDown", "damaged", "hit", "miss", "evade", "incoming", "fire", "lock", "locked", "arrive"];
-// в каком порядке их произносить: сначала стрелявший, потом сбитый, потом его ведомый
-const ORDER = ["arrive", "lock", "locked", "fire", "incoming", "hit", "miss", "evade", "kill", "damaged", "destroyed", "wingmanDown"];
+const PRIORITY = ["destroyed", "kill", "cheer", "wingmanDown", "damaged", "hit", "miss", "evade", "incoming", "guns", "bomb", "fire", "lock", "locked", "arrive"];
+// в каком порядке их произносить: сначала стрелявший, потом сбитый, потом его ведомый и союзник игрока
+const ORDER = ["arrive", "lock", "locked", "fire", "bomb", "guns", "incoming", "hit", "miss", "evade", "kill", "damaged", "destroyed", "wingmanDown", "cheer"];
 // сбитый больше ничего не говорит, кроме последних слов
-const SILENT_WHEN_DOWN = ["damaged", "incoming", "evade", "locked", "hit", "miss", "fire", "lock", "arrive"];
+const SILENT_WHEN_DOWN = ["damaged", "incoming", "evade", "locked", "hit", "miss", "fire", "bomb", "guns", "lock", "arrive", "cheer"];
 
 let pending = [], timer = null;
 const lastPick = new Map();
@@ -31,6 +31,8 @@ export function registerChatter() {
     scope: "world", config: true, type: Number, range: { min: 0, max: 100, step: 10 }, default: 60
   });
   game.settings.register(SYSTEM_ID, "chatterBank", { scope: "world", config: false, type: Object, default: {} });
+  // типы, которые молчат (галочка «Говорит в эфире» в окне): { boss: true }
+  game.settings.register(SYSTEM_ID, "chatterMuted", { scope: "world", config: false, type: Object, default: {} });
   game.settings.registerMenu(SYSTEM_ID, "chatterEditor", {
     name: "Реплики NPC", label: "Открыть реплики", hint: "Все фразы NPC по типам техники, сторонам и событиям: посмотреть, поменять, вернуть стандартные.",
     icon: "fas fa-comments", type: ChatterEditor, restricted: true
@@ -81,15 +83,14 @@ function fromMessage(message) {
     return;
   }
   if (!c.attack || !c.actorUuid) return;
-  // пушка: исход известен сразу; урон и сбитого пришлёт actor.mjs
+  // пушка: стрелок кричит «огонь», исход слышен от цели (ушёл, подбит, сбит — урон и сбитого пришлёт actor.mjs)
   if (c.instant) {
-    if (!c.targetUuid || c.dc === null || c.dc === undefined) return;
-    const ok = succeeded(c);
-    queue({ event: ok ? "hit" : "miss", speaker: c.actorUuid, target: c.targetName });
-    if (!ok) queue({ event: "evade", speaker: c.targetUuid });
+    queue({ event: "guns", speaker: c.actorUuid, target: c.targetName });
+    if (c.targetUuid && c.dc !== null && c.dc !== undefined && !succeeded(c)) queue({ event: "evade", speaker: c.targetUuid });
     return;
   }
-  queue({ event: "fire", speaker: c.actorUuid, target: c.targetName });
+  // ракета по наземной или морской цели: у авиации это удар по земле (бомбы, ракеты по объекту)
+  queue({ event: c.tkind === "ground" ? "bomb" : "fire", speaker: c.actorUuid, target: c.targetName });
   if (c.targetUuid) queue({ event: "incoming", speaker: c.targetUuid });
 }
 
@@ -107,15 +108,21 @@ function queue(ev) {
   timer = setTimeout(flush, FLUSH_MS);
 }
 
-/** Сбитый: его последние слова, реплика сбившего и ближайшего своего. */
+/** Сбитый: его последние слова, реплика сбившего, ближайшего своего и (если сбил игрок) союзника рядом с игроком. */
 function expandDown(ev) {
   const victim = resolveActor(ev.victim);
   if (!victim) return [];
   const name = nameOf(victim);
   const out = [{ event: "destroyed", speaker: ev.victim }];
+  const killer = ev.killer ? resolveActor(ev.killer) : null;
   if (ev.killer) out.push({ event: "kill", speaker: ev.killer, target: name });
   const mate = nearestMate(victim);
   if (mate) out.push({ event: "wingmanDown", speaker: mate.actor.uuid, fallen: name });
+  const vType = chatterType(victim);
+  if (killer?.type === "pilot" && team(sideOf(victim)) !== "ally" && !isCivil(vType)) {
+    const fan = nearestSpeaker(killer, a => !isCivil(chatterType(a)) && team(sideOf(a)) === "ally");
+    if (fan) out.push({ event: "cheer", speaker: fan.actor.uuid, target: name, killer: nameOf(killer) });
+  }
   return out;
 }
 
@@ -165,6 +172,9 @@ export function chatterType(actor) {
 }
 
 const isCivil = type => !!CHATTER_TYPES[type]?.civil;
+const isAce = a => a?.type === "npc" && a.system?.tier === "ace" && !!chatterType(a);
+const quiet = a => !!a?.getFlag?.(SYSTEM_ID, "quiet");
+const muted = () => { try { return game.settings.get(SYSTEM_ID, "chatterMuted") ?? {}; } catch { return {}; } };
 const team = s => (s === "player" ? "ally" : s);
 const dead = a => !!a?.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) || !!a?.system?.markers?.doom;
 
@@ -180,22 +190,24 @@ function nameOf(actor) {
   return actor.system?.callsign || tokenDoc(actor)?.name || actor.name;
 }
 
-/** Ближайший живой NPC той же стороны (для гражданского — другой гражданский), который может говорить. */
-function nearestMate(victim) {
-  const vt = tokenDoc(victim);
-  const scene = vt?.parent ?? game.combat?.scene ?? game.scenes?.viewed;
+/** Ближайший к from живой открытый NPC, который может говорить и подходит под fits. */
+function nearestSpeaker(from, fits) {
+  const ft = tokenDoc(from);
+  const scene = ft?.parent ?? game.combat?.scene ?? game.scenes?.viewed;
   if (!scene) return null;
-  const civil = isCivil(chatterType(victim));
-  const side = team(sideOf(victim));
   const list = scene.tokens.filter(t => {
     const a = t.actor;
-    if (!a || t.hidden || t.id === vt?.id || dead(a)) return false;
-    const type = chatterType(a);
-    if (!type || isCivil(type) !== civil) return false;
-    return civil || team(sideOf(a)) === side;
+    if (!a || t.hidden || t.id === ft?.id || dead(a) || quiet(a) || !chatterType(a)) return false;
+    return fits(a);
   });
-  const d = t => (vt ? Math.hypot(t.x - vt.x, t.y - vt.y) : 0);
+  const d = t => (ft ? Math.hypot(t.x - ft.x, t.y - ft.y) : 0);
   return list.sort((a, b) => d(a) - d(b))[0] ?? null;
+}
+
+/** Ближайший свой у сбитого: той же стороны, для гражданского — другой гражданский. */
+function nearestMate(victim) {
+  const civil = isCivil(chatterType(victim)), side = team(sideOf(victim));
+  return nearestSpeaker(victim, a => isCivil(chatterType(a)) === civil && (civil || team(sideOf(a)) === side));
 }
 
 const bankSide = (actor, type) => (isCivil(type) ? "civil" : sideOf(actor) === "ally" ? "ally" : "enemy");
@@ -219,7 +231,7 @@ export function linesFor(type, side, event) {
 /** Подставить имена; фраза с подстановкой, которой нет, не годится. */
 export function fill(text, vars) {
   let ok = true;
-  const out = text.replace(/\{(target|fallen|self)\}/g, (_, k) => { if (!vars[k]) ok = false; return vars[k] ?? ""; });
+  const out = text.replace(/\{(target|fallen|killer|self)\}/g, (_, k) => { if (!vars[k]) ok = false; return vars[k] ?? ""; });
   return ok ? out : null;
 }
 
@@ -237,28 +249,50 @@ function lineFor(e) {
   const actor = resolveActor(e.speaker);
   const type = chatterType(actor);
   if (!type) return null;
-  if (isCivil(type) && !CIVIL_EVENTS.includes(e.event)) return null;
+  if (quiet(actor)) return null;
+  // удар по земле у тех, у кого его нет (наземная техника, корабли), звучит как обычный пуск
+  let event = e.event;
+  if (!eventsFor(type, bankSide(actor, type)).includes(event)) {
+    event = CHATTER_EVENTS[event]?.instead;
+    if (!event || !eventsFor(type, bankSide(actor, type)).includes(event)) return null;
+  }
   const tok = tokenDoc(actor);
   // скрытый токен не выдаёт себя в эфире
   if (!tok || tok.hidden) return null;
   if (e.event !== "destroyed" && dead(actor)) return null;
   const side = bankSide(actor, type);
-  const key = bankKey(type, side, e.event);
   const self = tok.name || actor.name;
-  const text = pickLine(key, linesFor(type, side, e.event), { target: e.target, fallen: e.fallen, self });
+  const vars = { target: e.target, fallen: e.fallen, killer: e.killer, self };
+  // ас со своими репликами говорит ими (и когда его тип молчит); если ни одна не подошла, общими фразами
+  const own = isAce(actor) ? actor.getFlag?.(SYSTEM_ID, "replies")?.[event] : null;
+  let text = Array.isArray(own) && own.length ? pickLine(`ace:${actor.uuid}:${event}`, own, vars) : null;
+  if (!text && muted()[type]) return null;
+  text ??= pickLine(bankKey(type, side, event), linesFor(type, side, event), vars);
   return text ? { speaker: self, text, side: sideOf(actor) } : null;
 }
 
 /* ---------- окно «Реплики NPC» ---------- */
 
 let editor = null;
-export function openChatterEditor() {
+/** Открыть окно; actor — сразу на личных репликах этого аса. */
+export function openChatterEditor(actor = null) {
   if (!game.user.isGM) return;
   editor ??= new ChatterEditor();
+  if (actor?.uuid) editor.type = `ace:${actor.uuid}`;
   editor.render(true);
 }
 
-const SAMPLE = { target: "Цель", fallen: "Ведомый", self: "" };
+const SAMPLE = { target: "Цель", fallen: "Ведомый", killer: "Гроза-1", self: "" };
+const splitLines = v => v.split("\n").map(s => s.trim()).filter(Boolean);
+
+/** Асы: на сцене боя (или открытой) — токены, у каждого свои реплики; в актёрах — заготовка для всех его токенов. */
+function aceList() {
+  const scene = game.combat?.scene ?? game.scenes?.viewed;
+  const onScene = (scene?.tokens ?? []).filter(t => isAce(t.actor)).map(t => ({ actor: t.actor, name: t.name, where: "сцена" }));
+  const seen = new Set(onScene.map(x => x.actor.uuid));
+  const inDir = (game.actors ?? []).filter(a => isAce(a) && !seen.has(a.uuid)).map(a => ({ actor: a, name: a.name, where: "актёр" }));
+  return { onScene, inDir };
+}
 
 class ChatterEditor extends FormApplication {
   constructor(...args) {
@@ -276,69 +310,121 @@ class ChatterEditor extends FormApplication {
 
   get template() { return null; }
 
+  /** Выбранный ас (или null, если выбран тип). */
+  get ace() {
+    if (!this.type?.startsWith("ace:")) return null;
+    const a = resolveActor(this.type.slice(4));
+    return isAce(a) ? a : null;
+  }
+
   async _renderInner() {
-    const ov = overrides();
-    const civil = isCivil(this.type);
-    const side = civil ? "civil" : this.side;
-    const events = civil ? CIVIL_EVENTS : Object.keys(CHATTER_EVENTS);
+    if (this.type?.startsWith("ace:") && !this.ace) this.type = "air";
+    const ov = overrides(), mute = muted();
+    const aces = aceList();
     const nav = Object.entries(CHATTER_TYPES).map(([k, t], i, all) => {
       const changed = Object.keys(ov).some(x => x.startsWith(`${k}.`));
       const gap = t.civil && !all[i - 1]?.[1].civil ? `<h4>Гражданские</h4>` : i === 0 ? `<h4>Военные</h4>` : "";
-      return `${gap}<button type="button" data-type="${k}" class="${k === this.type ? "on" : ""}">${esc(t.label)}${changed ? ` <i class="fas fa-pen" title="есть правки"></i>` : ""}</button>`;
+      return `${gap}<button type="button" data-type="${k}" class="${k === this.type ? "on" : ""}${mute[k] ? " muted" : ""}">${esc(t.label)}${changed ? ` <i class="fas fa-pen" title="есть правки"></i>` : ""}${mute[k] ? ` <i class="fas fa-volume-xmark" title="молчит"></i>` : ""}</button>`;
     }).join("");
-    const sides = civil ? "" : `<div class="tb-chatter-sides">${Object.entries(CHATTER_SIDES).map(([k, l]) =>
-      `<button type="button" data-side="${k}" class="tb-side-${k} ${k === side ? "on" : ""}">${esc(l)}</button>`).join("")}</div>`;
-    const rows = events.map(ev => {
-      const key = bankKey(this.type, side, ev), e = CHATTER_EVENTS[ev];
-      const changed = Array.isArray(ov[key]);
-      return `<div class="tb-chatter-ev${changed ? " changed" : ""}" data-key="${key}">
-        <div class="tb-chatter-ev-head"><b>${esc(e.label)}</b><small>${esc(e.hint)}</small>
-          <span class="tb-chatter-btns"><button type="button" data-test title="Послушать случайную фразу (только у вас)"><i class="fas fa-play"></i></button>
-          <button type="button" data-reset title="Вернуть стандартные фразы" ${changed ? "" : "disabled"}><i class="fas fa-rotate-left"></i></button></span></div>
-        <textarea rows="3" spellcheck="true">${esc(linesFor(this.type, side, ev).join("\n"))}</textarea></div>`;
-    }).join("");
-    const t = CHATTER_TYPES[this.type];
+    const aceBtn = x => {
+      const own = Object.values(x.actor.getFlag?.(SYSTEM_ID, "replies") ?? {}).some(l => Array.isArray(l) && l.length);
+      const key = `ace:${x.actor.uuid}`;
+      return `<button type="button" data-type="${esc(key)}" class="${key === this.type ? "on" : ""}">${esc(x.name)}${own ? ` <i class="fas fa-pen" title="есть свои реплики"></i>` : ""}</button>`;
+    };
+    const aceNav = `<h4>Асы на сцене</h4>${aces.onScene.map(aceBtn).join("") || `<p class="tb-hint">Нет: уровень «Ас» на листе NPC.</p>`}`
+      + (aces.inDir.length ? `<h4>Асы в актёрах</h4>${aces.inDir.map(aceBtn).join("")}` : "");
+    const ace = this.ace;
+    const main = ace ? this.#aceView(ace) : this.#typeView(ov, mute);
     const pct = chance();
     return $(`<form class="tb-chatter-body">
-      <nav class="tb-chatter-nav">${nav}</nav>
-      <section class="tb-chatter-main">
-        <header><h3>${esc(t.label)}</h3><p class="tb-hint">${esc(t.hint)}. Одна фраза на строку, из них выбирается случайная. {target} — цель, {fallen} — сбитый свой, {self} — сам говорящий. Пустое поле: в этом случае молчит.</p>${sides}</header>
-        <div class="tb-chatter-list">${rows}</div>
-      </section>
+      <nav class="tb-chatter-nav">${nav}${aceNav}</nav>
+      <section class="tb-chatter-main">${main}</section>
       <footer class="tb-chatter-foot">
         <label><input type="checkbox" data-enabled ${enabled() ? "checked" : ""}> Переговоры в эфире</label>
         <label>О мелочах: <select data-chance>${[0, 20, 40, 60, 80, 100].map(n => `<option value="${n}" ${n === pct ? "selected" : ""}>${n}%</option>`).join("")}${[0, 20, 40, 60, 80, 100].includes(pct) ? "" : `<option selected value="${pct}">${pct}%</option>`}</select></label>
         <span class="tb-spacer"></span>
-        <button type="button" data-export title="Сохранить все фразы в файл JSON"><i class="fas fa-file-export"></i> В файл</button>
-        <button type="button" data-import title="Загрузить фразы из файла JSON"><i class="fas fa-file-import"></i> Из файла</button>
-        <button type="button" data-reset-all title="Вернуть все стандартные фразы"><i class="fas fa-rotate-left"></i> Всё стандартное</button>
+        <button type="button" data-export title="Сохранить все фразы типов в файл JSON (личные реплики асов хранятся в самих асах)"><i class="fas fa-file-export"></i> В файл</button>
+        <button type="button" data-import title="Загрузить фразы типов из файла JSON"><i class="fas fa-file-import"></i> Из файла</button>
+        <button type="button" data-reset-all title="Вернуть все стандартные фразы типов"><i class="fas fa-rotate-left"></i> Всё стандартное</button>
       </footer></form>`);
+  }
+
+  #row({ key, label, hint, value, placeholder = "", changed, resetTitle }) {
+    return `<div class="tb-chatter-ev${changed ? " changed" : ""}" data-key="${esc(key)}">
+      <div class="tb-chatter-ev-head"><b>${esc(label)}</b><small>${esc(hint)}</small>
+        <span class="tb-chatter-btns"><button type="button" data-test title="Послушать случайную фразу (только у вас)"><i class="fas fa-play"></i></button>
+        <button type="button" data-reset title="${esc(resetTitle)}" ${changed ? "" : "disabled"}><i class="fas fa-rotate-left"></i></button></span></div>
+      <textarea rows="3" spellcheck="true" placeholder="${esc(placeholder)}">${esc(value)}</textarea></div>`;
+  }
+
+  #typeView(ov, mute) {
+    const civil = isCivil(this.type);
+    const side = civil ? "civil" : this.side;
+    const events = eventsFor(this.type, side);
+    const t = CHATTER_TYPES[this.type];
+    const sides = civil ? "" : `<div class="tb-chatter-sides">${Object.entries(CHATTER_SIDES).map(([k, l]) =>
+      `<button type="button" data-side="${k}" class="tb-side-${k} ${k === side ? "on" : ""}">${esc(l)}</button>`).join("")}</div>`;
+    const rows = events.map(ev => {
+      const key = bankKey(this.type, side, ev), e = CHATTER_EVENTS[ev];
+      return this.#row({ key, label: e.label, hint: e.hint, value: linesFor(this.type, side, ev).join("\n"), changed: Array.isArray(ov[key]), resetTitle: "Вернуть стандартные фразы" });
+    }).join("");
+    return `<header><h3>${esc(t.label)}</h3>
+        <label class="tb-chatter-voice"><input type="checkbox" data-voice ${mute[this.type] ? "" : "checked"}> Говорит в эфире</label>
+        <p class="tb-hint">${esc(t.hint)}. Одна фраза на строку, из них выбирается случайная. {target} — цель, {fallen} — сбитый свой, {killer} — пилот игрока, {self} — сам говорящий. Пустое поле: в этом случае молчит.${civil ? "" : " Асы со своими репликами говорят ими, даже если тип молчит."}</p>${sides}</header>
+      <div class="tb-chatter-list${mute[this.type] ? " muted" : ""}">${rows}</div>`;
+  }
+
+  #aceView(ace) {
+    const type = chatterType(ace) ?? "air", side = bankSide(ace, type);
+    const own = ace.getFlag(SYSTEM_ID, "replies") ?? {};
+    const events = eventsFor(type, side);
+    const tok = tokenDoc(ace);
+    const name = ace.isToken ? tok?.name ?? ace.name : ace.name;
+    const rows = events.map(ev => {
+      const e = CHATTER_EVENTS[ev], lines = Array.isArray(own[ev]) ? own[ev] : [];
+      return this.#row({ key: `ace.${ev}`, label: e.label, hint: e.hint, value: lines.join("\n"), placeholder: linesFor(type, side, ev).join("\n"),
+        changed: lines.length > 0, resetTitle: "Убрать свои фразы: снова общие фразы типа" });
+    }).join("");
+    const where = ace.isToken ? "Токен на сцене: реплики только у этого токена."
+      : "Актёр: реплики получат все его токены, у которых нет своих.";
+    return `<header><h3>${esc(name)}</h3>
+        <p class="tb-hint">Ас · ${esc(CHATTER_TYPES[type].label)} · ${esc(CHATTER_SIDES[side] ?? "")}. ${where} Пустое поле: говорит общими фразами типа (видны серым). {target} — цель, {fallen} — сбитый свой, {killer} — пилот игрока, {self} — его имя.</p></header>
+      <div class="tb-chatter-list">${rows}</div>`;
   }
 
   activateListeners(html) {
     super.activateListeners(html);
     const root = html[0] ?? html;
+    const ace = this.ace;
     root.querySelectorAll("[data-type]").forEach(b => b.addEventListener("click", () => { this.type = b.dataset.type; this.render(false); }));
     root.querySelectorAll("[data-side]").forEach(b => b.addEventListener("click", () => { this.side = b.dataset.side; this.render(false); }));
+    root.querySelector("[data-voice]")?.addEventListener("change", async ev => {
+      const m = { ...muted() };
+      if (ev.target.checked) delete m[this.type]; else m[this.type] = true;
+      await game.settings.set(SYSTEM_ID, "chatterMuted", m);
+      this.render(false);
+    });
     root.querySelectorAll(".tb-chatter-ev").forEach(row => {
-      const key = row.dataset.key, [type, side, event] = key.split(".");
+      const key = row.dataset.key;
       const area = row.querySelector("textarea");
-      area.addEventListener("change", async () => {
-        const lines = area.value.split("\n").map(s => s.trim()).filter(Boolean);
-        const changed = await saveLines(key, lines, defaultLines(type, side, event));
-        row.classList.toggle("changed", changed);
-        row.querySelector("[data-reset]").disabled = !changed;
-      });
+      const mark = changed => { row.classList.toggle("changed", changed); row.querySelector("[data-reset]").disabled = !changed; };
+      if (ace) {
+        const event = key.slice(4);
+        area.addEventListener("change", async () => { const lines = splitLines(area.value); await saveAceLines(ace, event, lines); mark(lines.length > 0); });
+        row.querySelector("[data-reset]").addEventListener("click", async () => { await saveAceLines(ace, event, []); this.render(false); });
+      } else {
+        const [type, side, event] = key.split(".");
+        area.addEventListener("change", async () => mark(await saveLines(key, splitLines(area.value), defaultLines(type, side, event))));
+        row.querySelector("[data-reset]").addEventListener("click", async () => { await saveLines(key, null); this.render(false); });
+      }
       row.querySelector("[data-test]").addEventListener("click", () => {
-        const lines = area.value.split("\n").map(s => s.trim()).filter(Boolean);
-        const self = CHATTER_TYPES[type].label;
+        const lines = splitLines(area.value || area.placeholder);
+        const type = ace ? chatterType(ace) ?? "air" : key.split(".")[0];
+        const side = ace ? bankSide(ace, type) : key.split(".")[1];
+        const self = ace ? (tokenDoc(ace)?.name ?? ace.name) : CHATTER_TYPES[type].label;
         const text = pickLine(`test:${key}`, lines, { ...SAMPLE, self });
         if (!text) return ui.notifications.info("В этом поле нет фраз: в этом случае NPC молчит.");
-        say(self, text, side === "civil" ? "neutral" : side, { log: false });
-      });
-      row.querySelector("[data-reset]").addEventListener("click", async () => {
-        await saveLines(key, null);
-        this.render(false);
+        say(self, text, ace ? sideOf(ace) : side === "civil" ? "neutral" : side, { log: false });
       });
     });
     root.querySelector("[data-enabled]")?.addEventListener("change", ev => game.settings.set(SYSTEM_ID, "npcChatter", ev.target.checked));
@@ -346,13 +432,19 @@ class ChatterEditor extends FormApplication {
     root.querySelector("[data-export]")?.addEventListener("click", () => exportBank());
     root.querySelector("[data-import]")?.addEventListener("click", () => importBank().then(ok => ok && this.render(false)));
     root.querySelector("[data-reset-all]")?.addEventListener("click", async () => {
-      if (!(await Dialog.confirm({ title: "Реплики NPC", content: "<p>Вернуть все стандартные фразы? Ваши правки пропадут.</p>" }))) return;
+      if (!(await Dialog.confirm({ title: "Реплики NPC", content: "<p>Вернуть все стандартные фразы типов? Ваши правки пропадут. Личные реплики асов останутся.</p>" }))) return;
       await game.settings.set(SYSTEM_ID, "chatterBank", {});
       this.render(false);
     });
   }
 
   async _updateObject() {}
+}
+
+/** Личные реплики аса: флаг replies на актёре (у несвязанного токена — в его дельте). Пустой список убирает поле. */
+async function saveAceLines(actor, event, lines) {
+  if (lines.length) return actor.setFlag(SYSTEM_ID, `replies.${event}`, lines);
+  if (actor.getFlag(SYSTEM_ID, `replies.${event}`) !== undefined) return actor.update({ [`flags.${SYSTEM_ID}.replies.-=${event}`]: null });
 }
 
 /** Записать фразы одного поля; совпадающие со стандартными правкой не считаются. Вернёт, есть ли правка. */
@@ -371,7 +463,7 @@ export function fullBank() {
   for (const type of Object.keys(CHATTER_TYPES)) {
     const civil = isCivil(type);
     for (const side of civil ? ["civil"] : Object.keys(CHATTER_SIDES))
-      for (const ev of civil ? CIVIL_EVENTS : Object.keys(CHATTER_EVENTS)) out[bankKey(type, side, ev)] = linesFor(type, side, ev);
+      for (const ev of eventsFor(type, side)) out[bankKey(type, side, ev)] = linesFor(type, side, ev);
   }
   return out;
 }
