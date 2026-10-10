@@ -56,7 +56,7 @@ function drawBadge(token) {
 }
 
 /** Сигнал владельцу цели: захват (флаг rwr на карточке Lock On!) или пуск по нему (card.maws).
-    С субтитрами AWACS текст говорит радио, здесь остаётся только короткий звук на пуск. */
+    С субтитрами AWACS текст говорит радио; звук захвата и пуска — сигналы кабины (sounds.mjs). */
 function alertOwner(message) {
   if (game.user.isGM) return;
   const rwr = message.getFlag(SYSTEM_ID, "rwr");
@@ -70,5 +70,4 @@ function alertOwner(message) {
     if (rwr) ui.notifications.warn(`Облучение! ${rwr.from} держит «${target.name}» на захвате.`);
     else ui.notifications.error(`Ракета! ${card.actorName}: ${card.label} по «${target.name}». Самое время для Break!`);
   }
-  if (!rwr) foundry.audio.AudioHelper.play({ src: CONFIG.sounds.notification, volume: 0.8, autoplay: true, loop: false }, false);
 }

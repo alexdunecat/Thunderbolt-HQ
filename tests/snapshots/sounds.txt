@@ -1,0 +1,15 @@
+сигналы: lock=lock.wav locked=locked.wav missile=missile.wav stall=stall.wav lowAlt=lowAlt.wav
+createChatMessage: lock.wav @0.7
+createChatMessage: locked.wav @0.7
+createChatMessage: тишина
+createChatMessage: missile.wav @0.7
+createActiveEffect: stall.wav @0.7
+createActiveEffect: тишина
+updateActor: lowAlt.wav @0.7
+updateActor: тишина
+updateActor: lowAlt.wav @0.7
+updateActor: тишина
+createChatMessage: тишина
+createChatMessage: тишина
+createChatMessage: тишина
+createChatMessage: missile.wav @0.5

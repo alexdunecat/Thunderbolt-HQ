@@ -27,6 +27,7 @@ import * as Downtime from "./downtime.mjs";
 import { openRadioLog } from "./radio-log.mjs";
 import { registerChatter, openChatterEditor } from "./chatter.mjs";
 import { registerMission, openMissionDialog } from "./mission.mjs";
+import { registerSounds, cue } from "./sounds.mjs";
 import { openDossierExchange, importDossier, exportDossier } from "./dossier-sync.mjs";
 import { registerMapInfo } from "./mapinfo.mjs";
 import { registerRotate } from "./rotate.mjs";
@@ -106,6 +107,7 @@ Hooks.once("init", () => {
   registerRadio();
   registerChatter();
   registerMission();
+  registerSounds();
   registerRange();
   Downtime.registerDowntime();
   registerGlory();
@@ -122,7 +124,7 @@ Hooks.once("init", () => {
   registerActions();
 
   game.thunderbolt = { gloryDialog, importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
-    squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB, radio: { send: sendRadio, say, caution, log: openRadioLog, replies: openChatterEditor, mission: openMissionDialog }, dossier: { open: openDossierExchange, importDossier, exportDossier },
+    squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB, sound: cue, radio: { send: sendRadio, say, caution, log: openRadioLog, replies: openChatterEditor, mission: openMissionDialog }, dossier: { open: openDossierExchange, importDossier, exportDossier },
     refreshAwacs, downtime: { ground: Downtime.rollGround, baseEvent: Downtime.baseEvent, threats: Downtime.threats, addThreat: Downtime.addThreat, stepThreat: Downtime.stepThreat } };
 });
 
