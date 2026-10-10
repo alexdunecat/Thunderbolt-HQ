@@ -4,6 +4,7 @@ import { SYSTEM_ID, DT } from "./config.mjs";
 import { esc } from "./utils.mjs";
 import { altOf, cellOf, sideOf, isFlying, hasRule, gunVs } from "./scene.mjs";
 import { threats, stepThreat } from "./downtime.mjs";
+import { endedTurn } from "./turns.mjs";
 
 const LAYER = "tb-radar";
 const FIELD = { color: 0xd0453a, alpha: 0.1, border: 0xd0453a };
@@ -22,10 +23,9 @@ export function registerStealth() {
   for (const ev of ["createToken", "updateToken", "deleteToken", "updateActor", "canvasReady", "updateSetting", "createActiveEffect", "deleteActiveEffect"])
     Hooks.on(ev, refreshSoon);
   // конец хода пилота: что могло поднять Тревогу
-  Hooks.on("updateCombat", (combat, change) => {
-    if (!game.users.activeGM?.isSelf || !combat.started || !("turn" in change || "round" in change)) return;
-    const prev = combat.previous?.combatantId ? combat.combatants.get(combat.previous.combatantId) : null;
-    if (prev && prev.id !== combat.combatant?.id) alarmCheck(prev, combat.previous.round).catch(err => console.error(`${SYSTEM_ID} | Тревога`, err));
+  Hooks.on("updateCombat", (combat, change, options) => {
+    const prev = endedTurn(combat, change, options);
+    if (prev) alarmCheck(prev, combat.previous.round).catch(err => console.error(`${SYSTEM_ID} | Тревога`, err));
   });
 }
 
@@ -148,6 +148,8 @@ function actsOf(c, round) {
 export async function alarmCheck(c, round) {
   const actor = c.actor, token = c.token?.object;
   if (!alarmActive() || actor?.type !== "pilot" || !token) return null;
+  // радарное поле считается по квадратной сетке, как и подсветка
+  if (canvas.grid?.type === CONST.GRID_TYPES.GRIDLESS || canvas.grid?.isHexagonal) return null;
   const rows = [], dodge = [];
   let add = 0;
   const alt = altOf(token, actor);

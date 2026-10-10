@@ -195,6 +195,7 @@ body[data-tb-skin="doc"] {
 .tb-die.fate-kia, .tb-fate-word.fate-kia { border-color: var(--tb-bad); color: var(--tb-bad); }
 .tb-die.fate-mia, .tb-fate-word.fate-mia, .tb-die.fate-hurt, .tb-fate-word.fate-hurt { border-color: var(--tb-warn); color: var(--tb-warn); }
 .tb-d4.perk { color: var(--tb-olive); }
+.tb-d4 b.comp { color: var(--tb-bad); }
 .tb-d4.comp { color: var(--tb-bad); }
 .tb-note { font-size: 12px; margin-top: 3px; }
 .tb-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }

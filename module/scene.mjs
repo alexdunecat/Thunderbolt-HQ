@@ -129,7 +129,8 @@ export function reachProblems(attacker, target, range) {
   if (far)
     problems.push(`Цель в ${dist} ${dist === 1 ? "зоне" : "зонах"} от вас, а дальность: ${rangeLabel(range)}.${dusty ? " Пыльная буря: цели только в своей зоне." : ""}`);
   const altA = altOf(a, attacker), altB = altOf(b, target.actor);
-  const air = target.kind === "air";
+  // летающие боссы (Аркбёрд, SOLG, летающие крейсеры) — воздушные цели, хотя их системы бьют как по кораблю
+  const air = isAirTarget(target);
   // зенитные ракеты Аркбёрда бьют вниз на все высоты
   const downAll = air && hasRule(attacker, "strato");
   if (altA === "strat" && !downAll && (!air || !["strat", "high"].includes(altB))) problems.push("Из стратосферы бьют только по целям в стратосфере и на High.");
@@ -148,10 +149,13 @@ export function reachProblems(attacker, target, range) {
   return { dist, far, problems };
 }
 
+/** Цель в воздухе: самолёт, пилот или летающий босс. */
+export const isAirTarget = t => t?.kind === "air" || !!flyingBoss(t?.actor);
+
 /** Ракета с High по цели в стратосфере: A-A −2 (ракета на пределе высоты). Строка для карточки броска или null. */
 export function stratLift(attacker, target) {
   const a = tokenOf(attacker), b = target?.token ?? tokenOf(target?.actor);
-  if (!a || !b || target.kind !== "air") return null;
+  if (!a || !b || !isAirTarget(target)) return null;
   return altOf(a, attacker) === "high" && altOf(b, target.actor) === "strat" ? ["предел высоты", -2] : null;
 }
 
@@ -249,14 +253,18 @@ export function sectionAt(scene, col, row) {
   return s ? { ...s, col, row } : null;
 }
 
-/** Секция, в которой находится токен: под ним туннель и он на её высоте (Low, у Зала Low и Medium). Иначе null. */
+/**
+ * Секция, в которой находится токен: под ним туннель и он на её высоте. Иначе null.
+ * Low над секцией — внутри; Medium над Залом — внутри, только если самолёт залетел туда из туннеля
+ * (флаг токена tunnelIn), а не пролетает над Залом снаружи.
+ */
 export function tunnelAt(token, actor = token?.actor) {
   const cell = token ? cellOf(token) : null;
   if (!cell) return null;
   const sec = sectionAt(token.document?.parent ?? canvas?.scene, cell.col, cell.row);
   if (!sec) return null;
   const alt = altOf(token, actor);
-  return alt === "low" || (sec.type === "hall" && alt === "med") ? sec : null;
+  return alt === "low" || (sec.type === "hall" && alt === "med" && !!token.document?.getFlag?.(SYSTEM_ID, "tunnelIn")) ? sec : null;
 }
 
 /** В туннеле, но не в Зале: здесь действуют правила туннеля. */
@@ -271,7 +279,7 @@ export function nextSections(scene, sec, dir = 1) {
 }
 
 /** Стены сбивают ракеты: в туннеле (кроме Зала) +2 к защите от ракет. */
-export const wallBonus = (token, actor) => (token && inNarrowTunnel(token, actor) ? 2 : 0);
+export const wallBonus = (token, actor) => (token && isFlying(actor ?? token.actor) && inNarrowTunnel(token, actor) ? 2 : 0);
 
 /** Почему нельзя сменить высоту в туннеле или над ним: внутри Climb и Dive нет, внутрь сверху только через Шахту. */
 export function tunnelClimbProblem(token, to) {
@@ -295,9 +303,10 @@ export function tunnelMoveProblem(doc, to) {
   const token = doc.object ?? { document: doc, actor: doc.actor };
   const alt = altOf(token, doc.actor);
   const from = sectionAt(scene, fc, fr), dest = sectionAt(scene, tc, tr);
-  const inside = from && (alt === "low" || (from.type === "hall" && alt === "med"));
+  const inside = from && (alt === "low" || (from.type === "hall" && alt === "med" && !!doc.getFlag?.(SYSTEM_ID, "tunnelIn")));
   if (!inside) {
-    // внутрь по Low: только в секцию без предыдущей (вход); Зал открыт
+    // внутрь по Low: только в крайнюю секцию (вход с любого конца); Зал открыт; в Шахту только Dive сверху
+    if (dest && alt === "low" && dest.type === "shaft") return `${doc.name}: в шахту входят только Dive сверху.`;
     if (dest && alt === "low" && dest.type !== "hall" && nextSections(scene, dest, -1).length && nextSections(scene, dest, 1).length)
       return `${doc.name}: в туннель входят только через вход или шахту.`;
     return null;

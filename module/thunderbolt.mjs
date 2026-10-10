@@ -34,6 +34,17 @@ import { registerLosses } from "./losses.mjs";
 import { registerAltitude, stepAltitude } from "./altitude.mjs";
 import { registerPopout, mirrorPopouts } from "./popout.mjs";
 
+// триггер выключен или машина сменилась: Max Speed мог упасть
+for (const ev of ["updateItem", "createItem", "deleteItem"])
+  Hooks.on(ev, (item, ...rest) => { if (rest[rest.length - 1] === game.user.id && item.parent) clampSpeed(item.parent); });
+
+/** Speed не выше Max Speed: после спуска из стратосферы, выключения «Снять ограничитель», смены машины. */
+function clampSpeed(actor) {
+  if (!actor?.isOwner || !["pilot", "npc"].includes(actor.type)) return;
+  const max = actor.system.maxSpeed;
+  if (max > 0 && (actor.system.speed ?? 0) > max) actor.update({ "system.speed": max }, { tbFree: true });
+}
+
 function applySkin(skin) {
   document.body.dataset.tbSkin = TB.skins[skin] ? skin : "brief";
   applyDarkUi();
@@ -237,11 +248,9 @@ Hooks.on("updateActor", async (actor, change, options, userId) => {
   if (userId !== game.user.id) return;
   if (has("system.alt")) {
     actor.syncElevation();
-    // спуск из стратосферы: Max Speed снова меньше на 1
-    if ((actor.system.speed ?? 0) > (actor.system.maxSpeed ?? Infinity) && actor.system.maxSpeed > 0)
-      actor.update({ "system.speed": actor.system.maxSpeed }, { tbFree: true });
   }
   if (actor.type === "pilot" && (has("system.twist") || has("system.markers"))) actor.syncPools();
+  clampSpeed(actor);
 
   // архетип сменился: убрать Core-триггер прежнего архетипа и добавить Core нового из компендиума
   if (actor.type === "pilot" && has("system.archetype")) {

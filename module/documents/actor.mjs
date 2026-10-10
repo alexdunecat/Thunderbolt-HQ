@@ -149,7 +149,8 @@ export class TBActor extends Actor {
     // пилоту: судьбу решает бросок на катапультирование, либо героическая гибель по своему выбору
     // карточку пишем от имени игрока пилота, чтобы кнопки достались ему, даже если урон нанёс ведущий
     if (this.type === "pilot") {
-      const player = game.users.find(u => !u.isGM && u.active && this.testUserPermission(u, "OWNER"));
+      // игрок может писать карточку только от своего имени; ведущий отдаёт её активному игроку пилота
+      const player = game.user.isGM ? game.users.find(u => !u.isGM && u.active && this.testUserPermission(u, "OWNER")) : game.user;
       return R.postCard(this, { type: "doomfate", reason: reason ?? "" }, [], { author: player?.id });
     }
     return this.#say(`<b>${esc(this.name)}</b>: метка <b>Doom</b>${reason ? ` (${esc(reason)})` : ""}. Машина сбита.`);

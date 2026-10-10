@@ -9,6 +9,7 @@ import { SYSTEM_ID, TB } from "./config.mjs";
 import { PASS, isOut } from "./documents/combat.mjs";
 import { landBlocked, climbProblem, ALT_ORDER, tunnelClimbProblem, tunnelMoveProblem, tokenOf } from "./scene.mjs";
 import { esc } from "./utils.mjs";
+import { forkChoice } from "./tunnel.mjs";
 
 export const ACT_NAMES = {
   lock: "Lock On!", missile: "Fox Two!", guns: "Guns, Guns, Guns!", break: "Break!", recover: "Передышка",
@@ -150,6 +151,7 @@ export function registerActions() {
   Hooks.on("preUpdateToken", (doc, change, options) => {
     // tbSync: токен подтягивается к уже сменённой на листе высоте, Climb / Dive засчитан там
     if (options.tbKeep || options.tbSync || !doc.actor) return;
+    if (forkChoice(doc, change)) { foundry.utils.setProperty(change, `flags.${SYSTEM_ID}.tunnelFork`, null); return; }
     const moving = "x" in change || "y" in change || "elevation" in change;
     if (!moving || !game.combat?.started) return;
     if (!combatantOf(doc.actor, doc)) return console.log(`${SYSTEM_ID} | ${doc.name}: токена нет в текущем бою, перемещение не считается`);

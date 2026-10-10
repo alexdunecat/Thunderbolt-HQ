@@ -114,12 +114,14 @@ export class PilotData extends foundry.abstract.TypeDataModel {
     this.compOn = Object.fromEntries(SKILL_KEYS.map(k => [k, 1]));
     this.proto = isProto(plane, this.edges);
     const planeD4 = [];   // «Испытатель»: пороги d4 от машины, только в воздухе
+    const groups = new Set();   // эффекты одной группы (Перчатка и Венок) не складываются
     for (const t of triggers) {
       const s = t.system;
       const chosen = [s.skill, s.skills > 1 ? s.skill2 : ""].filter(k => SKILL_KEYS.includes(k));
       for (const c of s.changes) {
         const n = s.factor(c, this);
         if (!n || !c.value) continue;
+        if (c.group) { const g = `${c.group}:${c.target}`; if (groups.has(g)) continue; groups.add(g); }
         const v = c.value * n;
         if (c.target === "skill.chosen") chosen.forEach(k => push(`skill.${k}`, t.name, v));
         else if (c.target === "perk.chosen") chosen.forEach(k => { this.perkOn[k] = Math.min(this.perkOn[k], c.value); });

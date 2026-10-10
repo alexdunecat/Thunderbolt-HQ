@@ -1,7 +1,7 @@
 /* Броски и чат-карточки: проверки, ракеты, пушка, Break!, Strain, урон, сваливание. */
 import { SYSTEM_ID, TB } from "../config.mjs";
 import { esc, resolveActor } from "../utils.mjs";
-import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, stratLift, inNarrowTunnel, wallBonus, zoneDistance, rangeLabel, isFlying, struckBy, gunVs } from "../scene.mjs";
+import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, stratLift, isAirTarget, inNarrowTunnel, wallBonus, zoneDistance, rangeLabel, isFlying, struckBy, gunVs } from "../scene.mjs";
 import { alarmRows, raiseAlarm, surprise, quietAA } from "../stealth.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
@@ -96,6 +96,7 @@ export function computeCard(c) {
     out.applies = out.value > c.ev;
   }
   if (c.dc !== null && c.dc !== undefined) out.success = out.total >= c.dc;   // ничьи: в проверках за пилотом, в атаках за атакующим
+  if (c.forceFail) out.success = false;
   if (c.rolled) {
     out.perk = c.d4 >= (c.perkOn ?? 4);
     out.comp = c.d4 <= (c.compOn ?? 1);
@@ -123,7 +124,11 @@ function renderAlarm(c) {
  * onFail: "alarm" — кнопка ведущему «Тревога +1»; failDmg — урон при провале (кнопка владельцу).
  */
 export async function rollSideCheck(actor, skill, { dc = 7, label, notes = [], onFail = "", failDmg = 0 } = {}) {
-  if (blocked(actor, skill)) return;
+  // обязательная проверка не пропадает из-за Grit: навык недоступен — автоматический провал
+  if (actor.system.skillBlocked?.[skill]) return postCard(actor, {
+    type: "side", label: label ?? `${TB.skills[skill].label} против ${dc}`, rolled: false, parts: [[`${TB.skills[skill].label} недоступен (Grit)`, 0]], strain: 0, dc,
+    forceFail: true, strainable: false, skill, onFail, failDmg, notes: ["Метка Grit: навык недоступен, проверка провалена.", ...notes.map(esc)]
+  }, []);
   const dice = await rollDice(actor, false, { turnRoll: false });
   const w = weatherAt(actor);
   const parts = [...skillParts(actor, skill), ...(skill === "push" ? weatherParts(w, "push") : []), ...await takeNext(actor)];
@@ -141,7 +146,7 @@ function renderTunnel(c) {
   return `<div class="tb-card tb-card-tunnel">
     <header class="tb-card-head"><span class="tb-card-who">${esc(c.actorName)}</span><span class="tb-card-what">${esc(c.label)}</span></header>
     ${(c.notes ?? []).map(n => `<div class="tb-note">${n}</div>`).join("")}
-    ${c.check ? `<div class="tb-note">Проверка пролёта: Push против 3 + Speed ${c.speed}${c.hard ? " + 2 (Узость или Препятствие)" : ""} = <b>${c.dc}</b>. Не считается броском хода. Провал: удар о стену, ${Math.max(1, c.speed)} урона.</div>` : ""}
+    ${c.check ? `<div class="tb-note">Проверка пролёта: Push против 3 + Speed ${c.speed}${c.hard ? " + 2 (Узость или Препятствие)" : ""}${c.oncoming ? " + 2 (встречный курс)" : ""} = <b>${c.dc}</b>. Не считается броском хода. Провал: удар о стену, ${Math.max(1, c.speed)} урона.</div>` : ""}
     ${c.rolledPass ? `<div class="tb-note">Проверка пролёта брошена.</div>` : ""}${btn}
   </div>`;
 }
@@ -178,7 +183,8 @@ export function renderCard(card) {
       : `<div class="tb-dice tb-fate"><span class="tb-die d4 fate-${f.key}">${c.d4}</span><span class="tb-part">d4 судьбы</span><b class="tb-fate-word fate-${f.key}">${FATE_WORD[f.key]}</b></div>`);
   }
   else if (c.rolled) {
-    const d4 = c.perk ? `<div class="tb-d4 perk">d4 = ${c.d4}: <b>Perk</b> (по умолчанию +1 к следующей проверке)</div>`
+    const d4 = c.perk && c.comp ? `<div class="tb-d4 perk">d4 = ${c.d4}: <b>Perk</b> и <b class="comp">Complication</b> сразу (по умолчанию +1 и −1)</div>`
+      : c.perk ? `<div class="tb-d4 perk">d4 = ${c.d4}: <b>Perk</b> (по умолчанию +1 к следующей проверке)</div>`
       : c.comp ? `<div class="tb-d4 comp">d4 = ${c.d4}: <b>Complication</b> (по умолчанию −1)</div>`
         : `<div class="tb-d4">d4 = ${c.d4}</div>`;
     rows.push(d4);
@@ -651,8 +657,8 @@ function gunTargets(actor, pods) {
     if (!canFireAt(actor, t.actor)) { if (near) why.push(`${t.name}: своя сторона`); continue; }
     const d = describeTarget(t.actor, t.name, t);
     // зенитные орудия наземки и кораблей бьют только по воздуху
-    if (vs === "air" && d.kind !== "air") { if (near) why.push(`${t.name}: зенитное орудие не бьёт по земле и морю`); continue; }
-    if (vs === "ground" && d.kind === "air") { if (near) why.push(`${t.name}: по воздуху это орудие не стреляет`); continue; }
+    if (vs === "air" && !isAirTarget(d)) { if (near) why.push(`${t.name}: зенитное орудие не бьёт по земле и морю`); continue; }
+    if (vs === "ground" && isAirTarget(d)) { if (near) why.push(`${t.name}: по воздуху это орудие не стреляет`); continue; }
     const r = reachProblems(actor, d, reach);
     if (r.problems.length) { if (near) why.push(`${t.name}: ${r.problems[0]}`); continue; }
     list.push({ ...d, dist: r.dist, priority: ours && !!t.actor.system.priority });

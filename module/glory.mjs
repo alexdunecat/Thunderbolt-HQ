@@ -42,15 +42,18 @@ export function gloryView() {
  * Подсказка для начисления по сводке последнего боя на сцене: рядовые (воздух и земля), эскадрильи дуэлянтов,
  * которые сбиты или ушли целиком, асы, корабли, супероружие и летающие крепости. Только противник.
  */
+const BIG_SHIP = /эсминец|крейсер|линкор|авианос/i;
+
 export function gloryPrefill(losses = [], survivors = []) {
   const theirs = losses.filter(r => !OURS.includes(r.side) && r.side !== "neutral");
   const down = theirs.filter(r => r.how === "down");
   const p = { cons: 0, duel: 0, ace: 0, ship: 0, boss: 0 };
   for (const r of down) {
     if (r.boss) p.boss++;
-    else if (r.kind === "ship") p.ship++;
+    // корабль в зачёт Славы: эсминец и крупнее
+    else if (r.kind === "ship") { if (BIG_SHIP.test(r.cls ?? "")) p.ship++; }
     else if (r.tier === "ace") p.ace++;
-    else if (r.tier === "conscript" && ["air", "ground"].includes(r.kind) && r.grp !== "obj") p.cons++;
+    else if (r.tier === "conscript" && ["air", "ground"].includes(r.kind) && r.grp !== "obj" && !r.missile) p.cons++;
   }
   const alive = new Set(survivors.map(s => s.squad).filter(Boolean));
   p.duel = new Set(theirs.filter(r => r.tier === "duelist" && r.squad && !alive.has(r.squad)).map(r => r.squad)).size;

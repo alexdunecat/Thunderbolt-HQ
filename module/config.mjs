@@ -36,7 +36,7 @@ export const TB = {
     Core: "Core", General: "General", Twist: "Twist", Nemesis: "Nemesis", Death: "Death", Passive: "Passive"
   },
   triggerTypeHints: {
-    General: "раз за вылет в любой момент", Twist: "раз за вылет после Поворота", Nemesis: "раз за вылет, когда появился Nemesis",
+    General: "раз за вылет в любой момент", Twist: "раз за вылет после Поворота", Nemesis: "раз за вылет, когда появилась Немезида",
     Death: "после гибели", Passive: "действует всегда", Core: "стартовый триггер архетипа"
   },
   archetypes: {
@@ -118,20 +118,21 @@ export const TB = {
     divebomb: [{ target: "skill.deploy", value: 2, when: "toggle" }],
     guns: [{ target: "skill.strafe", value: 1, when: "stack" }],
     // архетипы Стрэйнджриала
-    code: [{ target: "skill.aim", value: 1, when: "toggle" }, { target: "skill.strafe", value: 1, when: "toggle" }, { target: "evasion", value: 1, when: "toggle" }],
-    gauntlet: [{ target: "skill.aim", value: 1, when: "toggle" }, { target: "skill.strafe", value: 1, when: "toggle" }, { target: "evasion", value: 1, when: "toggle" }],
-    wreath: [{ target: "skill.aim", value: 1, when: "toggle" }, { target: "skill.strafe", value: 1, when: "toggle" }, { target: "evasion", value: 1, when: "toggle" }],
+    // Поединок: +1 к атакам (с броском и без) и к Evasion; Перчатка или Венок поднимают его до +2 (вместе не складываются: group)
+    code: [{ target: "skill.aim", value: 1, when: "toggle" }, { target: "skill.strafe", value: 1, when: "toggle" }, { target: "aa", value: 1, when: "toggle" }, { target: "evasion", value: 1, when: "toggle" }],
+    gauntlet: [{ target: "skill.aim", value: 1, when: "toggle", group: "duel" }, { target: "skill.strafe", value: 1, when: "toggle", group: "duel" }, { target: "aa", value: 1, when: "toggle", group: "duel" }, { target: "evasion", value: 1, when: "toggle", group: "duel" }],
+    wreath: [{ target: "skill.aim", value: 1, when: "toggle", group: "duel" }, { target: "skill.strafe", value: 1, when: "toggle", group: "duel" }, { target: "aa", value: 1, when: "toggle", group: "duel" }, { target: "evasion", value: 1, when: "toggle", group: "duel" }],
     oldschool: [{ target: "gun", value: 2, when: "toggle" }],
-    finish: [{ target: "skill.aim", value: 1, when: "toggle" }, { target: "skill.strafe", value: 1, when: "toggle" }],
+    finish: [{ target: "skill.aim", value: 1, when: "toggle" }, { target: "skill.deploy", value: 1, when: "toggle" }, { target: "skill.strafe", value: 1, when: "toggle" }, { target: "aa", value: 1, when: "toggle" }, { target: "ag", value: 1, when: "toggle" }],
     expartner: [{ target: "allRolls", value: 1, when: "toggle" }],
-    bill: [{ target: "skill.aim", value: 2, when: "toggle" }, { target: "skill.strafe", value: 2, when: "toggle" }],
+    bill: [{ target: "skill.aim", value: 2, when: "toggle" }, { target: "skill.deploy", value: 2, when: "toggle" }, { target: "skill.strafe", value: 2, when: "toggle" }, { target: "aa", value: 2, when: "toggle" }, { target: "ag", value: 2, when: "toggle" }],
     tester: [{ target: "perk.all", value: 3, when: "proto" }, { target: "comp.all", value: 2, when: "serial" }],
     limiter: [{ target: "maxSpeed", value: 2, when: "toggle" }],
     notatthis: [{ target: "allRolls", value: 2, when: "toggle" }]
   },
   /* Подсказка на кнопке включения ситуативных триггеров. */
   toggleHints: {
-    notyou: "против Nemesis", handle: "один на один с Nemesis", cutchatter: "пока молчишь", tellme: "союзник даёт Lead после Поворота",
+    notyou: "против Немезиды", handle: "один на один с Немезидой", cutchatter: "пока молчишь", tellme: "союзник даёт Lead после Поворота",
     byside: "защищаешь своего союзника", advevasion: "снизился на уровень высоты", divebomb: "снизился перед атакой",
     code: "Поединок: бьёшь только его, союзники не вмешиваются", gauntlet: "перчатка брошена: Поединок +2", wreath: "первый бой с Немезидой: Поединок +2",
     oldschool: "Guns по цели Поединка", finish: "цель уже отметила метку урона", expartner: "против Немезиды", bill: "по виновному",

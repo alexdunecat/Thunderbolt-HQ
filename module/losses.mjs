@@ -77,6 +77,7 @@ function lossOf(t, how) {
     task: a.type === "npc" && a.system.priority ? a.system.task || "" : null,
     // для Славы эскадрильи: уровень, эскадрилья дуэлянтов, супероружие или летающая крепость
     tier: a.type === "npc" ? a.system.tier ?? "" : "", squad: a.type === "npc" ? a.system.squad ?? "" : "", grp: a.system.grp ?? "",
+    key: a.system.key ?? "", cls: a.system.cls ?? "", missile: hasRule(a, "ballistic") || a.system.key === "icbm",
     boss: hasRule(a, "boss") || hasRule(a, "aerialship") };
 }
 

@@ -96,7 +96,7 @@ export async function importDossier(raw, actor = null) {
   const trigUpd = created.filter(it => it.type === "trigger" && it.getFlag(SYSTEM_ID, "slot") !== null && it.getFlag(SYSTEM_ID, "slot") !== undefined)
     .map(it => ({ _id: it.id, "system.weapon": weaponIds[Number(it.getFlag(SYSTEM_ID, "slot"))] ?? "" }));
   if (trigUpd.length) await actor.updateEmbeddedDocuments("Item", trigUpd);
-  if (raw.ground && typeof raw.ground === "object") Object.assign(system, groundFrom(raw.ground, weaponIds));
+  if (raw.ground && typeof raw.ground === "object") Object.assign(system, groundFrom(raw.ground, weaponIds, raw));
 
   const upd = { name, ...Object.fromEntries(Object.entries(system).map(([k, v]) => [`system.${k}`, v])), [`flags.${SYSTEM_ID}.shtab`]: flag };
   if (raw.callsign) upd["prototypeToken.name"] = raw.callsign;
@@ -190,16 +190,18 @@ export function exportDossier(actor) {
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, num(v) ?? lo));
 
 /** Даунтайм из Штаба в поля листа. Узел подвески Задела «боекомплект» становится ссылкой на предмет; Связь с пилотом — по номеру дела Штаба. */
-function groundFrom(g, weaponIds) {
+function groundFrom(g, weaponIds, raw = {}) {
   const byShtab = id => game.actors.find(a => a.type === "pilot" && (a.getFlag(SYSTEM_ID, "shtab")?.id === id || `pf${a.id}` === id));
   const edges = (g.edges ?? []).filter(e => e && DT.edges[e.kind]).map(e => ({
     id: foundry.utils.randomID(), kind: e.kind, stat: e.stat ?? "", minus: e.minus ?? "", minus2: e.minus2 ?? "",
     weapon: e.slot !== undefined && e.slot !== "" && e.slot !== null ? weaponIds[Number(e.slot)] ?? "" : "",
     skill: e.skill ?? "", mode: e.mode ?? "", text: e.text ?? "", value: num(e.value) ?? 0, comp: !!e.comp, used: !!e.used
   }));
+  // Контракт Наёмника: Связь с пилотами не выше 2
+  const merc = (raw?.triggers ?? []).some(t => t?.key === "contract");
   const bonds = (g.bonds ?? []).filter(b => b?.name).map(b => {
     const other = b.pid ? byShtab(b.pid) : game.actors.find(a => a.type === "pilot" && a.name === b.name);
-    return { name: b.name, uuid: !b.npc && other ? other.uuid : "", npc: !!b.npc, value: clamp(b.value, 0, b.npc ? DT.maxNpcBond : DT.maxBond),
+    return { name: b.name, uuid: !b.npc && other ? other.uuid : "", npc: !!b.npc, value: clamp(b.value, 0, b.npc || merc ? DT.maxNpcBond : DT.maxBond),
       was: (b.was ?? []).map(Number).filter(Number.isFinite), dead: !!b.dead, used: false, usedGround: false, grown: false };
   });
   return {

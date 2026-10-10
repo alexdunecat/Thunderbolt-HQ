@@ -37,15 +37,16 @@ function unit(name, col, row, alt, sys = {}, extra = {}) {
     testUserPermission: u => u.id === "pl", getFlag: () => null };
   const flags = { ...(extra.flags ?? {}) };
   const doc = { name, x: col * gs, y: row * gs, width: 1, height: 1, elevation: TB.altElevation[alt], actor, parent: scene,
-    getFlag: (_s, k) => flags[k], async update(ch) { log.push(`MOVE ${name} → ${ch.x / gs},${ch.y / gs}`); Object.assign(this, ch); this.object.center = { x: this.x + 50, y: this.y + 50 }; } };
+    getFlag: (_s, k) => flags[k], async update(ch) { if ("x" in ch) log.push(`MOVE ${name} → ${ch.x / gs},${ch.y / gs}`); else log.push(`FLAGS ${name} ${JSON.stringify(ch)}`); Object.assign(this, ch); this.object.center = { x: this.x + 50, y: this.y + 50 }; } };
   doc.object = { name, center: { x: col * gs + 50, y: row * gs + 50 }, document: doc, actor };
   actor.isToken = true; actor.token = doc;
   return { actor, token: doc.object, doc, kind: "air" };
 }
 // где токен в туннеле
 const at = (u) => { const s = S.tunnelAt(u.token, u.actor); return `${u.actor.name}: ${s ? `Т${s.n} ${s.type}` : "снаружи"}${S.inNarrowTunnel(u.token, u.actor) ? ", узко" : ""}, стены +${S.wallBonus(u.token, u.actor)}`; };
-const inNarrow = unit("В Узости", 1, 1, "low"), overNarrow = unit("Над Узостью", 1, 1, "med"), inHall = unit("В Зале Med", 2, 2, "med"), outside = unit("Снаружи", 6, 4, "low");
-for (const u of [inNarrow, overNarrow, inHall, outside]) console.log(at(u));
+const inNarrow = unit("В Узости", 1, 1, "low"), overNarrow = unit("Над Узостью", 1, 1, "med"), inHall = unit("В Зале Med", 2, 2, "med", {}, { flags: { tunnelIn: true } }), overHall = unit("Над Залом снаружи", 2, 2, "med"), outside = unit("Снаружи", 6, 4, "low");
+for (const u of [inNarrow, overNarrow, inHall, overHall, outside]) console.log(at(u));
+console.log("walls for ground target:", S.wallBonus(unit("Турель", 1, 1, "low", { kind: "ground" }, { type: "npc" }).token));
 // next / drift
 const sec = (c, r) => S.sectionAt(scene, c, r);
 const fmt = d => `path [${d.path.map(s => s.n + s.type[0]).join(" ")}] exit ${d.exit ? d.exit.col + "," + d.exit.row : "—"} fork ${d.fork}`;
@@ -96,4 +97,13 @@ console.log(await turn(unit("В Зале", 2, 2, "low")));
 console.log(await turn(unit("Над туннелем", 0, 1, "med")));
 console.log("card rolled:", strip(renderCard({ type: "tunnel", label: "Туннель: конец хода", actorName: "Пилот", notes: [], check: true, dc: 7, speed: 3, hard: true, rolledPass: true })));
 console.log("names:", T.secName({ type: "narrow" }), T.secName({ type: "weird" }));
+// выбор ветки на Развилке и шахта
+const { forkChoice } = T;
+const atFork = unit("На Развилке", 3, 2, "low", {}, { flags: { tunnelFork: { col: 3, row: 2 } } });
+console.log("fork choice:", [[4, 2], [3, 3], [2, 2], [3, 1]].map(([c, r]) => `${c},${r}=${forkChoice(atFork.doc, { x: c * gs, y: r * gs })}`).join(" "), "| no flag:", forkChoice(unit("Без флага", 3, 2, "low").doc, { x: 4 * gs, y: 2 * gs }));
+console.log(mv(unit("Сбоку к шахте", 1, 4, "low"), 0, 4));
+// встречный курс
+const hdr = unit("Встречный", 1, 1, "low", {}, { flags: { tunnelIn: true, tunnelDir: -1 } });
+scene.tokens = [hdr.doc];
+console.log(await turn(unit("Навстречу", 0, 1, "low")));
 for (const l of log) console.log(l);

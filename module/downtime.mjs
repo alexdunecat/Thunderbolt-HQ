@@ -652,8 +652,10 @@ async function mirrorBonds(actor) {
     if (other?.type !== "pilot" || other.id === actor.id) continue;
     const list = foundry.utils.deepClone(other.system.bonds);
     const mine = list.find(x => x.uuid === actor.uuid);
-    if (!mine) list.push({ name: actor.name, uuid: actor.uuid, npc: false, value: b.value, was: b.was ?? [], dead: false, used: false, usedGround: false, grown: b.grown });
-    else if (mine.value !== b.value || JSON.stringify(mine.was ?? []) !== JSON.stringify(b.was ?? [])) Object.assign(mine, { value: b.value, was: b.was ?? [], grown: b.grown });
+    // у Наёмника с Контрактом Связь не выше 2, даже если у товарища она 3
+    const value = Math.min(bondCap(other, false), b.value);
+    if (!mine) list.push({ name: actor.name, uuid: actor.uuid, npc: false, value, was: b.was ?? [], dead: false, used: false, usedGround: false, grown: b.grown });
+    else if (mine.value !== value || JSON.stringify(mine.was ?? []) !== JSON.stringify(b.was ?? [])) Object.assign(mine, { value, was: b.was ?? [], grown: b.grown });
     else continue;
     await other.update({ "system.bonds": list });
   }
@@ -744,5 +746,12 @@ export function afterSortieUpdate(actor, nervesUp) {
   const notes = [];
   if (up) notes.push(`Нервы +${up} (${Math.min(DT.maxNerves, s.nerves + up)})`);
   if (s.edges.length) notes.push("Заделы сгорели");
+  // «Испытатель»: машина с «Редкой машиной» или своей «Доводкой» остаётся опытной и после того, как Заделы сгорели
+  const plane = s.plane;
+  if (plane && actor.items?.some?.(i => i.type === "trigger" && i.system.key === "tester") && s.edges.some(e => e.kind === "rare" || e.kind === "tune")
+    && plane.getFlag?.(SYSTEM_ID, "proto") === undefined) {
+    plane.setFlag(SYSTEM_ID, "proto", true);
+    notes.push(`${plane.name} теперь опытная машина`);
+  }
   return { upd, notes };
 }

@@ -166,11 +166,13 @@ export async function drawMap(scene, m) {
   }
   if (tiles.length) await scene.createEmbeddedDocuments("Tile", tiles);
   if (drawings.length) await scene.createEmbeddedDocuments("Drawing", drawings);
+  // клеточные флаги сначала снимаем целиком: объекты флагов при update сливаются, и клетки прежней карты остались бы
   await scene.update({ backgroundColor: "#07141a", weather: coreWeatherFor(everywhere),
-    "grid.color": "#9be3bf", "grid.alpha": 0.25,
-    [`flags.${SYSTEM_ID}.weatherCells`]: cells, [`flags.${SYSTEM_ID}.terrainCells`]: terrainCells,
-    [`flags.${SYSTEM_ID}.cellLabels`]: cellLabels, [`flags.${SYSTEM_ID}.weather`]: everywhere, [`flags.${SYSTEM_ID}.-=tunnelCells`]: null });
-  if (Object.keys(tunnelCells).length) await scene.setFlag(SYSTEM_ID, "tunnelCells", tunnelCells);
+    "grid.color": "#9be3bf", "grid.alpha": 0.25, [`flags.${SYSTEM_ID}.weather`]: everywhere,
+    [`flags.${SYSTEM_ID}.-=weatherCells`]: null, [`flags.${SYSTEM_ID}.-=terrainCells`]: null,
+    [`flags.${SYSTEM_ID}.-=cellLabels`]: null, [`flags.${SYSTEM_ID}.-=tunnelCells`]: null });
+  await scene.update({ [`flags.${SYSTEM_ID}.weatherCells`]: cells, [`flags.${SYSTEM_ID}.terrainCells`]: terrainCells,
+    [`flags.${SYSTEM_ID}.cellLabels`]: cellLabels, ...(Object.keys(tunnelCells).length ? { [`flags.${SYSTEM_ID}.tunnelCells`]: tunnelCells } : {}) });
   for (const a of game.actors) if (a.sheet?.rendered) a.sheet.render(false);
   return { cells: Object.keys(cells).length, everywhere };
 }
@@ -193,6 +195,12 @@ export async function legendHtml(m) {
 export function openMapUpdateDialog() {
   const scene = game.scenes.viewed;
   if (!scene) return ui.notifications.warn("Нет открытой сцены.");
+  // карта рисуется клетками по S px от угла сцены: на сцене с отступом или другой сеткой клетки разъедутся с правилами
+  const off = [];
+  if (scene.grid?.type !== CONST.GRID_TYPES.SQUARE) off.push("сетка не квадратная");
+  if ((scene.grid?.size ?? S) !== S) off.push(`клетка ${scene.grid?.size} px, а нужно ${S}`);
+  if (scene.padding) off.push("у сцены есть отступ (Padding)");
+  if (off.length) return ui.notifications.warn(`Эту сцену не перерисовать: ${off.join(", ")}. Создайте сцену импортом миссии или поправьте настройки сцены.`, { permanent: true });
   new Dialog({
     title: "Карта и погода из Планшета AWACS",
     content: `<form class="tb-dialog"><p class="tb-hint">Вставьте JSON миссии из Планшета AWACS (кнопка «JSON»). На сцене «${esc(scene.name)}» перерисуются местность, подписи и погода (подписи прежнего импорта уберутся), а погода сразу начнёт действовать на броски: по клеткам, а погода на всей карте — над всей сценой. Токены не трогаются.</p>

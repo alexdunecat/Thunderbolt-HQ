@@ -23,6 +23,7 @@ bosses: arkbird=med/high/strat icbm=strat
 alt of ark (sheet med): strat | icbm (elev high): strat
 weather: Страт: — ev 0 | High: clouds,wind ev 1 | Low: clouds,dust,wind ev 3
 Аркбёрд на Medium → Танк: dist 0 | ok
+Страт → Аркбёрд (ship): dist 0 | ok | High → Аркбёрд (ship): dist 1 | ok | Medium → Аркбёрд (ship): dist 2 | Цель в 2 зонах от вас, а дальность: только своя зона. Пыльная буря: цели только в своей зоне. До стратосферы достают только из стратосферы и с High. | lift: ["предел высоты",-2]
 pilot high: maxSpeed 5, evasion 4, defense 9 | swing high: maxSpeed 5, evasion 5, defense 10
 pilot strat: maxSpeed 6, evasion 3, defense 8 | swing strat: maxSpeed 6, evasion 3, defense 8
 npc strat: maxSpeed 6, evasion 0, defense 5 | icbm strat: maxSpeed 5, evasion 1, defense 6

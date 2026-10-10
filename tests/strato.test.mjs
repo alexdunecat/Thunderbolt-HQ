@@ -39,6 +39,9 @@ const wx = u => { const w = S.weatherAt(u.actor, u.token); return `${u.actor.nam
 console.log("weather:", [st, hi, lo].map(wx).join(" | "));
 const arkMed = N("Аркбёрд на Medium", 0, "med", { kind: "ship", key: "arkbird", rules: [{ key: "strato" }] });
 console.log(reach(arkMed, tank, 2));
+// как в игре: у Аркбёрда kind "ship", но он воздушная цель
+const arkShip = unit("Аркбёрд (ship)", 0, "strat", { kind: "ship", key: "arkbird", rules: [{ key: "strato" }] }, "npc");
+console.log(reach(st, arkShip, 2), "|", reach(hi, arkShip, 2), "|", reach(md, arkShip, 2), "| lift:", JSON.stringify(S.stratLift(hi.actor, arkShip)));
 // производные пилота и NPC в стратосфере: Evasion −1, Max Speed +1; у баллистической ракеты без изменений
 const Fd = class { constructor(...a) { this.a = a; } };
 globalThis.foundry = { utils: { deepClone: x => structuredClone(x) }, abstract: { TypeDataModel: class {} },
