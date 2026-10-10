@@ -67,6 +67,23 @@
     {{else}}<p class="tb-empty">На этой сцене эскадрилий нет. Выделите токены NPC и нажмите «Собрать из выделенных»: у них будет одна раскладка навыков на {{squadBudget}} очка.</p>{{/if}}
     {{#if squadsElsewhere}}<p class="tb-small tb-muted">На других сценах: {{squadsElsewhere}}.</p>{{/if}}
 
+    <h3>Шкалы боя <button type="button" class="tb-inline-btn" data-boss-add title="Шкала со своим названием и делениями: шаблоны «Аркбёрд», SOLG, ракетная шахта, рейлган. AWACS говорит заготовленные реплики на 50 %, 75 %, 90 % и при заполнении"><i class="fas fa-hourglass-half"></i> Шкала боя</button></h3>
+    {{#if bossClocks.length}}
+    <div class="tb-threats tb-boss-clocks">
+      {{#each bossClocks as |t|}}
+      <div class="tb-threat {{#if t.full}}full{{/if}}" title="{{t.note}}">
+        <span class="tb-threat-name">{{t.name}}{{#if t.tick}} <i class="fas fa-rotate" title="+1 в конце каждого раунда"></i>{{/if}}</span>
+        <span class="tb-clock">{{#each t.pips as |p|}}<i class="{{#if p.on}}on{{/if}}"></i>{{/each}}</span>
+        <span class="tb-num">{{t.value}}/{{t.size}} <small>{{t.pct}} %</small></span>
+        <a data-threat-step="{{t.id}}" data-delta="-1" title="Снять деление">−</a> <a data-threat-step="{{t.id}}" data-delta="1" title="Добавить деление">+</a>
+        <a data-boss-edit="{{t.id}}" title="Название, деления и реплики AWACS"><i class="fas fa-pen"></i></a>
+        <a data-threat-del="{{t.id}}" title="Убрать шкалу"><i class="fas fa-trash"></i></a>
+        {{#if t.marks}}<small class="tb-muted tb-boss-marks">Реплики: {{t.marks}}{{#if t.lines.full}}, при заполнении{{/if}}</small>{{/if}}
+      </div>
+      {{/each}}
+    </div>
+    {{else}}<p class="tb-small tb-muted">Шкал боя нет. «Шкала боя» заводит сброс «Аркбёрда», падение SOLG, пуск из шахты, заряд рейлгана или свою шкалу, с репликами AWACS на отметках.</p>{{/if}}
+
     <h3>Даунтайм <button type="button" class="tb-inline-btn" data-base-event title="Бросить d10 по таблице событий на базе: событие и вопрос-крючок для общей сцены"><i class="fas fa-dice-d10"></i> Событие на базе</button>
       <button type="button" class="tb-inline-btn" data-threat-add><i class="fas fa-plus"></i> Шкала угрозы</button></h3>
     {{#if threats.length}}

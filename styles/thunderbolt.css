@@ -617,3 +617,7 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-card-eject .tb-eject-ok b { color: #5fbf7a; }
 .tb-card-eject .tb-eject-hurt b, .tb-card-eject .tb-eject-mia b { color: #e0b04a; }
 .tb-card-eject .tb-eject-kia b { color: var(--tb-accent); }
+
+/* шкалы боя: реплики AWACS под шкалой */
+.thunderbolt .tb-boss-clocks .tb-threat { flex-wrap: wrap; }
+.thunderbolt .tb-boss-marks { flex-basis: 100%; font-size: 11px; }

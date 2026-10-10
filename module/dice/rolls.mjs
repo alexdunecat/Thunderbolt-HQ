@@ -42,7 +42,7 @@ function weatherNotes(w) {
 }
 
 /** Простой диалог-форма. Возвращает объект значений полей или null при отмене. */
-export function formDialog(title, content, { ok = "Бросить", width = 380 } = {}) {
+export function formDialog(title, content, { ok = "Бросить", width = 380, render } = {}) {
   return new Promise(resolve => {
     new Dialog({
       title,
@@ -66,6 +66,7 @@ export function formDialog(title, content, { ok = "Бросить", width = 380 
         cancel: { icon: '<i class="fas fa-times"></i>', label: "Отмена", callback: () => resolve(null) }
       },
       default: "ok",
+      render: html => render?.(html[0] ?? html),
       close: () => resolve(null)
     }, { width, classes: ["dialog", "thunderbolt"] }).render(true);
   });

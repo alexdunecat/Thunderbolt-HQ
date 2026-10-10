@@ -23,6 +23,11 @@ export function registerDowntime() {
     if (foundry.utils.hasProperty(change, "system.nerves") && actor.system.nerves < DT.maxNerves && actor.system.onEdge)
       actor.update({ "system.onEdge": "" });
   });
+  // шкалы боя с отметкой «тикает» прибавляют деление в конце каждого раунда
+  Hooks.on("updateCombat", async (combat, change, options) => {
+    if (!leadGM() || !("round" in change) || options?.direction !== 1 || change.round < 2) return;
+    for (const t of threats().filter(x => x.kind === "boss" && x.tick && x.value < x.size)) await stepThreat(t.id, 1);
+  });
   Hooks.once("ready", () => game.socket.on(CHANNEL, async msg => {
     if (msg?.type !== "threatStep" || !leadGM()) return;
     await stepThreat(msg.id, msg.delta);
@@ -65,11 +70,59 @@ export async function stepThreat(id, delta) {
   t.value = Math.max(0, Math.min(t.size, t.value + delta));
   if (t.value === was) return t;
   await saveThreats(list);
-  if (t.value >= t.size && was < t.size) await ChatMessage.create({
+  const said = t.kind === "boss" && delta > 0 ? await bossLine(t, was) : null;
+  if (t.value >= t.size && was < t.size && said !== "full") await ChatMessage.create({
     speaker: { alias: "AWACS" },
-    content: `<div class="tb-card tb-card-threat"><header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">Шкала угрозы заполнена</span></header>
-      <div class="tb-note"><b>${esc(t.name)}</b> (${t.size} из ${t.size}). Неприятность случается${t.note ? `: ${esc(t.note)}` : "."}</div></div>`
+    content: `<div class="tb-card tb-card-threat"><header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">${t.kind === "boss" ? "Шкала заполнена" : "Шкала угрозы заполнена"}</span></header>
+      <div class="tb-note"><b>${esc(t.name)}</b> (${t.size} из ${t.size}). ${t.kind === "boss" ? esc(t.note || "") : `Неприятность случается${t.note ? `: ${esc(t.note)}` : "."}`}</div></div>`
   });
+  return t;
+}
+
+/** Деление, на котором срабатывает отметка шкалы боя: 50 %, 75 %, 90 % (вниз до целого, не раньше первого) или заполнение. */
+export const bossMarkAt = (key, size) => key === "full" ? size : Math.max(1, Math.floor(size * Number(key) / 100));
+
+/** Реплика AWACS на пройденной отметке: всем в чат и в субтитры; 75 % с CAUTION, 90 % и заполнение с WARNING. */
+async function bossLine(t, was) {
+  // пройдено сразу несколько отметок: звучит старшая, у которой есть реплика
+  const keys = DT.bossMarks.map(([k]) => k).filter(k => { const at = bossMarkAt(k, t.size); return was < at && t.value >= at; }).reverse();
+  const use = keys.find(k => (t.lines?.[k] ?? "").trim());
+  if (!use) return null;
+  const caution = use === "50" ? null : { level: use === "75" ? "caution" : "warning", title: use === "75" ? "CAUTION" : "WARNING", sub: t.name };
+  // радио грузится лениво: его окна (Application) не нужны модулям, которые тянут даунтайм
+  const { sendRadio } = await import("./radio.mjs");
+  await sendRadio({ text: t.lines[use].trim(), caution });
+  return use;
+}
+
+/** Шкала боя по шаблону (Аркбёрд, SOLG, шахта, рейлган или своя): название, деления, тик в конце раунда и реплики AWACS. */
+export async function bossClockDialog(existing = null) {
+  const T = DT.bossClocks;
+  const cur = existing ?? { ...T.arkbird, lines: { ...T.arkbird.lines } };
+  const lines = DT.bossMarks.map(([k, label]) => `<div class="form-group stacked"><label>AWACS на ${label}</label>
+    <textarea name="line_${k}" rows="2">${esc(cur.lines?.[k] ?? "")}</textarea></div>`).join("");
+  const data = await formDialog(existing ? `Шкала боя: ${existing.name}` : "Новая шкала боя", `
+    ${existing ? "" : `<div class="form-group"><label>Шаблон</label><select name="tpl">${Object.entries(T).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join("")}</select></div>`}
+    <div class="form-group"><label>Название</label><input type="text" name="name" value="${esc(cur.name)}" placeholder="«Аркбёрд»: сброс"></div>
+    <div class="form-group"><label>Делений</label><input type="number" name="size" min="2" max="12" value="${cur.size}"></div>
+    <div class="form-group"><label><input type="checkbox" name="tick" ${cur.tick ? "checked" : ""}> +1 деление в конце каждого раунда</label></div>
+    <div class="form-group"><label>Когда заполнится</label><input type="text" name="note" value="${esc(cur.note ?? "")}"></div>
+    <p class="tb-hint">Реплики AWACS звучат у всех, когда шкала доходит до отметки. Пустую отметку AWACS пропускает. На 6 делениях отметки 50 %, 75 % и 90 % стоят на 3, 4 и 5, на 10 делениях на 5, 7 и 9. Если две отметки попали на одно деление, звучит старшая.</p>
+    ${lines}`, { ok: existing ? "Сохранить" : "Завести", width: 460, render: root => {
+      const sel = root.querySelector('select[name="tpl"]');
+      sel?.addEventListener("change", () => {
+        const v = T[sel.value];
+        const set = (n, val) => { const el = root.querySelector(`[name="${n}"]`); if (el.type === "checkbox") el.checked = !!val; else el.value = val ?? ""; };
+        set("name", v.name); set("size", v.size); set("tick", v.tick); set("note", v.note);
+        for (const [k] of DT.bossMarks) set(`line_${k}`, v.lines[k]);
+      });
+    } });
+  if (!data?.name) return null;
+  const patch = { kind: "boss", name: data.name, size: Math.max(2, Math.min(12, Number(data.size) || 6)), tick: !!data.tick, note: data.note ?? "",
+    lines: Object.fromEntries(DT.bossMarks.map(([k]) => [k, data[`line_${k}`] ?? ""])) };
+  if (existing) { await editThreat(existing.id, { ...patch, value: Math.min(existing.value, patch.size) }); return { ...existing, ...patch }; }
+  const t = { id: randomID(), value: 0, ...patch };
+  await saveThreats([...threats(), t]);
   return t;
 }
 

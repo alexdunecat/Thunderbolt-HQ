@@ -8,7 +8,7 @@ import { openMapUpdateDialog, coreWeatherFor } from "./mission-import.mjs";
 import { targetGoals } from "../losses.mjs";
 import { openRadioDialog } from "../radio.mjs";
 import { openDossierExchange } from "../dossier-sync.mjs";
-import { threats, addThreat, stepThreat, deleteThreat, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
+import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMarkAt, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
 import { DT } from "../config.mjs";
 import { SQUAD_POINTS, allSquads, squadPoints, squadMembers, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
 
@@ -93,7 +93,10 @@ export class AwacsPanel extends Application {
       skillHeads: Object.values(TB.skills).map(v => ({ label: v.label, en: v.en })),
       weather: Object.entries(TB.weather).map(([id, d]) => ({ id, ...d, on: sceneWeather.has(id) })),
       round: combat?.started ? combat.round : null, queued,
-      threats: threats().map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size })),
+      threats: threats().filter(t => t.kind !== "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size })),
+      bossClocks: threats().filter(t => t.kind === "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size,
+        pct: Math.round(100 * t.value / t.size),
+        marks: DT.bossMarks.filter(([k]) => k !== "full" && (t.lines?.[k] ?? "").trim()).map(([k, label]) => `${label} на ${bossMarkAt(k, t.size)}`).join(", ") })),
       ground: game.actors.filter(a => a.type === "pilot").sort((a, b) => a.name.localeCompare(b.name, "ru")).map(a => {
         const s = a.system;
         return { id: a.id, name: a.name, nerves: s.nerves, nervesCls: s.nerves >= 5 ? "edge" : s.nerves >= 3 ? "high" : "", edgeFly: s.edgeFly,
@@ -142,6 +145,8 @@ export class AwacsPanel extends Application {
     on("[data-arrange]", () => arrangeSceneTokens());
     on("[data-base-event]", () => baseEvent());
     on("[data-threat-add]", () => addThreat());
+    on("[data-boss-add]", () => bossClockDialog());
+    on("[data-boss-edit]", d => { const t = threats().find(x => x.id === d.bossEdit); if (t) bossClockDialog(t); });
     on("[data-threat-step]", d => stepThreat(d.threatStep, Number(d.delta)));
     on("[data-threat-del]", async d => {
       if (await Dialog.confirm({ title: "Шкала угрозы", content: "<p>Убрать эту шкалу?</p>" })) deleteThreat(d.threatDel);

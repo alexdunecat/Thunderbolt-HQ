@@ -225,7 +225,7 @@ function downtimeView(a) {
     bonds: s.bonds.map((b, i) => ({ ...b, i, was: (b.was ?? []).join(", "), pips: pips(b.npc ? DT.maxNpcBond : DT.maxBond, b.value) })),
     goals: s.goals.map((g, i) => ({ ...g, i, small: g.size <= 4, done: g.value >= g.size, pips: clockPips(g.value, g.size) })),
     debts: s.debts.map((d, i) => ({ ...d, i })),
-    threats: threats().map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size })),
+    threats: threats().filter(t => t.kind !== "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size })),
     bondChips: live, edgeChips, passive,
     sortie: live.length || edgeChips.length || passive.length || s.edgeFly || !!breakdown
   };
