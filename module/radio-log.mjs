@@ -13,7 +13,7 @@ let entries = null;
 let win = null;
 let filter = "";
 // цвет баннера в журнале: WARNING и проваленная миссия красные, выполненная и завершённая синие, CAUTION и отменённая жёлтые
-const LOG_TONE = { warning: "warning", failed: "warning", success: "blue", complete: "blue", caution: "caution", aborted: "caution" };
+const LOG_TONE = { warning: "warning", failed: "warning", success: "blue", complete: "blue", caution: "caution", aborted: "caution", intro: "warning", "intro-ally": "blue" };
 
 /** Ведущий принимает записи игроков. */
 export function registerRadioLog() {

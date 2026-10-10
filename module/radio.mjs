@@ -6,6 +6,7 @@ import { SYSTEM_ID, TB } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
 import { record, registerRadioLog } from "./radio-log.mjs";
 import { MISSION_RESULTS } from "./mission.mjs";
+import { introHtml } from "./aces.mjs";
 
 const MAX_QUEUE = 4;
 const queue = [], banners = [];
@@ -105,7 +106,9 @@ async function announce() {
 /** Реплика AWACS всем (и в чат): ведущий из панели, подкрепления и т. п. */
 export function sendRadio({ speaker = "AWACS", text = "", caution = null, side = "ally" }) {
   side = sideClass(side);
-  const body = [caution ? `<div class="tb-radio-caution-line${caution.mission ? ` tb-mission-line tb-mission-${esc(caution.level)}` : ""}">-- ${esc(caution.title)} -- ${esc(caution.sub ?? "")}</div>` : "", text ? `<div class="tb-note"><b class="tb-radio-${side}">${esc(speaker)}:</b> «${esc(text)}»</div>` : ""].join("");
+  const intro = caution?.intro;
+  const body = [intro ? `<div class="tb-radio-caution-line tb-intro-line tb-intro-${intro.side === "ally" ? "ally" : "enemy"}">${intro.emblem ? `<img src="${esc(intro.emblem)}" alt="">` : ""}<span><b>${esc(intro.name)}</b>${intro.unit ? ` ${esc(intro.unit)}` : ""}${intro.wing ? `<small>${esc(intro.wing)}</small>` : ""}</span></div>`
+    : caution ? `<div class="tb-radio-caution-line${caution.mission ? ` tb-mission-line tb-mission-${esc(caution.level)}` : ""}">-- ${esc(caution.title)} -- ${esc(caution.sub ?? "")}</div>` : "", text ? `<div class="tb-note"><b class="tb-radio-${side}">${esc(speaker)}:</b> «${esc(text)}»</div>` : ""].join("");
   return ChatMessage.create({ speaker: { alias: speaker }, content: `<div class="tb-card tb-card-radio">${body}</div>`,
     flags: { [SYSTEM_ID]: { radio: { speaker, text, caution, side } } } });
 }
@@ -157,12 +160,13 @@ function next() {
   setTimeout(() => { el.classList.remove("on"); setTimeout(next, 350); }, ms);
 }
 
-/** Баннер посреди экрана: CAUTION, WARNING или итог миссии (mission: true, level — success/complete/aborted/failed). */
-export function caution({ title = "CAUTION", sub = "", level = "caution", mission = false } = {}) {
+/** Баннер посреди экрана: CAUTION, WARNING, итог миссии (mission: true, level — success/complete/aborted/failed)
+    или представление эскадрильи асов (intro — данные из aces.mjs). */
+export function caution({ title = "CAUTION", sub = "", level = "caution", mission = false, intro = null } = {}) {
   record({ banner: { title, sub, level, mission }, muted: !enabled() });
-  // итог миссии показывается и при выключенных субтитрах: его ждут все
-  if (!enabled() && !mission) return;
-  banners.push({ title, sub, level, mission });
+  // итог миссии и эскадрилья асов показываются и при выключенных субтитрах: их ждут все
+  if (!enabled() && !mission && !intro) return;
+  banners.push({ title, sub, level, mission, intro });
   if (!bannerOn) nextBanner();
 }
 
@@ -171,7 +175,11 @@ function nextBanner() {
   const el = box("tb-caution");
   if (!b) { bannerOn = false; el.classList.remove("on"); return; }
   bannerOn = true;
-  if (b.mission) {
+  if (b.intro) {
+    // эскадрилья асов как в Ace Combat 7: эмблема и надписи выезжают слева, держатся дольше, щелчок убирает
+    el.className = "tb-intro-box";
+    el.innerHTML = introHtml(b.intro);
+  } else if (b.mission) {
     import("./sounds.mjs").then(m => m.cueAll(["success", "complete"].includes(b.level) ? "missionWin" : "missionFail")).catch(() => {});
     // итог миссии как в Ace Combat: плашка сверху, крупная рамка с надписью, подпись ниже; держится дольше, щелчок убирает
     el.className = `tb-mission tb-mission-${b.level}`;
@@ -184,8 +192,8 @@ function nextBanner() {
   el.classList.add("on");
   let done = false;
   const hide = () => { if (done) return; done = true; el.onclick = null; el.classList.remove("on"); setTimeout(nextBanner, 500); };
-  if (b.mission) el.onclick = hide;
-  setTimeout(hide, b.mission ? 9000 : 4200);
+  if (b.mission || b.intro) el.onclick = hide;
+  setTimeout(hide, b.mission ? 9000 : b.intro ? 8000 : 4200);
 }
 
 /* ---------- радио ведущего ---------- */

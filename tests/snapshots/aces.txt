@@ -1,0 +1,6 @@
+из формы: {"id":"","name":"LUX LUNAE","unit":"55TH UNIT","wing":"1st Special Operations Wing, 11th Tactical Squadron","motto":"Lux Lunae — Fiat Lux!","emblem":"worlds/w/lux.webp","side":"enemy","line":""}
+баннер: {"title":"LUX LUNAE","sub":"55TH UNIT · 1st Special Operations Wing, 11th Tactical Squadron","level":"intro","intro":{"name":"LUX LUNAE","unit":"55TH UNIT","wing":"1st Special Operations Wing, 11th Tactical Squadron","motto":"Lux Lunae — Fiat Lux!","emblem":"worlds/w/lux.webp","side":"enemy"}}
+реплика противника: Внимание, всем бортам! Эскадрилья «LUX LUNAE» в районе. Это асы, будьте предельно осторожны!
+реплика союзников: Всем бортам: к нам присоединяется эскадрилья «LUX LUNAE». Работаем вместе. | intro-ally
+разметка: <div class="tb-intro tb-intro-enemy"> <img class="tb-intro-emblem" src="worlds/w/lux.webp" alt=""> <div class="tb-intro-text"> <div class="tb-intro-head"><span class="tb-intro-name">LUX LUNAE</span><span class="tb-intro-unit">55TH UNIT</span></div> <div class="tb-intro-wing">1st Special Operations Wing, 11th Tactical Squadron</div> <div class="tb-intro-motto">Lux Lunae — Fiat Lux!</div> </div></div>
+без эмблемы и девиза, с кавычками: <div class="tb-intro tb-intro-ally"> <div class="tb-intro-text"> <div class="tb-intro-head"><span class="tb-intro-name">&lt;Гроза&gt;</span></div> </div></div>

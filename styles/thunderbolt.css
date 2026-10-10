@@ -717,3 +717,34 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-card-alarm .tb-note b { color: var(--tb-bad); }
 .tb-card-tunnel { border-left: 3px solid var(--tb-warn); }
 .tb-card-tunnel .tb-note b { color: var(--tb-warn); }
+/* эскадрилья асов: как представление асов в Ace Combat 7 — эмблема и крупные надписи в полосе слева внизу */
+#tb-caution.tb-intro-box { top: auto; bottom: 16%; left: 0; width: 100%; transform: none; pointer-events: auto; cursor: pointer; }
+.tb-intro { --tb-i: #ff5a44; display: flex; align-items: center; gap: clamp(14px, 2vw, 28px); padding: 14px 6vw 14px 5vw; color: #f4fbf8;
+  font-family: "Jura", "Exo 2", system-ui, sans-serif; text-transform: uppercase;
+  background: linear-gradient(90deg, rgba(4,10,14,.82) 0%, rgba(4,10,14,.62) 55%, rgba(4,10,14,0) 100%);
+  border-top: 1px solid var(--tb-i); border-image: linear-gradient(90deg, var(--tb-i), transparent 80%) 1; }
+.tb-intro.tb-intro-ally { --tb-i: #4fb3ff; }
+.tb-intro-emblem { height: clamp(96px, 19vh, 210px); width: auto; max-width: 26vw; object-fit: contain; flex: none; filter: drop-shadow(0 2px 8px rgba(0,0,0,.8)); }
+.tb-intro-text { min-width: 0; }
+.tb-intro-head { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: .45em; line-height: 1; }
+.tb-intro-name { font-size: clamp(36px, 6.4vw, 92px); font-weight: 700; letter-spacing: .05em; text-shadow: 0 2px 4px #000, 0 0 18px rgba(0,0,0,.6); }
+.tb-intro-unit { font-size: clamp(18px, 2.4vw, 34px); font-weight: 700; letter-spacing: .08em; text-shadow: 0 1px 3px #000; }
+.tb-intro-wing { margin-top: 8px; font-size: clamp(11px, 1.15vw, 16px); font-weight: 700; letter-spacing: .14em; color: var(--tb-i); text-shadow: 0 1px 2px #000; }
+.tb-intro-motto { margin-top: 6px; font-size: clamp(11px, 1vw, 14px); letter-spacing: .1em; text-transform: none; font-style: italic; opacity: .85; text-shadow: 0 1px 2px #000; }
+#tb-caution.tb-intro-box .tb-intro-emblem { transform: translateX(-40px); opacity: 0; transition: transform .6s cubic-bezier(.2,.8,.2,1), opacity .6s; }
+#tb-caution.tb-intro-box .tb-intro-text { clip-path: inset(0 100% 0 0); transition: clip-path .9s cubic-bezier(.3,.7,.2,1) .25s; }
+#tb-caution.tb-intro-box.on .tb-intro-emblem { transform: none; opacity: 1; }
+#tb-caution.tb-intro-box.on .tb-intro-text { clip-path: inset(0 0 0 0); }
+/* превью в окне «Представить асов» */
+.tb-ace-form .tb-ace-preview .tb-intro.mini { padding: 10px 14px; margin: 6px 0; }
+.tb-ace-form .tb-intro.mini .tb-intro-emblem { height: 74px; max-width: 30%; }
+.tb-ace-form .tb-intro.mini .tb-intro-name { font-size: 30px; }
+.tb-ace-form .tb-intro.mini .tb-intro-unit { font-size: 14px; }
+.tb-ace-form .tb-intro.mini .tb-intro-wing { font-size: 10px; margin-top: 4px; }
+.tb-ace-form .tb-intro.mini .tb-intro-motto { font-size: 10px; margin-top: 3px; }
+.tb-ace-form .form-group button { flex: 0 0 32px; }
+/* строка эскадрильи в чате */
+.tb-card-radio .tb-intro-line { display: flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: .05em; color: #d4472b; }
+.tb-card-radio .tb-intro-line.tb-intro-ally { color: #3d8fc4; }
+.tb-card-radio .tb-intro-line img { height: 40px; width: auto; border: 0; flex: none; }
+.tb-card-radio .tb-intro-line small { display: block; font-size: 10px; letter-spacing: .08em; opacity: .85; }
