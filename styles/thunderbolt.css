@@ -647,3 +647,5 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .thunderbolt .tb-open-clock .fa-bell { color: var(--tb-accent); }
 .tb-card-alarm { border-left: 3px solid var(--tb-accent); }
 .tb-card-alarm .tb-note b { color: var(--tb-accent); }
+.tb-card-tunnel { border-left: 3px solid var(--tb-warn); }
+.tb-card-tunnel .tb-note b { color: var(--tb-warn); }

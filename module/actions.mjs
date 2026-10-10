@@ -7,7 +7,7 @@
    Move и Climb / Dive засчитываются в момент перемещения, и двигавший видит об этом сообщение. */
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { PASS, isOut } from "./documents/combat.mjs";
-import { landBlocked, climbProblem, ALT_ORDER } from "./scene.mjs";
+import { landBlocked, climbProblem, ALT_ORDER, tunnelClimbProblem, tunnelMoveProblem, tokenOf } from "./scene.mjs";
 import { esc } from "./utils.mjs";
 
 export const ACT_NAMES = {
@@ -159,7 +159,7 @@ export function registerActions() {
       const d = zoneStep(doc, change);
       if (d > 0) {
         acts.push("move");
-        const p = actionProblem(doc.actor, "move", { token: doc });
+        const p = actionProblem(doc.actor, "move", { token: doc }) ?? tunnelMoveProblem(doc, change);
         if (p) problems.push(p);
         else if (d > 1) problems.push(`${doc.name}: Move только в соседнюю зону, а здесь ${d}.`);
       }
@@ -170,7 +170,7 @@ export function registerActions() {
     if ("elevation" in change && change.elevation !== was && levels.includes(change.elevation)) {
       acts.push("climb");
       const to = Object.keys(TB.altElevation).find(k => TB.altElevation[k] === change.elevation);
-      const p = actionProblem(doc.actor, "climb", { token: doc }) ?? climbProblem(doc.actor, to);
+      const p = actionProblem(doc.actor, "climb", { token: doc }) ?? climbProblem(doc.actor, to) ?? (doc.object ? tunnelClimbProblem(doc.object, to) : null);
       if (p) problems.push(p);
       else if (was && Math.abs(change.elevation - was) > 1) problems.push(`${doc.name}: Climb / Dive меняет высоту только на одну ступень.`);
     }
@@ -193,7 +193,8 @@ export function registerActions() {
     if (options.tbSync || options.tbFree || !foundry.utils.hasProperty(change, "system.alt") || change.system.alt === actor.system.alt) return;
     if (!combatantOf(actor)) return;
     const step = Math.abs(ALT_ORDER.indexOf(change.system.alt) - ALT_ORDER.indexOf(actor.system.alt));
-    const p = actionProblem(actor, "climb") ?? climbProblem(actor, change.system.alt)
+    const tok = tokenOf(actor);
+    const p = actionProblem(actor, "climb") ?? climbProblem(actor, change.system.alt) ?? (tok ? tunnelClimbProblem(tok, change.system.alt) : null)
       ?? (step > 1 ? `${actor.name}: Climb / Dive меняет высоту только на одну ступень.` : null);
     if (p) { ui.notifications.warn(p); return false; }
     countMove(actor, ["climb"]);

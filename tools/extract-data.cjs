@@ -23,6 +23,7 @@ const grab = name => {
   return new Function("return " + aw.slice(i + ("const " + name + " = ").length, j))();
 };
 const TERRAIN = grab("TERRAIN"), EFFECTS = grab("EFFECTS"), MARKERS = grab("MARKERS"), ALIAS = grab("ALIAS");
+const TUNNEL = grab("TUNNEL"), TUNNEL_ART = grab("TUNNEL_ART");
 // цвета местности берём из бумажного скина планшета (первый блок --t-* в awacs.css)
 const css = fs.readFileSync(path.join(SRC, "awacs.css"), "utf8");
 const tcol = {};
@@ -89,7 +90,7 @@ const out = {
   generated: new Date().toISOString().slice(0, 10),
   planes, book, weapons, npcs, planeNpcs: planes.concat(book).map(airFromPlane),
   triggers, archetypes, triggerTypes: D.TT, status: Object.fromEntries(Object.entries(D.STATUS).map(([k, s]) => [k, s.n])),
-  terrain: TERRAIN, effects: EFFECTS, markers: MARKERS, alias: ALIAS
+  terrain: TERRAIN, effects: EFFECTS, markers: MARKERS, alias: ALIAS, tunnel: TUNNEL, tunnelArt: TUNNEL_ART
 };
 fs.writeFileSync(path.join(ROOT, "data/catalog.json"), JSON.stringify(out, null, 1));
 

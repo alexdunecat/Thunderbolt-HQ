@@ -215,3 +215,13 @@ for e in cat["effects"]:
     open(os.path.join(OUT, "weather", f"{e['id']}.svg"), "w").write(svg(fn(False)))
     open(os.path.join(OUT, "weather", f"{e['id']}-badge.svg"), "w").write(badge(fn(True)))
 print(f"terrain {len(cat['terrain'])} + {len(VARIANTS)} variants, weather {len(cat['effects'])}")
+
+# туннель: труба по секциям и знаки типов — рисунки из планшета (TUNNEL_ART), цвета «Брифинга»
+TUN_STYLE = (f'.tw,.tf,.tc{{fill:none}}.tw{{stroke:{MINT};stroke-width:72;stroke-opacity:.9}}.tf{{stroke:#05090d;stroke-width:64;stroke-opacity:.9}}'
+             f'.tc{{stroke:{MINT};stroke-width:2;stroke-dasharray:8 8;stroke-opacity:.5}}.tr{{fill:#1b2226;stroke:{MINT};stroke-width:2}}'
+             f'.th{{fill:#05090d;fill-opacity:.92;stroke:{MINT};stroke-width:4}}.tg{{fill:#2a1f0a;stroke:{WARN};stroke-width:2}}.tgl{{fill:none;stroke:{WARN};stroke-width:3}}'
+             f'.ts{{fill:#05090d;stroke:{MINT};stroke-width:4}}.to{{fill:#05090d;stroke:{HOT};stroke-width:3}}.tob{{fill:{HOT};fill-opacity:.85}}')
+os.makedirs(os.path.join(OUT, "tunnel"), exist_ok=True)
+for k, body in cat.get("tunnelArt", {}).items():
+    open(os.path.join(OUT, "tunnel", f"{k}.svg"), "w").write(svg(f"<style>{TUN_STYLE}</style>{body}"))
+print(f"tunnel {len(cat.get('tunnelArt', {}))}")

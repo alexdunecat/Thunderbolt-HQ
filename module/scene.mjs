@@ -136,6 +136,15 @@ export function reachProblems(attacker, target, range) {
   else if (air && altB === "strat" && !["strat", "high"].includes(altA)) problems.push("До стратосферы достают только из стратосферы и с High.");
   else if (altA === "high" && !downAll && (!air || altB === "low")) problems.push("С High нельзя бить по земле и по целям на Low.");
   else if (air && altB === "low" && altA !== "low") problems.push("По воздушной цели на Low бьют только с Low.");
+  // туннель: наружу и снаружи не достать; в узком туннеле только своя секция и одна вперёд (на Изгибе только своя)
+  const ta = tunnelAt(a, attacker), tb = tunnelAt(b, target.actor);
+  if (ta && !tb) problems.push("Из туннеля наружу не достать.");
+  else if (tb && !ta) problems.push("Цель в туннеле: снаружи её не достать.");
+  else if (ta && ta.type !== "hall") {
+    const same = tb.col === ta.col && tb.row === ta.row;
+    const fwd = ta.type !== "bend" && tb.n === ta.n + tunnelDir(a) && Math.abs(tb.col - ta.col) + Math.abs(tb.row - ta.row) === 1;
+    if (!same && !fwd) problems.push(ta.type === "bend" ? "На изгибе туннеля бьют только по своей секции." : "Из туннеля бьют только по своей секции и на одну вперёд.");
+  }
   return { dist, far, problems };
 }
 
@@ -229,4 +238,74 @@ export function landBlocked(doc, to) {
   const ter = cells[`${Math.floor(x / gs)},${Math.floor(y / gs)}`];
   if (!ter || WATER.includes(ter)) return null;
   return `${doc.name}: корабль не выходит на сушу. На берег заходит только сухопутный линкор.`;
+}
+
+/* ---------- туннели (секции из Планшета: флаг сцены tunnelCells, "col,row" → { type, n }) ---------- */
+const TSIDE = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
+/** Секция туннеля в клетке: { type, n, col, row } или null. */
+export function sectionAt(scene, col, row) {
+  const s = scene?.getFlag?.(SYSTEM_ID, "tunnelCells")?.[`${col},${row}`];
+  return s ? { ...s, col, row } : null;
+}
+
+/** Секция, в которой находится токен: под ним туннель и он на её высоте (Low, у Зала Low и Medium). Иначе null. */
+export function tunnelAt(token, actor = token?.actor) {
+  const cell = token ? cellOf(token) : null;
+  if (!cell) return null;
+  const sec = sectionAt(token.document?.parent ?? canvas?.scene, cell.col, cell.row);
+  if (!sec) return null;
+  const alt = altOf(token, actor);
+  return alt === "low" || (sec.type === "hall" && alt === "med") ? sec : null;
+}
+
+/** В туннеле, но не в Зале: здесь действуют правила туннеля. */
+export const inNarrowTunnel = (token, actor) => { const s = tunnelAt(token, actor); return s && s.type !== "hall" ? s : null; };
+
+/** Направление полёта по туннелю: +1 к выходу, −1 после разворота в Зале. */
+export const tunnelDir = token => token?.document?.getFlag?.(SYSTEM_ID, "tunnelDir") ?? 1;
+
+/** Соседние по стороне секции с номером n + dir. */
+export function nextSections(scene, sec, dir = 1) {
+  return TSIDE.map(([dc, dr]) => sectionAt(scene, sec.col + dc, sec.row + dr)).filter(s => s && s.n === sec.n + dir);
+}
+
+/** Стены сбивают ракеты: в туннеле (кроме Зала) +2 к защите от ракет. */
+export const wallBonus = (token, actor) => (token && inNarrowTunnel(token, actor) ? 2 : 0);
+
+/** Почему нельзя сменить высоту в туннеле или над ним: внутри Climb и Dive нет, внутрь сверху только через Шахту. */
+export function tunnelClimbProblem(token, to) {
+  const cell = token ? cellOf(token) : null;
+  const sec = cell && sectionAt(token.document?.parent ?? canvas?.scene, cell.col, cell.row);
+  if (!sec || sec.type === "hall" || sec.type === "shaft") return null;
+  const from = altOf(token);
+  if (from === "low") return `${token.name}: в туннеле Climb и Dive нельзя, выход только вперёд.`;
+  if (to === "low") return `${token.name}: под этим участком туннель, внутрь только через вход или шахту.`;
+  return null;
+}
+
+/** Почему этот Move в туннеле не по правилам: только вперёд, наружу из последней секции, внутрь через вход. null — можно. */
+export function tunnelMoveProblem(doc, to) {
+  const scene = doc.parent;
+  if (!scene?.getFlag?.(SYSTEM_ID, "tunnelCells") || !isFlying(doc.actor)) return null;
+  const gs = scene.grid?.size ?? canvas.grid.size, w = (doc.width ?? 1) * gs / 2, h = (doc.height ?? 1) * gs / 2;
+  const fc = Math.floor((doc.x + w) / gs), fr = Math.floor((doc.y + h) / gs);
+  const tc = Math.floor(((to.x ?? doc.x) + w) / gs), tr = Math.floor(((to.y ?? doc.y) + h) / gs);
+  if (fc === tc && fr === tr) return null;
+  const token = doc.object ?? { document: doc, actor: doc.actor };
+  const alt = altOf(token, doc.actor);
+  const from = sectionAt(scene, fc, fr), dest = sectionAt(scene, tc, tr);
+  const inside = from && (alt === "low" || (from.type === "hall" && alt === "med"));
+  if (!inside) {
+    // внутрь по Low: только в секцию без предыдущей (вход); Зал открыт
+    if (dest && alt === "low" && dest.type !== "hall" && nextSections(scene, dest, -1).length && nextSections(scene, dest, 1).length)
+      return `${doc.name}: в туннель входят только через вход или шахту.`;
+    return null;
+  }
+  if (from.type === "hall") return null;
+  const dir = doc.getFlag?.(SYSTEM_ID, "tunnelDir") ?? 1;
+  const fwd = nextSections(scene, from, dir);
+  if (dest && fwd.some(s => s.col === tc && s.row === tr)) return null;
+  if (!dest && !fwd.length) return null;
+  return `${doc.name}: в туннеле летят только вперёд${fwd.length ? `, к секции ${from.n + dir}` : ""}.`;
 }

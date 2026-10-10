@@ -1,7 +1,7 @@
 /* Броски и чат-карточки: проверки, ракеты, пушка, Break!, Strain, урон, сваливание. */
 import { SYSTEM_ID, TB } from "../config.mjs";
 import { esc, resolveActor } from "../utils.mjs";
-import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, stratLift, zoneDistance, rangeLabel, isFlying, struckBy, gunVs } from "../scene.mjs";
+import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, stratLift, inNarrowTunnel, wallBonus, zoneDistance, rangeLabel, isFlying, struckBy, gunVs } from "../scene.mjs";
 import { alarmRows, raiseAlarm, surprise, quietAA } from "../stealth.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
@@ -135,7 +135,19 @@ export async function rollSideCheck(actor, skill, { dc = 7, label, notes = [], o
   return postCard(actor, card, dice.rolls);
 }
 
+/** Карточка туннеля в конце хода: куда вынесло и кнопка проверки пролёта. */
+function renderTunnel(c) {
+  const btn = c.check && !c.rolledPass ? `<div class="tb-actions"><button type="button" data-tb-action="tunnel-pass" class="tb-owner"><i class="fas fa-dice-d10"></i> Пролёт: Push против ${c.dc}</button></div>` : "";
+  return `<div class="tb-card tb-card-tunnel">
+    <header class="tb-card-head"><span class="tb-card-who">${esc(c.actorName)}</span><span class="tb-card-what">${esc(c.label)}</span></header>
+    ${(c.notes ?? []).map(n => `<div class="tb-note">${n}</div>`).join("")}
+    ${c.check ? `<div class="tb-note">Проверка пролёта: Push против 3 + Speed ${c.speed}${c.hard ? " + 2 (Узость или Препятствие)" : ""} = <b>${c.dc}</b>. Не считается броском хода. Провал: удар о стену, ${Math.max(1, c.speed)} урона.</div>` : ""}
+    ${c.rolledPass ? `<div class="tb-note">Проверка пролёта брошена.</div>` : ""}${btn}
+  </div>`;
+}
+
 export function renderCard(card) {
+  if (card.type === "tunnel") return renderTunnel(card);
   if (card.type === "alarm") return renderAlarm(card);
   if (card.type === "volley") return renderVolley(card);
   if (card.type === "ground") return renderGround(card);
@@ -395,6 +407,9 @@ export async function rollEject(actor) {
 /** Break!: d10 + Dodge (+Strain, +Lead союзника), пополам вверх. */
 export async function rollBreak(actor) {
   if (blocked(actor, "dodge")) return;
+  // в туннеле уходить некуда (кроме Зала и триггера «Это никогда не пригодится»)
+  const tun = inNarrowTunnel(tokenOf(actor), actor);
+  if (tun && !hasTrigger(actor, "nevercome")) return ui.notifications.warn("В туннеле Break! нельзя: уходить некуда. Можно только в Зале.");
   if (actor.system.broken === "ma") ui.notifications.info("MAWS сломан: о ракетах узнаёшь, только когда они попадут.");
   const data = await formDialog("Break!", `
     <div class="form-group"><label>Лидерство союзника</label><input type="number" name="lead" value="0"></div>
@@ -544,6 +559,8 @@ export async function fireMissile(actor) {
     return ui.notifications.warn(`У «${actor.name}» нет стандартной ракеты против ${air ? "воздушных" : "наземных и морских"} целей.`);
   if (data.improved && blocked(actor, skill)) return;
   if (data.improved && !data.practiced && !allowRoll(actor)) return;
+  if (["UGB", "GPB"].includes(ws?.key) && inNarrowTunnel(tokenOf(actor), actor)
+    && !(await confirmReach(["Свободнопадающие бомбы под землёй работают только в Зале."], "Fox Two!"))) return;
   const wx = weatherAt(actor);
   if (t) {
     const { problems } = reachProblems(actor, t, ws?.reach ?? TB.range.missile);
@@ -588,12 +605,13 @@ export async function fireMissile(actor) {
     : key ? "Ракета долетит в конце раунда: залп посчитается сам, с защитой цели на тот момент."
       : "Ракета долетает в конце раунда. Каждая следующая ракета по той же цели: +1 к атаке самой точной или её урон в сумму.");
   if (t?.kind === "ship") notes.push("Корабль: сравните итог с Occlusion выбранной системы.");
+  if (t && wallBonus(t.token, t.actor)) notes.push("Цель в туннеле: стены сбивают ракеты, защита +2.");
 
   if (w && !ws.unlimited) await w.update({ "system.ammo.value": Math.max(0, (ws.ammo.value ?? 0) - 1) });
 
   const card = {
     type: "attack", attack: true, label: `Fox Two! ${w ? w.name : "стандартная ракета"}`, rolled: !!data.improved,
-    d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: t && t.kind !== "ship" ? t.defense : null, vsLabel: "защиты",
+    d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) : null, vsLabel: "защиты",
     vsHint: t?.kind === "ship" ? "по Occlusion системы" : "", strainable: !!data.improved && (actor.type === "pilot" || actor.system.tier === "ace"),
     practiced: !!dice.practiced, dmg, delayed: atTurn || !(hv || tBroken), atTurn, combatKey: hv || tBroken ? (atTurn ? key : "") : key,
     targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes, maws: mawsOn(t),
@@ -763,7 +781,7 @@ export async function fireSam(actor, sysIndex) {
   if (data.mod) parts.push(["мод.", data.mod]);
   const key = combatKey(), tBroken = t?.actor.system.broken === "ma";
   const card = {
-    type: "attack", attack: true, label, rolled: false, parts, strain: 0, dc: t?.defense ?? null, vsLabel: "защиты",
+    type: "attack", attack: true, label, rolled: false, parts, strain: 0, dc: t ? t.defense + wallBonus(t.token, t.actor) : null, vsLabel: "защиты",
     dmg: TB.missileDamage, delayed: true, atTurn: tBroken && !!key, combatKey: key, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", maws: mawsOn(t),
     notes: [tBroken ? (key ? "Ракета ударит в начале хода цели (у неё сломан MAWS): посчитается сама." : "Попадает в начале хода цели: у неё сломан MAWS.")
       : key ? "Ракета долетит в конце раунда: залп посчитается сам." : "Ракета долетает в конце раунда."]
@@ -822,6 +840,7 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
     const info = describeTarget(actor, best.targetName);
     if (info.kind === "ship") { targets.push({ uuid, name: info.name, ship: true, count: list.length, best: best.total }); continue; }
     const extra = list.slice(1).map(x => x.c).sort((a, b) => (b.dmg ?? 0) - (a.dmg ?? 0));
+    info.defense += wallBonus(info.token, actor);   // в туннеле стены сбивают ракеты
     const need = Math.max(0, info.defense - best.total);
     const hit = need <= extra.length;
     const adders = hit ? extra.slice(0, extra.length - need) : [];
@@ -916,6 +935,12 @@ export async function onCardAction(message, action, button) {
       card.applied = f.status;
       await save();
       return actor.update({ "system.service.status": f.status });
+    }
+    case "tunnel-pass": {
+      if (!actor?.isOwner || card.rolledPass) return;
+      card.rolledPass = true; await save();
+      return rollSideCheck(actor, "push", { dc: card.dc, label: `Пролёт туннеля: Push против ${card.dc}`, failDmg: Math.max(1, card.speed ?? 1),
+        notes: ["Complication: задел стену, на выбор −1 Speed или 1 урон."] });
     }
     case "alarm-up": {
       if (!game.user.isGM || card.applied) return;

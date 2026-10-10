@@ -53,6 +53,40 @@ export function terrainArt(terOf, c, r, cols, rows) {
   return { src: id, rot: (pick[2] + 270) % 360 };
 }
 
+/* ---------- туннель: труба по открытым сторонам секции (как в Планшете) ---------- */
+const TSIDE = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] }, TOPP = { N: "S", S: "N", E: "W", W: "E" };
+
+/** Открытые стороны секции: к соседним по номеру; у первой вход напротив следующей (кроме Шахты), у последней выход напротив предыдущей (кроме Зала). */
+export function tunnelOpen(get, c, r) {
+  const h = get(c, r);
+  if (!h) return null;
+  const o = new Set();
+  let prev = null, next = null;
+  for (const [s, [dc, dr]] of Object.entries(TSIDE)) {
+    const n = get(c + dc, r + dr);
+    if (!n) continue;
+    if (n.n === h.n - 1) { o.add(s); prev = s; }
+    if (n.n === h.n + 1) { o.add(s); next = s; }
+  }
+  if (!prev && next && h.type !== "shaft") o.add(TOPP[next]);
+  if (!next && prev && h.type !== "hall") o.add(TOPP[prev]);
+  if (!o.size) { o.add("W"); o.add("E"); }
+  return o;
+}
+
+/** Рисунок трубы и поворот по часовой (основа: вход слева); rotO — поворот знака секции. */
+export function tunnelShape(o) {
+  const k = ["N", "E", "S", "W"].filter(s => o.has(s)), rotO = o.has("W") || o.has("E") ? 0 : 90;
+  if (k.length === 4) return { shape: "cross", rot: 0, rotO };
+  if (k.length === 3) return { shape: "tee", rot: { S: 0, W: 90, N: 180, E: 270 }[["N", "E", "S", "W"].find(s => !o.has(s))], rotO };
+  if (k.length === 2) {
+    if (o.has("W") && o.has("E")) return { shape: "line", rot: 0, rotO };
+    if (o.has("N") && o.has("S")) return { shape: "line", rot: 90, rotO };
+    return { shape: "corner", rot: { NW: 0, NE: 90, ES: 180, SW: 270 }[k.join("")], rotO };
+  }
+  return { shape: "end", rot: { W: 0, N: 90, E: 180, S: 270 }[k[0]], rotO };
+}
+
 /** Погода, которая лежит на всех клетках карты, становится погодой всей сцены; остальная остаётся по клеткам. */
 function splitWeather(m) {
   const cells = {};
@@ -98,6 +132,9 @@ export async function drawMap(scene, m) {
   const tiles = [], drawings = [];
   const terrainCells = {};   // местность клеток: корабли не выходят на сушу (scene.mjs landBlocked), подсказка при наведении
   const cellLabels = {};     // подписи клеток из Планшета
+  const tunnelCells = {};    // секции туннеля: правила туннеля (scene.mjs, tunnel.mjs)
+  const tunGet = (c, r) => (c < 0 || r < 0 || c >= m.cols || r >= m.rows ? null : m.hexes?.[`${c},${r}`]?.tun ?? null);
+  const tunArt = new Set(Object.keys(cat.tunnelArt ?? {}));
   const B = 30;   // значок погоды
   const terOf = (c, r) => c < 0 || r < 0 || c >= m.cols || r >= m.rows ? null : ((m.hexes?.[`${c},${r}`]?.t && terrain.get(m.hexes[`${c},${r}`].t)) || base)?.id ?? null;
   for (let r = 0; r < m.rows; r++) for (let c = 0; c < m.cols; c++) {
@@ -108,6 +145,14 @@ export async function drawMap(scene, m) {
       const art = terrainArt(terOf, c, r, m.cols, m.rows);
       if (art) tiles.push(tile(`${MAP}terrain/${art.src}.svg`, x, y, S, S, 0, 1, art.rot));
       terrainCells[`${c},${r}`] = id;
+    }
+    // туннель: труба поверх местности и знак типа секции
+    if (h.tun && cat.tunnel?.[h.tun.type]) {
+      const sh = tunnelShape(tunnelOpen(tunGet, c, r));
+      tiles.push(tile(`${MAP}tunnel/${sh.shape}.svg`, x, y, S, S, 5, 1, sh.rot));
+      if (tunArt.has(h.tun.type)) tiles.push(tile(`${MAP}tunnel/${h.tun.type}.svg`, x, y, S, S, 6, 1, sh.rotO));
+      tunnelCells[`${c},${r}`] = { type: h.tun.type, n: Number(h.tun.n) || 1 };
+      drawings.push(mark(x + 4, y + S - 26, S - 8, 22, `Т${Number(h.tun.n) || 1} ${cat.tunnel[h.tun.type].name}`, { size: 13, color: "#f2c14e" }));
     }
     // погода над всей картой идёт погодой Foundry, в клетке только своя
     const fx = (h.fx ?? []).filter(fid => effects.has(fid) && !everywhere.includes(fid));
@@ -124,7 +169,8 @@ export async function drawMap(scene, m) {
   await scene.update({ backgroundColor: "#07141a", weather: coreWeatherFor(everywhere),
     "grid.color": "#9be3bf", "grid.alpha": 0.25,
     [`flags.${SYSTEM_ID}.weatherCells`]: cells, [`flags.${SYSTEM_ID}.terrainCells`]: terrainCells,
-    [`flags.${SYSTEM_ID}.cellLabels`]: cellLabels, [`flags.${SYSTEM_ID}.weather`]: everywhere });
+    [`flags.${SYSTEM_ID}.cellLabels`]: cellLabels, [`flags.${SYSTEM_ID}.weather`]: everywhere, [`flags.${SYSTEM_ID}.-=tunnelCells`]: null });
+  if (Object.keys(tunnelCells).length) await scene.setFlag(SYSTEM_ID, "tunnelCells", tunnelCells);
   for (const a of game.actors) if (a.sheet?.rendered) a.sheet.render(false);
   return { cells: Object.keys(cells).length, everywhere };
 }
@@ -138,7 +184,9 @@ export async function legendHtml(m) {
   const ter = cat.terrain.filter(t => used.has(t.id)).map(t => `<tr><td>${t.id === "coast" ? "" : img(`${MAP}terrain/${t.id}.svg`)}</td><td><b>${esc(t.name)}</b>${t.note ? `<br>${esc(t.note)}` : ""}</td></tr>`).join("");
   const wx = cat.effects.filter(e => fx.has(e.id)).map(e => `<tr><td>${img(`${MAP}weather/${e.id}-badge.svg`, 40)}</td><td><b>${e.ico} ${esc(e.name)}</b><br>${esc(TB.weather[e.id]?.txt ?? e.txt)}</td></tr>`).join("");
   const all = splitWeather(m).everywhere.map(id => `${TB.weather[id].ico} ${TB.weather[id].name}`);
-  return `<h2>Местность</h2><table>${ter}</table>${wx ? `<h2>Погода и эффекты</h2>${all.length ? `<p><b>Над всей картой:</b> ${all.join(", ")}. Это погода всей сцены (панель AWACS), на карте она идёт погодой Foundry.</p>` : ""}<p>Значок погоды клетки стоит в её правом верхнем углу. Погода сама учитывается в бросках и защите тех, кто в этой клетке.</p><table>${wx}</table>` : ""}`;
+  const tunUsed = [...new Set(Object.values(m.hexes ?? {}).map(h => h.tun?.type).filter(t => cat.tunnel?.[t]))];
+  const tun = tunUsed.length ? `<h2>Туннель</h2><p>Секции пронумерованы по ходу (Т1 — вход). Внутри только Low (у Зала ещё Medium), Climb и Dive нельзя, лететь только вперёд. В конце хода самолёт сам продвигается на 1 секцию (при Speed 4+ на 2) и делает Push против 3 + Speed, провал — урон, равный Speed. Захват на свою секцию и одну вперёд, стены дают +2 к защите от ракет, Break! нельзя, бомбы только в Зале.</p><table>${tunUsed.map(t => `<tr><td>${img(`${MAP}tunnel/${(cat.tunnelArt ?? {})[t] ? t : "line"}.svg`, 48)}</td><td><b>${esc(cat.tunnel[t].name)}</b><br>${esc(cat.tunnel[t].txt)}</td></tr>`).join("")}</table>` : "";
+  return `${tun}<h2>Местность</h2><table>${ter}</table>${wx ? `<h2>Погода и эффекты</h2>${all.length ? `<p><b>Над всей картой:</b> ${all.join(", ")}. Это погода всей сцены (панель AWACS), на карте она идёт погодой Foundry.</p>` : ""}<p>Значок погоды клетки стоит в её правом верхнем углу. Погода сама учитывается в бросках и защите тех, кто в этой клетке.</p><table>${wx}</table>` : ""}`;
 }
 
 /** Окно «Карта и погода из Планшета»: перерисовать текущую сцену по JSON миссии, не трогая токены. */

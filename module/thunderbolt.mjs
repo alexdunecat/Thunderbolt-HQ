@@ -13,6 +13,7 @@ import { TBMemoSheet } from "./apps/memo-sheet.mjs";
 import { openAwacs, refreshAwacs, sortieResults } from "./apps/awacs-panel.mjs";
 import { registerGlory, gloryDialog } from "./glory.mjs";
 import { registerStealth } from "./stealth.mjs";
+import { registerTunnel } from "./tunnel.mjs";
 import { tokenOf, zoneDistance } from "./scene.mjs";
 import { esc } from "./utils.mjs";
 import { initSocket, checkAdjacency, leadership, formUp } from "./squad.mjs";
@@ -92,6 +93,7 @@ Hooks.once("init", () => {
   Downtime.registerDowntime();
   registerGlory();
   registerStealth();
+  registerTunnel();
   registerMapInfo();
   registerRotate();
   registerAltitude();
