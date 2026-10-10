@@ -226,7 +226,11 @@ body[data-tb-skin="doc"] {
 .tb-memo-sheet .journal-sidebar .heading-link { color: var(--tb-muted); font-family: var(--tb-body); }
 .tb-memo-sheet .journal-sidebar input[type="search"] { background: var(--tb-surface); color: var(--tb-ink); border-color: var(--tb-line); }
 .tb-memo-sheet .journal-header input { font-family: var(--tb-display); color: var(--tb-ink); background: transparent; border: none; border-bottom: 3px solid var(--tb-accent); border-radius: 0; }
-.tb-memo-sheet .journal-entry-pages { background: var(--tb-bg); }
+.app.tb-memo-sheet .window-content :is(.journal-entry-content, .journal-header, .journal-entry-pages, .journal-entry-pages .scrollable, .pages-container) {
+  background: var(--tb-bg); border-color: var(--tb-line);
+}
+.app.tb-memo-sheet .window-content .journal-header { box-shadow: none; }
+.app.tb-memo-sheet .journal-sidebar .directory-item.active { border-color: var(--tb-accent); }
 .tb-memo-sheet .journal-entry-page { background: var(--tb-surface); border: 1px solid var(--tb-line); border-radius: 6px; padding: 18px 22px 16px; margin: 0 0 18px; }
 .tb-memo-sheet .journal-page-header h1 { font-family: var(--tb-display); font-weight: 400; font-size: 26px; color: var(--tb-ink); border-bottom: 3px solid var(--tb-ink); padding-bottom: 6px; margin: 0 0 6px; }
 .tb-memo-sheet .journal-entry-page .edit-container { color: var(--tb-muted); }
@@ -519,6 +523,41 @@ body.tb-dark-ui .app.window-app .window-content .form-group, body.tb-dark-ui .ap
 body.tb-dark-ui .app.window-app .window-content option { background: var(--tb-surface); color: var(--tb-ink); }
 body.tb-dark-ui .journal-entry-page, body.tb-dark-ui .journal-page-content, body.tb-dark-ui .editor-content { color: var(--tb-ink); }
 body.tb-dark-ui .app.window-app .window-content :is(.content-link, .inline-roll) { background: var(--tb-surface-2); color: var(--tb-ink); border-color: var(--tb-line); }
+/* журналы: без светлой подложки вокруг страниц */
+body.tb-dark-ui .app.window-app.journal-sheet .window-content :is(.journal-entry-content, .journal-header, .journal-entry-pages, .journal-entry-pages .scrollable) { background: var(--tb-bg); border-color: var(--tb-line); }
+body.tb-dark-ui .app.window-app .journal-sidebar .directory-item.active { border-color: var(--tb-accent); }
+
+/* боковая панель: чат, поле ввода, режим броска и кнопки каталогов в цветах скина */
+body.tb-dark-ui #chat-log .chat-message { background: var(--tb-surface); border: 1px solid var(--tb-line); color: var(--tb-ink); box-shadow: none; }
+body.tb-dark-ui #chat-log .chat-message .message-header { color: var(--tb-ink); border-color: var(--tb-line); }
+body.tb-dark-ui #chat-log .chat-message :is(.message-metadata, .message-timestamp, .whisper-to, .flavor-text) { color: var(--tb-muted); }
+body.tb-dark-ui #chat-log .chat-message.whisper { border-color: var(--tb-olive); }
+body.tb-dark-ui #chat-form, body.tb-dark-ui #chat-controls { background: transparent; }
+body.tb-dark-ui :is(#chat-form textarea, #chat-message, #chat-controls select) {
+  background: var(--tb-surface); color: var(--tb-ink); border: 1px solid var(--tb-line); border-radius: 3px; box-shadow: none; font-family: var(--tb-body);
+}
+body.tb-dark-ui :is(#chat-form textarea, #chat-message, #chat-controls select):focus { border-color: var(--tb-accent); box-shadow: 0 0 4px var(--tb-accent); outline: none; }
+body.tb-dark-ui #chat-controls select option { background: var(--tb-surface); color: var(--tb-ink); }
+body.tb-dark-ui #chat-controls :is(a, .control-buttons a) { color: var(--tb-ink); }
+body.tb-dark-ui #chat-controls :is(a, .control-buttons a):hover { color: var(--tb-accent); text-shadow: 0 0 4px var(--tb-accent); }
+body.tb-dark-ui #sidebar :is(.directory-header, .header-actions) button,
+body.tb-dark-ui #sidebar .directory-footer button,
+body.tb-dark-ui #sidebar #settings button,
+body.tb-dark-ui #sidebar .tab:not(#chat) button {
+  background: var(--tb-surface-2); color: var(--tb-ink); border: 1px solid var(--tb-line); border-radius: 3px; box-shadow: none;
+  font-family: var(--tb-body); letter-spacing: .02em;
+}
+body.tb-dark-ui #sidebar :is(.directory-header, .header-actions) button:hover,
+body.tb-dark-ui #sidebar .directory-footer button:hover,
+body.tb-dark-ui #sidebar #settings button:hover,
+body.tb-dark-ui #sidebar .tab:not(#chat) button:hover { background: var(--tb-accent); color: var(--tb-accent-ink); border-color: var(--tb-accent); box-shadow: none; }
+/* «Брифинг»: квадратные кнопки, как на карточках чата */
+body.tb-dark-ui[data-tb-skin="brief"] #sidebar button { border-radius: 0; }
+body.tb-dark-ui #sidebar button i { color: inherit; }
+body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[type="text"]) {
+  background: var(--tb-surface); color: var(--tb-ink); border: 1px solid var(--tb-line); border-radius: 3px;
+}
+body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[type="text"])::placeholder { color: var(--tb-muted); }
 
 /* ---------- даунтайм ---------- */
 .thunderbolt .tb-pips { display: inline-flex; gap: 4px; align-items: center; }
