@@ -44,7 +44,7 @@
               <div class="tb-dial-row"><a data-step="system.strain.value" data-delta="-1">−</a><input type="number" name="system.strain.value" value="{{system.strain.value}}"><a data-step="system.strain.value" data-delta="1" data-max="{{system.strain.max}}">+</a></div>
               <span class="tb-dial-sub">из {{system.strain.max}}</span></div>{{/if}}
           </div>
-          <div class="tb-row"><label>Высота <select name="system.alt">{{selectOptions altOptions selected=system.alt}}</select></label></div>
+          <div class="tb-row"><label>Высота <select name="system.alt">{{selectOptions altOptions selected=system.alt}}</select></label>{{#if ceiling}} <small class="tb-muted" title="Потолок машины: выше она не поднимается">потолок: {{ceiling}}</small>{{/if}}</div>
           <table class="tb-stats tb-edit">
             <tr><th>Max Speed</th><th>Evasion</th><th>Air-Air</th><th>Air-Gnd</th><th>Gun DMG</th>{{#if isAce}}<th>Max Strain</th>{{/if}}</tr>
             <tr><td><input type="number" name="system.stats.spd" value="{{system.stats.spd}}"></td><td><input type="number" name="system.stats.ev" value="{{system.stats.ev}}"></td>

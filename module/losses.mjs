@@ -125,6 +125,15 @@ export const lossLine = r => `${esc(r.name)}: ${r.how === "retreat" ? "отст�
    «Защитить» и «Сопроводить» — если цела (ушла с поля тоже цела). Остальное засчитывает ведущий, отметки нет. */
 const KILL = ["destroy", "intercept", "disable"], KEEP = ["protect", "escort"];
 export function targetGoals(scene, losses = []) {
+  return goalRows(scene, losses).map(g => {
+    const verb = TB.tasks[g.task] || "Цель";
+    const state = g.how === "retreat" ? "ушла с поля" : g.lost ? "сбита" : "цела";
+    return `${g.done === true ? "✔ " : g.done === false ? "✘ " : ""}${esc(verb)}: ${esc(g.name)} (${state})`;
+  });
+}
+
+/** Приоритетные цели: { name, task, lost, how, done (true/false/null — не судим), keep (задача «сохранить») }. */
+export function goalRows(scene, losses = []) {
   const rows = new Map();
   for (const r of losses) if (r.task !== null && r.task !== undefined) rows.set(r.name, { name: r.name, task: r.task, lost: r.how === "down", how: r.how });
   for (const t of scene?.tokens ?? []) {
@@ -133,12 +142,7 @@ export function targetGoals(scene, losses = []) {
     const down = a.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) || a.system.markers?.doom;
     rows.set(t.name, { name: t.name, task: a.system.task, lost: !!down, how: down ? "down" : "" });
   }
-  return [...rows.values()].map(g => {
-    const verb = TB.tasks[g.task] || "Цель";
-    const state = g.how === "retreat" ? "ушла с поля" : g.lost ? "сбита" : "цела";
-    const done = KILL.includes(g.task) ? g.lost : KEEP.includes(g.task) ? !g.lost : null;
-    return `${done === true ? "✔ " : done === false ? "✘ " : ""}${esc(verb)}: ${esc(g.name)} (${state})`;
-  });
+  return [...rows.values()].map(g => ({ ...g, keep: KEEP.includes(g.task), done: KILL.includes(g.task) ? g.lost : KEEP.includes(g.task) ? !g.lost : null }));
 }
 
 /** Отчёт после End combat: поражённые, отступившие и уцелевшие цели, потери своих, сбитые по пилотам. */
@@ -181,5 +185,14 @@ async function battleReport(combat) {
   </div>`;
   // разбор полёта в итогах вылета читает эту сводку: убранных с поля токенов на сцене уже нет
   if (scene) await scene.setFlag(SYSTEM_ID, "lastBattle", { op, date, rounds: combat.round, losses, survivors });
-  return ChatMessage.create({ speaker: { alias: "AWACS" }, content: html, flags: { [SYSTEM_ID]: { card: { type: "battle", op } } } });
+  const msg = await ChatMessage.create({ speaker: { alias: "AWACS" }, content: html, flags: { [SYSTEM_ID]: { card: { type: "battle", op } } } });
+  // итог миссии: ведущему окно с подсказкой по сводке (баннер решает он)
+  let ask = true;
+  try { ask = game.settings.get(SYSTEM_ID, "missionPrompt"); } catch { /* настройка не зарегистрирована */ }
+  if (ask) {
+    const pilots = new Set(combat.combatants.filter(c => c.actor?.type === "pilot").map(c => c.actor.id)).size;
+    const m = await import("./mission.mjs");
+    m.openMissionDialog({ op, suggest: m.suggestResult({ pilots, losses, goals: goalRows(scene, losses) }) });
+  }
+  return msg;
 }

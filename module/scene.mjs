@@ -14,7 +14,7 @@ export function tokenOf(actor) {
 const propKeys = a => [...(a?.system?.props ?? []), ...(a?.system?.rules ?? [])].map(p => p?.key ?? p);
 
 /**
- * Воздушный босс: летающий крейсер (Medium или High), Аркбёрд и падающий SOLG (от стратосферы до Medium),
+ * Воздушный босс: летающий крейсер (Средняя или Высокая), Аркбёрд и падающий SOLG (от стратосферы до Средней),
  * баллистическая ракета (только стратосфера: ниже её не перехватить). Иначе null.
  */
 export function flyingBoss(actor) {
@@ -43,7 +43,7 @@ export function gunVs(actor) {
 /** Летит ли машина: пилот, воздушный NPC или воздушный босс. */
 export const isFlying = actor => actor?.type === "pilot" || (actor?.type === "npc" && actor.system.kind === "air") || !!flyingBoss(actor);
 
-/** Высота токена: по elevation (1 Low, 2 Medium, 3 High, 4 стратосфера), иначе по листу актёра. Воздушный босс не выходит из своих высот. */
+/** Высота токена: по elevation (1 Низкая, 2 Средняя, 3 Высокая, 4 стратосфера), иначе по листу актёра. Воздушный босс не выходит из своих высот. */
 export function altOf(token, actor = token?.actor) {
   const elev = token?.document?.elevation;
   const byElev = Object.entries(TB.altElevation).find(([, v]) => v === elev)?.[0];
@@ -133,10 +133,10 @@ export function reachProblems(attacker, target, range) {
   const air = isAirTarget(target);
   // зенитные ракеты Аркбёрда бьют вниз на все высоты
   const downAll = air && hasRule(attacker, "strato");
-  if (altA === "strat" && !downAll && (!air || !["strat", "high"].includes(altB))) problems.push("Из стратосферы бьют только по целям в стратосфере и на High.");
-  else if (air && altB === "strat" && !["strat", "high"].includes(altA)) problems.push("До стратосферы достают только из стратосферы и с High.");
-  else if (altA === "high" && !downAll && (!air || altB === "low")) problems.push("С High нельзя бить по земле и по целям на Low.");
-  else if (air && altB === "low" && altA !== "low") problems.push("По воздушной цели на Low бьют только с Low.");
+  if (altA === "strat" && !downAll && (!air || !["strat", "high"].includes(altB))) problems.push("Из стратосферы бьют только по целям в стратосфере и на Высокой.");
+  else if (air && altB === "strat" && !["strat", "high"].includes(altA)) problems.push("До стратосферы достают только из стратосферы и с Высокой.");
+  else if (altA === "high" && !downAll && (!air || altB === "low")) problems.push("С Высокой нельзя бить по земле и по целям на Низкой.");
+  else if (air && altB === "low" && altA !== "low") problems.push("По воздушной цели на Низкой бьют только с Низкой.");
   // туннель: наружу и снаружи не достать; в узком туннеле только своя секция и одна вперёд (на Изгибе только своя)
   const ta = tunnelAt(a, attacker), tb = tunnelAt(b, target.actor);
   if (ta && !tb) problems.push("Из туннеля наружу не достать.");
@@ -152,15 +152,30 @@ export function reachProblems(attacker, target, range) {
 /** Цель в воздухе: самолёт, пилот или летающий босс. */
 export const isAirTarget = t => t?.kind === "air" || !!flyingBoss(t?.actor);
 
-/** Ракета с High по цели в стратосфере: A-A −2 (ракета на пределе высоты). Строка для карточки броска или null. */
+/** Ракета с Высокой по цели в стратосфере: A-A −2 (ракета на пределе высоты). Строка для карточки броска или null. */
 export function stratLift(attacker, target) {
   const a = tokenOf(attacker), b = target?.token ?? tokenOf(target?.actor);
   if (!a || !b || !isAirTarget(target)) return null;
   return altOf(a, attacker) === "high" && altOf(b, target.actor) === "strat" ? ["предел высоты", -2] : null;
 }
 
-/** Что мешает подняться на эту высоту: в стратосферу только со Speed 3 и выше. null — можно. */
+/** Потолок машины: ключ высоты (med, high, strat) или null — без ограничения (босс, машина без ключа, не самолёт). */
+export function ceilingOf(actor) {
+  if (!actor || flyingBoss(actor)) return null;
+  const key = actor.type === "pilot" ? actor.system.plane?.system?.key : actor.type === "npc" && actor.system.kind === "air" ? actor.system.key : null;
+  return (key && TB.maxAlt[key]) || null;
+}
+
+/** Высота с учётом потолка: выше потолка машина не бывает. */
+export function capAlt(actor, alt) {
+  const ceil = ceilingOf(actor);
+  return ceil && ALT_ORDER.indexOf(alt) > ALT_ORDER.indexOf(ceil) ? ceil : alt;
+}
+
+/** Что мешает подняться на эту высоту: потолок машины; в стратосферу только со Speed 3 и выше. null — можно. */
 export function climbProblem(actor, to) {
+  const ceil = ceilingOf(actor);
+  if (ceil && ALT_ORDER.indexOf(to) > ALT_ORDER.indexOf(ceil)) return `${actor.name}: потолок машины — ${TB.altitudes[ceil]}, выше не подняться.`;
   if (to !== "strat" || flyingBoss(actor)) return null;
   return (actor?.system?.speed ?? 0) >= 3 ? null : `${actor.name}: в стратосферу поднимаются только со Speed 3 и выше.`;
 }
@@ -255,7 +270,7 @@ export function sectionAt(scene, col, row) {
 
 /**
  * Секция, в которой находится токен: под ним туннель и он на её высоте. Иначе null.
- * Low над секцией — внутри; Medium над Залом — внутри, только если самолёт залетел туда из туннеля
+ * Низкая над секцией — внутри; Средняя над Залом — внутри, только если самолёт залетел туда из туннеля
  * (флаг токена tunnelIn), а не пролетает над Залом снаружи.
  */
 export function tunnelAt(token, actor = token?.actor) {
@@ -305,7 +320,7 @@ export function tunnelMoveProblem(doc, to) {
   const from = sectionAt(scene, fc, fr), dest = sectionAt(scene, tc, tr);
   const inside = from && (alt === "low" || (from.type === "hall" && alt === "med" && !!doc.getFlag?.(SYSTEM_ID, "tunnelIn")));
   if (!inside) {
-    // внутрь по Low: только в крайнюю секцию (вход с любого конца); Зал открыт; в Шахту только Dive сверху
+    // внутрь по Низкой: только в крайнюю секцию (вход с любого конца); Зал открыт; в Шахту только Dive сверху
     if (dest && alt === "low" && dest.type === "shaft") return `${doc.name}: в шахту входят только Dive сверху.`;
     if (dest && alt === "low" && dest.type !== "hall" && nextSections(scene, dest, -1).length && nextSections(scene, dest, 1).length)
       return `${doc.name}: в туннель входят только через вход или шахту.`;

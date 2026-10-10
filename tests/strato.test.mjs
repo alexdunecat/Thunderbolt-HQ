@@ -68,3 +68,7 @@ function npcSys(alt, props = []) {
   return `${alt}: maxSpeed ${s.maxSpeed}, evasion ${s.evasion}, defense ${s.defense}`;
 }
 console.log("npc", npcSys("strat"), "| icbm", npcSys("strat", ["ballistic"]));
+// потолок машины (TB.maxAlt): вертолёт и An-2 не выше Средней, F-16C не выше Высокой; машина без ключа и босс без ограничения
+const withPlane = (name, key, alt = "med", speed = 3) => { const u = P(name, 0, alt, { speed }); u.actor.system.plane = { system: { key } }; return u; };
+const heli = N("Ми-24", 0, "med", { key: "mi24", grp: "heli" }), f16 = withPlane("F-16C", "f16c", "high"), su = withPlane("Су-27", "su27", "high"), anon = withPlane("Самоделка", "", "high");
+for (const u of [heli, f16, su, anon, icbm]) console.log(`ceiling ${u.actor.name}: ${S.ceilingOf(u.actor)} | climb high: ${S.climbProblem(u.actor, "high")} | climb strat: ${S.climbProblem(u.actor, "strat")} | cap strat→${S.capAlt(u.actor, "strat")}`);

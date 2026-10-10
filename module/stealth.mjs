@@ -79,7 +79,7 @@ export function radarCells(sources) {
   return cells;
 }
 
-/** Видит ли радар пилота: { seen (Medium и High в поле), station (Low в зоне РЛС), by: [имена] }. */
+/** Видит ли радар пилота: { seen (Средняя и Высокая в поле), station (Низкая в зоне РЛС), by: [имена] }. */
 export function radarOn(token, actor = token?.actor, sources = radarSources(token?.document?.parent ?? canvas?.scene)) {
   const cell = token ? cellOf(token) : null;
   if (!cell) return { seen: false, station: false, by: [] };
@@ -156,13 +156,13 @@ export async function alarmCheck(c, round) {
   const radar = radarOn(token, actor);
   const stealth = actor.system.planeProps?.has?.("stealth");
   if (radar.seen) {
-    if (stealth && alt === "med") dodge.push(`Малозаметность на Medium в радарном поле (${radar.by.join(", ")})`);
-    else { add += 1; rows.push([`В радарном поле на ${alt === "strat" ? "стратосфере" : alt === "high" ? "High" : "Medium"} (${radar.by.join(", ")})`, 1]); }
+    if (stealth && alt === "med") dodge.push(`Малозаметность на Средней в радарном поле (${radar.by.join(", ")})`);
+    else { add += 1; rows.push([`В радарном поле ${alt === "strat" ? "в стратосфере" : alt === "high" ? "на Высокой" : "на Средней"} (${radar.by.join(", ")})`, 1]); }
   }
-  if (radar.station) dodge.push(`На Low в одной зоне с РЛС (${radar.by.join(", ")}): прижаться к рельефу`);
+  if (radar.station) dodge.push(`На Низкой в одной зоне с РЛС (${radar.by.join(", ")}): прижаться к рельефу`);
   const acts = actsOf(c, round);
   if (acts.some(x => x.startsWith("Fox Two!"))) { add += 1; rows.push(["Пуск ракеты или сброс бомбы", 1]); }
-  if (alt === "low" && (actor.system.speed ?? 0) >= 4) { add += 1; rows.push([`Speed ${actor.system.speed} на Low: звуковой удар`, 1]); }
+  if (alt === "low" && (actor.system.speed ?? 0) >= 4) { add += 1; rows.push([`Speed ${actor.system.speed} на Низкой: звуковой удар`, 1]); }
   if (acts.some(x => x.startsWith("Leadership"))) { add += 1; rows.push(["Leadership в эфире (не в счёт, если сосед рядом)", 1]); }
   if (!rows.length && !dodge.length) return null;
   const { postCard } = await import("./dice/rolls.mjs");

@@ -13,6 +13,7 @@ Object.assign(globalThis, {
   CONFIG: { specialStatusEffects: { DEFEATED: "dead" }, statusEffects: [{ id: "dead", img: "skull" }] },
   ChatMessage: { create: async d => { log.push("CHAT " + d.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()); return d; } },
   game: { users, user: users[0], actors: [], combats: { has: () => true }, scenes: { viewed: null } },
+  Dialog: class { constructor(d) { log.push("DIALOG " + d.title + ": " + (/По сводке боя: <b>([^<]*)<\/b>([^.]*)/.exec(d.content)?.slice(1).join("") ?? "без подсказки")); } render() {} }
 });
 globalThis.fromUuidSync = u => ({ "Actor.Гроза": { type: "pilot", name: "Гроза" }, "Actor.Ворон": { type: "pilot", name: "Ворон" } })[u];
 const L = await import(R + "/module/losses.mjs");
@@ -30,7 +31,7 @@ mk("Танкер", "npc", { kind: "ship" }, {}, ["retreat"]);
 mk("Ворон", "pilot", {}, { down: { combat: "C", round: 3, by: "Су-ракета" } });
 mk("Ангар", "npc", { kind: "ground", side: "enemy" });
 mk("Союзный", "npc", { side: "ally" });
-const combatants = tokens.map(t => ({ id: "c" + t.id, tokenId: t.id }));
+const combatants = tokens.map(t => ({ id: "c" + t.id, tokenId: t.id, actor: { ...t.actor, id: t.id } }));
 const combat = { id: "C", round: 3, scene, flags: {}, combatants, getFlag(s, k) { return this.flags[k]; }, async setFlag(s, k, v) { this.flags[k] = v; },
   async deleteEmbeddedDocuments(t, ids) { log.push("DEL-COMBATANTS " + ids.join(",")); } };
 const rows = await L.clearLosses(combat, 2);   // конец раунда 2

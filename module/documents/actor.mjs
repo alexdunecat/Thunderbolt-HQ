@@ -37,7 +37,7 @@ export class TBActor extends Actor {
     return this.update({ "system.alt": alt }, options);
   }
 
-  /** Подтянуть высоту токенов к полю alt (1 = Low, 2 = Medium, 3 = High). */
+  /** Подтянуть высоту токенов к полю alt (1 = Низкая, 2 = Средняя, 3 = Высокая). */
   async syncElevation() {
     const elev = TB.altElevation[this.system.alt];
     if (!elev) return;

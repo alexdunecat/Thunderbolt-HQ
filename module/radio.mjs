@@ -5,6 +5,7 @@
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
 import { record, registerRadioLog } from "./radio-log.mjs";
+import { MISSION_RESULTS } from "./mission.mjs";
 
 const MAX_QUEUE = 4;
 const queue = [], banners = [];
@@ -93,7 +94,7 @@ async function announce() {
   const list = pending; pending = [];
   const boss = list.find(x => x.boss), squads = [...new Set(list.map(x => x.squad).filter(Boolean))], aces = list.filter(x => x.ace && !x.boss);
   let caution, text;
-  if (boss?.launch) { caution = { level: "warning", title: "WARNING", sub: "Пуск баллистической ракеты" }; text = "Всем бортам: зафиксирован пуск баллистической ракеты! Сбейте её, пока она не ушла на High!"; }
+  if (boss?.launch) { caution = { level: "warning", title: "WARNING", sub: "Пуск баллистической ракеты" }; text = "Всем бортам: зафиксирован пуск баллистической ракеты! Сбейте её, пока она не ушла на Высокую!"; }
   else if (boss) { caution = { level: "warning", title: "WARNING", sub: `Супероружие: ${boss.base}` }; text = `Всем бортам: в районе ${boss.base}. Повторяю, ${boss.base}!`; }
   else if (squads.length) { caution = { title: "CAUTION", sub: `Вражеская эскадрилья «${squads[0]}»` }; text = `Приближается эскадрилья противника «${squads[0]}». Это не новички, будьте внимательны.`; }
   else if (aces.length) { caution = { title: "CAUTION", sub: `Вражеский ас: ${aces[0].name}` }; text = `Внимание, вражеский ас: ${aces[0].name}. Не дайте ему зайти в хвост.`; }
@@ -104,7 +105,7 @@ async function announce() {
 /** Реплика AWACS всем (и в чат): ведущий из панели, подкрепления и т. п. */
 export function sendRadio({ speaker = "AWACS", text = "", caution = null, side = "ally" }) {
   side = sideClass(side);
-  const body = [caution ? `<div class="tb-radio-caution-line">-- ${esc(caution.title)} -- ${esc(caution.sub ?? "")}</div>` : "", text ? `<div class="tb-note"><b class="tb-radio-${side}">${esc(speaker)}:</b> «${esc(text)}»</div>` : ""].join("");
+  const body = [caution ? `<div class="tb-radio-caution-line${caution.mission ? ` tb-mission-line tb-mission-${esc(caution.level)}` : ""}">-- ${esc(caution.title)} -- ${esc(caution.sub ?? "")}</div>` : "", text ? `<div class="tb-note"><b class="tb-radio-${side}">${esc(speaker)}:</b> «${esc(text)}»</div>` : ""].join("");
   return ChatMessage.create({ speaker: { alias: speaker }, content: `<div class="tb-card tb-card-radio">${body}</div>`,
     flags: { [SYSTEM_ID]: { radio: { speaker, text, caution, side } } } });
 }
@@ -156,10 +157,12 @@ function next() {
   setTimeout(() => { el.classList.remove("on"); setTimeout(next, 350); }, ms);
 }
 
-export function caution({ title = "CAUTION", sub = "", level = "caution" } = {}) {
-  record({ banner: { title, sub, level }, muted: !enabled() });
-  if (!enabled()) return;
-  banners.push({ title, sub, level });
+/** Баннер посреди экрана: CAUTION, WARNING или итог миссии (mission: true, level — success/complete/aborted/failed). */
+export function caution({ title = "CAUTION", sub = "", level = "caution", mission = false } = {}) {
+  record({ banner: { title, sub, level, mission }, muted: !enabled() });
+  // итог миссии показывается и при выключенных субтитрах: его ждут все
+  if (!enabled() && !mission) return;
+  banners.push({ title, sub, level, mission });
   if (!bannerOn) nextBanner();
 }
 
@@ -168,11 +171,20 @@ function nextBanner() {
   const el = box("tb-caution");
   if (!b) { bannerOn = false; el.classList.remove("on"); return; }
   bannerOn = true;
-  el.className = `tb-caution-${b.level}`;
-  el.innerHTML = `<div class="tb-caution-frame"><div class="tb-caution-title">-- ${esc(b.title)} --</div><div class="tb-caution-sub">${esc(b.sub)}</div></div>`;
+  if (b.mission) {
+    // итог миссии как в Ace Combat: плашка сверху, крупная рамка с надписью, подпись ниже; держится дольше, щелчок убирает
+    el.className = `tb-mission tb-mission-${b.level}`;
+    el.innerHTML = `<div class="tb-mission-tag">AWACS</div><div class="tb-mission-title">${esc(b.title)}</div>${b.sub ? `<div class="tb-mission-sub">${esc(b.sub)}</div>` : ""}`;
+  } else {
+    el.className = `tb-caution-${b.level}`;
+    el.innerHTML = `<div class="tb-caution-frame"><div class="tb-caution-title">-- ${esc(b.title)} --</div><div class="tb-caution-sub">${esc(b.sub)}</div></div>`;
+  }
   void el.offsetWidth;
   el.classList.add("on");
-  setTimeout(() => { el.classList.remove("on"); setTimeout(nextBanner, 500); }, 4200);
+  let done = false;
+  const hide = () => { if (done) return; done = true; el.onclick = null; el.classList.remove("on"); setTimeout(nextBanner, 500); };
+  if (b.mission) el.onclick = hide;
+  setTimeout(hide, b.mission ? 9000 : 4200);
 }
 
 /* ---------- радио ведущего ---------- */
@@ -187,7 +199,11 @@ const PRESETS = {
   sam: { label: "Пуски ЗРК", text: "Фиксирую пуски ЗРК с земли. Снижайтесь и маневрируйте!", banner: "CAUTION", sub: "Активность ПВО" },
   ally: { label: "Союзное подкрепление", text: "Союзное подкрепление на подходе. Держитесь!", banner: "", sub: "" },
   escape: { label: "Цель уходит", text: "Цель уходит из района! Не дайте ей скрыться.", banner: "", sub: "" },
-  rtb: { label: "Возврат на базу", text: "Задание выполнено. Всем бортам, возвращайтесь на базу.", banner: "", sub: "" }
+  rtb: { label: "Возврат на базу", text: "Задание выполнено. Всем бортам, возвращайтесь на базу.", banner: "", sub: "" },
+  success: { label: "Итог: миссия выполнена", text: MISSION_RESULTS.success.line, banner: "mission:success", sub: "" },
+  complete: { label: "Итог: миссия завершена", text: MISSION_RESULTS.complete.line, banner: "mission:complete", sub: "" },
+  aborted: { label: "Итог: миссия отменена", text: MISSION_RESULTS.aborted.line, banner: "mission:aborted", sub: "" },
+  failed: { label: "Итог: миссия провалена", text: MISSION_RESULTS.failed.line, banner: "mission:failed", sub: "" }
 };
 
 /** Окно «Радио» для ведущего: заготовка или свой текст, по желанию баннер CAUTION или WARNING. */
@@ -199,7 +215,8 @@ export function openRadioDialog() {
     <div class="form-group"><label>Кто говорит</label><input type="text" name="speaker" value="AWACS"></div>
     <div class="form-group"><label>Цвет</label><select name="side"><option value="ally">Синий: AWACS, союзник</option><option value="enemy">Красный: противник</option><option value="neutral">Жёлтый: нейтрал</option></select></div>
     <div class="form-group stacked"><label>Реплика</label><textarea name="text" rows="3"></textarea></div>
-    <div class="form-group"><label>Баннер</label><select name="banner"><option value="">Без баннера</option><option value="CAUTION">CAUTION (жёлтый)</option><option value="WARNING">WARNING (красный)</option></select></div>
+    <div class="form-group"><label>Баннер</label><select name="banner"><option value="">Без баннера</option><option value="CAUTION">CAUTION (жёлтый)</option><option value="WARNING">WARNING (красный)</option>
+      <optgroup label="Итог миссии">${Object.entries(MISSION_RESULTS).map(([k, r]) => `<option value="mission:${k}">${esc(r.title.charAt(0) + r.title.slice(1).toLowerCase())}</option>`).join("")}</optgroup></select></div>
     <div class="form-group"><label>Подпись баннера</label><input type="text" name="sub"></div>
     <p class="tb-hint">Реплика появится вверху экрана у всех игроков и останется в чате.</p></form>`;
   new Dialog({
@@ -209,8 +226,10 @@ export function openRadioDialog() {
         const f = html[0].querySelector("form");
         const text = f.text.value.trim(), banner = f.banner.value, sub = f.sub.value.trim();
         if (!text && !banner) return;
+        const result = banner.startsWith("mission:") ? banner.slice(8) : "";
         sendRadio({ speaker: f.speaker.value.trim() || "AWACS", text, side: f.side.value,
-          caution: banner ? { title: banner, sub, level: banner === "WARNING" ? "warning" : "caution" } : null });
+          caution: result ? { title: MISSION_RESULTS[result].title, sub, level: result, mission: true }
+            : banner ? { title: banner, sub, level: banner === "WARNING" ? "warning" : "caution" } : null });
       } },
       cancel: { label: "Отмена" }
     },

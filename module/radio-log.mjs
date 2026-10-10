@@ -12,6 +12,8 @@ const key = () => `${SYSTEM_ID}.radioLog.${game.world?.id ?? "world"}`;
 let entries = null;
 let win = null;
 let filter = "";
+// цвет баннера в журнале: WARNING и проваленная миссия красные, выполненная и завершённая синие, CAUTION и отменённая жёлтые
+const LOG_TONE = { warning: "warning", failed: "warning", success: "blue", complete: "blue", caution: "caution", aborted: "caution" };
 
 /** Ведущий принимает записи игроков. */
 export function registerRadioLog() {
@@ -84,7 +86,7 @@ class RadioLog extends Application {
       if (gk !== last) { html += `<h4>${esc(group)}</h4>`; last = gk; }
       const time = new Date(e.at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       const line = e.banner
-        ? `<b class="tb-log-${e.banner.level === "warning" ? "warning" : "caution"}">-- ${esc(e.banner.title)} --</b> ${esc(e.banner.sub ?? "")}`
+        ? `<b class="tb-log-${LOG_TONE[e.banner.level] ?? "caution"}">-- ${esc(e.banner.title)} --</b> ${esc(e.banner.sub ?? "")}`
         : `<b class="tb-radio-${esc(e.side)}">${esc(e.speaker)}:</b> «${esc(e.text)}»`;
       // ведущему: кто услышал; зачёркнутое имя — у игрока выключены субтитры (в журнал запись всё равно попала)
       const who = gm ? `<div class="tb-log-who">${heard.map(h => `<span class="${h.muted ? "muted" : ""}" title="${h.muted ? "субтитры выключены" : "показано на экране"}">${esc(name(h.id))}</span>`).join("")}</div>` : "";

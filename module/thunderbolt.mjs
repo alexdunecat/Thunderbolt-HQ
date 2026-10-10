@@ -26,6 +26,7 @@ import { registerRange } from "./range.mjs";
 import * as Downtime from "./downtime.mjs";
 import { openRadioLog } from "./radio-log.mjs";
 import { registerChatter, openChatterEditor } from "./chatter.mjs";
+import { registerMission, openMissionDialog } from "./mission.mjs";
 import { openDossierExchange, importDossier, exportDossier } from "./dossier-sync.mjs";
 import { registerMapInfo } from "./mapinfo.mjs";
 import { registerRotate } from "./rotate.mjs";
@@ -104,6 +105,7 @@ Hooks.once("init", () => {
   registerRwr();
   registerRadio();
   registerChatter();
+  registerMission();
   registerRange();
   Downtime.registerDowntime();
   registerGlory();
@@ -120,7 +122,7 @@ Hooks.once("init", () => {
   registerActions();
 
   game.thunderbolt = { gloryDialog, importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
-    squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB, radio: { send: sendRadio, say, caution, log: openRadioLog, replies: openChatterEditor }, dossier: { open: openDossierExchange, importDossier, exportDossier },
+    squadFromSelection, act: actFromMacro, stepAltitude, rolls: R, TB, radio: { send: sendRadio, say, caution, log: openRadioLog, replies: openChatterEditor, mission: openMissionDialog }, dossier: { open: openDossierExchange, importDossier, exportDossier },
     refreshAwacs, downtime: { ground: Downtime.rollGround, baseEvent: Downtime.baseEvent, threats: Downtime.threats, addThreat: Downtime.addThreat, stepThreat: Downtime.stepThreat } };
 });
 
@@ -148,7 +150,7 @@ Hooks.on("renderChatMessage", (message, html) => R.decorateCard(message, html));
 // залп попал в самолёт игрока: урон наносит его клиент (выбор метки открывается у него)
 Hooks.on("createChatMessage", message => R.onVolleyCreated(message));
 
-/* Высота: поле листа и высота токена (1 = Low, 2 = Medium, 3 = High) держатся вместе. */
+/* Высота: поле листа и высота токена (1 = Низкая, 2 = Средняя, 3 = Высокая) держатся вместе. */
 let moveTimer = null, locking = false;
 Hooks.on("updateToken", (token, change, options, userId) => {
   const moved = "x" in change || "y" in change || "elevation" in change;

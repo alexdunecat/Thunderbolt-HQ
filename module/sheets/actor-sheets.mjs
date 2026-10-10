@@ -1,7 +1,7 @@
 /* Листы пилота и NPC (ActorSheet v1, стабильный API Foundry v12). */
 import { SYSTEM_ID, SYS_PATH, TB, DT } from "../config.mjs";
 import { esc } from "../utils.mjs";
-import { weatherAt, defenseWithWeather, tokenOf, zoneDistance, rangeLabel, gunVs } from "../scene.mjs";
+import { weatherAt, defenseWithWeather, tokenOf, zoneDistance, rangeLabel, gunVs, ceilingOf, ALT_ORDER } from "../scene.mjs";
 import { leadership, formUp, nextMods, dropNext, adjacentOf, breakAdjacent } from "../squad.mjs";
 import { resolveActor } from "../utils.mjs";
 import { SQUAD_POINTS, allSquads, squadLayout, setSquadLayout, squadMembers } from "../squadrons.mjs";
@@ -57,7 +57,10 @@ class TBActorSheet extends ActorSheet {
       key: k, ...v, value: s.skills[k], total: s.skillTotal[k], mod: s.skillMod?.[k] ?? 0, blocked: s.skillBlocked[k],
       perk3: (s.perkOn?.[k] ?? 4) < 4, comp2: (s.compOn?.[k] ?? 1) > 1
     }));
-    ctx.altOptions = TB.altitudes;
+    // выше потолка машины в списке высот ничего нет (кроме текущей, если она там уже оказалась)
+    const ceil = ceilingOf(a);
+    ctx.altOptions = ceil ? Object.fromEntries(Object.entries(TB.altitudes).filter(([k]) => ALT_ORDER.indexOf(k) <= ALT_ORDER.indexOf(ceil) || k === s.alt)) : TB.altitudes;
+    ctx.ceiling = ceil ? TB.altitudes[ceil] : "";
     ctx.skillOptions = opts(TB.skills);
     ctx.sysOptions = Object.fromEntries(Object.entries(TB.systems).map(([k, v]) => [k, `${v.label}: ${v.hint}`]));
     const aim = aimedWeapon(a)?.id;

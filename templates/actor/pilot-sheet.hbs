@@ -82,7 +82,7 @@
             </div>
           </div>
           <div class="tb-row">
-            <label>Высота <select name="system.alt">{{selectOptions altOptions selected=system.alt}}</select></label>
+            <label>Высота <select name="system.alt">{{selectOptions altOptions selected=system.alt}}</select></label>{{#if ceiling}}<small class="tb-muted" title="Потолок машины: выше она не поднимается">потолок: {{ceiling}}</small>{{/if}}
             <label class="tb-check"><input type="checkbox" name="system.twist" {{checked system.twist}}> Поворот был</label>
           </div>
           {{#if weather.length}}<div class="tb-weather tb-small">{{#each weather as |w|}}<span title="{{w.txt}}">{{w.ico}} {{w.name}}</span>{{/each}}</div>{{/if}}

@@ -475,6 +475,26 @@ body[data-tb-skin="brief"] .tb-card-radio b.tb-radio-ally { color: #6cc4ff; } bo
 #tb-caution.tb-caution-warning .tb-caution-title { color: #ff6b4a; text-shadow: 0 0 12px rgba(255,107,74,.5); }
 #tb-caution.tb-caution-warning .tb-caution-frame { border-color: rgba(255,107,74,.8); }
 @keyframes tb-caution-blink { 50% { opacity: .15; } }
+/* итог миссии: как MISSION FAILED в Ace Combat */
+#tb-caution.tb-mission { --tb-m: #4fb3ff; --tb-m-fill: rgba(40,120,200,.38); top: 42%; display: flex; flex-direction: column; align-items: center; gap: 10px; pointer-events: auto; cursor: pointer;
+  font-family: "Jura", "Exo 2", system-ui, sans-serif; font-weight: 700; color: #f4fbf8; text-transform: uppercase; }
+#tb-caution.tb-mission-failed { --tb-m: #ff5a44; --tb-m-fill: rgba(220,60,40,.5); }
+#tb-caution.tb-mission-aborted { --tb-m: #f2c14e; --tb-m-fill: rgba(200,150,40,.42); }
+#tb-caution.tb-mission .tb-mission-tag, #tb-caution.tb-mission .tb-mission-title { border: 2px solid var(--tb-m); outline: 1px solid var(--tb-m); outline-offset: 3px; background: var(--tb-m-fill);
+  box-shadow: 0 0 18px var(--tb-m-fill); text-shadow: 0 1px 2px #000, 0 0 8px var(--tb-m); }
+#tb-caution.tb-mission .tb-mission-tag { font-size: 15px; letter-spacing: .3em; padding: 1px 12px 1px 16px; }
+#tb-caution.tb-mission .tb-mission-title { font-size: clamp(26px, 4.4vw, 52px); letter-spacing: .22em; padding: 4px 26px 4px 34px; white-space: nowrap;
+  transform: scaleX(0); transition: transform .45s cubic-bezier(.2,.8,.2,1); }
+#tb-caution.tb-mission.on .tb-mission-title { transform: scaleX(1); animation: tb-caution-blink .45s steps(1) 3 .45s; }
+#tb-caution.tb-mission .tb-mission-sub { font-size: 17px; letter-spacing: .16em; color: var(--tb-m); text-shadow: 0 1px 2px #000, 0 0 6px rgba(0,0,0,.9); }
+.tb-card-radio .tb-mission-line { font-weight: 700; letter-spacing: .06em; }
+.tb-card-radio .tb-mission-success, .tb-card-radio .tb-mission-complete { color: #3d8fc4; }
+.tb-card-radio .tb-mission-failed { color: #d4472b; } .tb-card-radio .tb-mission-aborted { color: #b8860b; }
+.tb-radio-log b.tb-log-blue { color: #3d8fc4; }
+body[data-tb-skin="brief"] .tb-radio-log b.tb-log-blue { color: #6cc4ff; }
+.tb-mission-form .tb-mission-pick { display: block; margin: 4px 0; padding: 4px 8px; border-left: 4px solid #4fb3ff; }
+.tb-mission-form .tb-mission-pick small { opacity: .75; }
+.tb-mission-form .tb-mission-red { border-left-color: #ff5a44; } .tb-mission-form .tb-mission-yellow { border-left-color: #f2c14e; }
 .tb-card-radio .tb-radio-caution-line { font-family: var(--tb-data, monospace); font-weight: 700; letter-spacing: .08em; color: var(--tb-warn, #b8860b); text-transform: uppercase; margin-bottom: 4px; }
 
 /* обмен личными делами со Штабом */

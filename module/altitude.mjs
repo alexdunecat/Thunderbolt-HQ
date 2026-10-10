@@ -1,10 +1,10 @@
 /* Высота на карте: тень под самолётом (чем выше, тем дальше и бледнее), кнопки ▲▼ в меню токена,
    клавиши PageUp / PageDown и приглушение всего, что летит на другой высоте. */
 import { SYSTEM_ID, TB } from "./config.mjs";
-import { altOf, tokenOf, isFlying, flyingBoss } from "./scene.mjs";
+import { altOf, tokenOf, isFlying, flyingBoss, ceilingOf, capAlt } from "./scene.mjs";
 
 const ORDER = ["low", "med", "high", "strat"];
-const LETTER = { low: "L", med: "M", high: "H", strat: "S" };
+const LETTER = { low: "Н", med: "С", high: "В", strat: "Ст" };
 const SHADOW = { low: { off: 0.05, alpha: 0.45 }, med: { off: 0.14, alpha: 0.32 }, high: { off: 0.26, alpha: 0.2 }, strat: { off: 0.38, alpha: 0.1 } };
 const DIM = 0.4;
 
@@ -25,7 +25,23 @@ export function registerAltitude() {
   Hooks.on("destroyToken", t => { if (t.tbShadow && !t.tbShadow.destroyed) t.tbShadow.destroy(); t.tbShadow = null; });
   for (const ev of ["controlToken", "updateToken", "updateActor", "createToken", "deleteToken", "canvasReady"]) Hooks.on(ev, refreshSoon);
   Hooks.on("renderTokenHUD", addHudButtons);
-  // воздушный босс встаёт на свою высоту: Аркбёрд, SOLG и баллистическая ракета в стратосфере, летающий крейсер на Medium или High
+  // потолок машины: выше него она не бывает — что бы её туда ни вынесло, она остаётся на потолке
+  Hooks.on("preUpdateToken", (doc, change) => {
+    if (!("elevation" in change)) return;
+    const to = Object.keys(TB.altElevation).find(k => TB.altElevation[k] === change.elevation);
+    const cap = to && capAlt(doc.actor, to);
+    if (!cap || cap === to) return;
+    change.elevation = TB.altElevation[cap];
+    ui.notifications?.info(`«${doc.name}»: потолок машины — ${TB.altitudes[cap]}, выше не поднимается.`);
+  });
+  Hooks.on("preUpdateActor", (actor, change) => {
+    const to = foundry.utils.getProperty(change, "system.alt");
+    const cap = to && capAlt(actor, to);
+    if (!cap || cap === to) return;
+    foundry.utils.setProperty(change, "system.alt", cap);
+    ui.notifications?.info(`${actor.name}: потолок машины — ${TB.altitudes[cap]}, выше не поднимается.`);
+  });
+  // воздушный босс встаёт на свою высоту: Аркбёрд, SOLG и баллистическая ракета в стратосфере, летающий крейсер на Средней или Высокой
   Hooks.on("preCreateToken", doc => {
     if (!flyingBoss(doc.actor)) return;
     const elevation = TB.altElevation[altOf({ document: doc }, doc.actor)];
@@ -115,13 +131,15 @@ function drawShadow(t, alt, dim) {
 export async function stepAltitude(token, delta) {
   const doc = token?.document ?? token;
   if (!doc?.isOwner || !isAir(doc.actor)) return;
-  const allowed = flyingBoss(doc.actor) ?? ORDER;
+  const ceil = ceilingOf(doc.actor);
+  const allowed = flyingBoss(doc.actor) ?? (ceil ? ORDER.slice(0, ORDER.indexOf(ceil) + 1) : ORDER);
   const cur = allowed.indexOf(altOf(doc.object ?? { document: doc }, doc.actor));
   const next = allowed[Math.max(0, Math.min(allowed.length - 1, cur + delta))];
   if (next === allowed[cur]) {
-    if (allowed.length === 1) return ui.notifications.info(`«${doc.name}» всегда на ${TB.altitudes[next]}.`);
-    if (allowed !== ORDER && delta < 0) return ui.notifications.info(`«${doc.name}» не опускается ниже ${TB.altitudes[allowed[0]]}.`);
-    return ui.notifications.info(delta > 0 ? "Выше стратосферы подниматься некуда." : "Ниже Low только земля.");
+    if (allowed.length === 1) return ui.notifications.info(`«${doc.name}» всегда ${TB.altOn[next]}.`);
+    if (allowed !== ORDER && delta < 0) return ui.notifications.info(`«${doc.name}» не опускается ниже ${TB.altGen[allowed[0]]}.`);
+    if (ceil && delta > 0 && ceil !== "strat") return ui.notifications.info(`«${doc.name}»: потолок машины — ${TB.altitudes[ceil]}, выше не подняться.`);
+    return ui.notifications.info(delta > 0 ? "Выше стратосферы подниматься некуда." : "Ниже Низкой только земля.");
   }
   return doc.update({ elevation: TB.altElevation[next] });
 }

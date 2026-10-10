@@ -223,7 +223,7 @@ export function renderCard(card) {
   }
   if (c.type === "stall" && !c.applied) {
     if (c.success) btn.push(`<button type="button" data-tb-action="stall-ok" class="tb-owner">Выровняться: Speed 1</button>`);
-    else btn.push(`<button type="button" data-tb-action="stall-fail" class="tb-owner">${c.alt === "low" ? "Удар о землю: Doom" : c.alt === "strat" ? "Спуститься на High" : "Потерять высоту"}</button>`);
+    else btn.push(`<button type="button" data-tb-action="stall-fail" class="tb-owner">${c.alt === "low" ? "Удар о землю: Doom" : c.alt === "strat" ? "Спуститься на Высокую" : "Потерять высоту"}</button>`);
   }
   const queued = c.delayed && c.combatKey && !c.resolved && !c.dmgApplied;
   if (queued) rows.push(`<div class="tb-note tb-queued"><i class="fas fa-hourglass-half"></i> ${c.atTurn ? "Ждёт начала хода цели." : "В очереди залпа конца раунда."}</div>`);
@@ -373,7 +373,7 @@ export async function rollStall(actor) {
   const card = {
     type: "stall", label: "Сваливание: Push против 7", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: 7,
     strainable: actor.type === "pilot" || actor.system.tier === "ace", alt: actor.system.alt, ...thresholds(actor, "push", w.comp2),
-    notes: ["Успех: Speed 1. Провал: минус уровень высоты и повтор на следующем ходу, на Low сразу Doom."]
+    notes: ["Успех: Speed 1. Провал: минус уровень высоты и повтор на следующем ходу, на Низкой сразу Doom."]
   };
   return postCard(actor, card, dice.rolls);
 }
@@ -983,7 +983,7 @@ export async function onCardAction(message, action, button) {
     case "stall-fail": {
       if (!actor?.isOwner) return;
       card.applied = true; await save();
-      if (actor.system.alt === "low") return actor.markDoom("Сваливание на Low");
+      if (actor.system.alt === "low") return actor.markDoom("Сваливание на Низкой");
       const down = { strat: "high", high: "med", med: "low" }[actor.system.alt] ?? "low";
       return actor.setAltitude(down, { tbFree: true });
     }

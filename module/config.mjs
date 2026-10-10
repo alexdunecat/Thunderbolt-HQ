@@ -20,8 +20,27 @@ export const TB = {
     sw: { label: "Спецоружие", hint: "спецоружие недоступно" },
     gu: { label: "Пушка", hint: "пушка недоступна" }
   },
-  altitudes: { low: "Low", med: "Medium", high: "High", strat: "Стратосфера" },
-  // высота токена: 1 = Low, 2 = Medium, 3 = High, 4 = стратосфера
+  altitudes: { low: "Низкая", med: "Средняя", high: "Высокая", strat: "Стратосфера" },
+  // в тексте: «всегда на Средней», «не ниже Высокой»
+  altOn: { low: "на Низкой", med: "на Средней", high: "на Высокой", strat: "в стратосфере" },
+  altGen: { low: "Низкой", med: "Средней", high: "Высокой", strat: "стратосферы" },
+  /* Потолок машины по ключу самолёта (лист пилота) или воздушного NPC: выше Climb не поднимает, а если что-то выносит выше,
+     машина остаётся на своём потолке. Машина без ключа (собранная игроками) не ограничена. Источник: aircraft-templates/altitude-ceilings.md. */
+  maxAlt: {
+    mig21bis: "strat", mig29a: "strat", "mig21-93": "strat", su27: "strat", su25: "high", mig31: "strat", su32: "high", mig31m: "strat", su35: "strat",
+    su37: "strat", su47: "strat", mig144: "strat", falken: "strat", wyvern: "strat", adler: "strat", mig23: "strat", mig25: "strat", su33: "strat",
+    mig29k: "strat", yak141: "high", mig29m: "strat", su30: "strat", mig35: "strat", yak38: "high", su22: "high", mig27: "high", su24: "high",
+    fb: "strat", fa: "strat", mra: "strat", mrd: "strat", ga: "high", gs: "high", hsi: "strat", prt: "strat", f5e: "high", f20a: "high", x29a: "high",
+    f4e: "strat", f4x: "strat", f16c: "high", f14a: "strat", f14d: "strat", f15c: "strat", f15smtd: "strat", yf23: "strat", f22: "strat",
+    mirage2000: "strat", typhoon: "strat", tornadof3: "high", f16b60: "high", f16xl: "high", fa18c: "high", fa18e: "high", ea18g: "high", f35c: "high",
+    f2a: "high", rafalem: "high", rafaleb: "high", jas39c: "high", f4g: "high", f15e: "high", a6e: "high", ea6b: "high", a10a: "high", ya10b: "high",
+    f117a: "high", mirage2000d: "high", tornadogr1: "high", tornadogr4: "high", tornadoecr: "high", hawk: "high", tu22m: "high", tu95: "high",
+    tu160: "high", b1b: "high", b2a: "high", b52h: "high", vulcan: "high", ac130: "med", a50: "high", e767: "high", il76: "high", an124: "high",
+    c130: "high", c5: "high", nimrod: "high", ah64a: "med", ch47: "med", mh60: "med", uh60: "med", mi24: "med", mi28: "med", mi8: "med", ka52: "med",
+    uav: "high", airliner: "high", widebody: "high", bizjet: "high", an2: "med", cargojet: "high", bookbomber: "high", booktransport: "high",
+    bookpatrol: "high"
+  },
+  // высота токена: 1 = Низкая, 2 = Средняя, 3 = Высокая, 4 = стратосфера
   altElevation: { low: 1, med: 2, high: 3, strat: 4 },
   /* Сторона NPC (лист NPC, «Заметки AWACS»). Пилоты игроков всегда своя сторона: "player". Союзник и игроки друг по другу не стреляют. */
   sides: { enemy: "Противник", ally: "Союзник", neutral: "Нейтральный" },
@@ -76,7 +95,7 @@ export const TB = {
   weather: {
     clouds: { ico: "☁", name: "Облачность", mods: { ev: 1, aa: -1, ag: -1 }, txt: "+1 Evasion, −1 A-A и A-G; импульсный лазер не бьёт" },
     rain: { ico: "☂", name: "Дождь", mods: { aa: -1, ag: -1 }, txt: "−1 A-A и A-G" },
-    dust: { ico: "≋", name: "Пыльная буря", mods: { ev: 2, aa: -2, ag: -2 }, alts: ["low", "med"], ownZone: true, txt: "+2 Evasion, −2 A-A и A-G, цели только в своей зоне; до High не доходит" },
+    dust: { ico: "≋", name: "Пыльная буря", mods: { ev: 2, aa: -2, ag: -2 }, alts: ["low", "med"], ownZone: true, txt: "+2 Evasion, −2 A-A и A-G, цели только в своей зоне; до Высокой не доходит" },
     lightning: { ico: "ϟ", name: "Молния", txt: "Complication на d4 = удар молнии (раз в раунд): −1 Evasion и ракеты только с броском до конца следующего хода" },
     wind: { ico: "↝", name: "Сильный ветер", mods: { push: -1 }, txt: "−1 к Push" },
     tornado: { ico: "⌁", name: "Торнадо", txt: "переход в соседнюю зону = 2 Move; выйти: Push против 7; Complication = урон обломками" },
@@ -259,16 +278,16 @@ export const DT = {
         90: "Он уже над пригородами! Ядра, бейте по ядрам!",
         full: "SOLG падает на город. Всем бортам… уходите из зоны." } },
     silo: { label: "Ракетная шахта: залп", name: "Шахта: пуск", size: 4, tick: true,
-      note: "Пуск: ракета за раунд проходит High и уходит в стратосферу. Перехватить её можно только там, в следующем раунде.",
+      note: "Пуск: ракета за раунд проходит Высокую и уходит в стратосферу. Перехватить её можно только там, в следующем раунде.",
       lines: { 50: "Крышка шахты пошла в сторону. Они готовят пуск!",
         75: "Ракета на стартовом столе, отсчёт идёт! Шахту нужно накрыть сейчас!",
         90: "Двигатель запущен! Ещё немного, и её будет не остановить!",
         full: "Пуск! Ракета уходит в стратосферу. Всем, кто может, наверх и перехватить!" } },
     railgun: { label: "Рейлган: зарядка", name: "Рейлган: заряд", size: 5, tick: true,
-      note: "Выстрел рейлгана: до 4 зон по линии, спасает High.",
+      note: "Выстрел рейлгана: до 4 зон по линии, спасает уход на Высокую.",
       lines: { 50: "Рейлган заряжен на 50 %. Держитесь подальше от линии огня.",
         75: "Заряд рейлгана 75 %! Не стройтесь в линию!",
-        90: "Заряд 90 %! Всем бортам, уходите на High!",
+        90: "Заряд 90 %! Всем бортам, уходите на Высокую!",
         full: "Выстрел рейлгана!" } },
     alarm: { label: "Тревога (стелс-миссия)", name: "Тревога", size: 6, tick: false, open: true, alarm: true,
       note: "Тревога! Стелс-часть окончена: ЗРК и зенитки открывают огонь, через 2 раунда взлетают перехватчики, цель может начать уходить.",
