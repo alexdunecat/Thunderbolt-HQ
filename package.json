@@ -5,7 +5,7 @@
   "description": "Thunderbolt: Штаб ВВС Юктобании — система для Foundry VTT v12",
   "scripts": {
     "extract": "node tools/extract-data.cjs",
-    "memo": "python3 tools/memo-to-journal.py",
+    "memo": "python3 tools/memo-to-journal.py && python3 tools/world-to-journal.py",
     "packs": "node tools/build-packs.mjs",
     "build": "npm run extract && npm run memo && npm run packs",
     "test": "node tests/run.mjs"

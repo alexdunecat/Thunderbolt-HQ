@@ -319,6 +319,53 @@ body[data-tb-skin="doc"] {
 .tb-memo .tb-m-lingo dt { font-family: var(--tb-data); font-weight: 600; }
 .tb-memo .tb-m-lingo dd { color: var(--tb-muted); }
 
+/* ---------- Справка «Мир на начало 2010» в журнале (tb-world, страницы из tools/world-to-journal.py) ---------- */
+.tb-world .tb-m-head { font-family: var(--tb-display); font-weight: 400; font-size: 24px; line-height: 1.1; color: var(--tb-ink);
+  border: none; border-bottom: 3px solid var(--tb-ink); padding: 0 0 6px; margin: 0 0 10px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.tb-world .tb-m-head small { font-family: var(--tb-data); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--tb-muted); }
+.tb-world .tb-m-cover .tb-m-sub b { color: var(--tb-accent); }
+.tb-world .tb-m-flow { column-count: 2; column-gap: 26px; margin-top: 10px; }
+.tb-world .tb-m-blk { break-inside: avoid; display: grid; gap: 6px; margin: 0 0 16px; padding: 0; border: none; }
+.tb-world .tb-m-blk h3 { font-family: var(--tb-display); font-weight: 400; font-size: 17px; margin: 0; border: none; color: var(--tb-ink);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.tb-world h3 small { font-family: var(--tb-data); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--tb-muted); }
+.tb-world .tb-m-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; }
+.tb-world .tb-m-facts dt { font-family: var(--tb-data); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--tb-muted); padding-top: .2em; }
+.tb-world .tb-m-facts dd { margin: 0; }
+.tb-world .tb-m-key { background: var(--tb-surface-2); border-radius: 4px; padding: 10px 12px; display: grid; gap: 5px; }
+.tb-world .tb-m-key.tb-m-hot { background: color-mix(in srgb, var(--tb-accent) 12%, var(--tb-surface-2)); box-shadow: inset 3px 0 0 var(--tb-accent); }
+.tb-world .tb-m-key .tb-m-t, .tb-world .tb-m-rumor .tb-m-t { font-family: var(--tb-data); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--tb-muted); }
+.tb-world .tb-m-rumors { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 10px; }
+.tb-world .tb-m-rumor { border: 1px dashed var(--tb-line); border-radius: 4px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; }
+.tb-world .tb-m-rumor .tb-m-t { color: var(--tb-olive); font-weight: 600; }
+.tb-world .tb-m-rumor .tb-m-who { color: var(--tb-muted); font-size: .88em; }
+.tb-world .tb-m-chron { display: grid; gap: 0; margin-top: 8px; }
+.tb-world .tb-m-chron > div { display: grid; grid-template-columns: 7.2em minmax(0, 1fr); gap: 4px 16px; padding: 8px 0; border-bottom: 1px solid var(--tb-line); }
+.tb-world .tb-m-chron > div:last-child { border-bottom: 0; }
+.tb-world .tb-m-chron dt { font-family: var(--tb-data); font-weight: 600; font-size: 12.5px; color: var(--tb-accent); padding-top: .1em; }
+.tb-world .tb-m-chron dd { margin: 0; }
+.tb-world .tb-m-chron .tb-m-now dt { color: var(--tb-olive); }
+.tb-world .tb-m-chron.tb-m-words > div { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.tb-world .tb-m-chron.tb-m-words dt { color: var(--tb-muted); font-weight: 500; }
+.tb-world .tb-m-map { margin: 10px 0 6px; }
+.tb-world .tb-m-map img { display: block; width: 100%; height: auto; border: 1px solid var(--tb-line); border-radius: 4px; background: #08171d; }
+.tb-world .tb-m-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--tb-muted); margin: 0 0 12px; }
+.tb-world .tb-m-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.tb-world .tb-m-legend i { display: inline-block; width: 18px; height: 12px; border: 1px solid #4f8c7d; flex: none; }
+.tb-world .tb-m-legend .tb-m-k-us { background: #133f37; border-color: #9be3bf; }
+.tb-world .tb-m-legend .tb-m-k-war { background: #33201a; border: 1.5px dashed #ff6b4a; }
+.tb-world .tb-m-legend .tb-m-k-land { background: #0f2a31; }
+.tb-world .tb-m-legend .tb-m-k-imp { background: repeating-linear-gradient(45deg, #ff6b4a 0 2px, transparent 2px 6px); border-color: #ff6b4a; opacity: .8; }
+.tb-world .tb-m-lands { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.tb-world .tb-m-land { background: var(--tb-surface-2); border-radius: 4px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; }
+.tb-world .tb-m-land.tb-m-us { box-shadow: inset 3px 0 0 var(--tb-olive); }
+.tb-world .tb-m-land h3 { font-family: var(--tb-display); font-weight: 400; font-size: 16px; margin: 0; border: none; color: var(--tb-ink); }
+.tb-world .tb-m-land h3 small { display: block; margin-top: 2px; }
+.tb-world .tb-m-land ul { font-size: 13px; }
+.tb-world { container-type: inline-size; }
+@container (max-width: 560px) { .tb-world .tb-m-flow { column-count: 1; } }
+
+
 /* ---------- панель AWACS, залп, итоги ---------- */
 .tb-awacs .window-content { background: var(--tb-bg); color: var(--tb-ink); font-family: var(--tb-body); font-size: 13px; padding: 0; }
 .tb-awacs .tb-awacs-wrap { display: flex; flex-direction: column; height: 100%; }

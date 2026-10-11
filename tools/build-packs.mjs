@@ -1,4 +1,4 @@
-/* Собирает компендиумы: data/catalog.json + data/memo-pages.json -> packs-src/<pack>/*.json -> packs/<pack> (LevelDB).
+/* Собирает компендиумы: data/catalog.json + data/memo-pages.json + data/world-pages.json -> packs-src/<pack>/*.json -> packs/<pack> (LevelDB).
    Нужен @foundryvtt/foundryvtt-cli (npm install). Запуск: node tools/build-packs.mjs */
 import fs from "node:fs";
 import path from "node:path";
@@ -12,6 +12,7 @@ const { compilePack } = await import(process.env.FVTT_CLI ?? "@foundryvtt/foundr
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cat = JSON.parse(fs.readFileSync(path.join(ROOT, "data/catalog.json"), "utf8"));
 const memo = JSON.parse(fs.readFileSync(path.join(ROOT, "data/memo-pages.json"), "utf8"));
+const world = JSON.parse(fs.readFileSync(path.join(ROOT, "data/world-pages.json"), "utf8"));
 const SYS = "thunderbolt-shtab";
 
 const id = s => crypto.createHash("sha1").update(SYS + ":" + s).digest("base64").replace(/[^A-Za-z0-9]/g, "").slice(0, 16);
@@ -73,6 +74,19 @@ add("rules", "journal", {
   pages: memo.map((p, i) => ({
     _id: id("page:" + i + ":" + p.name), _key: `!journal.pages!${jid}.${id("page:" + i + ":" + p.name)}`,
     name: p.name, type: "text", title: { show: true, level: 1 }, text: { format: 1, content: p.html },
+    sort: (i + 1) * 100000, ownership: { default: -1 }, flags: {}, _stats: stats
+  }))
+});
+
+// справка о мире для игроков: «Мир на начало 2010» с дополнением (tools/world-to-journal.py)
+const wid = id("journal:world");
+add("world", "journal", {
+  _id: wid, name: "Мир на начало 2010", folder: null, sort: 0, _stats: stats, ownership: { default: 2 },
+  flags: { core: { sheetClass: "thunderbolt-shtab.TBMemoSheet" } },
+  pages: world.map((p, i) => ({
+    _id: id("world:" + i + ":" + p.name), _key: `!journal.pages!${wid}.${id("world:" + i + ":" + p.name)}`,
+    // заголовок страницы уже в тексте (шапка листа справки)
+    name: p.name, type: "text", title: { show: false, level: 1 }, text: { format: 1, content: p.html },
     sort: (i + 1) * 100000, ownership: { default: -1 }, flags: {}, _stats: stats
   }))
 });
