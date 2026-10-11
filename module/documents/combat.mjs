@@ -216,8 +216,23 @@ export function registerCombat() {
   });
 
   Hooks.on("renderCombatTracker", decorateTracker);
+  // лицо, шильдик или уровень поменялись у того, кто в бою: перерисовать трекер
+  const picChanged = change => { const s = change?.system ?? {}; return "img" in (change ?? {}) || "tier" in s || "trackerImg" in s || "insignia" in s; };
+  Hooks.on("updateActor", (actor, change) => {
+    if (picChanged(change) && game.combat?.combatants.some(c => c.actor === actor || c.actorId === actor.id)) ui.combat?.render();
+  });
+  Hooks.on("updateActorDelta", (delta, change) => { if (picChanged(change) && game.combat) ui.combat?.render(); });
 }
 let declareTimer = null;
+
+/** Картинка в трекере вместо токена или null (оставить токен): ас — лицо, дуэлянт — лицо или шильдик (system.trackerImg). */
+export function trackerImage(c) {
+  const a = c?.actor, s = a?.system;
+  if (a?.type !== "npc" || !s) return null;
+  if (s.tier === "ace") return a.img || null;
+  if (s.tier === "duelist") return (s.trackerImg === "insignia" && s.insignia) || a.img || null;
+  return null;
+}
 
 /** Трекер: заявки вместо чисел и кнопка «Отложить ход» у пилота, который сейчас ходит. */
 function decorateTracker(app, html) {
@@ -236,6 +251,9 @@ function decorateTracker(app, html) {
       if (used > n) ini.style.color = "#d0302a";
     }
     if (passive(c.actor)) li.querySelector(".token-initiative")?.replaceChildren();
+    // картинка: конскрипт — самолёт (токен), ас — лицо, дуэлянт — лицо или шильдик по выбору в листе
+    const pic = trackerImage(c), img = li.querySelector("img.token-image");
+    if (pic && img) { img.src = pic; img.dataset.src = pic; }
     const mine = c.id === combat.combatant?.id && c.isOwner && c.actor?.hasPlayerOwner && Number.isNumeric(c.initiative) && c.initiative <= 3;
     if (mine && flag(combat, "ready") === combat.round) {
       const ctl = li.querySelector(".combatant-controls");

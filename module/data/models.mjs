@@ -237,7 +237,7 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       insignia: str(), artwork: str(),
       // личное дело аса или дуэлянта; Немезида — личный враг одного из пилотов (nemesisOf — id актёра пилота)
       ...personFields(),
-      nemesis: bool(), nemesisOf: str(),
+      nemesis: bool(), nemesisOf: str(), trackerImg: str("face"),   // дуэлянт в трекере боя: face — лицо, insignia — шильдик
       // сторона в бою и приоритетная цель (вкладка «Заметки AWACS»)
       side: str("enemy"), priority: bool(), task: str(),
       ...sortieFields(),

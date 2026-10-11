@@ -60,6 +60,7 @@
           <p class="tb-small">Конскрипт: ко всем навыкам <input class="tb-inline" type="number" name="system.bonus" value="{{system.bonus}}" min="0" max="1"> (книга: +0 или +1).</p>
           <ol class="tb-skills compact">{{#each skills as |sk|}}<li class="tb-skill"><a class="tb-roll" data-roll-skill="{{sk.key}}"><i class="fas fa-dice-d10"></i></a><span class="tb-skill-name"><b>{{sk.label}}</b> <small>{{sk.en}}</small></span><span class="tb-skill-total">{{sk.total}}</span></li>{{/each}}</ol>
           {{else if isDuelist}}
+          <div class="tb-row"><label title="Что показывать в трекере боя">В трекере <select name="system.trackerImg">{{selectOptions trackerOptions selected=system.trackerImg}}</select></label></div>
           <div class="tb-row"><label>Эскадрилья <input type="text" name="system.squad" value="{{system.squad}}" list="tb-squads-{{actor.id}}" placeholder="название"></label>
             <datalist id="tb-squads-{{actor.id}}">{{#each squadNames as |n|}}<option value="{{n}}">{{/each}}</datalist></div>
           <ol class="tb-skills compact">{{#each skills as |sk|}}<li class="tb-skill {{#if sk.blocked}}blocked{{/if}}"><a class="tb-roll" data-roll-skill="{{sk.key}}"><i class="fas fa-dice-d10"></i></a><span class="tb-skill-name"><b>{{sk.label}}</b> <small>{{sk.en}}</small></span>{{#if @root.system.squad}}<input type="number" data-squad-skill="{{sk.key}}" value="{{sk.total}}" min="0" {{#unless @root.isGM}}disabled{{/unless}}>{{else}}<input type="number" name="system.skills.{{sk.key}}" value="{{sk.value}}" min="0">{{/if}}</li>{{/each}}</ol>

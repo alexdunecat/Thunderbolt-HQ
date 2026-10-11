@@ -544,6 +544,7 @@ export class NpcSheet extends TBActorSheet {
       ctx.squadBudget = SQUAD_POINTS;
       ctx.squadCount = s.squad ? Math.max(1, squadMembers(s.squad).length) : 0;
       ctx.squadOver = s.squadPoints > SQUAD_POINTS;
+      ctx.trackerOptions = { face: "лицо", insignia: s.insignia ? "шильдик эскадрильи" : "шильдик (не выбран, будет лицо)" };
     }
     ctx.kindOptions = TB.npcKinds;
     ctx.tierOptions = TB.tiers;
