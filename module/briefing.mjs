@@ -21,6 +21,7 @@ const AA_GUNS = ["aagun", "shilka", "m163"];
 // радиус зоны поражения ПВО на карте брифинга, в сотых клетки
 const THREAT = { s300: 135, patriot: 135, samsite: 115, osa: 85, tunguska: 80, manpads: 65, aagun: 65, shilka: 60, m163: 60 };
 const SIDES = ["player", "ally", "enemy", "neutral"];
+const KINDS = ["flight", "goal", "convoy", "air", "ship", "sam", "aa", "jam", "radar", "armor", "art", "obj", "unk"];
 
 /** Вид силы для значка: звено игроков, цель, защищаемый объект, самолёт, ЗРК, зенитки, РЭБ, РЛС, корабль, бронетехника, артиллерия, объект. */
 export function unitKind(ref, u = {}, entry = null) {
@@ -172,8 +173,8 @@ export function cleanSteps(list) {
     if (marks.length) x.marks = [...new Set(marks)];
     const lines = (Array.isArray(s.lines) ? s.lines : []).filter(l => Array.isArray(l) && l.length === 4 && l.every(v => Number.isFinite(Number(v)))).map(l => l.map(Number));
     if (lines.length) x.lines = lines;
-    // фото во врезке: только картинка data:, подпись по желанию
-    if (s.img && /^data:image\/(png|jpe?g|webp|gif|svg\+xml);/i.test(String(s.img.src ?? ""))) x.img = { src: String(s.img.src), cap: String(s.img.cap ?? "") };
+    // фото во врезке: картинка data:, ссылка или путь в папке мира; подпись по желанию
+    if (s.img && /^(data:image\/(png|jpe?g|webp|gif|svg\+xml)[;,]|https?:\/\/|[\w-]+\/)/i.test(String(s.img.src ?? ""))) x.img = { src: String(s.img.src), cap: String(s.img.cap ?? "") };
     if (s.final) x.final = true;
     return x;
   });
@@ -215,7 +216,7 @@ export function cleanMission(pm) {
     if (Object.keys(x).length) hexes[`${c},${r}`] = x;
   }
   const units = (Array.isArray(pm.units) ? pm.units : []).filter(u => u && Number(u.c) >= 0 && Number(u.r) >= 0 && Number(u.c) < cols && Number(u.r) < rows).map((u, i) => {
-    const x = { id: String(u.id ?? `u${i}`), k: String(u.k ?? "obj"), side: SIDES.includes(u.side) ? u.side : "enemy", name: String(u.name ?? ""), count: Math.max(1, Math.round(Number(u.count) || 1)), c: Number(u.c), r: Number(u.r) };
+    const x = { id: String(u.id ?? `u${i}`), k: KINDS.includes(u.k) ? u.k : "obj", side: SIDES.includes(u.side) ? u.side : "enemy", name: String(u.name ?? ""), count: Math.max(1, Math.round(Number(u.count) || 1)), c: Number(u.c), r: Number(u.r) };
     if (["L", "M", "H", "S"].includes(u.alt)) x.alt = u.alt;
     if (Number(u.rng) > 0) x.rng = Number(u.rng);
     return x;
@@ -259,7 +260,7 @@ export async function saveBriefing(scene, { mission, steps, op = "", from = "" }
 /* ---------- экран ---------- */
 const NS = "http://www.w3.org/2000/svg";
 const ALT_NAME = { L: "МАЛАЯ", M: "СРЕДНЯЯ", H: "ВЫСОКАЯ", S: "СТРАТОСФЕРА" };
-const SUB = { sam: "ЗРК", aa: "ЗЕНИТНАЯ АРТ.", jam: "РЭБ", radar: "РЛС", obj: "ОБЪЕКТ", convoy: "ПОД ЗАЩИТОЙ", flight: "ВХОД", ship: "КОРАБЛЬ", armor: "БРОНЕТЕХНИКА", art: "АРТИЛЛЕРИЯ" };
+const SUB = { sam: "ЗРК", aa: "ЗЕНИТНАЯ АРТ.", jam: "РЭБ", radar: "РЛС", obj: "ОБЪЕКТ", convoy: "ПОД ЗАЩИТОЙ", flight: "ВХОД", ship: "КОРАБЛЬ", armor: "БРОНЕТЕХНИКА", art: "АРТИЛЛЕРИЯ", unk: "НЕОПОЗНАН" };
 const sideCls = s => s === "player" ? "own" : s === "ally" ? "ally" : s === "neutral" ? "neutral" : "enemy";
 const WATER = ["sea", "lake"];
 // псевдослучайность от координат, чтобы карта не менялась между показами
@@ -318,7 +319,7 @@ export class BriefScreen {
       <div class="tb-br-hud tl"><div class="k">ВВС ЮКТОБАНИИ · АСУ «ТАЙГА» · БРИФИНГ</div><div class="big">ОПЕРАЦИЯ «${esc(String(op || pm.name).toUpperCase())}»</div><div class="rule"></div>
         <div class="mid">${esc([pm.type.toUpperCase(), `ЗАДАЧ: ${pm.objectives.length}`].filter(Boolean).join(" · "))}</div></div>
       <div class="tb-br-hud tr"><div class="k">ЭТАП</div><div class="num" data-r="num">00/00</div><div class="k" data-r="cell">КВ —</div></div>
-      <figure class="tb-br-photo" data-r="photo" hidden><img alt=""><figcaption></figcaption></figure>
+      <figure class="tb-br-photo" data-r="photo" hidden><div class="k">РАЗВЕДДАННЫЕ</div><img alt=""><figcaption></figcaption></figure>
       <div class="tb-br-subs"><div class="say" data-r="say"></div></div>
       <div class="tb-br-hint" data-r="hint">${esc(hint)}</div>
     </div>`;
@@ -445,7 +446,7 @@ export class BriefScreen {
         const name = u.name.toUpperCase(), cut = name.length > 15 ? name.lastIndexOf(" ", Math.ceil(name.length / 2) + 3) : -1;
         const rows = cut > 0 ? [name.slice(0, cut), name.slice(cut + 1)] : [name];
         rows.forEach((t, k) => { el("text", { x: 0, y: 24 + k * 11, "text-anchor": "middle", class: "lab" }, g2).textContent = t; });
-        const sub = u.k === "air" ? ALT_NAME[u.alt] ?? "" : SUB[u.k] ?? "";
+        const sub = u.k === "air" ? ALT_NAME[u.alt] ?? "" : u.k === "unk" ? [SUB.unk, ALT_NAME[u.alt]].filter(Boolean).join(" · ") : SUB[u.k] ?? "";
         el("text", { x: 0, y: 24 + rows.length * 11, "text-anchor": "middle", class: "sub" }, g2).textContent = [u.count > 1 ? `×${u.count}` : "", sub].filter(Boolean).join(" · ");
       }
       el("path", { d: "M-20 -12 V-20 H-12 M12 -20 H20 V-12 M20 12 V20 H12 M-12 20 H-20 V12", class: "bracket" }, g2);
@@ -466,7 +467,7 @@ export class BriefScreen {
     else if (k === "art") { el("rect", { x: -11, y: -7, width: 22, height: 14 }); el("circle", { r: 2.6, class: "ico dot" }); }
     else if (k === "convoy") { el("rect", { x: -10, y: -6, width: 20, height: 12, rx: 5 }); el("path", { d: "M-5 0 h0.1 M0 0 h0.1 M5 0 h0.1", "stroke-width": 3, "stroke-linecap": "round" }); }
     else if (k === "goal") el("path", { d: "M0 -14 L14 0 L0 14 L-14 0 Z", "stroke-dasharray": "3 3" });
-    else if (k === "unk") { el("path", { d: "M0 -11 L11 0 L0 11 L-11 0 Z" }); this.node("text", { x: 0, y: 4, "text-anchor": "middle", class: "unk" }, g).textContent = "?"; }
+    else if (k === "unk") { el("circle", { r: 10, "stroke-dasharray": "3 2.4" }); el("path", { d: "M-3.4 -3.2 Q-3.4 -6.4 0 -6.4 Q3.6 -6.4 3.6 -3.4 Q3.6 -1 0 0.4 V2.6 M0 5.2 V5.4", "stroke-linecap": "round" }); }
     else { el("rect", { x: -8, y: -8, width: 16, height: 16 }); el("path", { d: "M-8 -8 L8 8 M8 -8 L-8 8" }); }
   }
 
@@ -523,14 +524,16 @@ export class BriefScreen {
       if (tg.has(id)) this.later(() => { if (this.shown === at) g.classList.add("on"); }, quiet ? 0 : 700);
     });
     const rings = Array.isArray(s.threat) ? new Set(s.threat) : null;
-    this.el.querySelectorAll(".threat").forEach(c => c.classList.toggle("on", rings ? rings.has(c.dataset.id) : !!s.threat || (s.focus === "all" && i > 0 && !s.dim)));
+    // в явном режиме круг виден, только если его сила на карте
+    this.el.querySelectorAll(".threat").forEach(c => c.classList.toggle("on", (rings ? rings.has(c.dataset.id) : !!s.threat || (s.focus === "all" && i > 0 && !s.dim)) && (!s.dim || kn.has(c.dataset.id))));
     // пометки этапа из конструктора и фото во врезке
     this.stepMarks.innerHTML = "";
     for (const k of s.marks ?? []) { const [c, r] = k.split(",").map(Number); this.node("rect", { x: c * CELL + 3, y: r * CELL + 3, width: CELL - 6, height: CELL - 6, class: "mark" }, this.stepMarks); }
     for (const [x1, y1, x2, y2] of s.lines ?? []) this.node("line", { x1, y1, x2, y2, class: "penline", "marker-end": `url(#tb-br-pen-${this.uid})` }, this.stepMarks);
     const ph = this.r("photo");
     ph.hidden = !s.img;
-    if (s.img) { ph.classList.remove("on"); ph.querySelector("img").src = s.img.src; ph.querySelector("figcaption").textContent = s.img.cap ?? ""; this.later(() => ph.classList.add("on"), quiet ? 0 : 500); }
+    ph.classList.remove("in");
+    if (s.img) { ph.querySelector("img").src = s.img.src; ph.querySelector("figcaption").textContent = s.img.cap ?? ""; if (!quiet) { void ph.offsetWidth; ph.classList.add("in"); } }
     this.wx.setAttribute("opacity", s.wx ? 1 : .35);
     this.drawRoute(s.route, !s.final && !quiet);
     if (!quiet) {
@@ -903,7 +906,9 @@ function editorClass() {
       if (a === "boot") return bootThenBriefing(this.scene);
       if (a === "add") {
         const at = Math.min(this.cur + 1, this.steps.findIndex(s => s.final) >= 0 ? this.steps.findIndex(s => s.final) : this.steps.length);
-        this.steps.splice(at, 0, { title: "ЭТАП", text: "", focus: { cam: { ...this.screen.cam } }, show: [] });
+        // этап из конструктора (явный фон): новый этап берёт на фон всё, что видно на текущем
+        const now = this.steps[this.cur], bg = now?.dim ? { dim: [...new Set([...(now.show ?? []), ...now.dim])] } : {};
+        this.steps.splice(at, 0, { title: "ЭТАП", text: "", focus: { cam: { ...this.screen.cam } }, show: [], ...bg });
         this.cur = at; this.changed(); this.renderSteps();
         this.element?.[0]?.querySelector(`.tb-bred-st[data-i="${at}"] textarea`)?.focus();
         return;
@@ -936,6 +941,8 @@ function editorClass() {
         const { catalog } = await import("./apps/mission-import.mjs");
         const b = readBriefingJson(JSON.parse(text.trim()), await catalog());
         await saveBriefing(this.scene, b);
+        // название операции из конструктора идёт и в заставку, если там своё не задано
+        if (b.op && !this.scene.getFlag(SYSTEM_ID, "boot")?.op) await this.scene.setFlag(SYSTEM_ID, "boot", { ...bootOptions(this.scene), op: b.op });
         this.cur = 0; this.load(); this.render(true);
         ui.notifications.info(`${b.from === "editor" ? "Брифинг загружен" : "Брифинг собран из миссии"}: этапов ${this.steps.length}.`);
       } catch (e) { console.error(e); ui.notifications.error(`Не получилось: ${e.message}`); }

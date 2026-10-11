@@ -65,7 +65,7 @@ console.log("сцена без миссии:", JSON.stringify(B.briefingOf(scene
 // файл из конструктора брифингов: фон этапа, кольца ПВО по списку, пометки, фото, неизвестный контакт
 const ed = B.readBriefingJson({ format: "tb-briefing", v: 2, op: " Буря ", mission: { ...pm, units: [...pm.units, { id: "x1", k: "unk", side: "enemy", name: "Контакт", c: 2, r: 4 }, { id: "bad", c: 99, r: 0 }] },
   steps: [{ title: "Т1", text: "а", focus: "all", show: ["ex4"], dim: ["ex1", 5], threat: ["ex4"], marks: ["5,2", "5,2", "x"], lines: [[1, 2, 3, 4], [1, 2]], img: { src: "data:image/png;base64,AAAA", cap: "ЗРК" } },
-    { title: "Т2", text: "б", threat: [], img: { src: "https://evil/x.png" } }] }, cat);
+    { title: "Т2", text: "б", threat: [], img: { src: "javascript:alert(1)" } }, { title: "Т3", img: { src: "worlds/w/brief/zrk.jpg", cap: "путь" } }] }, cat);
 console.log("конструктор:", ed.from, ed.op, "· сил", ed.mission.units.length, "· последняя", JSON.stringify(ed.mission.units.at(-1)));
 console.log(JSON.stringify(ed.steps));
 console.log("миссия из Планшета:", B.readBriefingJson(kesh, cat).from, B.readBriefingJson(kesh, cat).steps.length);
