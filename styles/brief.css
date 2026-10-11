@@ -1,0 +1,128 @@
+/* Брифинг (module/briefing.mjs): экран штабной ЭВМ 16:9 с тактической картой поверх стола у всех и окно ведущего.
+   Размеры текста в cqw — от ширины экрана, чтобы на любом мониторе и в предпросмотре выглядело одинаково. */
+.tb-br-screen {
+  --glass: #06120f; --line: #1f3d3a; --ph: #9be3bf; --ph-dim: #4f8c7d; --ok: #d7eee6;
+  --own: #9be3bf; --ally: #6cc4ff; --enemy: #ff6b4a; --neutral: #f2c14e;
+  --land: #0c2228; --land-ink: #2c5a52; --sea: #071419;
+  --f-scr: "JetBrains Mono", Consolas, "Courier New", monospace; --f-disp: Jura, "Exo 2", "Segoe UI", sans-serif;
+  position: relative; width: 100%; aspect-ratio: 16 / 9; background: var(--glass); border-radius: 1.2cqw; overflow: hidden;
+  container-type: inline-size; color: var(--ph); font-family: var(--f-disp); user-select: none;
+  box-shadow: 0 0 0 1px var(--line), 0 0 0 10px #0a0f11, 0 0 0 11px #1a2326, 0 18px 50px rgba(0,0,0,.6);
+}
+.tb-br-screen::before { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 8;
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,.16) 0 1px, transparent 1px 3px); }
+.tb-br-screen::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 9;
+  background: radial-gradient(ellipse at 50% 45%, transparent 60%, rgba(0,0,0,.5) 100%); }
+.tb-br-map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.tb-br-map[data-tool="pan"] { cursor: grab; }
+.tb-br-map[data-tool="pan"].drag { cursor: grabbing; }
+.tb-br-map[data-tool="mark"], .tb-br-map[data-tool="line"] { cursor: crosshair; }
+
+/* карта */
+.tb-br-screen .sea { fill: var(--sea); }
+.tb-br-screen .land { fill: var(--land); }
+.tb-br-screen .outer { fill: #081a1f; }
+.tb-br-screen .ao { fill: none; stroke: var(--ph-dim); stroke-width: 1.6; stroke-dasharray: 10 6; }
+.tb-br-screen .gridl { stroke: var(--land-ink); stroke-width: .8; opacity: .55; }
+.tb-br-screen .coord { fill: var(--ph-dim); font: 600 8px var(--f-scr); letter-spacing: .1em; opacity: .7; }
+.tb-br-screen .ink { fill: none; stroke: var(--land-ink); stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+.tb-br-screen .ink.hi { stroke: #3d7a6c; }
+.tb-br-screen .ink.fill { fill: #12333a; }
+.tb-br-screen .ink.water { fill: var(--sea); stroke: #3d7a6c; }
+.tb-br-screen .place { fill: #8fb8ac; font: italic 600 11px var(--f-disp); letter-spacing: .08em; paint-order: stroke; stroke: var(--land); stroke-width: 3px; }
+.tb-br-screen .wx { stroke: var(--neutral); stroke-width: 1; stroke-dasharray: 4 4; opacity: .55; }
+.tb-br-screen .wxlab { fill: var(--neutral); font: 600 9px var(--f-scr); letter-spacing: .14em; opacity: .85; }
+
+/* силы */
+.tb-br-screen .u { transition: opacity .6s; }
+.tb-br-screen .u.dim { opacity: .28; }
+.tb-br-screen .u.off { opacity: 0; }
+.tb-br-screen .u .ico { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.tb-br-screen .u .ico.dot { fill: currentColor; }
+.tb-br-screen .u .lab { font: 600 10px var(--f-scr); letter-spacing: .06em; paint-order: stroke; stroke: var(--land); stroke-width: 3px; fill: currentColor; }
+.tb-br-screen .u .sub { font: 400 8px var(--f-scr); letter-spacing: .04em; paint-order: stroke; stroke: var(--land); stroke-width: 3px; opacity: .8; fill: currentColor; }
+.tb-br-screen .own { color: var(--own); }
+.tb-br-screen .ally { color: var(--ally); }
+.tb-br-screen .enemy { color: var(--enemy); }
+.tb-br-screen .neutral { color: var(--neutral); }
+.tb-br-screen .u.blink .ico { animation: tb-br-blink .9s steps(1) infinite; }
+@keyframes tb-br-blink { 50% { opacity: .15 } }
+.tb-br-screen .bracket { fill: none; stroke: currentColor; stroke-width: 2; opacity: 0; transition: opacity .3s; }
+.tb-br-screen .on > .bracket { opacity: 1; animation: tb-br-lock 1.1s ease-out 1; }
+@keyframes tb-br-lock { from { transform: scale(1.8); opacity: 0 } 60% { opacity: 1 } to { transform: scale(1) } }
+.tb-br-screen .tgtlab { font: 700 9px var(--f-scr); letter-spacing: .16em; opacity: 0; transition: opacity .3s; fill: currentColor; }
+.tb-br-screen .on > .tgtlab { opacity: 1; }
+.tb-br-screen .threat { fill: color-mix(in srgb, var(--enemy) 7%, transparent); stroke: var(--enemy); stroke-width: 1.2; stroke-dasharray: 6 5; opacity: 0; transition: opacity .6s; }
+.tb-br-screen .threat.on { opacity: .9; animation: tb-br-spin 18s linear infinite; }
+@keyframes tb-br-spin { to { stroke-dashoffset: -220 } }
+.tb-br-screen .route { fill: none; stroke: var(--own); stroke-width: 2.4; stroke-dasharray: 9 6; }
+
+/* указка ведущего */
+.tb-br-screen .mark { fill: color-mix(in srgb, var(--neutral) 14%, transparent); stroke: var(--neutral); stroke-width: 2.4; animation: tb-br-mark 1.4s ease-in-out infinite; }
+@keyframes tb-br-mark { 50% { stroke-opacity: .35; fill-opacity: .4 } }
+.tb-br-screen .ping { fill: none; stroke: var(--neutral); stroke-width: 2; animation: tb-br-ping 1.1s ease-out forwards; }
+@keyframes tb-br-ping { from { r: 4; opacity: 1 } to { r: 70; opacity: 0 } }
+.tb-br-screen .penline { fill: none; stroke: var(--neutral); stroke-width: 3; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(242,193,78,.6)); }
+.tb-br-screen .penline.draft { stroke-dasharray: 6 5; }
+
+/* шапка, номер этапа, субтитры как в Ace Combat: по центру внизу, без имени и подложки */
+.tb-br-hud { position: absolute; z-index: 5; font-family: var(--f-scr); text-shadow: 0 0 6px color-mix(in srgb, var(--ph) 45%, transparent); pointer-events: none; }
+.tb-br-hud.tl { top: 3.4%; left: 3.4%; }
+.tb-br-hud.tr { top: 3.4%; right: 3.4%; text-align: right; }
+.tb-br-hud .k { color: var(--ph-dim); font-size: 1.15cqw; letter-spacing: .18em; }
+.tb-br-hud .big { font: 700 2.1cqw var(--f-disp); letter-spacing: .22em; color: var(--ok); }
+.tb-br-hud .mid { font-size: 1.3cqw; letter-spacing: .1em; color: var(--ph); }
+.tb-br-hud .num { font: 700 2.6cqw var(--f-scr); color: var(--ok); letter-spacing: .1em; font-variant-numeric: tabular-nums; }
+.tb-br-hud .rule { width: 16cqw; height: 1px; background: var(--ph-dim); margin: .5cqw 0; }
+.tb-br-subs { position: absolute; z-index: 5; left: 50%; bottom: 6%; transform: translateX(-50%); width: 80%; text-align: center; pointer-events: none; }
+.tb-br-subs .say { font: 600 1.75cqw/1.5 var(--f-disp); color: #f2f7f4; min-height: 3em; letter-spacing: .02em; text-wrap: balance;
+  text-shadow: 0 0 2px #000, 0 0 4px #000, 0 0 8px rgba(0,0,0,.9), 0 0 16px rgba(0,0,0,.7); }
+.tb-br-hint { position: absolute; z-index: 5; right: 3.4%; bottom: 1.6%; font: 1cqw var(--f-scr); color: var(--ph-dim); letter-spacing: .14em; pointer-events: none; }
+
+/* поверх стола у всех */
+.tb-br-overlay { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; background: #030607;
+  opacity: 0; transition: opacity .6s; pointer-events: auto; }
+.tb-br-overlay.on { opacity: 1; }
+.tb-br-overlay.out { opacity: 0; transition: opacity 1s; }
+.tb-br-overlay .tb-br-host { width: min(96vw, 170.6vh); }
+/* пульт ведущего: сверху по центру, над картой, полупрозрачный, пока на него не навели */
+.tb-br-gm { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 10001; display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; background: rgba(6, 18, 15, .88); border: 1px solid #1f3d3a; border-radius: 6px; opacity: .55; transition: opacity .2s;
+  font: 600 13px Jura, "Segoe UI", sans-serif; color: #9be3bf; }
+.tb-br-gm:hover, .tb-br-gm:focus-within { opacity: 1; }
+.tb-br-gm button { width: auto; height: 30px; line-height: 28px; margin: 0; padding: 0 10px; background: transparent; color: #9be3bf; border: 1px solid #1f3d3a; border-radius: 4px;
+  font: inherit; letter-spacing: .06em; cursor: pointer; box-shadow: none; }
+.tb-br-gm button:hover { color: #d7eee6; border-color: #4f8c7d; }
+.tb-br-gm button.main { background: #9be3bf; color: #041010; border-color: #9be3bf; }
+.tb-br-gm button:disabled { opacity: .35; cursor: default; }
+.tb-br-gm button[aria-pressed="true"] { background: rgba(155, 227, 191, .18); color: #d7eee6; }
+.tb-br-gm .n { font: 700 14px "JetBrains Mono", monospace; color: #d7eee6; min-width: 4.2em; text-align: center; font-variant-numeric: tabular-nums; }
+.tb-br-gm .tools { display: inline-flex; gap: 2px; }
+.tb-br-pill { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 1000; width: auto; padding: 6px 14px;
+  background: #9be3bf; color: #041010; border: 0; border-radius: 4px; font: 700 13px Jura, "Segoe UI", sans-serif; letter-spacing: .08em; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) {
+  .tb-br-screen .u.blink .ico, .tb-br-screen .threat.on, .tb-br-screen .mark { animation: none; }
+}
+
+/* окно ведущего «Брифинг» */
+.tb-bred-app .window-content { padding: 10px; overflow: hidden; }
+.tb-bred { display: flex; flex-direction: column; gap: 10px; height: 100%; }
+.tb-bred-prev { flex: none; padding: 10px; width: min(100%, 780px); margin: 0 auto; box-sizing: border-box; }
+.tb-bred-prev .tb-br-screen { box-shadow: 0 0 0 1px var(--line), 0 0 0 6px #0a0f11; }
+.tb-bred-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.tb-bred-bar .sp { flex: 1; }
+.tb-bred-bar button { width: auto; flex: none; margin: 0; padding: 0 10px; height: 30px; line-height: 28px; }
+.tb-bred-bar button.main { font-weight: 700; }
+.tb-bred-bar .tb-hint { margin: 0; font-size: 12px; }
+.tb-bred-steps { flex: 1; min-height: 120px; overflow-y: auto; display: grid; align-content: start; gap: 6px; padding-right: 4px; }
+.tb-bred-st { display: grid; grid-template-columns: 2.4em 1fr auto; gap: 4px 10px; align-items: center; padding: 6px 8px; border: 1px solid var(--tb-line, rgba(127,127,127,.35)); border-radius: 5px; }
+.tb-bred-st.cur { border-color: var(--tb-accent, #9be3bf); box-shadow: inset 3px 0 0 var(--tb-accent, #9be3bf); }
+.tb-bred-st .n { font: 700 15px "JetBrains Mono", monospace; opacity: .7; grid-row: span 2; align-self: start; padding-top: 4px; }
+.tb-bred-st.cur .n { opacity: 1; }
+.tb-bred-st input.title { font-weight: 700; letter-spacing: .12em; height: 26px; }
+.tb-bred-st .acts { display: inline-flex; gap: 10px; align-items: center; white-space: nowrap; font-size: 12px; }
+.tb-bred-st .acts a { cursor: pointer; opacity: .8; }
+.tb-bred-st .acts a:hover { opacity: 1; text-decoration: underline; }
+.tb-bred-st textarea { grid-column: 2 / 4; width: 100%; min-height: 3.2em; resize: vertical; font: 14px/1.4 Jura, "Segoe UI", sans-serif; }
+.tb-bred-empty { display: grid; gap: 10px; }
+.tb-bred-empty textarea { width: 100%; font-family: "JetBrains Mono", monospace; }

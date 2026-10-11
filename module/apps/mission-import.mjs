@@ -4,6 +4,7 @@ import { squadLayout, setSquadLayout } from "../squadrons.mjs";
 import { npcActor } from "../data/catalog-docs.mjs";
 import { esc } from "../utils.mjs";
 import { zonePacker } from "../tokens.mjs";
+import { publicMission, buildSteps, briefingOf, saveBriefing } from "../briefing.mjs";
 
 const COL_LETTERS = "АБВГДЕЖИКЛМНОПРСТУФХЦЧШЭЮЯ";
 const cellName = (c, r) => (COL_LETTERS[c] ?? "?") + (r + 1);
@@ -203,7 +204,7 @@ export function openMapUpdateDialog() {
   if (off.length) return ui.notifications.warn(`Эту сцену не перерисовать: ${off.join(", ")}. Создайте сцену импортом миссии или поправьте настройки сцены.`, { permanent: true });
   new Dialog({
     title: "Карта и погода из Планшета AWACS",
-    content: `<form class="tb-dialog"><p class="tb-hint">Вставьте JSON миссии из Планшета AWACS (кнопка «JSON»). На сцене «${esc(scene.name)}» перерисуются местность, подписи и погода (подписи прежнего импорта уберутся), а погода сразу начнёт действовать на броски: по клеткам, а погода на всей карте — над всей сценой. Токены не трогаются.</p>
+    content: `<form class="tb-dialog"><p class="tb-hint">Вставьте JSON миссии из Планшета AWACS (кнопка «JSON»). На сцене «${esc(scene.name)}» перерисуются местность, подписи и погода (подписи прежнего импорта уберутся), а погода сразу начнёт действовать на броски: по клеткам, а погода на всей карте — над всей сценой. Токены не трогаются. Карта брифинга тоже обновится, этапы, которые вы правили, останутся.</p>
       <textarea name="json" rows="12" style="width:100%;font-family:monospace"></textarea></form>`,
     buttons: {
       ok: {
@@ -213,6 +214,9 @@ export function openMapUpdateDialog() {
             const m = JSON.parse(html[0].querySelector("textarea").value.trim());
             if (!m?.cols || !m?.rows) throw new Error("в JSON нет размеров карты (cols, rows)");
             const res = await drawMap(scene, m);
+            // карта брифинга следом за сценой; этапы, которые ведущий уже правил, остаются
+            const pm = publicMission(m, await catalog()), old = briefingOf(scene);
+            await saveBriefing(scene, { mission: pm, steps: old.mission && old.steps.length ? old.steps : buildSteps(pm) });
             ui.notifications.info(`Карта обновлена. Погода: ${res.everywhere.length ? `над всей сценой ${res.everywhere.map(id => TB.weather[id].name).join(", ")}, ` : ""}в ${res.cells} клетках.`);
           } catch (e) { console.error(e); ui.notifications.error(`Не получилось: ${e.message}`); }
         }
@@ -252,9 +256,11 @@ export async function importMission(input) {
   const terrain = new Map(cat.terrain.map(t => [t.id, t]));
   const markers = new Map(cat.markers.map(x => [x.id, x]));
   const title = m.name || "Миссия";
+  // брифинг: открытая часть миссии (без поворота и заметок) и этапы, собранные из неё
+  const pm = publicMission(m, cat);
 
   const scene = await Scene.create({
-    flags: { [SYSTEM_ID]: { mission: m.name ?? "", objectives: m.objectives ?? [] } },
+    flags: { [SYSTEM_ID]: { mission: m.name ?? "", objectives: m.objectives ?? [], briefing: { mission: pm, steps: buildSteps(pm) } } },
     name: title, width: m.cols * S, height: m.rows * S, padding: 0, backgroundColor: "#07141a",
     grid: { type: CONST.GRID_TYPES.SQUARE, size: S, distance: 1, units: "", color: "#9be3bf", alpha: 0.25 },
     tokenVision: false, fog: { exploration: false }, navigation: true

@@ -11,6 +11,7 @@ import { openRadioDialog } from "../radio.mjs";
 import { openChatterEditor } from "../chatter.mjs";
 import { openMissionDialog } from "../mission.mjs";
 import { openAceIntro } from "../aces.mjs";
+import { openBriefing } from "../briefing.mjs";
 import { openDossierExchange } from "../dossier-sync.mjs";
 import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMarkAt, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
 import { DT } from "../config.mjs";
@@ -149,6 +150,7 @@ export class AwacsPanel extends Application {
     on("[data-results]", () => sortieResults());
     on("[data-radio]", () => openRadioDialog());
     on("[data-chatter]", () => openChatterEditor());
+    on("[data-briefing]", () => openBriefing());
     on("[data-aces]", () => openAceIntro());
     on("[data-mission]", () => openMissionDialog({ op: game.scenes.viewed?.getFlag(SYSTEM_ID, "mission") || game.scenes.viewed?.name || "" }));
     on("[data-shtab]", () => openDossierExchange());
