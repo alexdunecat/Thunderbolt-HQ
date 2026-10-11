@@ -126,3 +126,12 @@
 .tb-bred-st textarea { grid-column: 2 / 4; width: 100%; min-height: 3.2em; resize: vertical; font: 14px/1.4 Jura, "Segoe UI", sans-serif; }
 .tb-bred-empty { display: grid; gap: 10px; }
 .tb-bred-empty textarea { width: 100%; font-family: "JetBrains Mono", monospace; }
+
+/* из конструктора брифингов: неизвестный контакт и фото во врезке справа */
+.tb-br-screen .unk { font: 700 11px var(--f-scr); fill: currentColor; }
+.tb-br-photo { position: absolute; z-index: 4; right: 3.4%; top: 19%; width: 27%; margin: 0; padding: .5cqw; background: rgba(6, 18, 15, .82);
+  border: 1px solid var(--ph-dim); box-shadow: 0 0 0 1px #0a0f11, 0 0 18px rgba(0,0,0,.6); opacity: 0; transform: translateY(.6cqw); transition: opacity .5s, transform .5s; pointer-events: none; }
+.tb-br-photo.on { opacity: 1; transform: none; }
+.tb-br-photo img { display: block; width: 100%; height: auto; max-height: 30cqw; object-fit: cover; border: 0; filter: saturate(.75) contrast(1.05); }
+.tb-br-photo figcaption { font: 600 1cqw var(--f-scr); letter-spacing: .12em; color: var(--ok); text-transform: uppercase; margin-top: .4cqw; }
+.tb-br-photo figcaption:empty { display: none; }

@@ -161,9 +161,19 @@ export function cleanSteps(list) {
     const x = { title: String(s.title ?? "ЭТАП"), text: String(s.text ?? ""), focus: focusOf(s.focus), show: strs(s.show) };
     if (s.targets?.length) x.targets = strs(s.targets);
     if (s.blink?.length) x.blink = strs(s.blink);
-    if (s.threat) x.threat = true;
+    // фон этапа из конструктора: ровно show ∪ dim, dim всегда приглушены, без накопления прошлых этапов
+    if (Array.isArray(s.dim)) x.dim = strs(s.dim);
+    // кольца ПВО: true — все, список — только у этих сил
+    if (Array.isArray(s.threat)) { if (s.threat.length) x.threat = strs(s.threat); } else if (s.threat) x.threat = true;
     if (s.wx) x.wx = true;
     if (Array.isArray(s.route) && s.route.length > 1) x.route = s.route.map(p => [num(p?.[0]), num(p?.[1])]);
+    // пометки этапа: подсвеченные клетки и стрелки, заготовленные в конструкторе
+    const marks = (Array.isArray(s.marks) ? s.marks : []).map(String).filter(k => /^\d+,\d+$/.test(k));
+    if (marks.length) x.marks = [...new Set(marks)];
+    const lines = (Array.isArray(s.lines) ? s.lines : []).filter(l => Array.isArray(l) && l.length === 4 && l.every(v => Number.isFinite(Number(v)))).map(l => l.map(Number));
+    if (lines.length) x.lines = lines;
+    // фото во врезке: только картинка data:, подпись по желанию
+    if (s.img && /^data:image\/(png|jpe?g|webp|gif|svg\+xml);/i.test(String(s.img.src ?? ""))) x.img = { src: String(s.img.src), cap: String(s.img.cap ?? "") };
     if (s.final) x.final = true;
     return x;
   });
@@ -189,18 +199,61 @@ export function fitCam(f, cols, rows) {
   return { x: (x0 + x1) / 2 - w / 2, y: y0 - TOP * h - (h * FH - bh) / 2, w, h };
 }
 
-/** Брифинг сцены: открытая часть миссии и этапы. */
+/** Открытая часть миссии из конструктора брифингов: числа, строки и списки на своих местах. */
+export function cleanMission(pm) {
+  if (!pm || typeof pm !== "object") return null;
+  const cols = Math.round(Number(pm.cols)), rows = Math.round(Number(pm.rows));
+  if (!(cols >= 1 && cols <= 40 && rows >= 1 && rows <= 40)) return null;
+  const hexes = {};
+  for (const [k, h] of Object.entries(pm.hexes ?? {})) {
+    const [c, r] = String(k).split(",").map(Number);
+    if (!(c >= 0 && r >= 0 && c < cols && r < rows) || !h) continue;
+    const x = {};
+    if (h.t) x.t = String(h.t);
+    if (Array.isArray(h.fx) && h.fx.length) x.fx = h.fx.map(String);
+    if (h.label) x.label = String(h.label);
+    if (Object.keys(x).length) hexes[`${c},${r}`] = x;
+  }
+  const units = (Array.isArray(pm.units) ? pm.units : []).filter(u => u && Number(u.c) >= 0 && Number(u.r) >= 0 && Number(u.c) < cols && Number(u.r) < rows).map((u, i) => {
+    const x = { id: String(u.id ?? `u${i}`), k: String(u.k ?? "obj"), side: SIDES.includes(u.side) ? u.side : "enemy", name: String(u.name ?? ""), count: Math.max(1, Math.round(Number(u.count) || 1)), c: Number(u.c), r: Number(u.r) };
+    if (["L", "M", "H", "S"].includes(u.alt)) x.alt = u.alt;
+    if (Number(u.rng) > 0) x.rng = Number(u.rng);
+    return x;
+  });
+  return { name: String(pm.name ?? ""), type: String(pm.type ?? ""), cols, rows, base: String(pm.base ?? "steppe"), hexes,
+    wx: Object.fromEntries(Object.entries(pm.wx ?? {}).map(([k, v]) => [k, String(v)])), units,
+    objectives: (Array.isArray(pm.objectives) ? pm.objectives : []).map(String), briefing: String(pm.briefing ?? "") };
+}
+
+/**
+ * Разобрать вставленный или загруженный JSON: брифинг из конструктора ({ format: "tb-briefing", mission, steps, op? })
+ * или миссия из Планшета AWACS (этапы тогда собираются сами). Возвращает { mission, steps, op, from }.
+ */
+export function readBriefingJson(obj, cat = {}) {
+  if (obj?.format === "tb-briefing" || (obj?.mission && Array.isArray(obj?.steps))) {
+    const mission = cleanMission(obj.mission);
+    if (!mission) throw new Error("в брифинге нет карты миссии (mission.cols, mission.rows)");
+    const steps = cleanSteps(obj.steps);
+    if (!steps.length) throw new Error("в брифинге нет ни одного этапа");
+    return { mission, steps, op: String(obj.op ?? "").trim(), from: "editor" };
+  }
+  if (!obj?.cols || !obj?.rows) throw new Error("это не брифинг из конструктора и не миссия из Планшета (нет cols, rows)");
+  const mission = publicMission(obj, cat);
+  return { mission, steps: buildSteps(mission), op: "", from: "tablet" };
+}
+
+/** Брифинг сцены: открытая часть миссии, этапы и название операции на экране (если задано в конструкторе). */
 export function briefingOf(scene) {
   const b = scene?.getFlag?.(SYSTEM_ID, "briefing") ?? {};
   const mission = b.mission?.cols && b.mission?.rows ? b.mission : null;
   const steps = cleanSteps(b.steps);
-  return { mission, steps: steps.length || !mission ? steps : buildSteps(mission) };
+  return { mission, steps: steps.length || !mission ? steps : buildSteps(mission), op: String(b.op ?? ""), from: b.from === "editor" ? "editor" : "" };
 }
 
 /** Записать брифинг на сцену целиком: объекты флагов при update сливаются, поэтому прежний сначала снимается. */
-export async function saveBriefing(scene, { mission, steps }) {
+export async function saveBriefing(scene, { mission, steps, op = "", from = "" }) {
   await scene.update({ [`flags.${SYSTEM_ID}.-=briefing`]: null });
-  await scene.update({ [`flags.${SYSTEM_ID}.briefing`]: { mission, steps: cleanSteps(steps) } });
+  await scene.update({ [`flags.${SYSTEM_ID}.briefing`]: { mission, steps: cleanSteps(steps), ...(op ? { op } : {}), ...(from === "editor" ? { from } : {}) } });
 }
 
 /* ---------- экран ---------- */
@@ -260,11 +313,12 @@ export class BriefScreen {
           <marker id="tb-br-arr-${u}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#9be3bf"/></marker>
           <marker id="tb-br-pen-${u}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#f2c14e"/></marker>
         </defs>
-        <g class="tb-br-world"></g><g class="tb-br-pen"></g>
+        <g class="tb-br-world"></g><g class="tb-br-marks"></g><g class="tb-br-pen"></g>
       </svg>
       <div class="tb-br-hud tl"><div class="k">ВВС ЮКТОБАНИИ · АСУ «ТАЙГА» · БРИФИНГ</div><div class="big">ОПЕРАЦИЯ «${esc(String(op || pm.name).toUpperCase())}»</div><div class="rule"></div>
         <div class="mid">${esc([pm.type.toUpperCase(), `ЗАДАЧ: ${pm.objectives.length}`].filter(Boolean).join(" · "))}</div></div>
       <div class="tb-br-hud tr"><div class="k">ЭТАП</div><div class="num" data-r="num">00/00</div><div class="k" data-r="cell">КВ —</div></div>
+      <figure class="tb-br-photo" data-r="photo" hidden><img alt=""><figcaption></figcaption></figure>
       <div class="tb-br-subs"><div class="say" data-r="say"></div></div>
       <div class="tb-br-hint" data-r="hint">${esc(hint)}</div>
     </div>`;
@@ -272,6 +326,7 @@ export class BriefScreen {
     this.svg = host.querySelector(".tb-br-map");
     this.world = host.querySelector(".tb-br-world");
     this.pen = host.querySelector(".tb-br-pen");
+    this.stepMarks = host.querySelector(".tb-br-marks");
     this.W = pm.cols * CELL; this.H = pm.rows * CELL;
     this.drawMap();
     this.setCam(fitCam("all", pm.cols, pm.rows));
@@ -371,7 +426,7 @@ export class BriefScreen {
     const thr = el("g", {});
     for (const u of pm.units) if (u.side === "enemy" && u.rng) {
       const [x, y] = ctr(u.c, u.r);
-      el("circle", { cx: x, cy: y, r: u.rng, class: "threat" }, thr);
+      el("circle", { cx: x, cy: y, r: u.rng, class: "threat", "data-id": u.id }, thr);
     }
     this.routeG = el("g", {});
     // силы
@@ -411,6 +466,7 @@ export class BriefScreen {
     else if (k === "art") { el("rect", { x: -11, y: -7, width: 22, height: 14 }); el("circle", { r: 2.6, class: "ico dot" }); }
     else if (k === "convoy") { el("rect", { x: -10, y: -6, width: 20, height: 12, rx: 5 }); el("path", { d: "M-5 0 h0.1 M0 0 h0.1 M5 0 h0.1", "stroke-width": 3, "stroke-linecap": "round" }); }
     else if (k === "goal") el("path", { d: "M0 -14 L14 0 L0 14 L-14 0 Z", "stroke-dasharray": "3 3" });
+    else if (k === "unk") { el("path", { d: "M0 -11 L11 0 L0 11 L-11 0 Z" }); this.node("text", { x: 0, y: 4, "text-anchor": "middle", class: "unk" }, g).textContent = "?"; }
     else { el("rect", { x: -8, y: -8, width: 16, height: 16 }); el("path", { d: "M-8 -8 L8 8 M8 -8 L-8 8" }); }
   }
 
@@ -454,17 +510,27 @@ export class BriefScreen {
     this.step = s;
     this.r("num").textContent = `${String(i + 1).padStart(2, "0")}/${String(n).padStart(2, "0")}`;
     this.moveCam(fitCam(s.focus, this.pm.cols, this.pm.rows), quiet ? 0 : 1500);
-    const showSet = new Set(s.show ?? []), tg = new Set(s.targets ?? []), bl = new Set(s.blink ?? []), kn = new Set(known ?? s.show ?? []);
+    // dim из конструктора: на карте ровно show ∪ dim, dim приглушены; иначе всё, что уже появлялось, и фокус по show
+    const showSet = new Set(s.show ?? []), tg = new Set(s.targets ?? []), bl = new Set(s.blink ?? []), dimSet = new Set(s.dim ?? []);
+    const kn = s.dim ? new Set([...showSet, ...dimSet]) : new Set(known ?? s.show ?? []);
     const at = ++this.shown;
     this.el.querySelectorAll(".u").forEach(g => {
       const id = g.dataset.id;
       g.classList.toggle("off", !kn.has(id));
-      g.classList.toggle("dim", kn.has(id) && !showSet.has(id) && s.focus !== "all");
+      g.classList.toggle("dim", kn.has(id) && (s.dim ? dimSet.has(id) && !showSet.has(id) : !showSet.has(id) && s.focus !== "all"));
       g.classList.toggle("blink", bl.has(id) || tg.has(id));
       g.classList.remove("on");
       if (tg.has(id)) this.later(() => { if (this.shown === at) g.classList.add("on"); }, quiet ? 0 : 700);
     });
-    this.el.querySelectorAll(".threat").forEach(c => c.classList.toggle("on", !!s.threat || (s.focus === "all" && i > 0)));
+    const rings = Array.isArray(s.threat) ? new Set(s.threat) : null;
+    this.el.querySelectorAll(".threat").forEach(c => c.classList.toggle("on", rings ? rings.has(c.dataset.id) : !!s.threat || (s.focus === "all" && i > 0 && !s.dim)));
+    // пометки этапа из конструктора и фото во врезке
+    this.stepMarks.innerHTML = "";
+    for (const k of s.marks ?? []) { const [c, r] = k.split(",").map(Number); this.node("rect", { x: c * CELL + 3, y: r * CELL + 3, width: CELL - 6, height: CELL - 6, class: "mark" }, this.stepMarks); }
+    for (const [x1, y1, x2, y2] of s.lines ?? []) this.node("line", { x1, y1, x2, y2, class: "penline", "marker-end": `url(#tb-br-pen-${this.uid})` }, this.stepMarks);
+    const ph = this.r("photo");
+    ph.hidden = !s.img;
+    if (s.img) { ph.classList.remove("on"); ph.querySelector("img").src = s.img.src; ph.querySelector("figcaption").textContent = s.img.cap ?? ""; this.later(() => ph.classList.add("on"), quiet ? 0 : 500); }
     this.wx.setAttribute("opacity", s.wx ? 1 : .35);
     this.drawRoute(s.route, !s.final && !quiet);
     if (!quiet) {
@@ -668,7 +734,7 @@ export async function startBriefing(scene = game.scenes?.viewed, { from = 0 } = 
   const { mission, steps } = briefingOf(scene);
   if (!mission) { openBriefing(scene); return ui.notifications.warn("Брифинг: на этой сцене нет данных миссии. Вставьте JSON из Планшета AWACS в окне «Брифинг»."); }
   if (!steps.length) return ui.notifications.warn("Брифинг: нет ни одного этапа.");
-  const op = bootOptions(scene).op;
+  const op = briefingOf(scene).op || bootOptions(scene).op;
   live = { sceneId: scene.id, pm: mission, op, steps, i: -1, marks: new Set(), lines: [], cam: null };
   emit({ type: "brief", op: "start", pm: mission, title: op });
   openView({ pm: mission, op, gm: true });
@@ -752,9 +818,10 @@ function editorClass() {
     load() { const b = briefingOf(this.scene); this.pm = b.mission; this.steps = b.steps; }
     async _renderInner() {
       if (!this.pm) return $(`<div class="tb-bred"><div class="tb-bred-empty">
-        <p class="tb-hint">На сцене «${esc(this.scene?.name ?? "")}» нет данных миссии для брифинга: сцена создана раньше, чем брифинг появился в системе, или не импортом. В Планшете AWACS откройте миссию, нажмите «JSON» и вставьте текст сюда. Сцена и токены не изменятся, соберутся только этапы брифинга.</p>
+        <p class="tb-hint">На сцене «${esc(this.scene?.name ?? "")}» нет данных миссии для брифинга: сцена создана раньше, чем брифинг появился в системе, или не импортом. Загрузите файл брифинга из конструктора брифингов или вставьте его текст сюда. Подойдёт и JSON миссии из Планшета AWACS (кнопка «JSON»): тогда этапы соберутся сами. Сцена и токены не изменятся.</p>
+        <input type="file" name="file" accept=".json,application/json">
         <textarea name="json" rows="14" placeholder='{"name": "…", "cols": 8, "rows": 5, …}'></textarea>
-        <div class="tb-bred-bar"><span class="sp"></span><button type="button" data-a="json-save" class="main"><i class="fas fa-file-import"></i> Собрать брифинг</button></div></div></div>`);
+        <div class="tb-bred-bar"><span class="sp"></span><button type="button" data-a="json-save" class="main"><i class="fas fa-file-import"></i> Загрузить брифинг</button></div></div></div>`);
       return $(`<div class="tb-bred">
         <div class="tb-bred-prev"></div>
         <div class="tb-bred-bar">
@@ -769,7 +836,7 @@ function editorClass() {
         <div class="tb-bred-bar foot">
           <button type="button" data-a="add" title="Новый этап после текущего, с камерой как сейчас в предпросмотре"><i class="fas fa-plus"></i> Этап</button>
           <button type="button" data-a="rebuild" title="Собрать этапы заново из миссии; ваши правки текста пропадут"><i class="fas fa-rotate"></i> Пересобрать из миссии</button>
-          <button type="button" data-a="json" title="Заменить данные миссии JSON из Планшета AWACS"><i class="fas fa-file-code"></i> JSON миссии</button>
+          <button type="button" data-a="json" title="Заменить брифинг файлом из конструктора брифингов или JSON миссии из Планшета AWACS"><i class="fas fa-file-import"></i> Загрузить брифинг</button>
           <span class="sp"></span>
           <span class="tb-hint">Правки сохраняются на сцене сами. Поворот и заметки ведущего игрокам не показываются.</span>
         </div></div>`);
@@ -783,7 +850,7 @@ function editorClass() {
       });
       if (!this.pm) return;
       this.screen?.destroy();
-      this.screen = new BriefScreen(root.querySelector(".tb-bred-prev"), { pm: this.pm, op: bootOptions(this.scene).op, interactive: true, hint: "ПРЕДПРОСМОТР" });
+      this.screen = new BriefScreen(root.querySelector(".tb-bred-prev"), { pm: this.pm, op: briefingOf(this.scene).op || bootOptions(this.scene).op, interactive: true, hint: "ПРЕДПРОСМОТР" });
       this.renderSteps();
       this.preview(Math.min(this.cur, this.steps.length - 1), true);
     }
@@ -848,26 +915,29 @@ function editorClass() {
         return;
       }
       if (a === "json") return this.askJson();
-      if (a === "json-save") return this.applyJson(root.querySelector("textarea[name=json]")?.value);
+      if (a === "json-save") return this.applyJson(root.querySelector(".tb-bred-empty"));
     }
     askJson() {
       new Dialog({
-        title: "JSON миссии для брифинга",
-        content: `<form class="tb-dialog"><p class="tb-hint">Вставьте JSON миссии из Планшета AWACS (кнопка «JSON»). Карта брифинга и этапы соберутся заново, ваши правки этапов пропадут. Сцена и токены не изменятся.</p>
-          <textarea name="json" rows="12" style="width:100%;font-family:monospace"></textarea></form>`,
-        buttons: { ok: { icon: '<i class="fas fa-file-import"></i>', label: "Собрать", callback: html => this.applyJson(html[0].querySelector("textarea").value) }, cancel: { label: "Отмена" } },
+        title: "Загрузить брифинг",
+        content: `<form class="tb-dialog"><p class="tb-hint">Файл брифинга из конструктора брифингов (или его текст) либо JSON миссии из Планшета AWACS (кнопка «JSON»), тогда этапы соберутся сами. Текущий брифинг сцены заменится целиком, сцена и токены не изменятся.</p>
+          <input type="file" name="file" accept=".json,application/json">
+          <textarea name="json" rows="10" style="width:100%;font-family:monospace" placeholder="или вставьте текст"></textarea></form>`,
+        buttons: { ok: { icon: '<i class="fas fa-file-import"></i>', label: "Загрузить", callback: html => this.applyJson(html[0].querySelector("form")) }, cancel: { label: "Отмена" } },
         default: "ok"
       }, { width: 560, classes: ["dialog", "thunderbolt"] }).render(true);
     }
-    async applyJson(text) {
+    /** form — где лежат поле файла и текст; файл важнее текста. */
+    async applyJson(form) {
       try {
-        const m = JSON.parse(String(text ?? "").trim());
-        if (!m?.cols || !m?.rows) throw new Error("в JSON нет размеров карты (cols, rows)");
+        const file = form?.querySelector("input[type=file]")?.files?.[0];
+        const text = file ? await file.text() : String(form?.querySelector("textarea")?.value ?? "");
+        if (!text.trim()) throw new Error("выберите файл или вставьте текст");
         const { catalog } = await import("./apps/mission-import.mjs");
-        const pm = publicMission(m, await catalog());
-        await saveBriefing(this.scene, { mission: pm, steps: buildSteps(pm) });
+        const b = readBriefingJson(JSON.parse(text.trim()), await catalog());
+        await saveBriefing(this.scene, b);
         this.cur = 0; this.load(); this.render(true);
-        ui.notifications.info(`Брифинг собран: этапов ${this.steps.length}.`);
+        ui.notifications.info(`${b.from === "editor" ? "Брифинг загружен" : "Брифинг собран из миссии"}: этапов ${this.steps.length}.`);
       } catch (e) { console.error(e); ui.notifications.error(`Не получилось: ${e.message}`); }
     }
     async close(options) { this.screen?.destroy(); this.screen = null; return super.close(options); }

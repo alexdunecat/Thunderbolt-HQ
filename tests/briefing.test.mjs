@@ -61,3 +61,15 @@ console.log(JSON.stringify(B.cleanSteps([null, 5, { title: 7, text: null, focus:
   { title: "Т", text: "т", focus: { c0: 1, c1: "2", r0: 0, r1: 0 }, show: ["a", 1], targets: ["a"], final: 1, route: [[0, 0], [2, "3"]] }])));
 const scene = flags => ({ getFlag: (s, k) => flags[k] });
 console.log("сцена без миссии:", JSON.stringify(B.briefingOf(scene({}))), "· с миссией без этапов:", B.briefingOf(scene({ briefing: { mission: pm } })).steps.length);
+
+// файл из конструктора брифингов: фон этапа, кольца ПВО по списку, пометки, фото, неизвестный контакт
+const ed = B.readBriefingJson({ format: "tb-briefing", v: 2, op: " Буря ", mission: { ...pm, units: [...pm.units, { id: "x1", k: "unk", side: "enemy", name: "Контакт", c: 2, r: 4 }, { id: "bad", c: 99, r: 0 }] },
+  steps: [{ title: "Т1", text: "а", focus: "all", show: ["ex4"], dim: ["ex1", 5], threat: ["ex4"], marks: ["5,2", "5,2", "x"], lines: [[1, 2, 3, 4], [1, 2]], img: { src: "data:image/png;base64,AAAA", cap: "ЗРК" } },
+    { title: "Т2", text: "б", threat: [], img: { src: "https://evil/x.png" } }] }, cat);
+console.log("конструктор:", ed.from, ed.op, "· сил", ed.mission.units.length, "· последняя", JSON.stringify(ed.mission.units.at(-1)));
+console.log(JSON.stringify(ed.steps));
+console.log("миссия из Планшета:", B.readBriefingJson(kesh, cat).from, B.readBriefingJson(kesh, cat).steps.length);
+for (const bad of [{}, { format: "tb-briefing", mission: { cols: 0 }, steps: [{}] }, { format: "tb-briefing", mission: pm, steps: [] }]) {
+  try { B.readBriefingJson(bad, cat); console.log("не упало"); } catch (e) { console.log("ошибка:", e.message); }
+}
+console.log("флаг из конструктора:", JSON.stringify(B.briefingOf(scene({ briefing: { mission: pm, steps: [{ title: "x" }], op: "Буря", from: "editor" } })).from));

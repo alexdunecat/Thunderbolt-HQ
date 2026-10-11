@@ -38,4 +38,11 @@ s300=sam osa=sam shilka=aa radar=radar jammer=jam t80u=armor msta=art krivak=shi
 ид без id: u0,u1,u2
 весь район 8×5: {"x":-59,"y":-8,"w":917,"h":516} · 16×3: {"x":-8,"y":-304,"w":1616,"h":909} · клетка: {"x":243,"y":98,"w":613,"h":345} · вид: {"x":1,"y":2,"w":300,"h":168}
 [{"title":"7","text":"","focus":"all","show":[]},{"title":"Т","text":"т","focus":{"c0":1,"c1":2,"r0":0,"r1":0},"show":["a","1"],"targets":["a"],"route":[[0,0],[2,3]],"final":true}]
-сцена без миссии: {"mission":null,"steps":[]} · с миссией без этапов: 8
+сцена без миссии: {"mission":null,"steps":[],"op":"","from":""} · с миссией без этапов: 8
+конструктор: editor Буря · сил 10 · последняя {"id":"x1","k":"unk","side":"enemy","name":"Контакт","count":1,"c":2,"r":4}
+[{"title":"Т1","text":"а","focus":"all","show":["ex4"],"dim":["ex1","5"],"threat":["ex4"],"marks":["5,2"],"lines":[[1,2,3,4]],"img":{"src":"data:image/png;base64,AAAA","cap":"ЗРК"}},{"title":"Т2","text":"б","focus":"all","show":[]}]
+миссия из Планшета: tablet 8
+ошибка: это не брифинг из конструктора и не миссия из Планшета (нет cols, rows)
+ошибка: в брифинге нет карты миссии (mission.cols, mission.rows)
+ошибка: в брифинге нет ни одного этапа
+флаг из конструктора: "editor"

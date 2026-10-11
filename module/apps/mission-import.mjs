@@ -204,7 +204,7 @@ export function openMapUpdateDialog() {
   if (off.length) return ui.notifications.warn(`Эту сцену не перерисовать: ${off.join(", ")}. Создайте сцену импортом миссии или поправьте настройки сцены.`, { permanent: true });
   new Dialog({
     title: "Карта и погода из Планшета AWACS",
-    content: `<form class="tb-dialog"><p class="tb-hint">Вставьте JSON миссии из Планшета AWACS (кнопка «JSON»). На сцене «${esc(scene.name)}» перерисуются местность, подписи и погода (подписи прежнего импорта уберутся), а погода сразу начнёт действовать на броски: по клеткам, а погода на всей карте — над всей сценой. Токены не трогаются. Карта брифинга тоже обновится, этапы, которые вы правили, останутся.</p>
+    content: `<form class="tb-dialog"><p class="tb-hint">Вставьте JSON миссии из Планшета AWACS (кнопка «JSON»). На сцене «${esc(scene.name)}» перерисуются местность, подписи и погода (подписи прежнего импорта уберутся), а погода сразу начнёт действовать на броски: по клеткам, а погода на всей карте — над всей сценой. Токены не трогаются. Карта брифинга тоже обновится, этапы, которые вы правили, останутся (брифинг, загруженный из конструктора, не меняется).</p>
       <textarea name="json" rows="12" style="width:100%;font-family:monospace"></textarea></form>`,
     buttons: {
       ok: {
@@ -214,9 +214,10 @@ export function openMapUpdateDialog() {
             const m = JSON.parse(html[0].querySelector("textarea").value.trim());
             if (!m?.cols || !m?.rows) throw new Error("в JSON нет размеров карты (cols, rows)");
             const res = await drawMap(scene, m);
-            // карта брифинга следом за сценой; этапы, которые ведущий уже правил, остаются
+            // карта брифинга следом за сценой; этапы, которые ведущий уже правил, остаются.
+            // Брифинг из конструктора не трогаем: там скрыты силы поворота, а миссия из Планшета вернула бы их
             const pm = publicMission(m, await catalog()), old = briefingOf(scene);
-            await saveBriefing(scene, { mission: pm, steps: old.mission && old.steps.length ? old.steps : buildSteps(pm) });
+            if (old.from !== "editor") await saveBriefing(scene, { mission: pm, steps: old.mission && old.steps.length ? old.steps : buildSteps(pm), op: old.op });
             ui.notifications.info(`Карта обновлена. Погода: ${res.everywhere.length ? `над всей сценой ${res.everywhere.map(id => TB.weather[id].name).join(", ")}, ` : ""}в ${res.cells} клетках.`);
           } catch (e) { console.error(e); ui.notifications.error(`Не получилось: ${e.message}`); }
         }
