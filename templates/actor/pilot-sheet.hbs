@@ -258,7 +258,7 @@
           {{#each dt.edges as |e|}}
           <li class="tb-item {{#if e.used}}used{{/if}} {{#if e.notEdge}}tb-edge-cost{{/if}}">
             <span class="tb-item-name"><b>{{e.label}}</b>{{#if e.comp}} <small class="tb-warn">Компромисс</small>{{/if}}{{#if e.used}} <small class="tb-muted">использован</small>{{/if}}<small>{{e.hint}}</small></span>
-            {{#if e.needsMinus}}<label class="tb-small">встречная цена <select data-edge-field="minus" data-edge-id="{{e.id}}">{{selectOptions @root.dt.minusOptions selected=e.minus blank="нет"}}</select></label>{{/if}}
+            {{#if e.needsMinus}}<label class="tb-small">встречная цена <select data-edge-field="minus" data-edge-id="{{e.id}}">{{selectOptions e.minusOptions selected=e.minus blank="нет"}}</select></label>{{/if}}
             {{#if e.isAmmo}}<label class="tb-small"><select data-edge-field="weapon" data-edge-id="{{e.id}}">{{selectOptions @root.weaponOpts selected=e.weapon blank="спецоружие…"}}</select></label>{{/if}}
             <a class="tb-icon" data-edge-del="{{e.id}}" title="Убрать"><i class="fas fa-trash"></i></a>
           </li>

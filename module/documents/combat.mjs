@@ -187,6 +187,8 @@ export async function delayTurn(combat, combatant) {
 
 export function registerCombat() {
   Hooks.on("preCreateCombatant", (c) => {
+    // персонаж на земле в воздушном бою не участвует (кнопка «добавить все токены» его пропускает)
+    if (c.actor?.type === "staff") return false;
     if (!passive(c.actor)) return;
     ui.notifications.info(`«${c.name}»: здания и объекты в бою не ходят.`);
     return false;
@@ -196,7 +198,7 @@ export function registerCombat() {
     // игрокам: ведущий заявил NPC, теперь ваша заявка
     if (!game.user.isGM && foundry.utils.getProperty(change, `flags.${SYSTEM_ID}.npcDone`) === combat.round) {
       const mine = acting(combat).filter(c => c.isOwner && !declared(c));
-      if (mine.length) combat.rollInitiative(mine.map(c => c.id), { updateTurn: false });
+      if (mine.length) combat.rollInitiative(mine.map(c => c.id), { updateTurn: false }).catch(err => console.error(`${SYSTEM_ID} | заявка`, err));
     }
     if (!leadGM()) return;
     if ("round" in change) {

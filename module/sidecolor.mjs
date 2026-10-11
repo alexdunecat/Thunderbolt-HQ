@@ -2,13 +2,15 @@
    Foundry тонирует их по стороне: пилоты зелёные, союзники синие, противник красный, нейтралы жёлтые.
    Приоритетную цель обводят уголки вокруг токена цветом её стороны. Свою картинку или свой оттенок токена не трогаем. */
 import { dimmed } from "./altitude.mjs";
+import { layoutChanged } from "./utils.mjs";
 
 export const SIDE_TINT = { player: 0x8ee6a0, ally: 0x6cc4ff, enemy: 0xff6b4a, neutral: 0xf2c14e };
 const OURS = /systems\/thunderbolt-shtab\/assets\/(planes|targets)\//;
 
 export function registerSideColor() {
-  Hooks.on("refreshToken", t => paint(t));
-  for (const ev of ["updateActor", "updateActorDelta", "updateToken", "canvasReady"]) Hooks.on(ev, refreshSoon);
+  Hooks.on("refreshToken", (t, flags) => { if (layoutChanged(flags)) paint(t); });
+  // выделение своего самолёта меняет, кто приглушён по высоте
+  for (const ev of ["updateActor", "updateActorDelta", "updateToken", "controlToken", "canvasReady"]) Hooks.on(ev, refreshSoon);
 }
 
 let timer = null;

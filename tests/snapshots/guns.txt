@@ -11,3 +11,4 @@ CARD3 {"t":"Ведомый","applied":true} sent={"type":"hit","to":"pl","hit":{
 LEFT Гроза,Далёкий,Союзный
 WARN Guns, Guns, Guns!: в своей зоне нет противника. Рядом: Союзный: своя сторона.
 CARD4 fired
+POD RCL pod=true lock=false · MGP pod=true lock=false · XAGM pod=false lock=true · LAAM pod=false lock=true

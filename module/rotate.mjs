@@ -5,22 +5,26 @@ import { SYSTEM_ID } from "./config.mjs";
 export function registerRotate() {
   game.keybindings.register(SYSTEM_ID, "rotLeft", {
     name: "Курс: повернуть против часовой (15°, с Shift 5°)", editable: [{ key: "KeyQ" }],
-    onDown: ctx => { turnSelected(ctx.isShift ? -5 : -15); return true; }
+    onDown: ctx => turnSelected(ctx.isShift ? -5 : -15)
   });
   game.keybindings.register(SYSTEM_ID, "rotRight", {
     name: "Курс: повернуть по часовой (15°, с Shift 5°)", editable: [{ key: "KeyE" }],
-    onDown: ctx => { turnSelected(ctx.isShift ? 5 : 15); return true; }
+    onDown: ctx => turnSelected(ctx.isShift ? 5 : 15)
   });
   Hooks.on("renderTokenHUD", addHudButton);
+  // смена сцены посреди выбора курса: прежние токены уже не на этой сцене
+  Hooks.on("canvasTearDown", () => picking?.cancel());
 }
 
 const mine = () => (canvas?.tokens?.controlled ?? []).filter(t => t.document.isOwner);
 const norm = a => ((Math.round(a) % 360) + 360) % 360;
 
+/** Повернуть выделенные. Без своих выделенных клавиша не перехватывается: Q и E достаются другим. */
 function turnSelected(delta) {
   const list = mine();
-  if (!list.length) return;
+  if (!list.length) return false;
   canvas.scene.updateEmbeddedDocuments("Token", list.map(t => ({ _id: t.id, rotation: norm(t.document.rotation + delta) })));
+  return true;
 }
 
 /** Повернуть токены носом к точке карты (нос рисунка смотрит вверх). */

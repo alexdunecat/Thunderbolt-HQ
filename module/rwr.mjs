@@ -1,10 +1,10 @@
 /* Предупреждение об облучении: значок захвата на токене цели и сигнал её владельцу.
    Значок видят ведущий, владелец цели и тот, кто держит захват. Сигнал «Ракета!» молчит, если у цели сломан MAWS. */
 import { SYSTEM_ID } from "./config.mjs";
-import { resolveActor } from "./utils.mjs";
+import { resolveActor, layoutChanged } from "./utils.mjs";
 
 export function registerRwr() {
-  Hooks.on("refreshToken", t => drawBadge(t));
+  Hooks.on("refreshToken", (t, flags) => { if (layoutChanged(flags)) drawBadge(t); });
   Hooks.on("canvasReady", () => refreshAll());
   // у NPC без связи с актёром захват живёт в дельте токена: её обновление приходит отдельным хуком
   for (const ev of ["updateActor", "updateActorDelta", "updateToken", "createToken", "deleteToken", "targetToken"]) Hooks.on(ev, refreshSoon);

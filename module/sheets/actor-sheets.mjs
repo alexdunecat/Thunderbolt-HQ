@@ -88,6 +88,12 @@ class TBActorSheet extends ActorSheet {
     super.activateListeners(html);
     const el = html[0];
     el.closest(".app")?.setAttribute("data-tb-skin", game.settings.get(SYSTEM_ID, "skin"));
+    // полный рост смотрят и те, кому лист только виден
+    const a = this.actor;
+    el.querySelectorAll("[data-art-show]").forEach(n => n.addEventListener("click", ev => {
+      ev.preventDefault();
+      if (a.system.artwork) new ImagePopout(a.system.artwork, { title: a.name, uuid: a.uuid, shareable: true }).render(true);
+    }));
     if (!this.isEditable) return;
     const on = (sel, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); fn(n.dataset, n, ev); }));
     personListeners(this.actor, el);
@@ -239,7 +245,6 @@ function personListeners(a, el) {
   const current = key => key === "img" ? a.img : key === "artwork" ? a.system.artwork : a.isToken ? a.token?.texture?.src : a.prototypeToken.texture.src;
   on("[data-img-pick]", d => new FilePicker({ type: "image", current: current(d.imgPick), callback: path => setImage(a, d.imgPick, path) }).render(true));
   on("[data-img-clear]", d => setImage(a, d.imgClear, ""));
-  on("[data-art-show]", () => a.system.artwork && new ImagePopout(a.system.artwork, { title: a.name, uuid: a.uuid, shareable: true }).render(true));
   on("[data-bond-add]", () => addBondDialog(a));
   on("[data-bond-set]", d => {
     const i = Number(d.bondSet), b = a.system.bonds[i];
@@ -253,7 +258,8 @@ function personListeners(a, el) {
   on("[data-bond-del]", async d => {
     const b = a.system.bonds[Number(d.bondDel)];
     if (!b || !(await Dialog.confirm({ title: "Связь", content: `<p>Убрать Связь с «${esc(b.name)}» с листа? Обычно разрыв зачёркивают, а не стирают.</p>` }))) return;
-    a.update({ "system.bonds": clone("bonds").filter((_, i) => i !== Number(d.bondDel)) });
+    // товарищ-пилот: ведущий сотрёт Связь и на его листе
+    a.update({ "system.bonds": clone("bonds").filter((_, i) => i !== Number(d.bondDel)) }, b.uuid && !b.npc ? { tbBondDrop: b.uuid } : {});
   });
   on("[data-goal-add]", () => a.update({ "system.goals": [...clone("goals"), { name: "", size: 4, value: 0 }] }));
   on("[data-goal-del]", d => a.update({ "system.goals": clone("goals").filter((_, i) => i !== Number(d.goalDel)) }));
@@ -293,7 +299,9 @@ function downtimeView(a) {
   const s = a.system;
   const pips = (n, val, from = 1) => Array.from({ length: n }, (_, k) => ({ i: k + from, on: k + from <= val }));
   const edges = s.edges.map(e => ({ ...e, label: edgeLabel(e, a), hint: EDGE_HINT[e.kind] ?? "", notEdge: DT.notEdges.includes(e.kind),
-    needsMinus: e.kind === "tune" && ["ev", "spd"].includes(e.stat), isAmmo: e.kind === "ammo" }));
+    needsMinus: e.kind === "tune" && ["ev", "spd"].includes(e.stat) && e.mode !== "perk", isAmmo: e.kind === "ammo",
+    // встречная цена — другая характеристика: своя же дала бы ноль
+    minusOptions: Object.fromEntries(Object.entries(DT.tuneMinus).filter(([k]) => k !== e.stat).map(([k, v]) => [k, `${v[1]} −1`])) }));
   const live = s.bonds.map((b, i) => ({ ...b, i })).filter(b => !b.dead && b.value > 0);
   const edgeChips = s.edges.filter(e => e.kind === "memory" || (e.kind === "intel" && e.mode === "weak"))
     .map(e => ({ id: e.id, used: e.used, label: e.kind === "memory" ? `Память: ${e.text} +${e.value}` : `Слабое место${e.text ? `: ${e.text}` : ""} +2`,
@@ -309,8 +317,7 @@ function downtimeView(a) {
     actions: Object.entries(DT.actions).map(([key, x]) => ({ key, label: x.label, hint: x.hint, roll: x.skills.length > 0,
       off: key === "breakdown" && s.nerves < DT.maxNerves })),
     edges, maxEdges: DT.maxEdges, edgesOver: s.edgeCount > DT.maxEdges,
-    minusOptions: Object.fromEntries(Object.entries(DT.tuneMinus).map(([k, v]) => [k, `${v[1]} −1`])),
-    bonds: s.bonds.map((b, i) => ({ ...b, i, was: (b.was ?? []).join(", "), pips: pips(bondCap(a, b.npc), b.value) })),
+        bonds: s.bonds.map((b, i) => ({ ...b, i, was: (b.was ?? []).join(", "), pips: pips(bondCap(a, b.npc), b.value) })),
     fee: a.items.some(i => i.type === "trigger" && i.system.key === "contract") ? pips(3, s.fee) : null,
     goals: s.goals.map((g, i) => ({ ...g, i, small: g.size <= 4, done: g.value >= g.size, pips: clockPips(g.value, g.size) })),
     debts: s.debts.map((d, i) => ({ ...d, i })),
@@ -470,7 +477,10 @@ export class PilotSheet extends TBActorSheet {
       a.update({ "system.nerves": a.system.nerves - 1, "system.downtime.nervesDown": true });
     });
     on("[data-resolve]", d => {
-      const v = Number(d.resolve), next = v === a.system.resolve ? v - 1 : v;
+      const v = Number(d.resolve);
+      let next = v === a.system.resolve ? v - 1 : v;
+      // игрок прибавляет по одной: клик через деление дал бы +2 за даунтайм
+      if (!game.user.isGM && next > a.system.resolve) next = a.system.resolve + 1;
       if (next > a.system.resolve && a.system.downtime.resolveGot && !game.user.isGM) return ui.notifications.warn("Решимость в этом даунтайме уже получена: не больше одной.");
       a.update({ "system.resolve": next, ...(next > a.system.resolve ? { "system.downtime.resolveGot": true } : {}) });
     });
@@ -549,7 +559,7 @@ export class NpcSheet extends TBActorSheet {
     ctx.kindOptions = TB.npcKinds;
     ctx.tierOptions = TB.tiers;
     ctx.systems = s.systems.map((y, i) => ({ ...y, i, dead: y.value <= 0 }));
-    ctx.canSam = ctx.isGround && s.ground.ga !== null;
+    ctx.canSam = ctx.isGround && (s.ground.ga !== null || s.ground.gg !== null);
     ctx.shipSam = s.kind === "ship" && s.systems.some(y => y.ga !== null && y.ga !== undefined);
     ctx.canGun = ctx.isAir || (ctx.isGround && s.ground.gun !== null);
     ctx.gunLabel = gunVs(this.actor) === "air" ? "Зенитный огонь" : "Огонь по земле";
@@ -648,7 +658,7 @@ export class StaffSheet extends TBActorSheet {
       enrichedNotes: await TextEditor.enrichHTML(s.notes, { secrets: a.isOwner, relativeTo: a }),
       insigniaHint: "Эмблема подразделения или семейный знак. Щелчок: выбрать картинку, правый щелчок: убрать."
     });
-    const kin = s.relatedTo ? game.actors.get(s.relatedTo) : null;
+    const kin = s.role === "kin" && s.relatedTo ? game.actors.get(s.relatedTo) : null;
     ctx.kinName = kin ? kin.system.callsign || kin.name : "";
     return ctx;
   }

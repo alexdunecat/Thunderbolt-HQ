@@ -55,6 +55,10 @@ a = actor(sys({ nerves: 1, markers: { grit: true, structure: true, doom: false }
 assert(D.nervesHint(a).up === 1, "nerves hint two markers");
 const aft = D.afterSortieUpdate(actor(sys({ nerves: 4, edges: [{ id: "x", kind: "fresh" }], service: { status: "hospital" } })), 2);
 assert(aft.upd["system.nerves"] === 5 && aft.upd["system.downtime"].actions === 1 && aft.upd["system.edges"].length === 0, "after sortie " + JSON.stringify(aft.notes));
+// Память о товарище, погибшем в этом вылете, доживает до следующего; прошлая и использованная сгорают
+const aftM = D.afterSortieUpdate(actor(sys({ edges: [{ id: "m1", kind: "memory", text: "Гроза", value: 2, carry: true }, { id: "m2", kind: "memory", text: "Сокол", value: 1 },
+  { id: "m3", kind: "memory", text: "Ворон", value: 1, carry: true, used: true }, { id: "t", kind: "tune", stat: "hp" }] })), 0);
+assert(JSON.stringify(aftM.upd["system.edges"].map(e => [e.id, e.carry])) === '[["m1",false]]' && aftM.notes.includes("Заделы сгорели"), "memory of this sortie survives debrief");
 const aft2 = D.afterSortieUpdate(actor(sys({ nerves: 5, onEdge: "fly" })), 2);
 assert(aft2.upd["system.nerves"] === 5 && aft2.upd["system.onEdge"] === "", "on edge nerves do not grow");
 
@@ -75,6 +79,8 @@ a = actor(sys({ resolve: 1 }));
 let c = card(5, { d4: 4, perkOn: 4, edge: { kind: "tune", stat: "ev", minus: "gun" }, action: "hangar" });
 await D.groundAction(null, c, "dt-edge", null, a, async () => {});
 assert(a.system.edges.length === 1 && a.system.edges[0].minus === "", "perk clean: evasion without counter-cost");
+assert(a.system.edges[0].mode === "perk" && !D.tuneIdle(a.system.edges[0]), "perk evasion tune works");
+assert(D.tuneIdle({ kind: "tune", stat: "spd", minus: "" }) && !D.tuneIdle({ kind: "tune", stat: "spd", minus: "aa" }) && !D.tuneIdle({ kind: "tune", stat: "hp" }), "evasion/speed tune idle without counter-cost");
 c = card(5, { edge: { kind: "tune", stat: "ev", minus: "gun" }, action: "hangar" });
 await D.groundAction(null, c, "dt-edge", null, a, async () => {});
 assert(/доводка/i.test(log.at(-1)) && a.system.edges.length === 1, "duplicate tune refused");

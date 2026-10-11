@@ -36,7 +36,7 @@ export function registerChatter() {
   game.settings.register(SYSTEM_ID, "chatterMuted", { scope: "world", config: false, type: Object, default: {} });
   game.settings.registerMenu(SYSTEM_ID, "chatterEditor", {
     name: "Реплики NPC", label: "Открыть реплики", hint: "Все фразы NPC по типам техники, сторонам и событиям: посмотреть, поменять, вернуть стандартные.",
-    icon: "fas fa-comments", type: ChatterEditor, restricted: true
+    icon: "fas fa-comments", type: ChatterMenu, restricted: true
   });
   Hooks.once("ready", () => game.socket.on(CHANNEL, msg => {
     if (msg?.type === "chatter") hear(msg.line);
@@ -190,7 +190,8 @@ const dead = a => !!a?.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) || !!
 function tokenDoc(actor) {
   if (!actor) return null;
   if (actor.isToken) return actor.token ?? null;
-  return actor.getActiveTokens?.(false, true)?.[0] ?? null;
+  // открыта другая сцена: токен ищется на сцене боя
+  return actor.getActiveTokens?.(false, true)?.[0] ?? game.combat?.scene?.tokens.find(t => t.actorId === actor.id) ?? null;
 }
 
 /**
@@ -330,6 +331,11 @@ function aceList() {
   const seen = new Set(onScene.map(x => x.actor.uuid));
   const inDir = (game.actors ?? []).filter(a => isAce(a) && !seen.has(a.uuid)).map(a => ({ actor: a, name: nameOf(a), where: "актёр" }));
   return { onScene, inDir };
+}
+
+/** Кнопка в настройках открывает то же окно, что и панель AWACS, а не второе. */
+class ChatterMenu extends FormApplication {
+  render() { openChatterEditor(); return this; }
 }
 
 class ChatterEditor extends FormApplication {

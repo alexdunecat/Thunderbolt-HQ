@@ -32,6 +32,8 @@ function fromMessage(message) {
   const f = message.flags?.[SYSTEM_ID] ?? {};
   const r = f.radio;
   if (r) {
+    // реплики AWACS и баннеры шлёт только ведущий: чужое сообщение с таким флагом (макрос игрока) не показываем
+    if (!(message.author ?? message.user)?.isGM) return;
     if (r.to && !mine(r.to) && !(game.user.isGM && r.gm)) return;
     if (r.text) say(r.speaker ?? "AWACS", r.text, r.side);
     if (r.caution) caution(r.caution);
@@ -173,7 +175,8 @@ export function caution({ title = "CAUTION", sub = "", level = "caution", missio
 function nextBanner() {
   const b = banners.shift();
   const el = box("tb-caution");
-  if (!b) { bannerOn = false; el.classList.remove("on"); return; }
+  // очередь пуста: класс и содержимое тоже убрать, иначе прозрачная плашка итога или асов ловит щелчки по карте
+  if (!b) { bannerOn = false; el.className = ""; el.innerHTML = ""; return; }
   bannerOn = true;
   if (b.intro) {
     // эскадрилья асов как в Ace Combat 7: эмблема и надписи выезжают слева, держатся дольше, щелчок убирает

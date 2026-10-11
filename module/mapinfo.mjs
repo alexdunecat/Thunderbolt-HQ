@@ -10,11 +10,16 @@ export function registerMapInfo() {
   Hooks.on("updateScene", (scene, change) => { if (scene === canvas?.scene && change.flags) shown = ""; });
 }
 
+let setups = 0;
 async function setup() {
+  // сцена холста одна на все сцены: прежний слушатель снять, иначе на каждой смене сцены их станет больше
+  canvas.stage.off("pointermove", hover);
   text?.destroy();
   text = null; shown = "";
+  const run = ++setups;
   if (!canvas.scene?.getFlag(SYSTEM_ID, "terrainCells")) return;
   names ??= Object.fromEntries((await catalog()).terrain.map(t => [t.id, t.name + (t.note ? ` · ${t.note}` : "")]));
+  if (run !== setups) return;   // пока грузился каталог, сцену уже сменили
   const style = PreciseText.getTextStyle({ fontFamily: "Jura", fontSize: 20, fill: "#d7eee6", stroke: "#07141a", strokeThickness: 5, align: "center",
     wordWrap: true, wordWrapWidth: (canvas.grid.size ?? 200) - 12 });
   text = canvas.interface.addChild(new PreciseText("", style));

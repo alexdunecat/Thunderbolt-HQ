@@ -10,3 +10,10 @@ export function resolveActor(uuid) {
   const d = fromUuidSync(uuid);
   return d?.actor ?? d ?? null;
 }
+
+/**
+ * Перерисовка токена затронула вид, а не только место: Foundry шлёт refreshToken на каждом кадре движения
+ * (refreshPosition), а значкам-детям токена хватает того, что они едут вместе с ним.
+ */
+const LAYOUT = ["redraw", "refresh", "refreshSize", "refreshShape", "refreshMesh", "refreshState", "refreshVisibility"];
+export const layoutChanged = flags => !flags || LAYOUT.some(k => flags[k]);

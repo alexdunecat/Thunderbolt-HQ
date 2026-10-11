@@ -21,8 +21,10 @@ export function registerRange() {
     name: "Подсветка дальности", hint: "У выделенного самолёта зоны подсвечиваются по стандартной ракете или по спецоружию, отмеченному прицелом на листе.",
     scope: "client", config: true, type: Boolean, default: true, onChange: () => refreshSoon()
   });
-  for (const ev of ["controlToken", "updateToken", "deleteToken", "updateScene", "createItem", "updateItem", "deleteItem", "targetToken", "updateActor", "updateActorDelta"])
-    Hooks.on(ev, refreshSoon);
+  Hooks.on("controlToken", refreshSoon);
+  // чужие правки во время боя приходят часто: перерисовывать, только когда что-то выделено
+  for (const ev of ["updateToken", "deleteToken", "updateScene", "createItem", "updateItem", "deleteItem", "targetToken", "updateActor", "updateActorDelta"])
+    Hooks.on(ev, () => { if (canvas?.tokens?.controlled?.length) refreshSoon(); });
   Hooks.on("canvasReady", () => refreshSoon());
 }
 

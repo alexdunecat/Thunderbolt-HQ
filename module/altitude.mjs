@@ -16,10 +16,10 @@ export function registerAltitude() {
     onChange: () => refreshAll()
   });
   game.keybindings.register(SYSTEM_ID, "altUp", {
-    name: "Высота: на уровень выше", editable: [{ key: "PageUp" }], onDown: () => { stepSelected(1); return true; }
+    name: "Высота: на уровень выше", editable: [{ key: "PageUp" }], onDown: () => stepSelected(1)
   });
   game.keybindings.register(SYSTEM_ID, "altDown", {
-    name: "Высота: на уровень ниже", editable: [{ key: "PageDown" }], onDown: () => { stepSelected(-1); return true; }
+    name: "Высота: на уровень ниже", editable: [{ key: "PageDown" }], onDown: () => stepSelected(-1)
   });
   Hooks.on("refreshToken", t => decorate(t));
   Hooks.on("destroyToken", t => { if (t.tbShadow && !t.tbShadow.destroyed) t.tbShadow.destroy(); t.tbShadow = null; });
@@ -147,6 +147,7 @@ export async function stepAltitude(token, delta) {
 function stepSelected(delta) {
   const list = (canvas?.tokens?.controlled ?? []).filter(t => t.document.isOwner && isAir(t.actor));
   for (const t of list) stepAltitude(t, delta);
+  return list.length > 0;   // нечего поднимать: PageUp / PageDown остаются странице
 }
 
 /** Кнопки ▲▼ и текущая высота в левой колонке меню токена. */

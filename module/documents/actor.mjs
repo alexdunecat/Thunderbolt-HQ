@@ -143,7 +143,7 @@ export class TBActor extends Actor {
 
   async #applyDamage(amount, { source, sourceUuid, roundKey } = {}) {
     amount = Number(amount) || 0;
-    if (amount <= 0) return;
+    if (amount <= 0 || !["pilot", "npc"].includes(this.type)) return;
     const s = this.system;
     // по уже сбитой машине урон не идёт: иначе второй сбитый засчитался бы дважды
     if (this.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) || s.markers?.doom)
@@ -155,8 +155,9 @@ export class TBActor extends Actor {
       const hp = s.hp.value - amount;
       await this.update({ "system.hp.value": Math.max(0, hp) });
       if (hp <= 0) {
-        await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
+        // сначала отметка «сбит» со стрелком: иначе её раньше поставит хук статуса, уже без стрелка
         await this.#creditKill(sourceUuid);
+        await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
         return this.#say(`<b>${esc(this.name)}</b> уничтожена.`);
       }
       this.#chatter("damaged");
@@ -198,9 +199,10 @@ export class TBActor extends Actor {
   async markDoom(reason, { sourceUuid, roundKey } = {}) {
     await this.update({ "system.markers.doom": true, "system.markers.lastRound": roundKey ?? this.roundKey }, { tbDoom: true });
     // Doom — машина сбита у всех, и у пилота, и у аса: знак X, в конце раунда токен уходит с поля
-    await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
+    // отметка «сбит» со стрелком раньше статуса: хук статуса иначе поставит её без стрелка
     if (this.type === "pilot") await this.markDown(sourceUuid);
     else await this.#creditKill(sourceUuid);
+    await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
     // пилоту: судьбу решает бросок на катапультирование, либо героическая гибель по своему выбору
     // карточку пишем от имени игрока пилота, чтобы кнопки достались ему, даже если урон нанёс ведущий
     if (this.type === "pilot") {
@@ -273,8 +275,8 @@ export class TBActor extends Actor {
     const left = systems.filter(s => s.value > 0).length;
     if (left) this.#chatter("damaged");
     if (!left) {
-      await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
       await this.#creditKill(sourceUuid);
+      await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
       return this.#say(`<b>${esc(this.name)}</b>: уничтожена последняя система. Цель потоплена.`);
     }
     return this.#say(`<b>${esc(this.name)}</b>: «${esc(y.name)}» −${amount} HP${y.value ? `, осталось ${y.value}` : ", система уничтожена"}. Целых систем: ${left}.`);

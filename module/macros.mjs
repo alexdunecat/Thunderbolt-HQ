@@ -46,7 +46,7 @@ export function actFromMacro(act, { actor: uuid, skill } = {}) {
   if (act !== "end" && act !== "skill" && !ACTIONS[act]) return ui.notifications.warn(`Нет такого действия: ${act}.`);
   const mine = (canvas?.tokens?.controlled ?? []).filter(t => t.actor?.isOwner && ["pilot", "npc"].includes(t.actor.type));
   const actor = (mine.length === 1 ? mine[0].actor : null) ?? resolveActor(uuid) ?? game.user.character;
-  if (!actor) return ui.notifications.warn("Выделите свой токен или назначьте себе пилота в настройках игрока.");
+  if (!actor || !["pilot", "npc"].includes(actor.type)) return ui.notifications.warn("Выделите свой токен или назначьте себе пилота в настройках игрока.");
   if (!actor.isOwner) return ui.notifications.warn(`«${actor.name}» вам не принадлежит: выделите свой токен.`);
   if (act === "end") return endTurn(actor);
   return runAction(actor, act, { skill });
@@ -90,7 +90,7 @@ export function registerMacros() {
   Hooks.on("chatMessage", (log, text) => {
     const cmd = parseCommand(text);
     if (!cmd) return;
-    actFromMacro(cmd.act, { actor: cmd.actor, skill: cmd.skill });
+    Promise.resolve(actFromMacro(cmd.act, { actor: cmd.actor, skill: cmd.skill })).catch(err => console.error(`${SYSTEM_ID} | /tb ${cmd.act}`, err));
     return false;
   });
   Hooks.once("ready", () => {

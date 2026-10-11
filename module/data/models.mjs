@@ -41,7 +41,8 @@ function downtimeFields() {
     }),
     edges: new f.ArrayField(new f.SchemaField({
       id: str(), kind: str("custom"), stat: str(), minus: str(), minus2: str(), weapon: str(), skill: str(), mode: str(), text: str(),
-      value: int(0), comp: bool(), used: bool()
+      value: int(0), comp: bool(), used: bool(),
+      carry: bool()                           // Память о погибшем в этом вылете: дожить до следующего
     })),
     bonds: new f.ArrayField(new f.SchemaField({
       name: str(), uuid: str(), npc: bool(), value: int(0, { min: 0, max: DT.maxBond }),
@@ -164,7 +165,8 @@ export class PilotData extends foundry.abstract.TypeDataModel {
     // Заделы и последствия даунтайма действуют до конца следующего вылета
     for (const e of this.edges) {
       const label = DT.edges[e.kind] ?? "Задел";
-      if (e.kind === "tune" && DT.tune[e.stat]) {
+      // Evasion и Max Speed без встречной цены не поднимаются (кроме Perk на чистом успехе)
+      if (e.kind === "tune" && DT.tune[e.stat] && !(["ev", "spd"].includes(e.stat) && !e.minus && !e.minus2 && e.mode !== "perk")) {
         const [target, v] = DT.tune[e.stat];
         push(target, `Доводка`, v);
         for (const m of [e.minus, e.minus2]) if (m && DT.tuneMinus[m]) push(DT.tuneMinus[m][0], "Доводка: встречная цена", -1);

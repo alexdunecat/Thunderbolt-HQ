@@ -296,7 +296,8 @@ async function loadFrom(text, actor) {
   }
   const made = [], upd = [];
   for (const raw of list) {
-    const found = game.actors.find(a => a.type === "pilot" && raw.id && a.getFlag(SYSTEM_ID, "shtab")?.id === raw.id);
+    // пилот, заведённый в Foundry, уходит в Штаб с номером pf<id актёра>
+    const found = game.actors.find(a => a.type === "pilot" && raw.id && (a.getFlag(SYSTEM_ID, "shtab")?.id === raw.id || `pf${a.id}` === raw.id));
     if (found && !found.isOwner) continue;
     if (!found && !game.user.can("ACTOR_CREATE")) { ui.notifications.warn("Создавать актёров может только ведущий."); break; }
     const a = await importDossier(raw, found ?? null);

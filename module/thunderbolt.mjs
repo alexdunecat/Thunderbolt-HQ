@@ -165,9 +165,11 @@ Hooks.once("ready", async () => {
   R.initHitSocket();
   // «В строю» читает союзника: после загрузки всех актёров пересчитать тех, кто стоит вплотную
   for (const a of game.actors) if (a.type === "pilot" && a.getFlag(SYSTEM_ID, "adjacent")?.length) { a.prepareData(); a.sheet?.rendered && a.sheet.render(false); }
-  if (game.user.isGM) for (const a of game.actors) if (a.type === "pilot") a.syncPools();
+  // пишет один клиент: активный ведущий (при двух ведущих в сети они не дублируют правки)
+  const lead = game.users.activeGM?.isSelf;
+  if (lead) for (const a of game.actors) if (a.type === "pilot") a.syncPools();
   // серые силуэты Foundry у старых актёров — на портреты системы
-  if (game.user.isGM) migratePortraits().catch(err => console.warn(`${SYSTEM_ID} | портреты`, err));
+  if (lead) migratePortraits().catch(err => console.warn(`${SYSTEM_ID} | портреты`, err));
 });
 
 /* Триггер или самолёт добавлен, изменён, убран: максимумы пересчитаны, текущие HP и Strain сдвигаются следом. */
@@ -181,7 +183,7 @@ Hooks.on("renderChatMessage", (message, html) => R.decorateCard(message, html));
 Hooks.on("createChatMessage", message => R.onVolleyCreated(message));
 
 /* Высота: поле листа и высота токена (1 = Низкая, 2 = Средняя, 3 = Высокая) держатся вместе. */
-let moveTimer = null, locking = false;
+let moveTimer = null, locking = false, lockAgain = false;
 Hooks.on("updateToken", (token, change, options, userId) => {
   const moved = "x" in change || "y" in change || "elevation" in change;
   if (moved && token.actor?.sheet?.rendered) token.actor.sheet.render(false);   // погода и защита в новой клетке
@@ -190,16 +192,20 @@ Hooks.on("updateToken", (token, change, options, userId) => {
     clearTimeout(moveTimer);
     moveTimer = setTimeout(() => { checkLocks(token.parent); checkAdjacency(); }, 80);
   }
-  if (userId !== game.user.id || !("elevation" in change) || !token.actor) return;
+  if (userId !== game.user.id || !("elevation" in change) || !["pilot", "npc"].includes(token.actor?.type)) return;
   const alt = Object.entries(TB.altElevation).find(([, v]) => v === change.elevation)?.[0];
   if (alt && token.actor.system.alt !== alt) token.actor.update({ "system.alt": alt }, { tbSync: true });
 });
 
 /** Захват срывается, если цель ушла дальше двух зон (кроме дальнобойного спецоружия). */
 async function checkLocks(scene) {
-  if (!canvas?.ready || scene !== canvas.scene || locking) return;
+  if (!canvas?.ready || scene !== canvas.scene) return;
+  // проверка уже идёт: повторить её после, чтобы не потерять ход, сделанный за это время
+  if (locking) { lockAgain = true; return; }
   locking = true;
-  try { await breakLocks(); } finally { locking = false; }
+  try { do { lockAgain = false; await breakLocks(); } while (lockAgain); }
+  catch (err) { console.error(`${SYSTEM_ID} | срыв захвата`, err); }
+  finally { locking = false; }
 }
 async function breakLocks() {
   for (const tok of canvas.tokens.placeables) {
@@ -263,8 +269,9 @@ function sideToTokens(actor, side) {
   const disposition = SIDE_DISPOSITION[side];
   if (actor.isToken) return actor.token.disposition !== disposition && actor.token.update({ disposition });
   if (actor.prototypeToken.disposition !== disposition) actor.update({ "prototypeToken.disposition": disposition });
-  for (const t of actor.getActiveTokens(false, true))
-    if (t.actor?.system.side === side && t.disposition !== disposition) t.update({ disposition });
+  // токены на всех сценах, не только на открытой: заготовленная сцена тоже должна сойтись
+  for (const scene of game.scenes) for (const t of scene.tokens)
+    if (t.actorId === actor.id && t.actor?.system.side === side && t.disposition !== disposition) t.update({ disposition });
 }
 Hooks.on("updateActor", (actor, change, options, userId) => {
   const side = foundry.utils.getProperty(change, "system.side");
@@ -272,7 +279,7 @@ Hooks.on("updateActor", (actor, change, options, userId) => {
   sideToTokens(actor, side);
 });
 
-Hooks.on("updateActor", async (actor, change, options, userId) => {
+async function onActorUpdate(actor, change, options, userId) {
   const has = p => foundry.utils.hasProperty(change, p);
   // сваливание: Speed ≤ 0 у летящей машины. Бросает тот, кого назвал конец раунда (владелец пилота), иначе кто менял
   if (has("system.speed") && actor.system.speed <= 0 && (options.tbStallBy ?? userId) === game.user.id) {
@@ -307,7 +314,8 @@ Hooks.on("updateActor", async (actor, change, options, userId) => {
     await actor.createEmbeddedDocuments("Item", [doc.toObject()]);
     ui.notifications.info(`Добавлен Core-триггер «${doc.name}».`);
   }
-});
+}
+Hooks.on("updateActor", (...args) => onActorUpdate(...args).catch(err => console.error("Thunderbolt | обновление актёра", err)));
 
 /* Кнопка импорта миссии в разделе «Сцены». */
 Hooks.on("renderSceneDirectory", (app, html) => {

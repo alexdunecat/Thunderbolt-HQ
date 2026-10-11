@@ -47,11 +47,12 @@ const BIG_SHIP = /эсминец|крейсер|линкор|авианос/i;
 export function gloryPrefill(losses = [], survivors = []) {
   const theirs = losses.filter(r => !OURS.includes(r.side) && r.side !== "neutral");
   const down = theirs.filter(r => r.how === "down");
-  const p = { cons: 0, duel: 0, ace: 0, ship: 0, boss: 0 };
+  const p = { cons: 0, duel: 0, ace: 0, nem: 0, ship: 0, boss: 0 };
   for (const r of down) {
     if (r.boss) p.boss++;
     // корабль в зачёт Славы: эсминец и крупнее
     else if (r.kind === "ship") { if (BIG_SHIP.test(r.cls ?? "")) p.ship++; }
+    else if (r.nemesis) p.nem++;
     else if (r.tier === "ace") p.ace++;
     else if (r.tier === "conscript" && ["air", "ground"].includes(r.kind) && r.grp !== "obj" && !r.missile) p.cons++;
   }
@@ -69,8 +70,8 @@ export function gloryFields(pre = {}) {
     ${n("second", "Второстепенные задачи выполнены", "+1")}
     ${n("cons", "Рядовые цели (Conscripts) уничтожены", "+1 за 10", pre.cons, `в копилке ${g.conscripts} из 10`)}
     ${n("duel", "Эскадрильи Duelists сбиты или бежали целиком", "+1", pre.duel)}
-    ${n("ace", "Асы сбиты", "+2", pre.ace, "Немезиду перенесите в строку ниже")}
-    ${n("nem", "Немезида сбита", "+3")}
+    ${n("ace", "Асы сбиты", "+2", pre.ace)}
+    ${n("nem", "Немезида сбита", "+3", pre.nem)}
     ${n("ship", "Корабли потоплены (эсминец и крупнее)", "+1", pre.ship)}
     ${n("boss", "Супероружие или летающая крепость", "+5", pre.boss)}
     <tr><td>Поправка AWACS</td><td>±</td><td><input type="number" name="g_adj" value="0"></td></tr></table>`;

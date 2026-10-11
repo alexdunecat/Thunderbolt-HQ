@@ -4,6 +4,7 @@ ok on edge comp 1-2
 ok start strain nerves3 + fresh = max 8
 ok nerves hint two markers
 ok after sortie ["Нервы +2 (5)","Заделы сгорели"]
+ok memory of this sortie survives debrief
 ok on edge nerves do not grow
 ok 7 clean (tie to pilot)
 ok 4 cost
@@ -12,6 +13,8 @@ ok opposed -3 cost
 ok cost card: edge button, costs without trauma
 ok fail allows trauma
 ok perk clean: evasion without counter-cost
+ok perk evasion tune works
+ok evasion/speed tune idle without counter-cost
 WARN Одна и та же доводка на вылет только одна.
 ok duplicate tune refused
 ok resolve makes d4 = 4

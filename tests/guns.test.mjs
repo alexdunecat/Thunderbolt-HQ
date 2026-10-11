@@ -77,4 +77,7 @@ toks.splice(1, 2); toks.splice(2, 1); toks.splice(3, 2); log.push("LEFT " + toks
 game.user = users[1];
 m = await Rm.fireGuns(actors.Гроза);
 log.push("CARD4 " + (m ? "fired" : "none"));
+// блок НУР стреляет как пушка: среди ракет его нет, для захвата он не годится
+const W = (key, target) => ({ system: { key, target } });
+log.push("POD " + ["RCL:ground", "MGP:gun", "XAGM:ground", "LAAM:air"].map(x => { const [k, t] = x.split(":"); const w = W(k, t); return `${k} pod=${Rm.isGunPod(w)} lock=${Rm.weaponFits(w, t === "air" ? "air" : "ground")}`; }).join(" · "));
 console.log(log.join("\n"));

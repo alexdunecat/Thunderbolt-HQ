@@ -1,13 +1,15 @@
 /* Шильдик на токене: эмблема авиакрыла или страны из листа пилота или NPC, в правом нижнем углу картинки токена.
    Высоту показывают тень и приглушение, поэтому отдельного значка высоты нет. */
 import { SYSTEM_ID } from "./config.mjs";
+import { layoutChanged } from "./utils.mjs";
 import { dimmed } from "./altitude.mjs";
 
 const DIM = 0.6;
 
 export function registerInsignia() {
-  Hooks.on("refreshToken", t => draw(t));
-  for (const ev of ["updateActor", "updateActorDelta", "updateToken", "canvasReady"]) Hooks.on(ev, refreshSoon);
+  Hooks.on("refreshToken", (t, flags) => { if (layoutChanged(flags)) draw(t); });
+  // выделение своего самолёта меняет, кто приглушён по высоте
+  for (const ev of ["updateActor", "updateActorDelta", "updateToken", "controlToken", "canvasReady"]) Hooks.on(ev, refreshSoon);
 }
 
 let timer = null;
@@ -19,7 +21,10 @@ function refreshSoon() {
 const cache = new Map();
 /** Текстура шильдика: загружается один раз, до загрузки — null. */
 function textureOf(src) {
-  if (cache.has(src)) return cache.get(src);
+  const had = cache.get(src);
+  // Foundry выгружает давние текстуры: такую загрузить заново
+  if (had && (had.destroyed || had.valid === false)) cache.delete(src);
+  else if (cache.has(src)) return had;
   cache.set(src, null);
   const load = foundry.canvas?.loadTexture ?? globalThis.loadTexture;
   Promise.resolve(load?.(src)).then(tex => { cache.set(src, tex ?? null); if (tex) refreshSoon(); })

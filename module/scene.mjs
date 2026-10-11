@@ -52,7 +52,7 @@ export function altOf(token, actor = token?.actor) {
     const want = byElev ?? actor.system.alt;
     return boss.includes(want) ? want : boss[boss.length - 1];
   }
-  if (actor?.type === "npc" && actor.system.kind !== "air") return "low";
+  if ((actor?.type === "npc" && actor.system.kind !== "air") || actor?.type === "staff") return "low";
   return byElev ?? actor?.system.alt ?? "med";
 }
 
@@ -195,6 +195,8 @@ export async function confirmReach(problems, what) {
 
 /** Погода в точке актёра: вся сцена + клетка токена (из импорта миссии), с учётом высоты. */
 export function weatherAt(actor, token = tokenOf(actor)) {
+  // персонаж на земле живёт на базе: погода сцены боя его не касается
+  if (actor?.type === "staff") return { list: [], ev: 0, aa: 0, ag: 0, push: 0, spd: 0, comp2: false, ownZone: false };
   const scene = token?.document?.parent ?? game.scenes?.viewed ?? null;
   const ids = new Set(scene?.getFlag(SYSTEM_ID, "weather") ?? []);
   const cell = token ? cellOf(token) : null;

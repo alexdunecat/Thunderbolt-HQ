@@ -11,11 +11,11 @@ globalThis.ChatMessage = { create: async d => { chat.push(d.content.replace(/\s+
 const G = await import(`${root}/module/glory.mjs`);
 G.registerGlory();
 for (const p of [0, 19, 20, 49, 50, 89, 90, 129, 130, 400]) { const l = G.gloryLevel(p); console.log(p, l.name, l.next || "—", l.nextAt ?? "—", l.effects.map(e => e.title).join(" ")); }
-// сводка боя: рядовые воздух и земля, здание не в счёт, эскадрилья «Гробы» целиком, «Ястребы» нет, ас, корабль, Аркбёрд, свои и нейтралы не в счёт
+// сводка боя: рядовые воздух и земля, здание не в счёт, эскадрилья «Гробы» целиком, «Ястребы» нет, ас, Немезида отдельно от асов, корабль, Аркбёрд, свои и нейтралы не в счёт
 const L = (name, o) => ({ name, side: "enemy", how: "down", kind: "air", tier: "conscript", squad: "", grp: "", boss: false, ...o });
 const losses = [L("МиГ-21 1"), L("МиГ-21 2"), L("Т-80", { kind: "ground" }), L("Склад", { kind: "ground", grp: "obj" }),
   L("Гроб 1", { tier: "duelist", squad: "Гробы" }), L("Гроб 2", { tier: "duelist", squad: "Гробы", how: "retreat" }),
-  L("Ястреб 1", { tier: "duelist", squad: "Ястребы" }), L("Ас", { tier: "ace" }), L("Эсминец", { kind: "ship", cls: "Эсминец" }), L("Катер", { kind: "ship", cls: "Катер" }), L("МБР", { tier: "conscript", missile: true }),
+  L("Ястреб 1", { tier: "duelist", squad: "Ястребы" }), L("Ас", { tier: "ace" }), L("Немезида", { tier: "ace", nemesis: true }), L("Эсминец", { kind: "ship", cls: "Эсминец" }), L("Катер", { kind: "ship", cls: "Катер" }), L("МБР", { tier: "conscript", missile: true }),
   L("Аркбёрд", { kind: "ship", boss: true }), L("Свой", { side: "ally" }), L("Нейтрал", { side: "neutral" }), L("Беглец", { how: "retreat" })];
 const pre = G.gloryPrefill(losses, [{ name: "Ястреб 2", squad: "Ястребы" }]);
 console.log("prefill:", JSON.stringify(pre));

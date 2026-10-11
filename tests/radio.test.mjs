@@ -16,7 +16,7 @@ globalThis.fromUuidSync = u => u === "Actor.p" ? pilot : { isOwner: false, name:
 globalThis.foundry = { utils: { getProperty: () => null } };
 const R = await import(`${root}/module/radio.mjs`);
 R.registerRadio();
-const msg = flags => ({ flags: { "thunderbolt-shtab": flags } });
+const msg = (flags, author = { isGM: true }) => ({ author, flags: { "thunderbolt-shtab": flags } });
 hooks.createChatMessage[0](msg({ rwr: { target: "Actor.p", from: "МиГ-29" } }));
 hooks.createChatMessage[0](msg({ card: { maws: true, targetUuid: "Actor.p" } }));
 hooks.createChatMessage[0](msg({ card: { type: "volley", targets: [
@@ -24,4 +24,6 @@ hooks.createChatMessage[0](msg({ card: { type: "volley", targets: [
   { uuid: "Actor.m", name: "МиГ", hit: false, shooters: "Гроза" } ] } }));
 hooks.createChatMessage[0](msg({ radio: { to: "Actor.m", text: "не мне" } }));
 hooks.createChatMessage[0](msg({ radio: { text: "Всем бортам" } }));
+// реплику AWACS от имени игрока (свой макрос) не показывать
+hooks.createChatMessage[0](msg({ radio: { text: "подделка игрока" } }, { isGM: false }));
 while (timers.length) timers.shift()(); console.log(said); R.caution({ sub: "Strigon" }); console.log(JSON.parse(Object.values(ls)[0]).map(e => (e.banner ? "BANNER " + e.banner.sub : e.speaker + ": " + e.text)));

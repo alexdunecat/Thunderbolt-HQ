@@ -179,7 +179,7 @@ export function registerActions() {
     if (problems.length && !gmFree) { ui.notifications.warn(problems[0]); return false; }
     if (gmFree && problems.length) return;   // ведущий с Shift: в обход правил и без счёта
     console.log(`${SYSTEM_ID} | ${doc.name}: ${acts.join(", ") || "в своей зоне"}${problems.length ? ` (в обход: ${problems[0]})` : ""}`);
-    if (acts.length) countMove(doc.actor, acts, doc);
+    if (acts.length) countMove(doc.actor, acts, doc)?.catch?.(err => console.error(`${SYSTEM_ID} | счёт действий`, err));
   });
   // Change Speed: кнопки ±, поле листа и полоска токена. Сброс после Break!, сваливание и т. п. идут с options.tbFree.
   Hooks.on("preUpdateActor", (actor, change, options) => {
@@ -188,7 +188,7 @@ export function registerActions() {
     if (!Number.isFinite(v) || v === actor.system.speed || !combatantOf(actor)) return;
     const p = actionProblem(actor, "speed");
     if (p) { ui.notifications.warn(p); return false; }
-    spendAction(actor, "speed");
+    spendAction(actor, "speed")?.catch?.(err => console.error(`${SYSTEM_ID} | счёт действий`, err));
   });
   // смена высоты из листа проверяется и засчитывается так же, как ▲▼ на токене (токены потом подтягиваются с tbSync)
   Hooks.on("preUpdateActor", (actor, change, options) => {

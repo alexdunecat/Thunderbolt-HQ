@@ -37,7 +37,7 @@
         <p class="tb-small">Конскрипт: ко всем навыкам <input class="tb-inline" type="number" name="system.bonus" value="{{system.bonus}}" min="0" max="1"> (+0 или +1), заполнять навыки не нужно.</p>
         <ol class="tb-skills compact">{{#each skills as |sk|}}<li class="tb-skill"><a class="tb-roll" data-staff-roll="{{sk.key}}"><i class="fas fa-dice-d10"></i></a><span class="tb-skill-name"><b>{{sk.label}}</b> <small>{{sk.en}}</small></span><span class="tb-skill-total">{{sk.total}}</span></li>{{/each}}</ol>
         {{else}}
-        <ol class="tb-skills compact">{{#each skills as |sk|}}<li class="tb-skill"><a class="tb-roll" data-staff-roll="{{sk.key}}"><i class="fas fa-dice-d10"></i></a><span class="tb-skill-name"><b>{{sk.label}}</b> <small>{{sk.en}}</small></span><input type="number" name="system.skills.{{sk.key}}" value="{{sk.value}}" min="0"></li>{{/each}}</ol>
+        <ol class="tb-skills compact">{{#each skills as |sk|}}<li class="tb-skill"><a class="tb-roll" data-staff-roll="{{sk.key}}"><i class="fas fa-dice-d10"></i></a><span class="tb-skill-name"><b>{{sk.label}}</b> <small>{{sk.en}}</small></span><input type="number" name="system.skills.{{sk.key}}" value="{{sk.value}}" min="0" max="10"></li>{{/each}}</ol>
         <p class="tb-small tb-muted">{{#if isAce}}Ас: значимый человек, навыки свои.{{else}}Дуэлянт: навыки свои, без общей раскладки эскадрильи.{{/if}}</p>
         {{/if}}
       </fieldset>

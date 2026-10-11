@@ -45,7 +45,7 @@ export function record({ speaker, text, side = "ally", banner = null, muted = fa
 function store(entry, userId) {
   load();
   const who = { id: userId, muted: !!entry.muted };
-  const same = entries.findLast(e => entry.at - e.at < MERGE_MS && e.speaker === entry.speaker && e.text === entry.text
+  const same = entries.findLast(e => Math.abs(entry.at - e.at) < MERGE_MS && e.speaker === entry.speaker && e.text === entry.text
     && (e.banner?.sub ?? null) === (entry.banner?.sub ?? null));
   if (same && game.user.isGM) {
     same.heard ??= [];
@@ -57,8 +57,11 @@ function store(entry, userId) {
   const max = game.user.isGM ? MAX_GM : MAX;
   if (entries.length > max) entries.splice(0, entries.length - max);
   save();
-  if (win?.rendered) win.render(false);
+  // эхо от нескольких игроков приходит пачкой: окно перерисовать один раз
+  clearTimeout(flushTimer);
+  flushTimer = setTimeout(() => win?.rendered && win.render(false), 200);
 }
+let flushTimer = null;
 
 export function openRadioLog() {
   win ??= new RadioLog();

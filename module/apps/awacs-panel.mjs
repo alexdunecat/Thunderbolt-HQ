@@ -83,7 +83,8 @@ export class AwacsPanel extends Application {
     let queued = 0;
     if (combat?.started) {
       const key = `${combat.id}:${combat.round}`;
-      queued = game.messages.contents.filter(m => { const c = m.getFlag(SYSTEM_ID, "card"); return c?.delayed && c.combatKey === key && !c.resolved && !c.dmgApplied; }).length;
+      // ход идёт сейчас: его карточки среди последних сообщений, весь журнал не перебирать
+      queued = game.messages.contents.slice(-300).filter(m => { const c = m.getFlag(SYSTEM_ID, "card"); return c?.delayed && c.combatKey === key && !c.resolved && !c.dmgApplied; }).length;
     }
     const squads = Object.entries(allSquads()).sort(([a], [b]) => a.localeCompare(b, "ru")).map(([name, l]) => {
       const used = squadPoints(l);

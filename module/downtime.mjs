@@ -16,9 +16,10 @@ export function registerDowntime() {
     onChange: () => rerenderAll()
   });
   // ведущий отражает Связи на листе товарища и раздаёт Память после гибели
-  Hooks.on("updateActor", (actor, change) => {
+  Hooks.on("updateActor", (actor, change, options) => {
     if (!leadGM() || actor.type !== "pilot") return;
-    if (foundry.utils.hasProperty(change, "system.bonds")) mirrorBonds(actor);
+    if (options?.tbBondDrop) dropMirror(actor, options.tbBondDrop);
+    else if (foundry.utils.hasProperty(change, "system.bonds")) mirrorBonds(actor);
     if (foundry.utils.getProperty(change, "system.service.status") === "kia") fallen(actor);
     if (foundry.utils.hasProperty(change, "system.nerves") && actor.system.nerves < DT.maxNerves && actor.system.onEdge)
       actor.update({ "system.onEdge": "" });
@@ -214,11 +215,14 @@ function edgeSpec(actor, key, data) {
 }
 
 /** Подпись Задела: «Доводка: A-A +1, Evasion −1». */
+/** Доводка Evasion или Max Speed без встречной цены (и не по Perk на чистом успехе) не действует. */
+export const tuneIdle = e => e.kind === "tune" && ["ev", "spd"].includes(e.stat) && !e.minus && !e.minus2 && e.mode !== "perk";
+
 export function edgeLabel(e, actor) {
   const name = DT.edges[e.kind] ?? "Задел";
   const minus = [e.minus, e.minus2].filter(Boolean).map(m => `${DT.tuneMinus[m]?.[1] ?? m} −1`);
   switch (e.kind) {
-    case "tune": return `${name}: ${[DT.tune[e.stat]?.[2] ?? e.stat, ...minus].join(", ")}`;
+    case "tune": return `${name}: ${[DT.tune[e.stat]?.[2] ?? e.stat, ...minus].join(", ")}${tuneIdle(e) ? " (не действует без встречной цены)" : ""}`;
     case "ammo": return `${name}: ${actor?.items.get(e.weapon)?.name ?? "спецоружие"} +1`;
     case "intel": return `${name}: ${e.mode === "weak" ? "слабое место" : "вопрос"}${e.text ? ` (${e.text})` : ""}`;
     case "practice": return `${name}: ${TB.skills[e.skill]?.label ?? e.skill}${e.comp ? ", только d10 1–5" : ""}`;
@@ -452,7 +456,7 @@ export async function groundAction(message, card, action, button, actor, save) {
       const c = computeCard(card), tier = tierOf(c);
       const spec = { ...card.edge, id: randomID(), comp: !!card.compromise, used: false, value: 0 };
       // Perk на чистом успехе: Evasion или Max Speed без встречной цены
-      if (spec.kind === "tune" && tier === "clean" && c.perk && ["ev", "spd"].includes(spec.stat)) spec.minus = "";
+      if (spec.kind === "tune" && tier === "clean" && c.perk && ["ev", "spd"].includes(spec.stat)) Object.assign(spec, { minus: "", mode: "perk" });
       const why = edgeProblem(actor, spec);
       if (why) { ui.notifications.warn(why); return true; }
       const upd = { "system.edges": [...foundry.utils.deepClone(actor.system.edges), spec] };
@@ -463,7 +467,7 @@ export async function groundAction(message, card, action, button, actor, save) {
         card.edgeTaken += `, Нервы −${down}`;
       }
       if (spec.kind === "tune" && ["ev", "spd"].includes(spec.stat) && !spec.minus && !(tier === "clean" && c.perk))
-        ui.notifications.info("Evasion и Max Speed поднимаются со встречной ценой: выберите её у Задела на вкладке «Даунтайм».");
+        ui.notifications.warn("Evasion и Max Speed поднимаются только со встречной ценой: пока её нет, Доводка не действует. Выберите цену у Задела на вкладке «Даунтайм».");
       await actor.update(upd);
       await save();
       return true;
@@ -652,13 +656,22 @@ async function mirrorBonds(actor) {
     if (other?.type !== "pilot" || other.id === actor.id) continue;
     const list = foundry.utils.deepClone(other.system.bonds);
     const mine = list.find(x => x.uuid === actor.uuid);
-    // у Наёмника с Контрактом Связь не выше 2, даже если у товарища она 3
-    const value = Math.min(bondCap(other, false), b.value);
+    // у Наёмника с Контрактом Связь не выше 2, даже если у товарища она 3: его потолок товарищу не передаётся
+    const capped = b.value >= bondCap(actor, false) && (mine?.value ?? 0) > b.value;
+    const value = capped ? mine.value : Math.min(bondCap(other, false), b.value);
     if (!mine) list.push({ name: actor.name, uuid: actor.uuid, npc: false, value, was: b.was ?? [], dead: false, used: false, usedGround: false, grown: b.grown });
     else if (mine.value !== value || JSON.stringify(mine.was ?? []) !== JSON.stringify(b.was ?? [])) Object.assign(mine, { value, was: b.was ?? [], grown: b.grown });
     else continue;
     await other.update({ "system.bonds": list });
   }
+}
+
+/** Связь стёрли с листа (не зачеркнули): стереть и у товарища, иначе отражение вернёт её обратно. */
+async function dropMirror(actor, uuid) {
+  const other = resolveActor(uuid);
+  if (other?.type !== "pilot" || other.id === actor.id) return;
+  const list = other.system.bonds.filter(x => x.uuid !== actor.uuid);
+  if (list.length !== other.system.bonds.length) await other.update({ "system.bonds": list }, { tbBondDrop: actor.uuid });
 }
 
 /** Гибель пилота: у каждого, кто был с ним связан, Связь становится Памятью того же размера на следующий вылет. */
@@ -670,7 +683,7 @@ async function fallen(actor) {
     if (!b || b.dead) continue;
     b.dead = true;
     const upd = { "system.bonds": list, [`flags.${SYSTEM_ID}.bondLoss`]: true };
-    if (b.value > 0) upd["system.edges"] = [...foundry.utils.deepClone(p.system.edges), { id: randomID(), kind: "memory", text: actor.name, value: b.value }];
+    if (b.value > 0) upd["system.edges"] = [...foundry.utils.deepClone(p.system.edges), { id: randomID(), kind: "memory", text: actor.name, value: b.value, carry: !!game.combat?.started }];
     await p.update(upd);
     lines.push(`${esc(p.name)}: Память +${b.value}`);
   }
@@ -739,13 +752,14 @@ export function afterSortieUpdate(actor, nervesUp) {
   const bonds = foundry.utils.deepClone(s.bonds).map(b => ({ ...b, used: false, usedGround: false, grown: false }));
   const upd = {
     "system.nerves": Math.min(DT.maxNerves, s.nerves + up), "system.onEdge": "", "system.breakdown": "",
-    "system.edges": [], "system.bonds": bonds,
+    // Заделы сгорают; Память о товарище, погибшем в этом вылете, остаётся на следующий
+    "system.edges": s.edges.filter(e => e.kind === "memory" && e.carry && !e.used).map(e => ({ ...e, carry: false })), "system.bonds": bonds,
     "system.downtime": { actions, resolveGot: false, nervesDown: false },
     [`flags.${SYSTEM_ID}.-=bondLoss`]: null, [`flags.${SYSTEM_ID}.-=stupor`]: null
   };
   const notes = [];
   if (up) notes.push(`Нервы +${up} (${Math.min(DT.maxNerves, s.nerves + up)})`);
-  if (s.edges.length) notes.push("Заделы сгорели");
+  if (s.edges.some(e => !(e.kind === "memory" && e.carry && !e.used))) notes.push("Заделы сгорели");
   // «Испытатель»: машина с «Редкой машиной» или своей «Доводкой» остаётся опытной и после того, как Заделы сгорели
   const plane = s.plane;
   if (plane && actor.items?.some?.(i => i.type === "trigger" && i.system.key === "tester") && s.edges.some(e => e.kind === "rare" || e.kind === "tune")
