@@ -1,0 +1,13 @@
+/tb lock | /tb missile | /tb guns | /tb break | /tb lead | /tb formup | /tb recover | /tb stall | /tb end
+/tb skill aim Actor.abc
+/tb lock → {"act":"lock"}
+/TB skill Aim Actor.x → {"act":"skill","skill":"aim","actor":"Actor.x"}
+/tb missile Actor.y → {"act":"missile","actor":"Actor.y"}
+/r 1d10 → null
+привет /tb lock → null
+FOLDER Действия пилота
+заложено: 18
+макросов 9: Lock On![chat] /tb lock lock.svg; Fox Two![chat] /tb missile missile.svg; Guns, Guns, Guns![chat] /tb guns guns.svg; Break![chat] /tb break break.svg; Leadership[chat] /tb lead lead.svg; Вплотную[chat] /tb formup formup.svg; Вернуть Strain[chat] /tb recover recover.svg; Сваливание[chat] /tb stall stall.svg; Конец хода[chat] /tb end end.svg
+p1 {"1":"m2","2":"m3","3":"own","4":"m5","5":"m6","6":"m7","7":"m8","8":"m9","9":"m10","10":"m4"} · p2 {"1":"m2","2":"m3","3":"m4","4":"m5","5":"m6","6":"m7","7":"m8","8":"m9","9":"m10"} · gm {}
+повторный вход: 0
+force: 0 p1 слот 3 own
