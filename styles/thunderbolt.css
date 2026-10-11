@@ -43,6 +43,18 @@ body[data-tb-skin="doc"] {
 .thunderbolt .tb-portrait { width: 84px; height: 84px; object-fit: contain; border: 1px solid var(--tb-line); background: var(--tb-surface-2); flex: none; }
 .thunderbolt .tb-portrait.wide { width: 120px; }
 .thunderbolt .tb-portrait-box { position: relative; flex: none; align-self: flex-start; }
+/* портрет: еле заметный экран (строки развёртки и виньетка); погибший темнее с красным K.I.A., пропавший с жёлтым M.I.A. */
+.thunderbolt .tb-portrait-screen { position: absolute; left: 0; top: 0; width: 84px; height: 84px; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .13) 0 1px, transparent 1px 3px), radial-gradient(ellipse at 50% 45%, transparent 58%, rgba(0, 0, 0, .3) 100%); }
+body:is([data-tb-skin="brief"], [data-tb-skin="ac5"]) .thunderbolt .tb-portrait-screen {
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .22) 0 1px, transparent 1px 3px), linear-gradient(rgba(155, 227, 191, .05), rgba(155, 227, 191, .05)),
+  radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, .4) 100%); }
+.thunderbolt .tb-fate-kia .tb-portrait { filter: grayscale(.75) brightness(.42) contrast(1.1); }
+.thunderbolt .tb-fate-mia .tb-portrait { filter: grayscale(.45) brightness(.72); }
+.thunderbolt .tb-fate { position: absolute; left: 43px; top: 43px; transform: translate(-50%, -50%) rotate(-12deg); pointer-events: none; white-space: nowrap;
+  font-family: var(--tb-data); font-weight: 700; font-size: 15px; letter-spacing: .08em; padding: 1px 6px; border: 2px solid currentColor; background: rgba(0, 0, 0, .4); }
+.thunderbolt .tb-fate-kia .tb-fate { color: #ff3b30; text-shadow: 0 0 6px rgba(255, 59, 48, .55); box-shadow: 0 0 6px rgba(255, 59, 48, .35); }
+.thunderbolt .tb-fate-mia .tb-fate { color: #f2c14e; text-shadow: 0 0 6px rgba(242, 193, 78, .5); box-shadow: 0 0 6px rgba(242, 193, 78, .3); }
 .thunderbolt .tb-insignia { position: absolute; right: -8px; bottom: -8px; width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer;
   background: var(--tb-surface); border: 1px solid var(--tb-line); border-radius: 6px; color: var(--tb-muted, #7a8270); font-size: 16px; }
 .thunderbolt .tb-insignia img { width: 30px; height: 30px; object-fit: contain; border: none; }
@@ -265,8 +277,6 @@ body[data-tb-skin="doc"] {
 
 /* обложка */
 .tb-memo .tb-m-cover { border: 1px solid var(--tb-line); border-top: 6px solid var(--tb-accent); background: var(--tb-surface-2); padding: 16px 18px; margin: 0 0 14px; position: relative; }
-.tb-memo .tb-m-cover::after { content: "ДСП"; position: absolute; right: 16px; top: 14px; font-family: var(--tb-data); font-weight: 600; font-size: 12px; letter-spacing: .12em;
-  color: var(--tb-accent); border: 2px solid var(--tb-accent); padding: 2px 8px; transform: rotate(-6deg); opacity: .85; }
 .tb-memo .tb-m-org { font-family: var(--tb-data); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--tb-muted); }
 .tb-memo .tb-m-title { font-family: var(--tb-display); font-size: 34px; line-height: 1.1; margin: 4px 0; }
 .tb-memo .tb-m-sub { color: var(--tb-muted); }
@@ -370,6 +380,8 @@ body[data-tb-skin="doc"] {
 .tb-awacs .window-content { background: var(--tb-bg); color: var(--tb-ink); font-family: var(--tb-body); font-size: 13px; padding: 0; }
 .tb-awacs .tb-awacs-wrap { display: flex; flex-direction: column; height: 100%; }
 .tb-awacs .tb-awacs-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 8px 12px; background: var(--tb-surface); border-bottom: 3px solid var(--tb-accent); }
+.tb-awacs .tb-awacs-date { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--tb-muted); }
+.tb-awacs .tb-awacs-date input { width: 92px; height: 22px; font-family: var(--tb-data); font-size: 12px; text-transform: none; letter-spacing: 0; }
 .tb-awacs .tb-awacs-round { font-family: var(--tb-data); font-size: 12px; color: var(--tb-olive); }
 .tb-awacs .tb-awacs-btns { margin-left: auto; display: flex; gap: 6px; }
 .tb-awacs .tb-awacs-btns button { width: auto; line-height: 24px; font-family: var(--tb-display); font-size: 12px; background: var(--tb-surface-2); border: 1px solid var(--tb-line); color: var(--tb-ink); }
@@ -435,6 +447,8 @@ body[data-tb-skin="doc"] {
 .thunderbolt .tb-oplog { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 0 0 8px; }
 .thunderbolt .tb-oplog th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--tb-muted); border-bottom: 1px solid var(--tb-line); padding: 2px 4px; }
 .thunderbolt .tb-oplog td { border-bottom: 1px solid var(--tb-line); padding: 2px 4px; }
+.thunderbolt .tb-oplog input.tb-oplog-date { width: 92px; height: 20px; padding: 0 3px; font-family: var(--tb-data); font-size: 12px; background: transparent; border-color: transparent; }
+.thunderbolt .tb-oplog input.tb-oplog-date:hover, .thunderbolt .tb-oplog input.tb-oplog-date:focus { border-color: var(--tb-line); }
 
 /* ---------- «Брифинг»: квадратные рамки с уголками, разрядка заголовков, мятные кнопки ---------- */
 body[data-tb-skin="brief"] .thunderbolt.sheet .window-content, body[data-tb-skin="brief"] .tb-awacs .window-content {
@@ -448,7 +462,7 @@ body[data-tb-skin="brief"] .thunderbolt .tb-box, body[data-tb-skin="brief"] .thu
 body[data-tb-skin="brief"] .thunderbolt .tb-box legend, body[data-tb-skin="brief"] .thunderbolt .tb-tabs .item,
 body[data-tb-skin="brief"] .thunderbolt h2, body[data-tb-skin="brief"] .thunderbolt h3 { text-transform: uppercase; letter-spacing: .14em; font-weight: 600; color: var(--tb-accent); }
 body[data-tb-skin="brief"] .thunderbolt .tb-tabs .item { color: var(--tb-muted); font-size: 12px; }
-body[data-tb-skin="brief"] .thunderbolt .tb-tabs .item.active { color: var(--tb-accent-ink); background: var(--tb-accent); border-bottom-color: var(--tb-accent); }
+body[data-tb-skin="brief"] .thunderbolt .tb-tabs a.item.active { color: var(--tb-accent); -webkit-text-fill-color: currentColor; background: rgba(155, 227, 191, .14); border-bottom-color: var(--tb-accent); box-shadow: inset 0 1px 0 rgba(155, 227, 191, .35); text-shadow: 0 0 6px rgba(155, 227, 191, .45); }
 body[data-tb-skin="brief"] .thunderbolt .tb-head { border-bottom: 1px solid var(--tb-line); box-shadow: inset 0 -3px 0 rgba(155, 227, 191, .25); }
 body[data-tb-skin="brief"] .thunderbolt .tb-name { letter-spacing: .08em; text-transform: uppercase; }
 body[data-tb-skin="brief"] .thunderbolt .tb-portrait { border-radius: 0; background: #050f13; border-color: rgba(155, 227, 191, .5); }

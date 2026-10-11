@@ -3,7 +3,6 @@ import { SYSTEM_ID, SYS_PATH, TB } from "../config.mjs";
 import { esc } from "../utils.mjs";
 import { formDialog } from "../dice/rolls.mjs";
 import { tokenOf, weatherAt, defenseWithWeather, altOf, sideOf } from "../scene.mjs";
-import { arrangeSceneTokens } from "../tokens.mjs";
 import { openMapUpdateDialog, coreWeatherFor } from "./mission-import.mjs";
 import { targetGoals } from "../losses.mjs";
 import { gloryView, gloryDialog, gloryFields, gloryPrefill, applyGlory, setGlory } from "../glory.mjs";
@@ -13,6 +12,7 @@ import { openMissionDialog } from "../mission.mjs";
 import { openAceIntro } from "../aces.mjs";
 import { openBriefing } from "../briefing.mjs";
 import { openDossierExchange } from "../dossier-sync.mjs";
+import { campaignDate, campaignDateRaw, setCampaignDate, todayDate } from "../campaign-date.mjs";
 import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMarkAt, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
 import { DT } from "../config.mjs";
 import { SQUAD_POINTS, allSquads, squadPoints, squadMembers, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
@@ -98,7 +98,7 @@ export class AwacsPanel extends Application {
       sceneName: scene?.name ?? "сцена не выбрана", pilots, targets, groups, cells, squads: squads.filter(q => q.members), squadsElsewhere: elsewhere, squadBudget: SQUAD_POINTS,
       skillHeads: Object.values(TB.skills).map(v => ({ label: v.label, en: v.en })),
       weather: Object.entries(TB.weather).map(([id, d]) => ({ id, ...d, on: sceneWeather.has(id) })),
-      round: combat?.started ? combat.round : null, queued,
+      round: combat?.started ? combat.round : null, queued, campaignDate: campaignDateRaw(), today: todayDate(),
       glory: (() => { const g = gloryView(); return { ...g, pct: g.nextAt !== null ? Math.round(100 * g.points / g.nextAt) : 100,
         recent: (g.log ?? []).slice(-3).reverse().map(x => `${x.date} · ${x.op}: ${x.total >= 0 ? "+" : "−"}${Math.abs(x.total)}`) }; })(),
       threats: threats().filter(t => t.kind !== "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size })),
@@ -154,7 +154,6 @@ export class AwacsPanel extends Application {
     on("[data-aces]", () => openAceIntro());
     on("[data-mission]", () => openMissionDialog({ op: game.scenes.viewed?.getFlag(SYSTEM_ID, "mission") || game.scenes.viewed?.name || "" }));
     on("[data-shtab]", () => openDossierExchange());
-    on("[data-arrange]", () => arrangeSceneTokens());
     on("[data-base-event]", () => baseEvent());
     on("[data-threat-add]", () => addThreat());
     on("[data-boss-add]", () => bossClockDialog());
@@ -167,6 +166,7 @@ export class AwacsPanel extends Application {
       if (await Dialog.confirm({ title: "Шкала угрозы", content: "<p>Убрать эту шкалу?</p>" })) deleteThreat(d.threatDel);
     });
     on("[data-all-fight]", () => allToCombat());
+    el.querySelector("[data-campaign-date]")?.addEventListener("change", ev => setCampaignDate(ev.target.value));
     on("[data-squad-form]", () => squadFromSelection());
     on("[data-squad-num]", d => numberSquad(d.squadNum));
     on("[data-squad-del]", async d => {
@@ -212,7 +212,7 @@ function sceneTargets() {
 }
 
 /** Журнал «Разбор полёта» в папке «Разбор полётов»; игроки могут его читать. */
-async function writeDebrief({ op, objectives, rows, targets }) {
+async function writeDebrief({ op, objectives, rows, targets, date = campaignDate() }) {
   const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
   const folderName = "Разбор полётов";
   const folder = game.folders.find(f => f.type === "JournalEntry" && f.name === folderName)
@@ -227,12 +227,12 @@ async function writeDebrief({ op, objectives, rows, targets }) {
   const goals = objectives.length ? `<h2>Задачи</h2><ul>${objectives.map(o => `<li>${o.done ? "✔" : "✘"} ${esc(o.text)}</li>`).join("")}</ul>` : "";
   const scene = game.scenes.viewed, marks = targetGoals(scene, scene?.getFlag(SYSTEM_ID, "lastBattle")?.losses ?? []);
   const aims = marks.length ? `<h2>Цели</h2>${li(marks)}` : "";
-  const html = `<p><b>${esc(op)}</b> · ${esc(game.scenes.viewed?.name ?? "")} · ${new Date().toLocaleDateString("ru-RU")}${game.combat?.round ? ` · раундов: ${game.combat.round}` : ""}</p>
+  const html = `<p><b>${esc(op)}</b> · ${esc(game.scenes.viewed?.name ?? "")} · ${esc(date)}${game.combat?.round ? ` · раундов: ${game.combat.round}` : ""}</p>
     ${goals}${aims}<h2>Звено</h2>${pilots}
     <h2>Уничтожено</h2>${li(targets.down.map(esc))}${targets.retreat.length ? `<h2>Отступили</h2>${li(targets.retreat.map(esc))}` : ""}<h2>Уцелело</h2>${li(targets.alive.map(esc))}
     <h2>Потери авиакрыла и союзников</h2>${li(targets.ours.map(esc))}`;
   return JournalEntry.create({
-    name: `${new Date().toLocaleDateString("ru-RU")} · ${op}`, folder: folder.id, ownership: { default: L.OBSERVER },
+    name: `${date} · ${op}`, folder: folder.id, ownership: { default: L.OBSERVER },
     pages: [{ name: "Разбор полёта", type: "text", text: { content: html } }]
   });
 }
@@ -271,9 +271,13 @@ export async function sortieResults() {
     ${goals}
     ${gloryBlock}
     <div class="form-group"><label>Операция</label><input type="text" name="op" value="${esc(scene?.getFlag(SYSTEM_ID, "mission") || scene?.name || "")}" placeholder="название вылета"></div>
+    <div class="form-group"><label>Дата</label><input type="text" name="date" value="${esc(campaignDate())}" placeholder="${esc(todayDate())}" maxlength="40" title="Игровая дата вылета: попадёт в личные дела, разбор полёта и Славу и станет датой кампании"></div>
     <div class="form-group"><label><input type="checkbox" name="journal" checked> Записать разбор полёта в журнал</label></div>`, { ok: "Записать в личные дела", width: 640 });
   if (!data) return;
   const op = data.op || "Вылет";
+  // дату поменяли в форме: она становится датой кампании для следующих записей
+  const date = String(data.date ?? "").trim() || campaignDate();
+  if (date !== campaignDate()) await setCampaignDate(date);
   const lines = [], report = [];
   for (const a of pilots) {
     if (!data[`fly_${a.id}`]) { await a.unsetFlag(SYSTEM_ID, "kills"); continue; }
@@ -285,7 +289,7 @@ export async function sortieResults() {
     const names = kind => (k.list ?? []).filter(x => x.kind === kind).map(x => x.name);
     report.push({ name: a.name, air, gnd, airNames: names("air"), gndNames: names("ground"), eject, pts, ...pilotState(a) });
     // в личное дело: в какой операции был вылет; новая операция прибавляет счётчик операций
-    const log = [...(sv.log ?? []), { op, date: new Date().toLocaleDateString("ru-RU"), air, ground: gnd, eject }];
+    const log = [...(sv.log ?? []), { op, date, air, ground: gnd, eject }];
     const newOp = !(sv.log ?? []).some(x => x.op === op);
     const dt = afterSortieUpdate(a, data[`nerves_${a.id}`] ?? 0);
     await a.update({
@@ -297,9 +301,9 @@ export async function sortieResults() {
     });
     lines.push(`<b>${esc(a.name)}</b>: вылет ${sortie}${air ? `, сбито ${air}` : ""}${gnd ? `, на земле ${gnd}` : ""}${eject ? ", катапультировался" : ""}${pts ? `, +${pts} ${pts === 1 ? "очко" : "очка"} навыков` : ""}${dt.notes.length ? `, ${dt.notes.map(esc).join(", ")}` : ""}`);
   }
-  if (data.g_on) await applyGlory(data, op);
+  if (data.g_on) await applyGlory(data, op, date);
   if (!lines.length) return;
-  const entry = data.journal ? await writeDebrief({ op, rows: report, targets: sceneTargets(),
+  const entry = data.journal ? await writeDebrief({ op, rows: report, targets: sceneTargets(), date,
     objectives: objectives.map((text, i) => ({ text, done: !!data[`obj_${i}`] })) }) : null;
   return ChatMessage.create({
     speaker: { alias: "AWACS" },

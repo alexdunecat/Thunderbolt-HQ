@@ -383,6 +383,11 @@ async function addEdgeDialog(actor) {
   return actor.update({ "system.edges": [...foundry.utils.deepClone(actor.system.edges), e] });
 }
 
+// отметка на портрете: погибший темнее с красным K.I.A., пропавший с жёлтым M.I.A.
+function fateOf(status) {
+  return { kia: { key: "kia", label: "K.I.A." }, mia: { key: "mia", label: "M.I.A." } }[status] ?? null;
+}
+
 export class PilotSheet extends TBActorSheet {
   static get defaultOptions() {
     return foundry.utils.mergeObject(super.defaultOptions, {
@@ -424,6 +429,7 @@ export class PilotSheet extends TBActorSheet {
       list.map(m => ({ label: TB.effectTargets[target] ?? target, name: m.name, sval: `${m.value >= 0 ? "+" : ""}${m.value}` })));
     ctx.archOptions = opts(TB.archetypes);
     ctx.statusOptions = TB.status;
+    ctx.fate = fateOf(s.service?.status);
     ctx.person = personView(a);
     ctx.pointsOver = s.pointsUsed > s.pointsBudget;
     ctx.weaponsOver = ctx.weapons.length > (s.hardpoints ?? 0);
@@ -442,6 +448,12 @@ export class PilotSheet extends TBActorSheet {
     const el = html[0];
     // досье: строки можно зачёркивать, но не стирать
     el.querySelectorAll("[data-dossier]").forEach(n => n.addEventListener("change", () => this.#saveDossier(el)));
+    el.querySelectorAll("[data-oplog-date]").forEach(n => n.addEventListener("change", ev => {
+      ev.stopPropagation();
+      const log = foundry.utils.deepClone(this.actor.system.service.log ?? []);
+      const x = log[Number(n.dataset.oplogDate)];
+      if (x) { x.date = n.value.trim(); this.actor.update({ "system.service.log": log }); }
+    }));
     el.querySelectorAll("[data-oplog-del]").forEach(n => n.addEventListener("click", ev => {
       ev.preventDefault();
       const log = foundry.utils.deepClone(this.actor.system.service.log ?? []);
@@ -571,6 +583,7 @@ export class NpcSheet extends TBActorSheet {
     ctx.hasFile = ["ace", "duelist"].includes(s.tier);
     ctx.person = personView(this.actor);
     ctx.statusOptions = TB.status;
+    ctx.fate = fateOf(s.status);
     ctx.pilotBio = true;
     return ctx;
   }
@@ -654,7 +667,7 @@ export class StaffSheet extends TBActorSheet {
       isConscript: s.tier === "conscript", isAce: s.tier === "ace",
       roleOptions: TB.staffRoles, tierOptions: TB.tiers, statusOptions: TB.staffStatus,
       roleName: TB.staffRoles[s.role] ?? "", isKin: s.role === "kin",
-      person: personView(a), pilotBio: false,
+      person: personView(a), pilotBio: false, fate: fateOf(s.status),
       enrichedNotes: await TextEditor.enrichHTML(s.notes, { secrets: a.isOwner, relativeTo: a }),
       insigniaHint: "Эмблема подразделения или семейный знак. Щелчок: выбрать картинку, правый щелчок: убрать."
     });

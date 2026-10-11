@@ -4,6 +4,7 @@
    а после End combat в чат приходит отчёт с кнопкой «Итоги в личные дела». */
 import { SYSTEM_ID, SYS_PATH, TB } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
+import { campaignDate } from "./campaign-date.mjs";
 import { sideOf, hasRule } from "./scene.mjs";
 
 export const RETREAT = "retreat";
@@ -170,7 +171,7 @@ async function battleReport(combat) {
   const pilots = [...score].sort(([a], [b]) => a.localeCompare(b, "ru")).map(([n, k]) => `${esc(n)}: в воздухе ${k.air}, на земле и на море ${k.ground}`);
   const goals = targetGoals(scene, losses);
   const block = (title, rows, empty = "—") => `<h4>${title}</h4>${rows.length ? `<ul>${rows.map(x => `<li>${x}</li>`).join("")}</ul>` : `<p class="tb-muted">${empty}</p>`}`;
-  const date = new Date().toLocaleDateString("ru-RU");
+  const date = campaignDate();
   const html = `<div class="tb-card tb-card-battle">
     <header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">Итоги боя: ${esc(op)}</span></header>
     <div class="tb-note">${esc(scene?.name ?? "")} · ${date} · раундов: ${combat.round}</div>

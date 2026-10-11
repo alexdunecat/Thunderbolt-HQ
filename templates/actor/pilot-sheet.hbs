@@ -1,7 +1,8 @@
 <form class="tb-sheet {{cssClass}}" autocomplete="off">
   <header class="tb-head">
-    <div class="tb-portrait-box">
+    <div class="tb-portrait-box{{#if fate}} tb-fate-{{fate.key}}{{/if}}">
       <img class="tb-portrait" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" alt="">
+      <span class="tb-portrait-screen" aria-hidden="true"></span>{{#if fate}}<span class="tb-fate">{{fate.label}}</span>{{/if}}
       <div class="tb-insignia" data-insignia title="{{insigniaHint}}">{{#if system.insignia}}<img src="{{system.insignia}}" alt="">{{else}}<i class="fas fa-shield-halved"></i>{{/if}}</div>
     </div>
     <div class="tb-head-main">
@@ -356,7 +357,7 @@
       <table class="tb-oplog">
         <tr><th>№</th><th>Операция</th><th>Дата</th><th>Сбито</th><th>На земле</th><th></th></tr>
         {{#each serviceLog as |x|}}
-        <tr><td>{{x.n}}</td><td><b>{{x.op}}</b>{{#if x.eject}} <span class="tb-warn" title="Катапультировался">⏏</span>{{/if}}</td><td>{{x.date}}</td><td>{{x.air}}</td><td>{{x.ground}}</td>
+        <tr><td>{{x.n}}</td><td><b>{{x.op}}</b>{{#if x.eject}} <span class="tb-warn" title="Катапультировался">⏏</span>{{/if}}</td><td>{{#if @root.isGM}}<input type="text" class="tb-oplog-date" data-oplog-date="{{x.i}}" value="{{x.date}}" title="Дата вылета, можно поправить">{{else}}{{x.date}}{{/if}}</td><td>{{x.air}}</td><td>{{x.ground}}</td>
           <td>{{#if @root.isGM}}<a class="tb-icon" data-oplog-del="{{x.i}}" title="Убрать запись"><i class="fas fa-trash"></i></a>{{/if}}</td></tr>
         {{/each}}
       </table>

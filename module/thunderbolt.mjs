@@ -12,6 +12,7 @@ import { openImportDialog, importMission } from "./apps/mission-import.mjs";
 import { TBMemoSheet } from "./apps/memo-sheet.mjs";
 import { openAwacs, refreshAwacs, sortieResults } from "./apps/awacs-panel.mjs";
 import { registerGlory, gloryDialog } from "./glory.mjs";
+import { registerCampaignDate } from "./campaign-date.mjs";
 import { registerStealth } from "./stealth.mjs";
 import { registerTunnel } from "./tunnel.mjs";
 import { tokenOf, zoneDistance } from "./scene.mjs";
@@ -141,6 +142,7 @@ Hooks.once("init", () => {
   registerRange();
   Downtime.registerDowntime();
   registerGlory();
+  registerCampaignDate();
   registerStealth();
   registerTunnel();
   registerPopout();

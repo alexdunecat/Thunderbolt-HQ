@@ -2,6 +2,7 @@
    Начисляется на разборе (в «Итогах вылета» или кнопкой в панели AWACS), уровень и его эффекты видны на листе пилота. */
 import { SYSTEM_ID, DT } from "./config.mjs";
 import { esc } from "./utils.mjs";
+import { campaignDate } from "./campaign-date.mjs";
 
 const OURS = ["player", "ally"];
 
@@ -97,11 +98,11 @@ export function gloryCount(data, pool = glory().conscripts) {
 }
 
 /** Начислить Славу по форме и объявить в чате (с новым уровнем, если он сменился). */
-export async function applyGlory(data, op = "Вылет") {
+export async function applyGlory(data, op = "Вылет", date = campaignDate()) {
   const g = glory(), c = gloryCount(data, g.conscripts);
   if (!c.total && !c.consAdded) return null;
   const before = gloryLevel(g.points), points = Math.max(0, g.points + c.total), after = gloryLevel(points);
-  const log = [...(g.log ?? []), { date: new Date().toLocaleDateString("ru-RU"), op, total: c.total, parts: c.parts }].slice(-40);
+  const log = [...(g.log ?? []), { date, op, total: c.total, parts: c.parts }].slice(-40);
   await game.settings.set(SYSTEM_ID, "glory", { ...g, points, conscripts: c.cons, log });
   const up = after.idx > before.idx ? DT.glory.levels.slice(before.idx + 1, after.idx + 1) : [];
   const upHtml = up.map(l => `<div class="tb-note tb-glory-up"><b>Эскадрилья теперь: ${esc(l.name)}.</b> ${esc(l.mean)}.${l.effects.length

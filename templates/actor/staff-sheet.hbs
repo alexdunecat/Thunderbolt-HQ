@@ -1,7 +1,8 @@
 <form class="tb-sheet {{cssClass}}" autocomplete="off">
   <header class="tb-head">
-    <div class="tb-portrait-box">
+    <div class="tb-portrait-box{{#if fate}} tb-fate-{{fate.key}}{{/if}}">
       <img class="tb-portrait" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" alt="">
+      <span class="tb-portrait-screen" aria-hidden="true"></span>{{#if fate}}<span class="tb-fate">{{fate.label}}</span>{{/if}}
       <div class="tb-insignia" data-insignia title="{{insigniaHint}}">{{#if system.insignia}}<img src="{{system.insignia}}" alt="">{{else}}<i class="fas fa-shield-halved"></i>{{/if}}</div>
     </div>
     <div class="tb-head-main">
