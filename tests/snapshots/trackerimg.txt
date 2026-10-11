@@ -1,4 +1,4 @@
-пилот: токен
+пилот: faces/x.webp
 конскрипт: токен
 ас: faces/x.webp
 дуэлянт, лицо: faces/x.webp

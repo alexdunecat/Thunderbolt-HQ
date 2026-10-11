@@ -225,9 +225,10 @@ export function registerCombat() {
 }
 let declareTimer = null;
 
-/** Картинка в трекере вместо токена или null (оставить токен): ас — лицо, дуэлянт — лицо или шильдик (system.trackerImg). */
+/** Картинка в трекере вместо токена или null (оставить токен): пилот и ас — лицо, дуэлянт — лицо или шильдик (system.trackerImg). */
 export function trackerImage(c) {
   const a = c?.actor, s = a?.system;
+  if (a?.type === "pilot") return a.img || null;
   if (a?.type !== "npc" || !s) return null;
   if (s.tier === "ace") return a.img || null;
   if (s.tier === "duelist") return (s.trackerImg === "insignia" && s.insignia) || a.img || null;
@@ -251,7 +252,7 @@ function decorateTracker(app, html) {
       if (used > n) ini.style.color = "#d0302a";
     }
     if (passive(c.actor)) li.querySelector(".token-initiative")?.replaceChildren();
-    // картинка: конскрипт — самолёт (токен), ас — лицо, дуэлянт — лицо или шильдик по выбору в листе
+    // картинка: конскрипт — самолёт (токен), пилот и ас — лицо, дуэлянт — лицо или шильдик по выбору в листе
     const pic = trackerImage(c), img = li.querySelector("img.token-image");
     if (pic && img) { img.src = pic; img.dataset.src = pic; }
     const mine = c.id === combat.combatant?.id && c.isOwner && c.actor?.hasPlayerOwner && Number.isNumeric(c.initiative) && c.initiative <= 3;
