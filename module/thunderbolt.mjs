@@ -265,8 +265,10 @@ Hooks.on("renderActorDirectory", (app, html) => {
 });
 /** Список «Актёры»: погибшие и пропавшие (в том числе в плену) с той же строкой K.I.A. / M.I.A. на миниатюре, что и на листе. */
 function markFallen(root) {
-  for (const li of root.querySelectorAll(".directory-item[data-document-id]")) {
-    const fate = fateOfActor(game.actors.get(li.dataset.documentId));
+  for (const li of root.querySelectorAll(".directory-item.document, .directory-item[data-document-id], .directory-item[data-entry-id]")) {
+    const id = li.dataset.documentId ?? li.dataset.entryId ?? li.dataset.uuid?.split(".").pop();
+    if (!id) continue;
+    const fate = fateOfActor(game.actors.get(id));
     li.classList.remove("tb-fate-kia", "tb-fate-mia");
     li.querySelector(".tb-fate-thumb .tb-fate-tag")?.remove();
     if (!fate) continue;
@@ -290,6 +292,15 @@ function markFallen(root) {
     wrap.append(tag);
   }
 }
+
+// состояние сменилось: список «Актёры» может и не перерисоваться, метки ставлю сразу
+Hooks.on("updateActor", (actor, change) => {
+  if (!foundry.utils.hasProperty(change, "system.service.status") && !foundry.utils.hasProperty(change, "system.status")) return;
+  for (const el of [ui.actors?.element, ...Object.values(ui.windows).filter(w => globalThis.ActorDirectory && w instanceof ActorDirectory).map(w => w.element)]) {
+    const root = el?.[0] ?? el;
+    if (root?.querySelectorAll) markFallen(root);
+  }
+});
 
 for (const ev of ["updateActor", "updateActorDelta", "createItem", "updateItem", "deleteItem", "createToken", "updateToken", "deleteToken",
   "updateScene", "canvasReady", "updateCombat", "deleteCombat", "createChatMessage", "updateChatMessage", `${SYSTEM_ID}.squadrons`]) Hooks.on(ev, () => refreshAwacs());

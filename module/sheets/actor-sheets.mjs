@@ -216,7 +216,7 @@ export function personView(a) {
   const nemesisOf = s.nemesisOf ? pilots.find(p => p.id === s.nemesisOf) : null;
   return {
     images: [
-      { key: "img", label: "Лицо", hint: "в списке актёров и в шапке листа", src: a.img },
+      { key: "img", label: "Лицо", hint: "в списке актёров и в шапке листа", src: a.img, fate: fateOfActor(a) },
       { key: "artwork", label: "Полный рост", hint: "артворк персонажа", src: s.artwork, show: true, clear: true },
       { key: "token", label: "Токен", hint: a.type === "staff" ? "если персонаж выйдет на сцену" : "на поле боя: его самолёт", src: tokenSrc }
     ],
