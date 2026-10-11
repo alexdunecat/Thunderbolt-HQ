@@ -30,6 +30,7 @@ import { registerMission, openMissionDialog } from "./mission.mjs";
 import { registerSounds, cue } from "./sounds.mjs";
 import { registerAces, openAceIntro, announceAces } from "./aces.mjs";
 import { registerPause } from "./pause.mjs";
+import { registerOpCode } from "./opcode.mjs";
 import { openDossierExchange, importDossier, exportDossier } from "./dossier-sync.mjs";
 import { registerMapInfo } from "./mapinfo.mjs";
 import { registerRotate } from "./rotate.mjs";
@@ -61,6 +62,9 @@ function applyDarkUi() {
   let on = true;
   try { on = game.settings.get(SYSTEM_ID, "darkUi"); } catch {}
   document.body.classList?.toggle("tb-dark-ui", on && ["brief", "ac5"].includes(document.body.dataset.tbSkin));
+  let hud = true;
+  try { hud = game.settings.get(SYSTEM_ID, "briefUi"); } catch {}
+  document.body.classList?.toggle("tb-brief-ui", hud && document.body.dataset.tbSkin === "brief");
   mirrorPopouts();
 }
 
@@ -103,6 +107,10 @@ Hooks.once("init", () => {
     name: "Тёмные окна Foundry", hint: "При тёмном оформлении («Брифинг», «ОС AC5») стандартные окна Foundry (настройки, журналы, диалоги других модулей) тоже тёмные, а не на светлом пергаменте.",
     scope: "client", config: true, type: Boolean, default: true, onChange: () => applyDarkUi()
   });
+  game.settings.register(SYSTEM_ID, "briefUi", {
+    name: "Интерфейс Foundry в стиле «Брифинга»", hint: "При оформлении «Брифинг» инструменты сцены, игроки, панель макросов, боковая панель, навигация сцен, заголовки окон, подсказки, меню и уведомления Foundry тоже в его цветах и шрифтах, а вместо наковальни — эмблема.",
+    scope: "client", config: true, type: Boolean, default: true, onChange: () => applyDarkUi()
+  });
   game.settings.register(SYSTEM_ID, "skinBrief", { scope: "client", config: false, type: Boolean, default: false });
   // шрифты «Брифинга» лежат в системе (assets/fonts): их видят и надписи на карте
   Object.assign(CONFIG.fontDefinitions, { "Jura": { editor: true, fonts: [] }, "JetBrains Mono": { editor: true, fonts: [] } });
@@ -116,6 +124,7 @@ Hooks.once("init", () => {
   registerSounds();
   registerAces();
   registerPause();
+  registerOpCode();
   registerRange();
   Downtime.registerDowntime();
   registerGlory();

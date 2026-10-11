@@ -1,0 +1,10 @@
+USR.CONF: 758.549
+SAT INFO: MAP49-7
+OP INFO: МИССИЯ 03: ТРЕНИРОВКА
+ENCRYPTION SV TAG: 3-3
+AWACS LINK: 3/5
+LOCAL: 09:05:07
+стабильно true · другая сцена true
+без сцены: STANDBY
+<div class="tb-op-line"><span class="k">OP INFO:</span><span class="v">&lt;b&gt;</span></div>
+hash 440920331

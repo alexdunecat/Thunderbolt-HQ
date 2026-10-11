@@ -1,0 +1,194 @@
+/* Интерфейс Foundry в стиле «Брифинга»: панель инструментов сцены, игроки, панель макросов, боковая панель,
+   навигация сцен, окна, подсказки, меню, уведомления и HUD токена. Работает при скине «Брифинг», если клиент
+   не выключил настройку «Интерфейс Foundry в стиле Брифинга» (класс tb-brief-ui на body, его ставит thunderbolt.mjs).
+   Оранжевые свечения Foundry идут из его CSS-переменных: они переопределены здесь же, поэтому зелёный подхватывают
+   и окна других модулей. */
+
+body.tb-brief-ui {
+  --tb-panel: rgba(7, 20, 26, .94);
+  --tb-panel-2: rgba(16, 39, 47, .92);
+  --tb-glow: 0 0 6px rgba(155, 227, 191, .55);
+  --tb-grid-bg: linear-gradient(rgba(155, 227, 191, .035) 1px, transparent 1px) 0 0 / 100% 4px, var(--tb-panel);
+  /* переменные Foundry: подсветка, ссылки, подчёркивания, полосы прокрутки */
+  --color-shadow-primary: #9be3bf;
+  --color-shadow-highlight: #9be3bf;
+  --color-border-highlight: #9be3bf;
+  --color-border-highlight-alt: #6cc4ff;
+  --color-text-hyperlink: #9be3bf;
+  --color-underline-active: #9be3bf;
+  --color-underline-header: #2c5a52;
+  --color-text-light-highlight: #d7eee6;
+  --color-text-light-heading: #d7eee6;
+  --color-text-light-primary: #a9cfc4;
+  --color-border-light-primary: #2c5a52;
+  --color-border-light-highlight: #9be3bf;
+  --color-scrollbar: #2c5a52;
+  --color-scrollbar-border: #07141a;
+  --color-scrollbar-track: #07141a;
+  --font-primary: "Jura", "Exo 2", system-ui, sans-serif;
+}
+
+/* ---------- общая рамка панелей ---------- */
+body.tb-brief-ui :is(#controls .control-tools, #players, #hotbar #action-bar, #hotbar #hotbar-directory-controls, #hotbar #hotbar-page-controls,
+  #hotbar #hotbar-lock, #sidebar, #navigation #nav-toggle, #navigation #scene-list .scene, #context-menu, #tooltip, .tb-brief-panel) {
+  border-radius: 0;
+}
+body.tb-brief-ui ::-webkit-scrollbar-thumb { background: #2c5a52; border: 1px solid #07141a; border-radius: 0; }
+body.tb-brief-ui ::-webkit-scrollbar-thumb:hover { background: #9be3bf; }
+body.tb-brief-ui ::-webkit-scrollbar-track { background: rgba(7, 20, 26, .6); }
+
+/* ---------- вместо наковальни: служебный код (opcode.mjs) ---------- */
+body.tb-brief-ui #logo { visibility: hidden; }
+#tb-opcode { position: fixed; z-index: 30; pointer-events: none; display: flex; flex-direction: column; justify-content: center; align-items: flex-end;
+  padding-right: 10px; border-right: 1px solid #9be3bf; box-shadow: 3px 0 0 -2px rgba(155, 227, 191, .35);
+  font-family: "Jura", "JetBrains Mono", monospace; line-height: 1.4; color: #d7eee6; text-shadow: 0 0 4px rgba(155, 227, 191, .35); overflow: hidden; }
+#tb-opcode[hidden] { display: none; }
+#tb-opcode .tb-op-line { position: relative; display: flex; justify-content: flex-end; white-space: nowrap; max-width: 100%; letter-spacing: .04em; }
+#tb-opcode .tb-op-line .v { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#tb-opcode .tb-op-line .k { flex: none; margin-right: .5em; }
+#tb-opcode .tb-op-line::after { content: ""; position: absolute; right: -10px; top: 50%; width: 6px; border-top: 1px solid #9be3bf; }
+#tb-opcode .tb-op-line.op .v { color: #9be3bf; }
+#tb-opcode .k { color: #a9cfc4; }
+#tb-opcode .v { font-family: "JetBrains Mono", monospace; }
+
+/* ---------- инструменты сцены (слева) ---------- */
+body.tb-brief-ui #controls .scene-control,
+body.tb-brief-ui #controls .control-tool {
+  background: var(--tb-panel); color: var(--tb-muted); border: 1px solid var(--tb-line); border-radius: 0; box-shadow: none;
+  transition: color .12s, border-color .12s, box-shadow .12s;
+}
+body.tb-brief-ui #controls .scene-control:hover,
+body.tb-brief-ui #controls .control-tool:hover { color: var(--tb-ink); border-color: var(--tb-accent); box-shadow: var(--tb-glow); }
+body.tb-brief-ui #controls .scene-control.active,
+body.tb-brief-ui #controls .control-tool.active {
+  color: var(--tb-accent-ink); background: var(--tb-accent); border-color: var(--tb-accent); box-shadow: 0 0 10px rgba(155, 227, 191, .5);
+}
+body.tb-brief-ui #controls .control-tool.toggle.active { background: var(--tb-olive-soft); color: var(--tb-accent); }
+body.tb-brief-ui #controls .scene-control.active::after,
+body.tb-brief-ui #controls .control-tool.active::after { content: none; }
+body.tb-brief-ui #controls .control-tools { background: transparent; border: 0; box-shadow: none; }
+
+/* ---------- игроки (слева внизу) ---------- */
+body.tb-brief-ui #players {
+  background: var(--tb-grid-bg); color: var(--tb-ink); border: 1px solid var(--tb-line); box-shadow: inset 3px 0 0 var(--tb-accent), 0 0 12px rgba(0, 0, 0, .6);
+  font-family: var(--tb-body);
+}
+body.tb-brief-ui #players h3 {
+  font-family: var(--tb-display); font-size: 12px; text-transform: uppercase; letter-spacing: .16em; color: var(--tb-accent);
+  border-bottom: 1px solid var(--tb-line); text-shadow: none;
+}
+body.tb-brief-ui #players .player { font-family: var(--tb-data); font-size: 12px; color: var(--tb-ink); }
+body.tb-brief-ui #players .player.gm .player-name { color: var(--tb-warn); }
+body.tb-brief-ui #players .player-active { border-radius: 0; transform: rotate(45deg) scale(.8); box-shadow: 0 0 4px currentColor; }
+
+/* ---------- панель макросов (низ) ---------- */
+body.tb-brief-ui #hotbar :is(#hotbar-directory-controls, #hotbar-page-controls, #hotbar-lock) {
+  background: var(--tb-panel); border: 1px solid var(--tb-line); color: var(--tb-muted); box-shadow: none;
+}
+body.tb-brief-ui #hotbar :is(#hotbar-directory-controls, #hotbar-page-controls, #hotbar-lock) :is(a, i):hover { color: var(--tb-accent); text-shadow: var(--tb-glow); }
+body.tb-brief-ui #hotbar .page-number { font-family: var(--tb-data); color: var(--tb-accent); }
+body.tb-brief-ui #hotbar #action-bar { background: transparent; border: 0; box-shadow: none; }
+body.tb-brief-ui #hotbar #macro-list .macro {
+  background: linear-gradient(180deg, rgba(16, 39, 47, .9), rgba(7, 20, 26, .95)); border: 1px solid var(--tb-line); border-radius: 0;
+  box-shadow: inset 0 -2px 0 rgba(155, 227, 191, .12);
+}
+body.tb-brief-ui #hotbar #macro-list .macro:hover { border-color: var(--tb-accent); box-shadow: var(--tb-glow), inset 0 -2px 0 var(--tb-accent); }
+body.tb-brief-ui #hotbar #macro-list .macro.active { border-color: var(--tb-olive); }
+body.tb-brief-ui #hotbar #macro-list .macro-key {
+  left: 3px; right: auto; top: 2px; background: none; border: 0; border-radius: 0; padding: 0;
+  font-family: var(--tb-data); font-size: 11px; color: var(--tb-accent); text-shadow: 0 0 3px #000;
+}
+body.tb-brief-ui #hotbar #macro-list .macro-icon { border: 0; border-radius: 0; }
+
+/* ---------- навигация сцен (верх) ---------- */
+body.tb-brief-ui #navigation #nav-toggle,
+body.tb-brief-ui #navigation #scene-list .scene {
+  background: var(--tb-panel); border: 1px solid var(--tb-line); color: var(--tb-muted); box-shadow: none; font-family: var(--tb-body);
+}
+body.tb-brief-ui #navigation #scene-list .scene:hover { color: var(--tb-ink); border-color: var(--tb-accent); }
+body.tb-brief-ui #navigation #scene-list .scene.view { color: var(--tb-accent-ink); background: var(--tb-accent); border-color: var(--tb-accent); box-shadow: var(--tb-glow); }
+body.tb-brief-ui #navigation #scene-list .scene.active:not(.view) { color: var(--tb-ink); border-color: var(--tb-accent); box-shadow: inset 0 -2px 0 var(--tb-accent); }
+body.tb-brief-ui #navigation #scene-list .scene .scene-players li { border-radius: 0; }
+
+/* ---------- боковая панель (справа) ---------- */
+body.tb-brief-ui #sidebar {
+  background: var(--tb-grid-bg); border: 1px solid var(--tb-line); box-shadow: 0 0 14px rgba(0, 0, 0, .7); color: var(--tb-ink);
+}
+body.tb-brief-ui #sidebar-tabs { border-bottom: 1px solid var(--tb-line); box-shadow: inset 0 -3px 0 rgba(155, 227, 191, .18); background: rgba(5, 15, 19, .6); }
+body.tb-brief-ui #sidebar-tabs > .item { color: var(--tb-muted); border: 1px solid transparent; border-radius: 0; box-shadow: none; }
+body.tb-brief-ui #sidebar-tabs > .item:hover { color: var(--tb-ink); text-shadow: var(--tb-glow); }
+body.tb-brief-ui #sidebar-tabs > .item.active { color: var(--tb-accent-ink); background: var(--tb-accent); border-color: var(--tb-accent); box-shadow: 0 0 8px rgba(155, 227, 191, .45); }
+body.tb-brief-ui #sidebar-tabs > .item .notification-pip { background: var(--tb-hostile); border: 1px solid #07141a; }
+body.tb-brief-ui #sidebar .directory-header { border-bottom: 1px solid var(--tb-line); }
+body.tb-brief-ui #sidebar .directory-header .header-search a,
+body.tb-brief-ui #sidebar .directory-header .header-control,
+body.tb-brief-ui #sidebar .directory-header .header-search i { color: var(--tb-muted); }
+body.tb-brief-ui #sidebar .directory-header :is(.header-search a, .header-control):hover { color: var(--tb-accent); text-shadow: var(--tb-glow); }
+body.tb-brief-ui #sidebar .directory-list .directory-item { border-top: 0; border-bottom: 1px solid rgba(44, 90, 82, .45); }
+body.tb-brief-ui #sidebar .directory-list .directory-item.document { font-family: var(--tb-body); transition: background .1s; }
+body.tb-brief-ui #sidebar .directory-list .directory-item.document:hover { background: rgba(155, 227, 191, .07); box-shadow: inset 3px 0 0 var(--tb-accent); }
+body.tb-brief-ui #sidebar .directory-list .directory-item.document.active { background: rgba(155, 227, 191, .12); box-shadow: inset 3px 0 0 var(--tb-accent); }
+body.tb-brief-ui #sidebar .directory-list .directory-item .document-name a { color: var(--tb-ink); }
+body.tb-brief-ui #sidebar .directory-list .directory-item:hover .document-name a { color: var(--tb-accent); }
+body.tb-brief-ui #sidebar .directory-list .directory-item img.thumbnail { border: 1px solid var(--tb-line); border-radius: 0; background: var(--tb-surface-2); object-fit: cover; }
+/* папки: свой цвет папки остаётся, поверх лёгкое затемнение и метка слева */
+body.tb-brief-ui #sidebar .directory-list .folder > .folder-header {
+  border: 0; border-bottom: 1px solid var(--tb-line); box-shadow: inset 3px 0 0 var(--tb-accent);
+  background-image: linear-gradient(90deg, rgba(7, 20, 26, 0) 0%, rgba(7, 20, 26, .55) 100%); text-shadow: 0 1px 2px #000;
+}
+body.tb-brief-ui #sidebar .directory-list .folder > .folder-header h3 { font-family: var(--tb-display); text-transform: uppercase; letter-spacing: .1em; font-size: 13px; }
+body.tb-brief-ui #sidebar .directory-list .folder > .folder-header :is(a, i) { color: var(--tb-ink); }
+body.tb-brief-ui #sidebar .directory-list .folder .subdirectory { border-left: 1px dashed var(--tb-line); }
+body.tb-brief-ui #sidebar .directory-footer { border-top: 1px solid var(--tb-line); }
+body.tb-brief-ui #sidebar .collapse { color: var(--tb-muted); }
+/* трекер боя и настройки: строки и заголовки в той же гамме */
+body.tb-brief-ui #sidebar #combat .combatant { border-bottom: 1px solid rgba(44, 90, 82, .45); }
+body.tb-brief-ui #sidebar #combat .combatant.active { background: rgba(155, 227, 191, .1); border-color: var(--tb-accent); box-shadow: inset 3px 0 0 var(--tb-accent); }
+body.tb-brief-ui #sidebar #combat :is(#combat-round, .encounter-controls) h3,
+body.tb-brief-ui #sidebar #settings h2 { font-family: var(--tb-display); text-transform: uppercase; letter-spacing: .12em; color: var(--tb-accent); border-color: var(--tb-line); }
+body.tb-brief-ui #sidebar #settings .info-details,
+body.tb-brief-ui #sidebar #game-details { font-family: var(--tb-data); font-size: 12px; }
+
+/* ---------- окна: заголовок и рамка ---------- */
+body.tb-brief-ui .app.window-app { border-radius: 0; border: 1px solid var(--tb-line); box-shadow: 0 0 18px rgba(0, 0, 0, .8), 0 0 0 1px rgba(155, 227, 191, .06); }
+body.tb-brief-ui .app.window-app .window-header {
+  background: linear-gradient(90deg, rgba(16, 39, 47, .98), rgba(7, 20, 26, .98)); border-bottom: 1px solid var(--tb-line);
+  box-shadow: inset 0 -2px 0 rgba(155, 227, 191, .2); color: var(--tb-ink); font-family: var(--tb-display);
+}
+body.tb-brief-ui .app.window-app .window-header .window-title { text-transform: uppercase; letter-spacing: .12em; font-size: 12px; }
+body.tb-brief-ui .app.window-app .window-header .header-button { color: var(--tb-muted); font-family: var(--tb-body); }
+body.tb-brief-ui .app.window-app .window-header .header-button:hover { color: var(--tb-accent); text-shadow: var(--tb-glow); }
+body.tb-brief-ui .app.window-app.minimized .window-header { border: 1px solid var(--tb-accent); }
+body.tb-brief-ui .app.window-app .window-resizable-handle { background: var(--tb-line); border: 0; border-radius: 0; color: var(--tb-accent); }
+
+/* ---------- подсказки, контекстное меню, уведомления ---------- */
+body.tb-brief-ui #tooltip,
+body.tb-brief-ui .locked-tooltip {
+  background: rgba(5, 15, 19, .96); color: var(--tb-ink); border: 1px solid var(--tb-line); border-radius: 0; box-shadow: 0 0 8px rgba(0, 0, 0, .8);
+  font-family: var(--tb-body); letter-spacing: .03em;
+}
+body.tb-brief-ui #context-menu {
+  background: rgba(5, 15, 19, .97); border: 1px solid var(--tb-line); box-shadow: 0 0 12px rgba(0, 0, 0, .85), inset 3px 0 0 var(--tb-accent);
+  color: var(--tb-ink); font-family: var(--tb-body);
+}
+body.tb-brief-ui #context-menu li.context-item { border-bottom: 1px solid rgba(44, 90, 82, .4); }
+body.tb-brief-ui #context-menu li.context-item:hover { color: var(--tb-accent-ink); background: var(--tb-accent); text-shadow: none; }
+body.tb-brief-ui #notifications .notification {
+  background: rgba(5, 15, 19, .95); color: var(--tb-ink); border: 1px solid var(--tb-line); border-left: 4px solid var(--tb-accent); border-radius: 0;
+  box-shadow: 0 0 10px rgba(0, 0, 0, .7); font-family: var(--tb-body); text-shadow: none;
+}
+body.tb-brief-ui #notifications .notification.warning { border-left-color: var(--tb-warn); }
+body.tb-brief-ui #notifications .notification.error { border-left-color: var(--tb-hostile); color: #ffd9cf; }
+body.tb-brief-ui #notifications .notification .close { color: var(--tb-muted); }
+
+/* ---------- HUD токена и плитки ---------- */
+body.tb-brief-ui #hud .control-icon {
+  background: rgba(5, 15, 19, .9); color: var(--tb-ink); border: 1px solid var(--tb-line); border-radius: 0; box-shadow: none;
+}
+body.tb-brief-ui #hud .control-icon:hover { border-color: var(--tb-accent); box-shadow: var(--tb-glow); color: var(--tb-accent); }
+body.tb-brief-ui #hud .control-icon.active { border-color: var(--tb-accent); background: var(--tb-olive-soft); box-shadow: var(--tb-glow); }
+body.tb-brief-ui #hud .status-effects { background: rgba(5, 15, 19, .95); border: 1px solid var(--tb-line); border-radius: 0; }
+body.tb-brief-ui #hud .attribute input { background: rgba(5, 15, 19, .9); color: var(--tb-ink); border: 1px solid var(--tb-line); border-radius: 0; font-family: var(--tb-data); }
+
+/* ---------- кнопки и поля в стандартных окнах при выключенных «Тёмных окнах» тоже без скруглений ---------- */
+body.tb-brief-ui .app.window-app :is(button, input, select) { border-radius: 0; }
