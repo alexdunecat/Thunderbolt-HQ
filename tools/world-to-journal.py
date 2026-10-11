@@ -10,11 +10,11 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 raw = open(src, encoding="utf-8").read()
 extra = open(os.path.join(root, "data", "world-extra.html"), encoding="utf-8").read()
 
-# порядок страниц: справка и дополнение вперемешку, по смыслу
+# порядок страниц: справка и дополнение вперемешку, по смыслу; «Разговоры в курилке» Alex убрал из журнала
 ORDER = [
     ("map", "Карта мира"), ("home", "Юктобания"), ("forces", "Наши вооружённые силы"), ("nations", "Страны мира"),
     ("chronicle", "Хроника века"), ("legends", "Войны и легенды неба"), ("ulysses", "Падение Улисса"),
-    ("now", "Обстановка на сегодня"), ("sotoa", "Противник: Сотоа"), ("talk", "Разговоры в курилке"), ("words", "Как пишется"),
+    ("now", "Обстановка на сегодня"), ("sotoa", "Противник: Сотоа"), ("words", "Как пишется"),
 ]
 MAP_SRC = "systems/thunderbolt-shtab/assets/world/map.svg"
 
