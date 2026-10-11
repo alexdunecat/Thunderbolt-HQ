@@ -1,0 +1,85 @@
+/* Заставка АСУ «Тайга» (module/boot.mjs): экран штабной ЭВМ 16:9 поверх стола у всех игроков.
+   Размеры текста в cqw — от ширины экрана, чтобы на любом мониторе выглядело одинаково. */
+.tb-boot {
+  --room: #030607; --glass: #06120f; --ph: #9be3bf; --ph-dim: #4f8c7d; --ok: #d7eee6; --alarm: #ff6b4a; --line: #1f3d3a;
+  --f-scr: "JetBrains Mono", Consolas, "Courier New", monospace; --f-disp: Jura, "Exo 2", "Segoe UI", sans-serif;
+  position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; background: var(--room); color: var(--ph);
+  opacity: 0; transition: opacity .6s; pointer-events: auto; cursor: default; user-select: none;
+}
+.tb-boot.on { opacity: 1; }
+.tb-boot.out { opacity: 0; transition: opacity 1.2s; }
+.tb-boot[data-ph="amber"] { --glass: #120b04; --ph: #ffb347; --ph-dim: #8a5a1e; --ok: #ffe2b0; --alarm: #ff5a3a; --line: #3a2a14; }
+.tb-boot[data-ph="red"] { --glass: #12070a; --ph: #ff8a7a; --ph-dim: #8a3a34; --ok: #ffd9d2; --alarm: #ffd24a; --line: #3a1a1c; }
+
+.tb-boot-screen { position: relative; width: min(94vw, 167vh); aspect-ratio: 16 / 9; background: var(--glass); border-radius: 1.4cqw; overflow: hidden;
+  container-type: inline-size;
+  box-shadow: 0 0 0 1px var(--line), 0 0 0 10px #0a0f11, 0 0 0 11px #1a2326, 0 18px 60px rgba(0,0,0,.7), inset 0 0 120px rgba(0,0,0,.75); }
+.tb-boot-screen::before { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5;
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,.28) 0 1px, transparent 1px 3px); mix-blend-mode: multiply; }
+.tb-boot-screen::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 6;
+  background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%); }
+.tb-boot-flicker { position: absolute; inset: 0; animation: tb-boot-flick 6s infinite steps(1); }
+@keyframes tb-boot-flick { 0%, 100% { opacity: 1 } 47% { opacity: .93 } 48% { opacity: 1 } 81% { opacity: .96 } }
+.tb-boot-layer { position: absolute; inset: 0; padding: 4.2% 5%; opacity: 0; transition: opacity .5s; }
+.tb-boot .glow { text-shadow: 0 0 6px color-mix(in srgb, var(--ph) 55%, transparent), 0 0 18px color-mix(in srgb, var(--ph) 25%, transparent); }
+
+/* лог: строки как на ЭВМ */
+.tb-boot-log { height: 100%; font-family: var(--f-scr); font-size: 1.5cqw; line-height: 1.45; white-space: pre; overflow: hidden; }
+.tb-boot-log > div { min-height: 1.45em; }
+.tb-boot-log .hd, .tb-boot-log .res { color: var(--ok); }
+.tb-boot-log .code { opacity: .82; }
+.tb-boot-log .rem { color: var(--ph-dim); }
+.tb-boot-log .warn, .tb-boot-log .res.bad { color: var(--alarm); }
+.tb-boot-cursor { display: inline-block; width: .6em; height: 1em; background: var(--ph); vertical-align: -0.12em; animation: tb-boot-blink 1s steps(1) infinite; }
+@keyframes tb-boot-blink { 50% { opacity: 0 } }
+
+/* щит ВВС и знак OADF */
+.tb-boot [data-l="crest"] { display: grid; place-items: center; align-content: center; }
+.tb-boot-pair { position: relative; width: 40%; }
+.tb-boot-pair svg { display: block; width: 100%; height: auto; overflow: visible; transition: transform 1.6s cubic-bezier(.6,.05,.3,1), opacity .8s; }
+.tb-boot-pair .yuk { position: relative; z-index: 2; }
+.tb-boot-pair .osea { position: absolute; inset: 0; z-index: 1; opacity: 0; transform: scale(.8); }
+.tb-boot-pair.joint .yuk { transform: translateX(-58%) scale(.86); }
+.tb-boot-pair.joint .osea { opacity: 1; transform: translateX(58%) scale(.86); }
+.tb-boot-pair .back { fill: var(--glass); }
+.tb-boot-pair .ring { fill: none; stroke: var(--ph); stroke-width: 1.4; }
+.tb-boot-pair .ring.thin { stroke-width: .6; stroke: var(--ph-dim); }
+.tb-boot-pair .emb { fill: none; stroke: var(--ph); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+.tb-boot-pair .emb.thin { stroke-width: 1.2; }
+.tb-boot-pair .embfill { opacity: 0; transition: opacity 1s; }
+.tb-boot-pair .embfill .field { fill: color-mix(in srgb, var(--ph) 14%, transparent); }
+.tb-boot-pair .embfill .gold { fill: color-mix(in srgb, var(--ph) 72%, transparent); }
+.tb-boot-pair text { fill: var(--ph); font-family: var(--f-disp); font-weight: 600; font-size: 9.5px; letter-spacing: .32em; }
+.tb-boot-pair .embt { font-weight: 700; font-size: 15px; letter-spacing: .12em; }
+.tb-boot .draw { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); }
+.tb-boot .draw.on { transition: stroke-dashoffset var(--dur, 1.4s) cubic-bezier(.6,.05,.3,1); stroke-dashoffset: 0; }
+.tb-boot-cap { font-family: var(--f-disp); font-weight: 700; letter-spacing: .28em; font-size: 1.6cqw; text-align: center; margin-top: 2%; opacity: 0; transition: opacity .8s; }
+.tb-boot-cap small { display: block; font-weight: 400; letter-spacing: .18em; color: var(--ph-dim); margin-top: .4em; font-size: .8em; }
+
+/* загрузка */
+.tb-boot [data-l="load"] { display: flex; flex-direction: column; justify-content: flex-end; gap: 1.2%; }
+.tb-boot-bar { display: grid; grid-template-columns: repeat(40, 1fr); gap: 3px; height: 1.5cqw; }
+.tb-boot-bar i { background: color-mix(in srgb, var(--ph) 12%, transparent); }
+.tb-boot-bar i.on { background: var(--ph); box-shadow: 0 0 6px var(--ph); }
+.tb-boot-loadrow { display: flex; justify-content: space-between; font-family: var(--f-scr); font-size: 1.5cqw; color: var(--ph-dim); font-variant-numeric: tabular-nums; }
+.tb-boot-loadrow b { color: var(--ok); font-weight: 400; }
+
+/* допуск */
+.tb-boot [data-l="grant"] { display: grid; place-content: center; text-align: center; gap: 1.2em; }
+.tb-boot-stamp { font-family: var(--f-scr); font-weight: 600; font-size: 4.2cqw; letter-spacing: .14em; color: var(--ph); min-height: 1.3em; text-align: left;
+  white-space: pre; width: calc(16ch + 16 * .14em); max-width: 100%; justify-self: center; }
+.tb-boot-stamp.ok { color: var(--ok); }
+.tb-boot-op { font-family: var(--f-scr); font-size: 1.8cqw; line-height: 1.6; color: var(--ok); opacity: 0; transition: opacity .3s; }
+.tb-boot [data-l="grant"].on .tb-boot-op { opacity: 1; }
+.tb-boot-op span { color: var(--ph-dim); }
+
+/* переход к брифингу: сетка карты */
+.tb-boot [data-l="grid"] { background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 6.25% 11.1%; background-position: -1px -1px; display: flex; align-items: flex-end; }
+.tb-boot-gridcap { font-family: var(--f-disp); font-weight: 700; letter-spacing: .3em; font-size: 1.7cqw; }
+.tb-boot-gridcap small { display: block; font-weight: 400; letter-spacing: .14em; color: var(--ph-dim); }
+.tb-boot-corner { position: absolute; z-index: 4; top: 3.2%; right: 3.6%; font-family: var(--f-scr); font-size: 1.3cqw; color: var(--ph-dim); text-align: right; opacity: 0; transition: opacity .4s; }
+.tb-boot-corner .alarm { color: var(--alarm); }
+.tb-boot-skip { position: fixed; right: 18px; bottom: 12px; font: 12px var(--f-scr); color: var(--ph-dim); opacity: .6; letter-spacing: .08em; }
+
+@media (prefers-reduced-motion: reduce) { .tb-boot-flicker, .tb-boot-cursor { animation: none; } .tb-boot .draw.on { transition: none; } }

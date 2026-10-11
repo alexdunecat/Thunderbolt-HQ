@@ -30,6 +30,7 @@ import { registerMission, openMissionDialog } from "./mission.mjs";
 import { registerSounds, cue } from "./sounds.mjs";
 import { registerAces, openAceIntro, announceAces } from "./aces.mjs";
 import { registerPause } from "./pause.mjs";
+import { registerBoot, openBootDialog, startBoot, playBoot, stopBoot } from "./boot.mjs";
 import { registerOpCode } from "./opcode.mjs";
 import { applyCanvasStyle, patchTargetReticle } from "./canvas-style.mjs";
 import { openDossierExchange, importDossier, exportDossier } from "./dossier-sync.mjs";
@@ -133,6 +134,7 @@ Hooks.once("init", () => {
   registerSounds();
   registerAces();
   registerPause();
+  registerBoot();
   registerOpCode();
   registerRange();
   Downtime.registerDowntime();
@@ -151,7 +153,7 @@ Hooks.once("init", () => {
 
   game.thunderbolt = { gloryDialog, importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
     squadFromSelection, act: actFromMacro, fillHotbars, stepAltitude, rolls: R, TB, sound: cue, radio: { send: sendRadio, say, caution, log: openRadioLog, replies: openChatterEditor, mission: openMissionDialog, aces: openAceIntro, announceAces }, dossier: { open: openDossierExchange, importDossier, exportDossier },
-    refreshAwacs, downtime: { ground: Downtime.rollGround, baseEvent: Downtime.baseEvent, threats: Downtime.threats, addThreat: Downtime.addThreat, stepThreat: Downtime.stepThreat } };
+    refreshAwacs, boot: { open: openBootDialog, start: startBoot, play: playBoot, stop: stopBoot }, downtime: { ground: Downtime.rollGround, baseEvent: Downtime.baseEvent, threats: Downtime.threats, addThreat: Downtime.addThreat, stepThreat: Downtime.stepThreat } };
 });
 
 Hooks.once("ready", async () => {
@@ -231,6 +233,7 @@ Hooks.on("getSceneControlButtons", controls => {
   tokens?.tools.push({ name: "tb-radio", title: "Радио AWACS: реплика всем", icon: "fas fa-tower-broadcast", button: true, onClick: () => openRadioDialog() });
   tokens?.tools.push({ name: "tb-chatter", title: "Реплики NPC: фразы союзников, противника и гражданских", icon: "fas fa-comments", button: true, onClick: () => openChatterEditor() });
   tokens?.tools.push({ name: "tb-awacs", title: "Панель AWACS", icon: "fas fa-satellite-dish", button: true, onClick: () => openAwacs() });
+  tokens?.tools.push({ name: "tb-boot", title: "Заставка АСУ «Тайга» перед брифингом: у всех на экране", icon: "fas fa-terminal", button: true, onClick: () => openBootDialog() });
 });
 Hooks.on("renderActorDirectory", (app, html) => {
   const root = html[0] ?? html;
