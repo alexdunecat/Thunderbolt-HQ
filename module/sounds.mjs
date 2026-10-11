@@ -1,8 +1,8 @@
 /* Звуки: сигналы кабины у пилота (свой захват, его взяли на захват, ракета на подлёте, сваливание, малая высота в бою,
-   свой пуск и очередь из пушки) и общие для всех (итог миссии, тревога по приоритетной цели союзников или гражданских).
-   Сигнал пилота слышит его владелец (игрок), ведущий — только если включил «Ведущий слышит сигналы пилотов».
-   Файлы задаются в настройках системы (по умолчанию тоны из assets/sounds, их делает tools/make-sounds.py);
-   пустое поле — этот сигнал молчит. Громкость у каждого своя. */
+   свой пуск, очередь из пушки, кончилось спецоружие) и общие для всех (итог миссии, тревога по приоритетной цели
+   союзников или гражданских). Сигнал пилота слышит его владелец (игрок), ведущий — только если включил
+   «Ведущий слышит сигналы пилотов». Файлы встроены в систему (assets/sounds/*.ogg) и в настройках не меняются;
+   у каждого своя громкость. Звуки подгружаются заранее, новый сигнал того же вида обрывает прежний. */
 import { SYSTEM_ID } from "./config.mjs";
 import { resolveActor } from "./utils.mjs";
 import { sideOf, hasRule } from "./scene.mjs";
@@ -15,24 +15,18 @@ export const COCKPIT_SOUNDS = {
   lowAlt: { label: "Малая высота", hint: "Пилот опустился на Низкую." },
   fire: { label: "Свой пуск", hint: "Пилот выпустил ракету или бомбы (Fox Two!)." },
   guns: { label: "Своя пушка", hint: "Пилот открыл огонь из пушки (Guns)." },
+  ammoOut: { label: "Кончилось спецоружие", hint: "Боезапас спецоружия пилота дошёл до нуля." },
   missionWin: { label: "Миссия выполнена или завершена", hint: "Звучит у всех с баннером итога.", all: true },
   missionFail: { label: "Миссия провалена или отменена", hint: "Звучит у всех с баннером итога.", all: true },
   priority: { label: "Удар по своей приоритетной цели", hint: "У всех: приоритетную цель союзников или гражданских подбили или уничтожили.", all: true }
 };
 const CHANNEL = `system.${SYSTEM_ID}`;
-const SRC = k => `systems/${SYSTEM_ID}/assets/sounds/${k}.wav`;
-/** Ключ настройки файла: soundLock, soundLowAlt и т. д. */
-export const soundKey = k => `sound${k[0].toUpperCase()}${k.slice(1)}`;
-const last = new Map();
+export const SRC = k => `systems/${SYSTEM_ID}/assets/sounds/${k}.ogg`;
+const last = new Map(), playing = new Map();
 
 export function registerSounds() {
-  for (const [k, s] of Object.entries(COCKPIT_SOUNDS))
-    game.settings.register(SYSTEM_ID, soundKey(k), {
-      name: `Звук: ${s.label.toLowerCase()}`, hint: `${s.hint} Свой звуковой файл или пусто, чтобы молчал.`,
-      scope: "world", config: true, type: String, default: SRC(k), filePicker: "audio"
-    });
   game.settings.register(SYSTEM_ID, "soundVolume", {
-    name: "Громкость звуков", hint: "Сигналы кабины, итог миссии и тревога. У каждого игрока своя. 0 — без звуков.",
+    name: "Громкость звуков", hint: "Сигналы кабины, итог миссии и тревога. У каждого игрока своя. 0 — без звуков. Звуки идут через канал «Интерфейс» Foundry: его ползунок во вкладке плейлистов тоже влияет.",
     scope: "client", config: true, type: Number, range: { min: 0, max: 100, step: 10 }, default: 70
   });
   game.settings.register(SYSTEM_ID, "soundGM", {
@@ -45,10 +39,19 @@ export function registerSounds() {
     if (card?.maws && card.targetUuid) cue("missile", resolveActor(card.targetUuid));
     if (card?.attack && card.actorUuid) cue(card.instant ? "guns" : "fire", resolveActor(card.actorUuid));
   });
-  Hooks.once("ready", () => game.socket.on(CHANNEL, msg => { if (msg?.type === "sound" && COCKPIT_SOUNDS[msg.key]?.all) cueAll(msg.key); }));
+  Hooks.once("ready", () => {
+    game.socket.on(CHANNEL, msg => { if (msg?.type === "sound" && COCKPIT_SOUNDS[msg.key]?.all) cueAll(msg.key); });
+    // заранее в кэш: первый сигнал не ждёт загрузки файла
+    const pre = foundry.audio?.AudioHelper?.preloadSound;
+    if (pre) for (const k of Object.keys(COCKPIT_SOUNDS)) Promise.resolve().then(() => pre.call(foundry.audio.AudioHelper, SRC(k))).catch(() => null);
+  });
   Hooks.on("createActiveEffect", effect => { if (effect.statuses?.has("stall")) cue("stall", effect.parent); });
   // малая высота — только в бою, чтобы не пищало при расстановке токенов
   Hooks.on("updateActor", (actor, change) => { if (game.combat?.started && foundry.utils.getProperty(change, "system.alt") === "low") cue("lowAlt", actor); });
+  // последний заряд спецоружия ушёл
+  Hooks.on("updateItem", (item, change) => {
+    if (item.type === "weapon" && foundry.utils.getProperty(change, "system.ammo.value") === 0) cue("ammoOut", item.parent);
+  });
 }
 
 const setting = (k, d) => { try { return game.settings.get(SYSTEM_ID, k); } catch { return d; } };
@@ -71,12 +74,21 @@ export function cueAll(key) {
 }
 
 function play(key, id) {
-  const src = String(setting(soundKey(key), SRC(key)) ?? "").trim(), volume = Number(setting("soundVolume", 70)) / 100;
-  if (!src || volume <= 0) return false;
+  const src = SRC(key), volume = Number(setting("soundVolume", 70)) / 100;
+  if (volume <= 0) return false;
   const now = Date.now();
   if (last.has(id) && now - last.get(id) < 1500) return false;
   last.set(id, now);
-  foundry.audio.AudioHelper.play({ src, volume, autoplay: true, loop: false, channel: "interface" }, false);
+  // тот же сигнал ещё звучит (длинные тоны захвата и ракеты): прежний обрывается, чтобы не наслаивались
+  try { playing.get(key)?.stop?.(); } catch {}
+  try {
+    const res = foundry.audio.AudioHelper.play({ src, volume, autoplay: true, loop: false, channel: "interface" }, false);
+    Promise.resolve(res).then(sound => { if (sound) playing.set(key, sound); })
+      .catch(err => console.warn(`${SYSTEM_ID} | звук ${key}`, err));
+  } catch (err) {
+    console.warn(`${SYSTEM_ID} | звук ${key}`, err);
+    return false;
+  }
   return true;
 }
 

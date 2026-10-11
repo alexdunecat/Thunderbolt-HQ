@@ -22,7 +22,7 @@ const S = await import(`${root}/module/sounds.mjs`);
 S.registerSounds();
 const msg = f => ({ getFlag: (s, k) => f[k] });
 const fire = (name, ...a) => { hooks[name].forEach(f => f(...a)); const out = played.splice(0); console.log(`${name}: ${out.join(", ") || "тишина"}`); now += 2000; };
-console.log("сигналы:", Object.keys(S.COCKPIT_SOUNDS).map(k => `${k}=${settings[S.soundKey(k)].split("/").pop()}`).join(" "));
+console.log("сигналы:", Object.keys(S.COCKPIT_SOUNDS).map(k => `${k}=${S.SRC(k).split("/").pop()}`).join(" "));
 fire("createChatMessage", msg({ rwr: { fromUuid: me.uuid, target: mig.uuid } }));      // свой захват
 fire("createChatMessage", msg({ rwr: { fromUuid: mig.uuid, target: me.uuid } }));      // облучение
 fire("createChatMessage", msg({ rwr: { fromUuid: mig.uuid, target: mate.uuid } }));    // захватили чужого пилота — не слышно
@@ -33,8 +33,10 @@ fire("updateActor", me, { system: { alt: "low" } });
 fire("updateActor", me, { system: { alt: "med" } });
 hooks.updateActor[0](me, { system: { alt: "low" } }); fire("updateActor", me, { system: { alt: "low" } }); // повтор сразу — один раз
 game.combat = null; fire("updateActor", me, { system: { alt: "low" } }); game.combat = { started: true }; // вне боя — молчит
-settings.soundLock = "";
-fire("createChatMessage", msg({ rwr: { fromUuid: me.uuid, target: mig.uuid } }));      // пустое поле — молчит
+// кончилось спецоружие: последний заряд у своего пилота
+fire("updateItem", { type: "weapon", parent: me }, { system: { ammo: { value: 0 } } });
+fire("updateItem", { type: "weapon", parent: me }, { system: { ammo: { value: 2 } } });   // ещё есть — молчит
+fire("updateItem", { type: "weapon", parent: mate }, { system: { ammo: { value: 0 } } }); // чужой пилот — не слышно
 settings.soundVolume = 0;
 fire("createChatMessage", msg({ card: { maws: true, targetUuid: me.uuid } }));         // громкость 0
 settings.soundVolume = 50; game.user.isGM = true;
