@@ -621,6 +621,9 @@ body[data-tb-skin="brief"] .tb-radio-log b.tb-log-caution { color: #f2c14e; } bo
 .tb-chatter-call input { width: 220px; }
 .tb-chatter-voice { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 4px; }
 .tb-chatter-list.muted { opacity: .5; }
+.tb-chatter-talk .tb-hint { margin: 0 0 4px; font-size: 12px; }
+.tb-chatter-talk textarea { min-height: 140px; }
+.tb-chatter-sub { margin: 4px 0 8px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; opacity: .7; border: 0; }
 .app.tb-chatter .tb-chatter-nav button.muted:not(.on) { opacity: .6; }
 .tb-chatter-nav .tb-hint { margin: 2px 4px 6px; font-size: 11px; }
 .tb-chatter-ev textarea::placeholder { color: var(--tb-muted); opacity: .8; font-style: italic; }

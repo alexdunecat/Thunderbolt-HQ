@@ -9,6 +9,7 @@ import { esc, resolveActor } from "./utils.mjs";
 import { sideOf, hasRule } from "./scene.mjs";
 import { say } from "./radio.mjs";
 import { CHATTER_BANK, CHATTER_TYPES, CHATTER_SIDES, CHATTER_EVENTS, eventsFor } from "./data/chatter-bank.mjs";
+import { allSquads, squadMembers } from "./squadrons.mjs";
 
 const CHANNEL = `system.${SYSTEM_ID}`;
 const FLUSH_MS = 700, MAX_LINES = 3;
@@ -34,6 +35,11 @@ export function registerChatter() {
   // общие правки до 0.5.6, когда фразы были одни на весь мир: их можно перенести в сцену кнопкой в окне
   game.settings.register(SYSTEM_ID, "chatterBank", { scope: "world", config: false, type: Object, default: {} });
   game.settings.register(SYSTEM_ID, "chatterMuted", { scope: "world", config: false, type: Object, default: {} });
+  // эскадрильи дуэлянтов: свои реплики по событиям и переговоры между собой { название: { replies, talk, auto } }
+  game.settings.register(SYSTEM_ID, "squadChatter", {
+    scope: "world", config: false, type: Object, default: {},
+    onChange: () => { if (editor?.rendered) editor.render(false); }
+  });
   game.settings.registerMenu(SYSTEM_ID, "chatterEditor", {
     name: "Реплики NPC", label: "Открыть реплики", hint: "Все фразы NPC по типам техники, сторонам и событиям: посмотреть, поменять, вернуть стандартные.",
     icon: "fas fa-comments", type: ChatterMenu, restricted: true
@@ -49,6 +55,10 @@ export function registerChatter() {
   // подкрепление или засада: NPC появился на сцене боя или ведущий его открыл
   Hooks.on("createToken", doc => { if (isLead() && inCombat(doc) && !doc.hidden) queue({ event: "arrive", speaker: doc.actor?.uuid }); });
   Hooks.on("updateToken", (doc, change) => { if (isLead() && change.hidden === false && inCombat(doc)) queue({ event: "arrive", speaker: doc.actor?.uuid }); });
+  // новый раунд: какая-нибудь эскадрилья иногда переговаривается между собой
+  Hooks.on("updateCombat", (combat, change) => {
+    if (isLead() && change && "round" in change && combat?.started) setTimeout(() => autoTalk(combat), 1800);
+  });
   // окно показывает фразы открытой сцены
   Hooks.on("canvasReady", () => { if (editor?.rendered) editor.render(false); });
 }
@@ -160,7 +170,8 @@ function broadcast(line) {
 }
 
 function hear(line) {
-  if (line?.text) say(line.speaker, line.text, line.side, { low: true });
+  // переговоры эскадрильи идут подряд и не выпадают из очереди субтитров
+  if (line?.text) say(line.speaker, line.text, line.side, { low: !line.queue });
 }
 
 /* ---------- кто говорит и что ---------- */
@@ -179,6 +190,7 @@ export function chatterType(actor) {
 
 const isCivil = type => !!CHATTER_TYPES[type]?.civil;
 const isAce = a => a?.type === "npc" && a.system?.tier === "ace" && !!chatterType(a);
+const isSquad = a => a?.type === "npc" && a.system?.tier === "duelist" && !!a.system?.squad && !!chatterType(a);
 const quiet = a => !!a?.getFlag?.(SYSTEM_ID, "quiet");
 /** Сцена, чьи фразы правит окно: открытая у ведущего. */
 const editScene = () => game.scenes?.viewed ?? game.combat?.scene ?? null;
@@ -304,10 +316,101 @@ function lineFor(e) {
   // ас со своими репликами говорит ими (и когда его тип молчит); если ни одна не подошла, общими фразами
   const own = isAce(actor) ? actor.getFlag?.(SYSTEM_ID, "replies")?.[event] : null;
   let text = Array.isArray(own) && own.length ? pickLine(`ace:${actor.uuid}:${event}`, own, vars) : null;
+  // машина эскадрильи дуэлянтов говорит репликами эскадрильи (и когда её тип молчит)
+  if (!text && isSquad(actor)) {
+    const sq = squadData(actor.system.squad).replies?.[event];
+    if (Array.isArray(sq) && sq.length) text = pickLine(`squad:${actor.system.squad}:${event}`, sq, vars);
+  }
   const scene = tok.parent ?? editScene();
   if (!text && muted(scene)[type]) return null;
   text ??= pickLine(bankKey(type, side, event), linesFor(type, side, event, scene), vars);
   return text ? { speaker: self, text, side: sideOf(actor) } : null;
+}
+
+/* ---------- эскадрильи дуэлянтов: свои реплики и переговоры между собой ---------- */
+
+/** Реплики эскадрильи: { replies: { событие: [...] }, talk: [[строки обмена], …], auto }. */
+export function squadData(name) {
+  try { return game.settings.get(SYSTEM_ID, "squadChatter")?.[name] ?? {}; } catch { return {}; }
+}
+
+async function setSquadData(name, patch) {
+  const all = foundry.utils.deepClone(game.settings.get(SYSTEM_ID, "squadChatter") ?? {});
+  const d = { ...(all[name] ?? {}), ...patch };
+  for (const [ev, lines] of Object.entries(d.replies ?? {})) if (!lines?.length) delete d.replies[ev];
+  all[name] = d;
+  return game.settings.set(SYSTEM_ID, "squadChatter", all);
+}
+
+const squadNoOf = t => Number(t.getFlag?.(SYSTEM_ID, "squadNo")) || null;
+/** Кто из эскадрильи может говорить: живые открытые машины на сцене, по номерам. */
+export function squadSpeakers(name, scene = game.combat?.scene ?? editScene()) {
+  return (scene?.tokens ?? []).filter(t => isSquad(t.actor) && t.actor.system.squad === name && !t.hidden && !dead(t.actor) && !quiet(t.actor))
+    .sort((a, b) => (squadNoOf(a) ?? 99) - (squadNoOf(b) ?? 99) || String(a.name).localeCompare(String(b.name), "ru"));
+}
+
+/** Текст поля «Между собой» → обмены: пустая строка разделяет обмены. */
+export const talkBlocks = text => String(text ?? "").split(/\n\s*\n/).map(splitLines).filter(b => b.length);
+
+/**
+ * Один обмен репликами: строки по очереди говорят разные машины, первая — ведущий (меньший номер).
+ * «2: текст» отдаёт строку машине №2; если её нет на сцене, обмен не годится. {self} — говорящий,
+ * {mate} — тот, кому он отвечает (для первой строки — следующий говорящий), {lead} — ведущий.
+ */
+export function talkLines(block, speakers) {
+  if (!Array.isArray(block) || speakers.length < 2) return null;
+  const who = [];
+  let k = 0;
+  for (const raw of block) {
+    const m = /^(\d{1,2})\s*[:)]\s*(.+)$/.exec(raw);
+    let tok = null;
+    if (m) { tok = speakers.find(t => squadNoOf(t) === Number(m[1])); if (!tok) return null; }
+    else {
+      tok = speakers[k % speakers.length];
+      if (tok === who.at(-1)?.tok) { k++; tok = speakers[k % speakers.length]; }
+      k++;
+    }
+    who.push({ tok, text: m ? m[2] : raw });
+  }
+  const lead = nameOf(speakers[0].actor);
+  const out = [];
+  for (let i = 0; i < who.length; i++) {
+    const self = nameOf(who[i].tok.actor);
+    const other = (i > 0 ? who.slice(0, i).reverse() : who.slice(1)).find(x => x.tok !== who[i].tok)?.tok;
+    const text = fill(who[i].text.replace(/\{(mate|lead)\}/g, (_, v) => (v === "lead" ? lead : other ? nameOf(other.actor) : "{mate}")), { self });
+    if (!text || text.includes("{mate}")) return null;
+    out.push({ speaker: self, text, side: sideOf(who[i].tok.actor), queue: true });
+  }
+  return out;
+}
+
+/** Пустить в эфир случайный обмен эскадрильи (local — услышит только ведущий, в журнал не попадёт). */
+export function playSquadTalk(name, { local = false, blocks = null, scene } = {}) {
+  const all = blocks ?? squadData(name).talk ?? [];
+  if (!all.length) { if (local) ui.notifications?.info("У эскадрильи нет переговоров: впишите обмены в поле «Между собой»."); return null; }
+  const speakers = squadSpeakers(name, scene);
+  const fits = all.map((b, i) => ({ i, lines: talkLines(b, speakers) })).filter(x => x.lines);
+  if (!fits.length) {
+    ui.notifications?.info(speakers.length < 2 ? `Эскадрилье «${name}» нужно две живые открытые машины на сцене.` : `Ни один обмен эскадрильи «${name}» не подходит машинам на сцене (номера в начале строк).`);
+    return null;
+  }
+  const key = `talk:${name}`, fresh = fits.length > 1 ? fits.filter(x => x.i !== lastPick.get(key)) : fits;
+  const pick = fresh[Math.floor(Math.random() * fresh.length)];
+  lastPick.set(key, pick.i);
+  for (const line of pick.lines) local ? say(line.speaker, line.text, line.side, { log: false }) : broadcast(line);
+  return pick.lines;
+}
+
+/** Начало раунда: с вероятностью вполовину «о мелочах» одна из эскадрилий на сцене боя переговаривается. */
+export function autoTalk(combat = game.combat) {
+  if (!enabled() || !isLead()) return null;
+  const scene = combat?.scene;
+  const names = Object.keys(allSquads()).filter(n => {
+    const d = squadData(n);
+    return d.auto !== false && d.talk?.length && squadSpeakers(n, scene).length >= 2;
+  });
+  if (!names.length || Math.random() * 200 >= chance()) return null;
+  return playSquadTalk(names[Math.floor(Math.random() * names.length)], { scene });
 }
 
 /* ---------- окно «Реплики NPC» ---------- */
@@ -318,6 +421,14 @@ export function openChatterEditor(actor = null) {
   if (!game.user.isGM) return;
   editor ??= new ChatterEditor();
   if (actor?.uuid) editor.type = `ace:${actor.uuid}`;
+  editor.render(true);
+}
+
+/** Открыть окно на репликах эскадрильи дуэлянтов. */
+export function openSquadChatter(name) {
+  if (!game.user.isGM) return;
+  editor ??= new ChatterEditor();
+  editor.type = `squad:${name}`;
   editor.render(true);
 }
 
@@ -361,8 +472,16 @@ class ChatterEditor extends FormApplication {
     return isAce(a) ? a : null;
   }
 
+  /** Выбранная эскадрилья дуэлянтов (или null). */
+  get squad() {
+    if (!this.type?.startsWith("squad:")) return null;
+    const name = this.type.slice(6);
+    return name in allSquads() ? name : null;
+  }
+
   async _renderInner() {
     if (this.type?.startsWith("ace:") && !this.ace) this.type = "air";
+    if (this.type?.startsWith("squad:") && !this.squad) this.type = "air";
     const scene = editScene();
     const ov = overrides(scene), mute = muted(scene);
     const aces = aceList();
@@ -378,11 +497,18 @@ class ChatterEditor extends FormApplication {
     };
     const aceNav = `<h4>Асы на сцене</h4>${aces.onScene.map(aceBtn).join("") || `<p class="tb-hint">Нет: уровень «Ас» на листе NPC.</p>`}`
       + (aces.inDir.length ? `<h4>Асы в актёрах</h4>${aces.inDir.map(aceBtn).join("")}` : "");
-    const ace = this.ace;
-    const main = ace ? this.#aceView(ace) : scene ? this.#typeView(ov, mute, scene) : `<p class="tb-hint">Откройте сцену: фразы по типам у каждой сцены свои.</p>`;
+    const squads = Object.keys(allSquads()).sort((a, b) => a.localeCompare(b, "ru"));
+    const squadNav = `<h4>Эскадрильи дуэлянтов</h4>${squads.map(n => {
+      const d = squadData(n), key = `squad:${n}`;
+      const own = Object.values(d.replies ?? {}).some(l => l?.length), talk = d.talk?.length;
+      const here = squadSpeakers(n, scene).length;
+      return `<button type="button" data-type="${esc(key)}" class="${key === this.type ? "on" : ""}${here ? "" : " muted"}">${esc(n)}${own ? ` <i class="fas fa-pen" title="есть свои реплики"></i>` : ""}${talk ? ` <i class="fas fa-comments" title="есть переговоры между собой"></i>` : ""}</button>`;
+    }).join("") || `<p class="tb-hint">Нет: панель AWACS, «Собрать из выделенных».</p>`}`;
+    const ace = this.ace, squad = this.squad;
+    const main = ace ? this.#aceView(ace) : squad ? this.#squadView(squad) : scene ? this.#typeView(ov, mute, scene) : `<p class="tb-hint">Откройте сцену: фразы по типам у каждой сцены свои.</p>`;
     const pct = chance();
     return $(`<form class="tb-chatter-body">
-      <nav class="tb-chatter-nav">${nav}${aceNav}</nav>
+      <nav class="tb-chatter-nav">${nav}${aceNav}${squadNav}</nav>
       <section class="tb-chatter-main">${main}</section>
       <footer class="tb-chatter-foot">
         <label><input type="checkbox" data-enabled ${enabled() ? "checked" : ""}> Переговоры в эфире</label>
@@ -440,10 +566,42 @@ class ChatterEditor extends FormApplication {
       <div class="tb-chatter-list">${rows}</div>`;
   }
 
+  /** Образец машины эскадрильи: по нему тип, сторона и общие фразы-подсказки. */
+  #squadSample(name) {
+    return squadSpeakers(name, editScene())[0]?.actor ?? squadMembers(name).find(a => chatterType(a)) ?? null;
+  }
+
+  #squadView(name) {
+    const d = squadData(name), sample = this.#squadSample(name);
+    const type = (sample && chatterType(sample)) ?? "air", side = sample ? bankSide(sample, type) : "enemy";
+    const scene = editScene(), own = d.replies ?? {};
+    const rows = eventsFor(type, side).map(ev => {
+      const e = CHATTER_EVENTS[ev], lines = Array.isArray(own[ev]) ? own[ev] : [];
+      return this.#row({ key: `squad.${ev}`, label: e.label, hint: e.hint, value: lines.join("\n"), placeholder: linesFor(type, side, ev, scene).join("\n"),
+        changed: lines.length > 0, resetTitle: "Убрать свои фразы: снова общие фразы типа" });
+    }).join("");
+    const here = squadSpeakers(name, scene);
+    const talk = (d.talk ?? []).map(b => b.join("\n")).join("\n\n");
+    const example = "Жёлтый-4, держись крыла.\nПонял, ведущий. Иду за тобой.\n\n2: {lead}, вижу их внизу.\n1: Не торопись, {mate}. Ждём команды.";
+    return `<header><h3>Эскадрилья «${esc(name)}»</h3>
+        <p class="tb-hint">Дуэлянты · ${esc(CHATTER_TYPES[type].label)} · ${esc(CHATTER_SIDES[side] ?? "")} · на сцене: ${here.length ? here.map(t => esc(nameOf(t.actor))).join(", ") : "никого"}. Реплики получат все машины эскадрильи; ас и личный «Позывной в эфире» остаются своими. Пустое поле: общие фразы типа (видны серым).</p></header>
+      <div class="tb-chatter-list">
+        <div class="tb-chatter-ev tb-chatter-talk${talk ? " changed" : ""}" data-talk>
+          <div class="tb-chatter-ev-head"><b>Между собой</b><small>переговоры внутри эскадрильи</small>
+            <span class="tb-chatter-btns"><button type="button" data-talk-test title="Послушать случайный обмен (только у вас)"><i class="fas fa-play"></i></button>
+            <button type="button" data-talk-air title="Пустить случайный обмен в эфир всем"><i class="fas fa-tower-broadcast"></i></button></span></div>
+          <p class="tb-hint">Обмены разделяйте пустой строкой. Строки обмена по очереди говорят разные машины на сцене, первая — ведущий (меньший номер). «2: …» в начале строки отдаёт её машине №2. {self} — говорящий, {mate} — кому он отвечает, {lead} — ведущий.</p>
+          <textarea rows="8" spellcheck="true" placeholder="${esc(example)}">${esc(talk)}</textarea>
+          <label class="tb-chatter-voice"><input type="checkbox" data-talk-auto ${d.auto === false ? "" : "checked"}> Сами в начале раунда, иногда (вполовину реже, чем «о мелочах»)</label>
+        </div>
+        <h4 class="tb-chatter-sub">Реплики в бою</h4>${rows}</div>`;
+  }
+
   activateListeners(html) {
     super.activateListeners(html);
     const root = html[0] ?? html;
-    const ace = this.ace, scene = editScene();
+    const ace = this.ace, squad = this.squad, scene = editScene();
+    const sample = squad ? this.#squadSample(squad) : null;
     root.querySelectorAll("[data-type]").forEach(b => b.addEventListener("click", () => { this.type = b.dataset.type; this.render(false); }));
     root.querySelectorAll("[data-side]").forEach(b => b.addEventListener("click", () => { this.side = b.dataset.side; this.render(false); }));
     root.querySelector("[data-callsign]")?.addEventListener("change", async ev => {
@@ -459,7 +617,19 @@ class ChatterEditor extends FormApplication {
       const key = row.dataset.key;
       const area = row.querySelector("textarea");
       const mark = changed => { row.classList.toggle("changed", changed); row.querySelector("[data-reset]").disabled = !changed; };
-      if (ace) {
+      if (!key) return;
+      if (squad) {
+        const event = key.slice(6);
+        area.addEventListener("change", async () => {
+          const lines = splitLines(area.value);
+          await setSquadData(squad, { replies: { ...(squadData(squad).replies ?? {}), [event]: lines } });
+          mark(lines.length > 0);
+        });
+        row.querySelector("[data-reset]").addEventListener("click", async () => {
+          await setSquadData(squad, { replies: { ...(squadData(squad).replies ?? {}), [event]: [] } });
+          this.render(false);
+        });
+      } else if (ace) {
         const event = key.slice(4);
         area.addEventListener("change", async () => { const lines = splitLines(area.value); await saveAceLines(ace, event, lines); mark(lines.length > 0); });
         row.querySelector("[data-reset]").addEventListener("click", async () => { await saveAceLines(ace, event, []); this.render(false); });
@@ -470,14 +640,23 @@ class ChatterEditor extends FormApplication {
       }
       row.querySelector("[data-test]").addEventListener("click", () => {
         const lines = splitLines(area.value || area.placeholder);
-        const type = ace ? chatterType(ace) ?? "air" : key.split(".")[0];
-        const side = ace ? bankSide(ace, type) : key.split(".")[1];
-        const self = ace ? nameOf(ace) : CHATTER_TYPES[type].label;
+        const who = ace ?? sample;
+        const type = who ? chatterType(who) ?? "air" : squad ? "air" : key.split(".")[0];
+        const side = who ? bankSide(who, type) : squad ? "enemy" : key.split(".")[1];
+        const self = who ? nameOf(who) : squad ?? CHATTER_TYPES[type].label;
         const text = pickLine(`test:${key}`, lines, { ...SAMPLE, self });
         if (!text) return ui.notifications.info("В этом поле нет фраз: в этом случае NPC молчит.");
-        say(self, text, ace ? sideOf(ace) : side === "civil" ? "neutral" : side, { log: false });
+        say(self, text, who ? sideOf(who) : side === "civil" ? "neutral" : side, { log: false });
       });
     });
+    const talk = root.querySelector("[data-talk]");
+    if (talk && squad) {
+      const area = talk.querySelector("textarea");
+      area.addEventListener("change", async () => { const blocks = talkBlocks(area.value); await setSquadData(squad, { talk: blocks }); talk.classList.toggle("changed", blocks.length > 0); });
+      talk.querySelector("[data-talk-auto]").addEventListener("change", ev => setSquadData(squad, { auto: ev.target.checked }));
+      talk.querySelector("[data-talk-test]").addEventListener("click", () => playSquadTalk(squad, { local: true, blocks: talkBlocks(area.value || area.placeholder), scene }));
+      talk.querySelector("[data-talk-air]").addEventListener("click", () => playSquadTalk(squad, { blocks: talkBlocks(area.value), scene }));
+    }
     root.querySelector("[data-enabled]")?.addEventListener("change", ev => game.settings.set(SYSTEM_ID, "npcChatter", ev.target.checked));
     root.querySelector("[data-chance]")?.addEventListener("change", ev => game.settings.set(SYSTEM_ID, "chatterChance", Number(ev.target.value)));
     root.querySelector("[data-export]")?.addEventListener("click", () => exportBank(scene));

@@ -64,7 +64,7 @@
         <td><b>{{q.name}}</b>{{#if q.tag}} · {{q.tag}}{{/if}}<br><small>{{q.members}}</small></td>
         {{#each q.skills as |sk|}}<td class="tb-num"><input type="number" min="0" data-squad="{{q.name}}" data-squad-key="{{sk.key}}" value="{{sk.value}}"></td>{{/each}}
         <td class="tb-num {{#if q.over}}low{{/if}}">{{q.used}}/{{@root.squadBudget}}</td>
-        <td><a data-squad-num="{{q.name}}" title="Обозначение и номера машин"><i class="fas fa-list-ol"></i></a> <a data-squad-del="{{q.name}}" title="Распустить"><i class="fas fa-trash"></i></a></td>
+        <td><a data-squad-num="{{q.name}}" title="Обозначение и номера машин"><i class="fas fa-list-ol"></i></a> <a data-squad-talk="{{q.name}}" title="Реплики эскадрильи и переговоры между собой"><i class="fas fa-comments"></i></a>{{#if q.talk}} <a data-squad-say="{{q.name}}" title="Переговоры эскадрильи в эфир: случайный обмен"><i class="fas fa-tower-broadcast"></i></a>{{/if}} <a data-squad-del="{{q.name}}" title="Распустить"><i class="fas fa-trash"></i></a></td>
       </tr>
       {{/each}}
     </table>

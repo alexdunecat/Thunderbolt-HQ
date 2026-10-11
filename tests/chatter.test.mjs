@@ -158,6 +158,24 @@ step("позывной в эфире у стрелка и у цели");
 console.log("имя без позывного:", C.nameOf(mig1, { own: false }), "| токен без переименования:", C.nameOf(mig2));
 delete mig1.flags.callsign; delete ship.flags.callsign; mig1.name = "Беркут-1";
 
+// эскадрилья дуэлянтов: свои реплики при выключенном типе и переговоры между собой
+settings.squadrons = { "Вороны": { tag: "Ворон" } };
+for (const [i, a] of extra.entries()) { a.system.tier = "duelist"; a.system.squad = "Вороны"; a.token.getFlag = (s, k) => (k === "squadNo" ? i + 1 : undefined); }
+settings.squadChatter = { "Вороны": { replies: { fire: ["Вороны атакуют {target}!"] }, talk: [["Ворон-3, держись крыла.", "Понял, {mate}."], ["4: {lead}, вижу их внизу.", "2: Тихо, {mate}. Ждём."], ["9: Меня тут нет."]] } };
+mute({ air: true });
+fire(msg({ card: { attack: true, delayed: true, actorUuid: extra[1].uuid, targetUuid: ship.uuid, targetName: "Адмирал", parts: [] } }));
+step("машина эскадрильи со своей фразой пуска при выключенном типе");
+mute({});
+const sp = C.squadSpeakers("Вороны", scene);
+console.log("говорят:", sp.map(t => t.name).join(", "));
+for (const b of settings.squadChatter["Вороны"].talk) console.log("обмен:", JSON.stringify(C.talkLines(b, sp)?.map(l => `${l.speaker}: ${l.text}`) ?? null));
+console.log("обмены из поля:", JSON.stringify(C.talkBlocks("А\nБ\n\n  \nВ\n")));
+C.playSquadTalk("Вороны");
+step("эскадрилья переговаривается в эфире");
+console.log("одна машина — не переговариваются:", C.talkLines(["А", "Б"], sp.slice(0, 1)));
+for (const a of extra) { a.system.tier = "conscript"; a.system.squad = ""; }
+delete settings.squadrons; delete settings.squadChatter;
+
 // файл: только отличия от стандартных
 const file = C.fullBank(); file["ship.ally.kill"] = ["Цель потоплена!"]; file["нет.такого.ключа"] = ["x"];
 const { ov, n } = C.bankFromFile(file);
