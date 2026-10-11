@@ -5,7 +5,7 @@ import { PilotData, NpcData, StaffData, PlaneData, WeaponData, TriggerData } fro
 import { TBActor, TBItem, migratePortraits } from "./documents/actor.mjs";
 import { TBCombat, registerCombat } from "./documents/combat.mjs";
 import { registerActions } from "./actions.mjs";
-import { PilotSheet, NpcSheet, StaffSheet } from "./sheets/actor-sheets.mjs";
+import { PilotSheet, NpcSheet, StaffSheet, fateOfActor } from "./sheets/actor-sheets.mjs";
 import { TBItemSheet } from "./sheets/item-sheet.mjs";
 import * as R from "./dice/rolls.mjs";
 import { openImportDialog, importMission } from "./apps/mission-import.mjs";
@@ -243,6 +243,7 @@ Hooks.on("getSceneControlButtons", controls => {
 });
 Hooks.on("renderActorDirectory", (app, html) => {
   const root = html[0] ?? html;
+  markFallen(root);
   const bar = root.querySelector(".header-actions");
   if (bar && !bar.querySelector(".tb-shtab-sync")) {
     const s = document.createElement("button");
@@ -262,6 +263,34 @@ Hooks.on("renderActorDirectory", (app, html) => {
   b.addEventListener("click", openAwacs);
   bar.append(b);
 });
+/** Список «Актёры»: погибшие и пропавшие (в том числе в плену) с той же строкой K.I.A. / M.I.A. на миниатюре, что и на листе. */
+function markFallen(root) {
+  for (const li of root.querySelectorAll(".directory-item[data-document-id]")) {
+    const fate = fateOfActor(game.actors.get(li.dataset.documentId));
+    li.classList.remove("tb-fate-kia", "tb-fate-mia");
+    li.querySelector(".tb-fate-thumb .tb-fate-tag")?.remove();
+    if (!fate) continue;
+    li.classList.add(`tb-fate-${fate.key}`);
+    let wrap = li.querySelector(".tb-fate-thumb");
+    const img = wrap?.querySelector("img.thumbnail") ?? li.querySelector("img.thumbnail");
+    if (!img) continue;
+    if (!wrap) {
+      const cs = getComputedStyle(img), size = parseFloat(cs.height) || parseFloat(cs.flexBasis) || 0;
+      wrap = document.createElement("span");
+      wrap.className = "tb-fate-thumb";
+      wrap.style.width = wrap.style.height = size ? `${size}px` : "var(--sidebar-item-height, 48px)";
+      wrap.style.margin = cs.margin;
+      img.replaceWith(wrap);
+      wrap.append(img);
+      Object.assign(img.style, { width: "100%", height: "100%", margin: "0" });
+    }
+    const tag = document.createElement("span");
+    tag.className = "tb-fate-tag";
+    tag.textContent = fate.label;
+    wrap.append(tag);
+  }
+}
+
 for (const ev of ["updateActor", "updateActorDelta", "createItem", "updateItem", "deleteItem", "createToken", "updateToken", "deleteToken",
   "updateScene", "canvasReady", "updateCombat", "deleteCombat", "createChatMessage", "updateChatMessage", `${SYSTEM_ID}.squadrons`]) Hooks.on(ev, () => refreshAwacs());
 

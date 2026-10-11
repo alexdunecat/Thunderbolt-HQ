@@ -383,10 +383,12 @@ async function addEdgeDialog(actor) {
   return actor.update({ "system.edges": [...foundry.utils.deepClone(actor.system.edges), e] });
 }
 
-// отметка на портрете: погибший темнее с красным K.I.A., пропавший с жёлтым M.I.A.
-function fateOf(status) {
-  return { kia: { key: "kia", label: "K.I.A." }, mia: { key: "mia", label: "M.I.A." } }[status] ?? null;
+// отметка на портрете: погибший темнее с красной строкой K.I.A., пропавший без вести или в плену с жёлтой M.I.A.
+export function fateOf(status) {
+  const kia = { key: "kia", label: "K.I.A." }, mia = { key: "mia", label: "M.I.A." };
+  return { kia, mia, pow: mia }[status] ?? null;
 }
+export const fateOfActor = a => fateOf(a?.type === "pilot" ? a.system?.service?.status : a?.system?.status);
 
 export class PilotSheet extends TBActorSheet {
   static get defaultOptions() {

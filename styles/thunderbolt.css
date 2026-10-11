@@ -49,12 +49,18 @@ body[data-tb-skin="doc"] {
 body:is([data-tb-skin="brief"], [data-tb-skin="ac5"]) .thunderbolt .tb-portrait-screen {
   background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .22) 0 1px, transparent 1px 3px), linear-gradient(rgba(155, 227, 191, .05), rgba(155, 227, 191, .05)),
   radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, .4) 100%); }
-.thunderbolt .tb-fate-kia .tb-portrait { filter: grayscale(.75) brightness(.42) contrast(1.1); }
-.thunderbolt .tb-fate-mia .tb-portrait { filter: grayscale(.45) brightness(.72); }
-.thunderbolt .tb-fate { position: absolute; left: 43px; top: 43px; transform: translate(-50%, -50%) rotate(-12deg); pointer-events: none; white-space: nowrap;
-  font-family: var(--tb-data); font-weight: 700; font-size: 15px; letter-spacing: .08em; padding: 1px 6px; border: 2px solid currentColor; background: rgba(0, 0, 0, .4); }
-.thunderbolt .tb-fate-kia .tb-fate { color: #ff3b30; text-shadow: 0 0 6px rgba(255, 59, 48, .55); box-shadow: 0 0 6px rgba(255, 59, 48, .35); }
-.thunderbolt .tb-fate-mia .tb-fate { color: #f2c14e; text-shadow: 0 0 6px rgba(242, 193, 78, .5); box-shadow: 0 0 6px rgba(242, 193, 78, .3); }
+.thunderbolt .tb-fate-kia .tb-portrait, .directory-list .directory-item.tb-fate-kia img.thumbnail { filter: grayscale(.75) brightness(.42) contrast(1.1); }
+.thunderbolt .tb-fate-mia .tb-portrait, .directory-list .directory-item.tb-fate-mia img.thumbnail { filter: grayscale(.45) brightness(.7); }
+/* метка строкой поперёк портрета, как текст на экране */
+.tb-fate-tag { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); pointer-events: none; white-space: nowrap; text-align: center;
+  font-family: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace; font-weight: 700; font-size: 14px; line-height: 1.5; letter-spacing: .22em; text-indent: .22em;
+  background: rgba(0, 0, 0, .62); border-block: 1px solid color-mix(in srgb, currentColor 45%, transparent); }
+.tb-fate-kia .tb-fate-tag { color: #ff4b3a; text-shadow: 0 0 5px rgba(255, 75, 58, .7); }
+.tb-fate-mia .tb-fate-tag { color: #f2c14e; text-shadow: 0 0 5px rgba(242, 193, 78, .6); }
+.thunderbolt .tb-portrait-box .tb-fate-tag { right: auto; width: 84px; top: 42px; }
+/* список «Актёры»: та же строка на миниатюре */
+.directory-list .directory-item .tb-fate-thumb { position: relative; flex: none; display: block; line-height: 0; }
+.directory-list .directory-item .tb-fate-thumb .tb-fate-tag { font-size: 10px; letter-spacing: .14em; text-indent: .14em; line-height: 1.6; }
 .thunderbolt .tb-insignia { position: absolute; right: -8px; bottom: -8px; width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer;
   background: var(--tb-surface); border: 1px solid var(--tb-line); border-radius: 6px; color: var(--tb-muted, #7a8270); font-size: 16px; }
 .thunderbolt .tb-insignia img { width: 30px; height: 30px; object-fit: contain; border: none; }
