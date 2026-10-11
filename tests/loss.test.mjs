@@ -4,6 +4,9 @@ import { tmpdir as __tmp } from "node:os";
 process.argv[2] ??= __f(new URL("..", import.meta.url)).replace(/\/$/, "");
 process.argv[3] ??= __tmp() + "/tb-test-out";
 const R = process.argv[2];
+// дата в отчёте о бое — сегодняшняя: для снимка фиксируем её
+const RealDate = Date;
+globalThis.Date = class extends RealDate { constructor(...a) { super(...(a.length ? a : [2026, 9, 10, 12])); } static now() { return new RealDate(2026, 9, 10, 12).getTime(); } };
 const log = [], hooks = {};
 const users = [{ id: "gm", isGM: true, active: true, isSelf: true }];
 users.activeGM = users[0];
