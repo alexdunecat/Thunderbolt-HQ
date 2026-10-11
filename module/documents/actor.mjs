@@ -11,6 +11,12 @@ export const blankImg = src => !src || src.includes("mystery-man");
 /** Свой ли это портрет по умолчанию (его можно менять при смене роли и заменять самолётом на токене). */
 export const defaultImg = src => !!src && src.includes("/assets/portraits/");
 
+/** Один и тот же файл: путь без адреса сервера и ведущей косой черты. */
+export const samePath = (a, b) => {
+  const n = p => String(p ?? "").replace(/^https?:\/\/[^/]+\//, "").replace(/^\//, "");
+  return n(a) === n(b);
+};
+
 /** Портрет по умолчанию: пилот в шлеме, противник в красном, офицер штаба, гражданский. */
 export function defaultPortrait(type, sys = {}) {
   if (type === "pilot") return `${PORTRAITS}pilot.svg`;
@@ -57,11 +63,13 @@ export class TBActor extends Actor {
     if ((await super._preUpdate(changed, options, user)) === false) return false;
     const sys = changed.system ?? {};
     if (!("role" in sys) && !("side" in sys)) return;
-    if (!defaultImg(this.img) || "img" in changed) return;
+    // лист отправляет и картинку из шапки (data-edit="img"): это не выбор игрока, если она та же
+    const own = "img" in changed && samePath(changed.img, this._source.img) === false;
+    if (!defaultImg(this._source.img) || own) return;
     const img = defaultPortrait(this.type, { ...this._source.system, ...sys });
-    if (img === this.img) return;
+    if (samePath(img, this._source.img)) return;
     changed.img = img;
-    if (this.prototypeToken.texture.src === this.img) foundry.utils.setProperty(changed, "prototypeToken.texture.src", img);
+    if (samePath(this.prototypeToken.texture.src, this._source.img)) foundry.utils.setProperty(changed, "prototypeToken.texture.src", img);
   }
 
   /* ---------- броски (обёртки для листов и макросов) ---------- */

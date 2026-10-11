@@ -12,6 +12,8 @@ create pilot (своё фото): img не тронуто token worlds/w/faces/s
 create npc (картинки из компендиума): img не тронуто token planes/su-37.webp link true
 role → civil: img portraits/civil.svg token portraits/civil.svg
 role → tech при своей картинке: img не тронуто
+форма листа, роль → civil: img portraits/civil.svg token portraits/civil.svg
+форма листа с новой картинкой: img worlds/w/faces/marina.webp
 staff conscript: 1,1,1,1,1,1 blocked false
 staff duelist: 0,1,2,3,4,5 blocked false
 staff ace: 0,1,2,3,4,5 blocked false

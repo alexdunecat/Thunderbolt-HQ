@@ -31,6 +31,7 @@ import { registerSounds, cue } from "./sounds.mjs";
 import { registerAces, openAceIntro, announceAces } from "./aces.mjs";
 import { registerPause } from "./pause.mjs";
 import { registerOpCode } from "./opcode.mjs";
+import { applyCanvasStyle, patchTargetReticle } from "./canvas-style.mjs";
 import { openDossierExchange, importDossier, exportDossier } from "./dossier-sync.mjs";
 import { registerMapInfo } from "./mapinfo.mjs";
 import { registerRotate } from "./rotate.mjs";
@@ -64,13 +65,21 @@ function applyDarkUi() {
   document.body.classList?.toggle("tb-dark-ui", on && ["brief", "ac5"].includes(document.body.dataset.tbSkin));
   let hud = true;
   try { hud = game.settings.get(SYSTEM_ID, "briefUi"); } catch {}
-  document.body.classList?.toggle("tb-brief-ui", hud && document.body.dataset.tbSkin === "brief");
+  const brief = hud && document.body.dataset.tbSkin === "brief";
+  document.body.classList?.toggle("tb-brief-ui", brief);
+  // подписи, рамки и прицел на холсте: при переключении холст перерисовывается
+  if (applyCanvasStyle(brief) && canvas?.ready) canvas.draw();
   mirrorPopouts();
 }
 
 // надписи карты рисуются шрифтами «Брифинга»: дождаться их до отрисовки сцены
 Hooks.once("setup", () => {
   for (const f of ['16px "Jura"', '16px "JetBrains Mono"']) document.fonts?.load(f, "АБВ abc 123").catch(() => null);
+  // стиль холста ставится до первой отрисовки сцены (сам интерфейс — на ready, в applySkin)
+  let skin = "brief", hud = true;
+  try { skin = game.settings.get(SYSTEM_ID, "skin"); hud = game.settings.get(SYSTEM_ID, "briefUi"); } catch {}
+  applyCanvasStyle(hud && skin === "brief");
+  patchTargetReticle();
 });
 
 Hooks.once("init", () => {

@@ -57,6 +57,15 @@ own.prototypeToken = { texture: { src: own.img } };
 ch = { system: { role: "tech" } };
 await own._preUpdate(ch, {}, "u");
 log.push(`role → tech при своей картинке: img ${ch.img ?? "не тронуто"}`);
+// лист шлёт всю форму: картинка из шапки (та же, иногда с адресом сервера) не мешает сменить портрет
+const form = new TBActor({ type: "staff", img: defaultPortrait("staff", { role: "staff" }), system: { role: "staff" } });
+form.prototypeToken = { texture: { src: form.img } };
+ch = { img: "http://localhost:30000/" + form.img, name: "Марина", system: { role: "civil", position: "" } };
+await form._preUpdate(ch, {}, "u");
+log.push(`форма листа, роль → civil: img ${short(ch.img)} token ${short(ch.prototypeToken?.texture?.src)}`);
+ch = { img: "worlds/w/faces/marina.webp", system: { role: "civil" } };
+await form._preUpdate(ch, {}, "u");
+log.push(`форма листа с новой картинкой: img ${ch.img}`);
 
 // навыки персонажа на земле: конскрипт — общий бонус, ас и дуэлянт — свои значения
 const skills = Object.fromEntries(Object.keys(TB.skills).map((k, i) => [k, i]));

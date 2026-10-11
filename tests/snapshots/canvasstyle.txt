@@ -1,0 +1,6 @@
+patch true повторно false
+Foundry: "Signika" CONTROLLED=#ff9829 PARTY=#33bc4e FRIENDLY=#43dfdf NEUTRAL=#f1d836 HOSTILE=#e72124 SECRET=#a612d4 INACTIVE=#555555 | прицел {}
+вкл true ещё раз false
+Брифинг: ["Jura","Signika","sans-serif"] CONTROLLED=#d7eee6 PARTY=#9be3bf FRIENDLY=#6cc4ff NEUTRAL=#f2c14e HOSTILE=#ff6b4a SECRET=#b38cff INACTIVE=#4f6f68 | прицел {"size":0.1,"color":16739146,"border":{"width":2,"color":463898}}
+выкл true
+снова Foundry: "Signika" CONTROLLED=#ff9829 PARTY=#33bc4e FRIENDLY=#43dfdf NEUTRAL=#f1d836 HOSTILE=#e72124 SECRET=#a612d4 INACTIVE=#555555 | прицел {}
