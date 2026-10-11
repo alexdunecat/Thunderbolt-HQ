@@ -29,6 +29,7 @@ import { registerChatter, openChatterEditor } from "./chatter.mjs";
 import { registerMission, openMissionDialog } from "./mission.mjs";
 import { registerSounds, cue } from "./sounds.mjs";
 import { registerAces, openAceIntro, announceAces } from "./aces.mjs";
+import { registerPause } from "./pause.mjs";
 import { openDossierExchange, importDossier, exportDossier } from "./dossier-sync.mjs";
 import { registerMapInfo } from "./mapinfo.mjs";
 import { registerRotate } from "./rotate.mjs";
@@ -110,6 +111,7 @@ Hooks.once("init", () => {
   registerMission();
   registerSounds();
   registerAces();
+  registerPause();
   registerRange();
   Downtime.registerDowntime();
   registerGlory();

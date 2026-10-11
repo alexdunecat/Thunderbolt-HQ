@@ -748,3 +748,24 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-card-radio .tb-intro-line.tb-intro-ally { color: #3d8fc4; }
 .tb-card-radio .tb-intro-line img { height: 40px; width: auto; border: 0; flex: none; }
 .tb-card-radio .tb-intro-line small { display: block; font-size: 10px; letter-spacing: .08em; opacity: .85; }
+/* пауза: рамка HUD Брифинга вместо шестерёнки Foundry */
+#pause.tb-pause { left: 0; right: 0; width: auto; height: auto; top: 34%; bottom: auto; margin: 0; padding: 0; background: none; display: flex; justify-content: center;
+  pointer-events: none; animation: none; }
+#pause.tb-pause > img, #pause.tb-pause > figcaption { display: none; }
+#pause.tb-pause .tb-pause-frame { --tb-p: #9be3bf; position: relative; overflow: hidden; min-width: min(560px, 86vw); padding: 10px 40px 14px; text-align: center;
+  font-family: "Jura", "Exo 2", system-ui, sans-serif; text-transform: uppercase; color: #e9f7f1;
+  background: linear-gradient(180deg, rgba(7,20,26,.82), rgba(7,20,26,.66)); border: 1px solid rgba(155,227,191,.55);
+  box-shadow: 0 0 0 1px rgba(7,20,26,.6), 0 0 28px rgba(0,0,0,.55); }
+/* уголки рамки */
+#pause.tb-pause .tb-pause-frame::before, #pause.tb-pause .tb-pause-frame::after { content: ""; position: absolute; width: 18px; height: 18px; border: 2px solid var(--tb-p); }
+#pause.tb-pause .tb-pause-frame::before { top: 4px; left: 4px; border-right: 0; border-bottom: 0; }
+#pause.tb-pause .tb-pause-frame::after { bottom: 4px; right: 4px; border-left: 0; border-top: 0; }
+#pause.tb-pause .tb-pause-tag { display: inline-block; font-size: 13px; font-weight: 700; letter-spacing: .36em; padding: 0 8px 0 12px; color: #07141a; background: var(--tb-p); }
+#pause.tb-pause .tb-pause-title { font-size: clamp(40px, 6vw, 76px); font-weight: 700; letter-spacing: .32em; padding-left: .32em; line-height: 1.15; margin-top: 4px;
+  color: var(--tb-p); text-shadow: 0 0 14px rgba(155,227,191,.35), 0 2px 3px #000; animation: tb-pause-pulse 2.4s ease-in-out infinite; }
+#pause.tb-pause .tb-pause-sub { font-size: 13px; font-weight: 700; letter-spacing: .22em; color: #9fc8bc; }
+#pause.tb-pause .tb-pause-caret { animation: tb-caution-blink 1s steps(1) infinite; }
+#pause.tb-pause .tb-pause-sweep { position: absolute; top: 0; bottom: 0; width: 22%; left: -22%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(155,227,191,.13), transparent); animation: tb-pause-sweep 3.2s linear infinite; }
+@keyframes tb-pause-pulse { 50% { opacity: .62; } }
+@keyframes tb-pause-sweep { to { left: 100%; } }
