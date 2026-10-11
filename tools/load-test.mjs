@@ -8,6 +8,7 @@ Object.assign(globalThis, {
   Actor: class {}, Item: class {}, Combat: class {}, ActorSheet: mk(), ItemSheet: mk(), JournalSheet: mk(), Application: mk(), FormApplication: mk(), Dialog: class {}, JournalEntry: class {},
   Hooks: { once: (n, f) => (hooks[n] ??= []).push(f), on: (n, f) => (hooks[n] ??= []).push(f) },
   CONFIG: { Actor: { dataModels: {} }, Item: { dataModels: {} }, Combat: {}, fontDefinitions: {}, specialStatusEffects: { DEFEATED: "dead" }, statusEffects: [{ id: "dead", img: "icons/svg/skull.svg" }] },
+  loadTemplates(list) { console.log("templates", list.length); return Promise.resolve([]); },
   Actors: { unregisterSheet() {}, registerSheet(s, c, o) { console.log("sheet", s, c.name, o.label); } },
   Items: { unregisterSheet() {}, registerSheet(s, c, o) { console.log("sheet", s, c.name, o.label); } },
   DocumentSheetConfig: { registerSheet(d, s, c, o) { console.log("sheet", s, c.name, o.label); } },

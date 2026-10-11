@@ -134,7 +134,7 @@ export async function rollSideCheck(actor, skill, { dc = 7, label, notes = [], o
   const parts = [...skillParts(actor, skill), ...(skill === "push" ? weatherParts(w, "push") : []), ...await takeNext(actor)];
   const card = {
     type: "side", label: label ?? `${TB.skills[skill].label} против ${dc}`, rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc,
-    strainable: actor.type === "pilot" || actor.system.tier === "ace", skill, onFail, failDmg, notes: ["Не считается броском хода.", ...notes.map(esc)],
+    strainable: actor.type === "pilot" || (actor.type === "npc" && actor.system.tier === "ace"), skill, onFail, failDmg, notes: ["Не считается броском хода.", ...notes.map(esc)],
     ...thresholds(actor, skill, w.comp2)
   };
   return postCard(actor, card, dice.rolls);
@@ -340,7 +340,7 @@ export async function rollCheck(actor, skill, { dc = TB.difficulty, label } = {}
   if (data.mod) parts.push(["мод.", data.mod]);
   const card = {
     type: "check", label: label ?? `Проверка ${sk.label} (${sk.en})`, rolled: true, d10: dice.d10, d4: dice.d4,
-    parts, strain: 0, dc: data.dc, strainable: actor.type === "pilot" || actor.system.tier === "ace",
+    parts, strain: 0, dc: data.dc, strainable: actor.type === "pilot" || (actor.type === "npc" && actor.system.tier === "ace"),
     practiced: !!dice.practiced, ...thresholds(actor, skill, data.storm)
   };
   return postCard(actor, card, dice.rolls);
@@ -372,7 +372,7 @@ export async function rollStall(actor) {
   const parts = [...skillParts(actor, "push", "Форсаж"), ...weatherParts(w, "push"), ...await takeNext(actor)];
   const card = {
     type: "stall", label: "Сваливание: Push против 7", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: 7,
-    strainable: actor.type === "pilot" || actor.system.tier === "ace", alt: actor.system.alt, ...thresholds(actor, "push", w.comp2),
+    strainable: actor.type === "pilot" || (actor.type === "npc" && actor.system.tier === "ace"), alt: actor.system.alt, ...thresholds(actor, "push", w.comp2),
     notes: ["Успех: Speed 1. Провал: минус уровень высоты и повтор на следующем ходу, на Низкой сразу Doom."]
   };
   return postCard(actor, card, dice.rolls);
@@ -439,7 +439,7 @@ export async function rollBreak(actor) {
   const thin = actor.system.alt === "strat" ? 1 : 0;
   const card = {
     type: "break", label: "Break!", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: null,
-    ev: actor.system.evasion ?? actor.system.stats?.ev ?? 0, strainable: actor.type === "pilot" || actor.system.tier === "ace",
+    ev: actor.system.evasion ?? actor.system.stats?.ev ?? 0, strainable: actor.type === "pilot" || (actor.type === "npc" && actor.system.tier === "ace"),
     speedDrop: (tvc ? 1 : 2) + thin, combatKey: combatKey(), practiced: !!dice.practiced, ...thresholds(actor, "dodge", data.storm)
   };
   const msg = await postCard(actor, card, dice.rolls);
@@ -625,7 +625,7 @@ export async function fireMissile(actor) {
   const card = {
     type: "attack", attack: true, label: `Fox Two! ${w ? w.name : "стандартная ракета"}`, rolled: !!data.improved,
     d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) : null, vsLabel: "защиты",
-    vsHint: t?.kind === "ship" ? "по Occlusion системы" : "", strainable: !!data.improved && (actor.type === "pilot" || actor.system.tier === "ace"),
+    vsHint: t?.kind === "ship" ? "по Occlusion системы" : "", strainable: !!data.improved && (actor.type === "pilot" || (actor.type === "npc" && actor.system.tier === "ace")),
     practiced: !!dice.practiced, dmg, delayed: atTurn || !(hv || tBroken), atTurn, combatKey: hv || tBroken ? (atTurn ? key : "") : key,
     targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes, maws: mawsOn(t), tkind: air ? "air" : "ground",
     ...thresholds(actor, skill, data.storm)

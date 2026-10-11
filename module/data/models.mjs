@@ -48,9 +48,38 @@ function downtimeFields() {
       was: new f.ArrayField(new f.NumberField({ integer: true })),   // прежние значения, зачёркнутые
       dead: bool(), used: bool(), usedGround: bool(), grown: bool()
     })),
+    ...tieFields()
+  };
+}
+
+/* Личные цели и долги (у пилота — часть даунтайма, у асов и дуэлянтов противника — личное дело). */
+function tieFields() {
+  return {
     goals: new f.ArrayField(new f.SchemaField({ name: str(), size: int(4), value: int(0, { min: 0 }) })),
     debts: new f.ArrayField(new f.SchemaField({ text: str(), struck: bool() }))
   };
+}
+
+/* Личное дело NPC (асы и дуэлянты противника, персонал): ФИО, звено, база, вопросы, Связи, цели, долги. */
+function personFields() {
+  return {
+    lastName: str(), firstName: str(), patronymic: str(), rank: str(), flight: str(), squadron: str(), base: str(), birth: str(),
+    status: str("active"),
+    questions: new f.SchemaField({ callsign: str(), ground: str(), fear: str(), defy: str() }),
+    bonds: new f.ArrayField(new f.SchemaField({
+      name: str(), uuid: str(), npc: bool(), value: int(0, { min: 0, max: DT.maxBond }),
+      was: new f.ArrayField(new f.NumberField({ integer: true })), dead: bool(), used: bool(), usedGround: bool(), grown: bool()
+    })),
+    ...tieFields()
+  };
+}
+
+/* Навыки NPC по уровню: конскрипт — бонус ко всем, дуэлянт и ас — свои значения (layout). */
+function npcSkills(sys, layout) {
+  const conscript = sys.tier === "conscript";
+  sys.skillTotal = Object.fromEntries(SKILL_KEYS.map(k => [k, conscript ? sys.bonus : layout[k] ?? 0]));
+  sys.perkOn = Object.fromEntries(SKILL_KEYS.map(k => [k, 4]));
+  sys.compOn = Object.fromEntries(SKILL_KEYS.map(k => [k, 1]));
 }
 
 /**
@@ -91,6 +120,7 @@ export class PilotData extends foundry.abstract.TypeDataModel {
       twist: bool(),
       wso: str(),
       insignia: str(),
+      artwork: str(),                // портрет в полный рост; лицо — картинка актёра, самолёт — токен
       ...sortieFields(),
       ...downtimeFields(),
       notes: new f.HTMLField({ required: true, blank: true })
@@ -204,7 +234,10 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       props: named(), rules: named(),
       sig: new f.ArrayField(new f.StringField()),
       desc: str(), service: str(),
-      insignia: str(),
+      insignia: str(), artwork: str(),
+      // личное дело аса или дуэлянта; Немезида — личный враг одного из пилотов (nemesisOf — id актёра пилота)
+      ...personFields(),
+      nemesis: bool(), nemesisOf: str(),
       // сторона в бою и приоритетная цель (вкладка «Заметки AWACS»)
       side: str("enemy"), priority: bool(), task: str(),
       ...sortieFields(),
@@ -216,14 +249,11 @@ export class NpcData extends foundry.abstract.TypeDataModel {
   get fullMarkers() { return this.tier === "ace"; }
 
   prepareDerivedData() {
-    const conscript = this.tier === "conscript";
     // дуэлянты эскадрильи берут общую раскладку из настройки мира
     const layout = this.tier === "duelist" ? squadLayout(this.squad) ?? this.skills : this.skills;
-    this.skillTotal = Object.fromEntries(SKILL_KEYS.map(k => [k, conscript ? this.bonus : layout[k] ?? 0]));
+    npcSkills(this, layout);
     this.squadPoints = squadPoints(layout);
     this.skillBlocked = Object.fromEntries(SKILL_KEYS.map(k => [k, this.markers.grit && this.markers.gritSkill === k]));
-    this.perkOn = Object.fromEntries(SKILL_KEYS.map(k => [k, 4]));
-    this.compOn = Object.fromEntries(SKILL_KEYS.map(k => [k, 1]));
     this.markerCount = ["grit", "structure", "doom"].filter(k => this.markers[k]).length;
     this.broken = this.markers.structure ? this.markers.sys : "";
     if (this.kind === "ship") {
@@ -243,6 +273,27 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       this.aa = this.stats.aa; this.ag = this.stats.ag; this.gun = this.stats.gun;
       this.strain.max = this.tier === "ace" ? (this.stats.str ?? 0) : 0;
     }
+  }
+}
+
+/* Персонаж на земле: штаб, техники, гражданские, близкие и родственники пилотов. Самолёта, атак и урона нет;
+   навыки по уровню, как у NPC. role — кто это (TB.staffRoles), relatedTo — id пилота, чей это близкий, relation — кем приходится. */
+export class StaffData extends foundry.abstract.TypeDataModel {
+  static defineSchema() {
+    return {
+      role: str("staff"), position: str(),     // должность или занятие: начальник штаба, старший техник, учительница
+      relatedTo: str(), relation: str(),
+      tier: str("conscript"), bonus: int(0), skills: skillSchema(),
+      side: str("ally"), insignia: str(), artwork: str(),
+      ...personFields(),
+      strain: new f.SchemaField({ value: int(0), max: int(0) }),
+      notes: new f.HTMLField({ required: true, blank: true })
+    };
+  }
+
+  prepareDerivedData() {
+    npcSkills(this, this.skills);
+    this.skillBlocked = Object.fromEntries(SKILL_KEYS.map(k => [k, false]));
   }
 }
 

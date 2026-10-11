@@ -12,12 +12,14 @@
         {{#unless isShip}}<label>Уровень <select name="system.tier">{{selectOptions tierOptions selected=system.tier}}</select></label>{{/unless}}
         <span class="tb-muted">{{system.cls}}</span>
       </div>
+      {{#if hasFile}}{{#if system.nemesis}}<div class="tb-nemesis-badge" title="Немезида: личный враг этого пилота"><i class="fas fa-skull-crossbones"></i> Немезида{{#if person.nemesisName}} · {{person.nemesisName}}{{/if}}</div>{{/if}}{{/if}}
     </div>
   </header>
 
   <nav class="tb-tabs" data-group="primary">
     <a class="item" data-tab="combat">Бой</a>
     <a class="item" data-tab="info">Справка</a>
+    {{#if hasFile}}<a class="item" data-tab="file">Личное дело</a>{{/if}}
     <a class="item" data-tab="notes">Заметки AWACS</a>
   </nav>
 
@@ -148,6 +150,18 @@
       {{#if system.props.length}}<h3>Особенности</h3><ul class="tb-props">{{#each system.props as |p|}}<li><b>{{p.name}}.</b> {{p.text}}</li>{{/each}}</ul>{{/if}}
       {{#if system.rules.length}}<h3>Правила цели</h3><ul class="tb-props">{{#each system.rules as |p|}}<li><b>{{p.name}}.</b> {{p.text}}</li>{{/each}}</ul>{{/if}}
     </div>
+
+    {{#if hasFile}}
+    <div class="tab" data-group="primary" data-tab="file">
+      <div class="tb-side-row tb-nemesis-row {{#if system.nemesis}}on{{/if}}">
+        <label class="tb-check" title="Личный враг одного из пилотов: свои счёты, свои реплики, своя история"><input type="checkbox" name="system.nemesis" {{checked system.nemesis}}> <b>Немезида</b></label>
+        {{#if system.nemesis}}<label>для пилота <select name="system.nemesisOf">{{selectOptions person.pilotOptions selected=system.nemesisOf blank="— кого —"}}</select></label>{{/if}}
+      </div>
+      {{> "systems/thunderbolt-shtab/templates/actor/parts/images.hbs"}}
+      {{> "systems/thunderbolt-shtab/templates/actor/parts/biography.hbs"}}
+      {{> "systems/thunderbolt-shtab/templates/actor/parts/ties.hbs"}}
+    </div>
+    {{/if}}
 
     <div class="tab" data-group="primary" data-tab="notes">
       <div class="tb-side-row">

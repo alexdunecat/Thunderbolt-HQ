@@ -90,6 +90,7 @@ class TBActorSheet extends ActorSheet {
     el.closest(".app")?.setAttribute("data-tb-skin", game.settings.get(SYSTEM_ID, "skin"));
     if (!this.isEditable) return;
     const on = (sel, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); fn(n.dataset, n, ev); }));
+    personListeners(this.actor, el);
 
     on("[data-roll-skill]", d => runAction(this.actor, "skill", { skill: d.rollSkill }));
     // шильдик на токене: картинка из файлов мира
@@ -195,6 +196,88 @@ function lockInfo(actor) {
   };
 }
 
+/* ---------- личное дело: картинки, Связи, цели, долги (пилот, NPC, персонаж на земле) ---------- */
+
+const pipsOf = (n, val, from = 1) => Array.from({ length: n }, (_, k) => ({ i: k + from, on: k + from <= val }));
+/** Предел Связи: у пилота по правилам даунтайма, у NPC и персонажа на земле до 3. */
+const capOf = (a, npc) => a.type === "pilot" ? bondCap(a, npc) : DT.maxBond;
+
+/** Картинки, Связи, цели, долги и Немезида для листа. */
+export function personView(a) {
+  const s = a.system;
+  const tokenSrc = a.isToken ? a.token?.texture?.src : a.prototypeToken?.texture?.src;
+  const pilots = (game.actors ?? []).filter(p => p.type === "pilot");
+  const nemesisOf = s.nemesisOf ? pilots.find(p => p.id === s.nemesisOf) : null;
+  return {
+    images: [
+      { key: "img", label: "Лицо", hint: "в списке актёров и в шапке листа", src: a.img },
+      { key: "artwork", label: "Полный рост", hint: "артворк персонажа", src: s.artwork, show: true, clear: true },
+      { key: "token", label: "Токен", hint: a.type === "staff" ? "если персонаж выйдет на сцену" : "на поле боя: его самолёт", src: tokenSrc }
+    ],
+    bonds: (s.bonds ?? []).map((b, i) => ({ ...b, i, was: (b.was ?? []).join(", "), pips: pipsOf(capOf(a, b.npc), b.value) })),
+    goals: (s.goals ?? []).map((g, i) => ({ ...g, i, small: g.size <= 4, done: g.value >= g.size, pips: clockPips(g.value, g.size) })),
+    debts: (s.debts ?? []).map((d, i) => ({ ...d, i })),
+    pilotOptions: Object.fromEntries(pilots.map(p => [p.id, p.system.callsign ? `${p.system.callsign} (${p.name})` : p.name])),
+    nemesisName: nemesisOf ? nemesisOf.system.callsign || nemesisOf.name : ""
+  };
+}
+
+/** Картинка актёра: лицо (img), полный рост (system.artwork) или токен (у связанного актёра — и его токены на сценах). */
+export async function setImage(actor, key, path) {
+  if (key === "img") return actor.update({ img: path });
+  if (key === "artwork") return actor.update({ "system.artwork": path });
+  if (actor.isToken) return actor.token.update({ "texture.src": path });
+  const old = actor.prototypeToken.texture.src;
+  await actor.update({ "prototypeToken.texture.src": path });
+  for (const t of actor.getActiveTokens(false, true)) if (t.texture.src === old && t.isOwner) await t.update({ "texture.src": path });
+}
+
+/** Обработчики личного дела: картинки, Связи, цели, долги. */
+function personListeners(a, el) {
+  const on = (sel, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); fn(n.dataset, n); }));
+  const clone = k => foundry.utils.deepClone(a.system[k]);
+  const current = key => key === "img" ? a.img : key === "artwork" ? a.system.artwork : a.isToken ? a.token?.texture?.src : a.prototypeToken.texture.src;
+  on("[data-img-pick]", d => new FilePicker({ type: "image", current: current(d.imgPick), callback: path => setImage(a, d.imgPick, path) }).render(true));
+  on("[data-img-clear]", d => setImage(a, d.imgClear, ""));
+  on("[data-art-show]", () => a.system.artwork && new ImagePopout(a.system.artwork, { title: a.name, uuid: a.uuid, shareable: true }).render(true));
+  on("[data-bond-add]", () => addBondDialog(a));
+  on("[data-bond-set]", d => {
+    const i = Number(d.bondSet), b = a.system.bonds[i];
+    if (!b) return;
+    const v = Number(d.v), next = v === b.value ? v - 1 : v;
+    if (next < b.value) return a.update({ "system.bonds": dropBond(a.system.bonds, i, next) });
+    const list = clone("bonds");
+    list[i].value = Math.min(capOf(a, b.npc), next);
+    a.update({ "system.bonds": list });
+  });
+  on("[data-bond-del]", async d => {
+    const b = a.system.bonds[Number(d.bondDel)];
+    if (!b || !(await Dialog.confirm({ title: "Связь", content: `<p>Убрать Связь с «${esc(b.name)}» с листа? Обычно разрыв зачёркивают, а не стирают.</p>` }))) return;
+    a.update({ "system.bonds": clone("bonds").filter((_, i) => i !== Number(d.bondDel)) });
+  });
+  on("[data-goal-add]", () => a.update({ "system.goals": [...clone("goals"), { name: "", size: 4, value: 0 }] }));
+  on("[data-goal-del]", d => a.update({ "system.goals": clone("goals").filter((_, i) => i !== Number(d.goalDel)) }));
+  on("[data-goal-set]", d => {
+    const list = clone("goals"), g = list[Number(d.goalSet)];
+    if (!g) return;
+    const v = Number(d.v) + 1;
+    g.value = v === g.value ? v - 1 : v;
+    a.update({ "system.goals": list });
+  });
+  el.querySelectorAll("[data-goal-field]").forEach(n => n.addEventListener("change", ev => {
+    ev.stopPropagation();
+    const list = clone("goals"), g = list[Number(n.dataset.goal)];
+    if (!g) return;
+    if (n.dataset.goalField === "size") { g.size = Number(n.value) || 4; g.value = Math.min(g.value, g.size); } else g.name = n.value;
+    a.update({ "system.goals": list });
+  }));
+  on("[data-debt-add]", async () => {
+    const data = await formDialogLite("Долг", `<div class="form-group"><label>Кому и что должен</label><input type="text" name="text"></div>`);
+    if (data?.text) a.update({ "system.debts": [...clone("debts"), { text: data.text, struck: false }] });
+  });
+  on("[data-debt-strike]", d => { const list = clone("debts"), x = list[Number(d.debtStrike)]; if (x) { x.struck = !x.struck; a.update({ "system.debts": list }); } });
+}
+
 /* ---------- даунтайм на листе ---------- */
 
 const NERVES_NOTE = ["Спокоен.", "Держится.", "Держится, но устал.", "Нервы 3: вылет со Strain на 2 ниже максимума.",
@@ -260,15 +343,15 @@ async function addBondDialog(actor) {
     <div class="form-group"><label>С кем</label><select name="who">${pilots.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}<option value="npc">NPC…</option></select></div>
     <div class="form-group"><label>Имя NPC</label><input type="text" name="npc" placeholder="старший техник Ершов"></div>
     <div class="form-group"><label>Связь</label><select name="value"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select></div>
-    <p class="tb-hint">Связь с пилотом записывается на листах обоих. С NPC Связей не больше двух, и сама Связь не выше 2.</p>`);
+    <p class="tb-hint">${actor.type === "pilot" ? "Связь с пилотом записывается на листах обоих. С NPC Связей не больше двух, и сама Связь не выше 2." : "Связь записывается только на этом листе."}</p>`);
   if (!data) return;
   const list = foundry.utils.deepClone(actor.system.bonds);
   const p = data.who !== "npc" ? game.actors.get(data.who) : null;
   const npc = !p;
   const name = p?.name ?? data.npc;
   if (!name) return;
-  if (npc && list.filter(b => b.npc && !b.dead).length >= 2) return ui.notifications.warn("Связей с NPC уже две.");
-  const value = Math.min(bondCap(actor, npc), Number(data.value) || 1);
+  if (npc && actor.type === "pilot" && list.filter(b => b.npc && !b.dead).length >= 2) return ui.notifications.warn("Связей с NPC уже две.");
+  const value = Math.min(capOf(actor, npc), Number(data.value) || 1);
   list.push({ name, uuid: p?.uuid ?? "", npc, value, was: [], dead: false, used: false, usedGround: false, grown: false });
   return actor.update({ "system.bonds": list });
 }
@@ -334,6 +417,7 @@ export class PilotSheet extends TBActorSheet {
       list.map(m => ({ label: TB.effectTargets[target] ?? target, name: m.name, sval: `${m.value >= 0 ? "+" : ""}${m.value}` })));
     ctx.archOptions = opts(TB.archetypes);
     ctx.statusOptions = TB.status;
+    ctx.person = personView(a);
     ctx.pointsOver = s.pointsUsed > s.pointsBudget;
     ctx.weaponsOver = ctx.weapons.length > (s.hardpoints ?? 0);
     ctx.dossier = s.dossier.map((d, i) => ({ ...d, i }));
@@ -402,42 +486,6 @@ export class PilotSheet extends TBActorSheet {
     on("[data-edge-add]", () => addEdgeDialog(a));
     on("[data-edge-use]", d => useEdge(a, d.edgeUse));
     on("[data-bond-use]", d => useBond(a, Number(d.bondUse)));
-    on("[data-bond-add]", () => addBondDialog(a));
-    on("[data-bond-set]", d => {
-      const i = Number(d.bondSet), b = a.system.bonds[i];
-      if (!b) return;
-      const v = Number(d.v), next = v === b.value ? v - 1 : v;
-      if (next < b.value) return a.update({ "system.bonds": dropBond(a.system.bonds, i, next) });
-      const list = clone("bonds");
-      list[i].value = Math.min(bondCap(a, b.npc), next);
-      a.update({ "system.bonds": list });
-    });
-    on("[data-bond-del]", async d => {
-      const b = a.system.bonds[Number(d.bondDel)];
-      if (!b || !(await Dialog.confirm({ title: "Связь", content: `<p>Убрать Связь с «${esc(b.name)}» с листа? Обычно разрыв зачёркивают, а не стирают.</p>` }))) return;
-      a.update({ "system.bonds": clone("bonds").filter((_, i) => i !== Number(d.bondDel)) });
-    });
-    on("[data-goal-add]", () => a.update({ "system.goals": [...clone("goals"), { name: "", size: 4, value: 0 }] }));
-    on("[data-goal-del]", d => a.update({ "system.goals": clone("goals").filter((_, i) => i !== Number(d.goalDel)) }));
-    on("[data-goal-set]", d => {
-      const list = clone("goals"), g = list[Number(d.goalSet)];
-      if (!g) return;
-      const v = Number(d.v) + 1;
-      g.value = v === g.value ? v - 1 : v;
-      a.update({ "system.goals": list });
-    });
-    el.querySelectorAll("[data-goal-field]").forEach(n => n.addEventListener("change", ev => {
-      ev.stopPropagation();
-      const list = clone("goals"), g = list[Number(n.dataset.goal)];
-      if (!g) return;
-      if (n.dataset.goalField === "size") { g.size = Number(n.value) || 4; g.value = Math.min(g.value, g.size); } else g.name = n.value;
-      a.update({ "system.goals": list });
-    }));
-    on("[data-debt-add]", async () => {
-      const data = await formDialogLite("Долг", `<div class="form-group"><label>Кому и что должен</label><input type="text" name="text"></div>`);
-      if (data?.text) a.update({ "system.debts": [...clone("debts"), { text: data.text, struck: false }] });
-    });
-    on("[data-debt-strike]", d => { const list = clone("debts"), x = list[Number(d.debtStrike)]; if (x) { x.struck = !x.struck; a.update({ "system.debts": list }); } });
     on("[data-threat-step]", d => stepThreat(d.threatStep, Number(d.delta)));
   }
 
@@ -463,7 +511,7 @@ export class PilotSheet extends TBActorSheet {
       const upd = { "system.hp.value": a.system.hp.max, "system.strain.value": a.system.strain.max,
         "system.speed": Math.min(a.system.speed, a.system.maxSpeed), [`flags.${SYSTEM_ID}.pools`]: a.poolsFlag() };
       // своя картинка игрока остаётся; заглушка или силуэт системы меняется на силуэт нового самолёта
-      const replaceable = src => !src || src.includes("mystery-man") || src.includes("/assets/planes/");
+      const replaceable = src => !src || src.includes("mystery-man") || src.includes("/assets/planes/") || src.includes("/assets/portraits/");
       if (p.img && replaceable(a.prototypeToken.texture.src)) upd["prototypeToken.texture.src"] = p.img;
       await a.update(upd, { tbFree: true });
       if (p.img) for (const t of a.getActiveTokens(false, true)) if (replaceable(t.texture.src) && t.texture.src !== p.img) await t.update({ "texture.src": p.img });
@@ -508,6 +556,11 @@ export class NpcSheet extends TBActorSheet {
     ctx.voice = !this.actor.getFlag(SYSTEM_ID, "quiet");
     ctx.radioCall = this.actor.getFlag(SYSTEM_ID, "callsign") ?? "";
     ctx.radioName = nameOf(this.actor, { own: false });
+    // личное дело есть у асов и дуэлянтов: ФИО, картинки, Связи, цели, долги, Немезида
+    ctx.hasFile = ["ace", "duelist"].includes(s.tier);
+    ctx.person = personView(this.actor);
+    ctx.statusOptions = TB.status;
+    ctx.pilotBio = true;
     return ctx;
   }
 
@@ -565,6 +618,47 @@ export class NpcSheet extends TBActorSheet {
       const list = foundry.utils.deepClone(this.actor.system.systems);
       list.splice(Number(n.dataset.sysDel), 1);
       this.actor.update({ "system.systems": list });
+    }));
+  }
+}
+
+/** Лист персонажа на земле: штаб, техники, гражданские, близкие пилотов. Без самолёта и боя: навыки, личное дело, Связи. */
+export class StaffSheet extends TBActorSheet {
+  static get defaultOptions() {
+    return foundry.utils.mergeObject(super.defaultOptions, {
+      classes: ["thunderbolt", "sheet", "actor", "staff"],
+      template: SYS_PATH + "templates/actor/staff-sheet.hbs",
+      width: 640, height: 700,
+      tabs: [{ navSelector: ".tb-tabs", contentSelector: ".tb-body", initial: "main" }]
+    });
+  }
+
+  // боевая часть общего листа (погода, захват, ход, высоты) персонажу на земле не нужна
+  async getData(options) {
+    const ctx = await ActorSheet.prototype.getData.call(this, options);
+    const a = this.actor, s = a.system;
+    Object.assign(ctx, {
+      system: s, TB, isGM: game.user.isGM, skin: game.settings.get(SYSTEM_ID, "skin"),
+      skills: Object.entries(TB.skills).map(([k, v]) => ({ key: k, ...v, value: s.skills[k], total: s.skillTotal[k] })),
+      isConscript: s.tier === "conscript", isAce: s.tier === "ace",
+      roleOptions: TB.staffRoles, tierOptions: TB.tiers, statusOptions: TB.staffStatus,
+      roleName: TB.staffRoles[s.role] ?? "", isKin: s.role === "kin",
+      person: personView(a), pilotBio: false,
+      enrichedNotes: await TextEditor.enrichHTML(s.notes, { secrets: a.isOwner, relativeTo: a }),
+      insigniaHint: "Эмблема подразделения или семейный знак. Щелчок: выбрать картинку, правый щелчок: убрать."
+    });
+    const kin = s.relatedTo ? game.actors.get(s.relatedTo) : null;
+    ctx.kinName = kin ? kin.system.callsign || kin.name : "";
+    return ctx;
+  }
+
+  activateListeners(html) {
+    super.activateListeners(html);
+    if (!this.isEditable) return;
+    // проверка на земле: без хода и действий, сразу окно броска
+    html[0].querySelectorAll("[data-staff-roll]").forEach(n => n.addEventListener("click", ev => {
+      ev.preventDefault();
+      this.actor.rollSkill(n.dataset.staffRoll);
     }));
   }
 }

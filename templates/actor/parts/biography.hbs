@@ -1,0 +1,19 @@
+{{!-- Личное дело NPC и персонажа на земле: ФИО, служба, состояние; вопросы при зачислении — у лётчиков --}}
+<div class="tb-grid3">
+  <label>Фамилия <input type="text" name="system.lastName" value="{{system.lastName}}"></label>
+  <label>Имя <input type="text" name="system.firstName" value="{{system.firstName}}"></label>
+  <label>Отчество <input type="text" name="system.patronymic" value="{{system.patronymic}}"></label>
+  <label>Звание <input type="text" name="system.rank" value="{{system.rank}}"></label>
+  {{#if pilotBio}}<label>Звено <input type="text" name="system.flight" value="{{system.flight}}"></label>{{/if}}
+  <label>{{#if pilotBio}}Эскадрилья{{else}}Подразделение{{/if}} <input type="text" name="system.squadron" value="{{system.squadron}}"></label>
+  <label>База <input type="text" name="system.base" value="{{system.base}}"></label>
+  <label>Год рождения <input type="text" name="system.birth" value="{{system.birth}}"></label>
+  <label>Состояние <select name="system.status">{{selectOptions statusOptions selected=system.status}}</select></label>
+</div>
+{{#if pilotBio}}
+<h3>Вопросы при зачислении</h3>
+<label class="tb-q">Почему этот позывной подходит? <textarea name="system.questions.callsign" rows="2">{{system.questions.callsign}}</textarea></label>
+<label class="tb-q">Сильная сторона на земле <textarea name="system.questions.ground" rows="2">{{system.questions.ground}}</textarea></label>
+<label class="tb-q">Чего боится? <textarea name="system.questions.fear" rows="2">{{system.questions.fear}}</textarea></label>
+<label class="tb-q">Что заставит ослушаться начальства? <textarea name="system.questions.defy" rows="2">{{system.questions.defy}}</textarea></label>
+{{/if}}

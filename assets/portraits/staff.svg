@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="70%"><stop offset="0" stop-color="#10272f"/><stop offset="1" stop-color="#07141a"/></radialGradient>
+    <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="1" fill="#000" fill-opacity=".35"/></pattern>
+  </defs>
+  <rect width="256" height="256" fill="url(#bg)"/>
+  <g stroke="#6cc4ff" stroke-opacity=".07" stroke-width="1"><path d="M16 0 V256" /><path d="M32 0 V256" /><path d="M48 0 V256" /><path d="M64 0 V256" /><path d="M80 0 V256" /><path d="M96 0 V256" /><path d="M112 0 V256" /><path d="M128 0 V256" /><path d="M144 0 V256" /><path d="M160 0 V256" /><path d="M176 0 V256" /><path d="M192 0 V256" /><path d="M208 0 V256" /><path d="M224 0 V256" /><path d="M240 0 V256" /><path d="M0 16 H256" /><path d="M0 32 H256" /><path d="M0 48 H256" /><path d="M0 64 H256" /><path d="M0 80 H256" /><path d="M0 96 H256" /><path d="M0 112 H256" /><path d="M0 128 H256" /><path d="M0 144 H256" /><path d="M0 160 H256" /><path d="M0 176 H256" /><path d="M0 192 H256" /><path d="M0 208 H256" /><path d="M0 224 H256" /><path d="M0 240 H256" /></g>
+  <circle cx="128" cy="112" r="92" fill="none" stroke="#6cc4ff" stroke-opacity=".18" stroke-width="1.5" stroke-dasharray="3 6"/>
+  
+  <g fill="#1b3a4a" stroke="#6cc4ff" stroke-width="3" stroke-linejoin="round">
+    <path d="M20 256 C26 206 66 188 98 182 L158 182 C190 188 230 206 236 256 Z"/>
+    <path d="M98 182 L128 230 L158 182" fill="none"/>
+    <path d="M128 230 L128 256" fill="none" stroke-opacity=".5"/>
+    <path d="M36 214 L84 198 L88 210 L42 226 Z M220 214 L172 198 L168 210 L214 226 Z" fill="#376a89"/>
+    <path d="M110 150 L110 186 L146 186 L146 150 Z"/>
+    <ellipse cx="128" cy="112" rx="40" ry="50"/>
+    <path d="M74 78 Q128 30 182 78 L178 92 L78 92 Z" fill="#295168"/>
+    <path d="M80 92 L176 92 L176 104 L80 104 Z" fill="#417a9e"/>
+    <path d="M84 104 Q128 124 172 104" fill="none" stroke-width="4"/>
+    <circle cx="128" cy="84" r="6" fill="#6cc4ff" fill-opacity=".9"/>
+  </g>
+  <rect width="256" height="256" fill="url(#scan)"/>
+  <g fill="none" stroke="#6cc4ff" stroke-width="4" stroke-opacity=".9">
+    <path d="M10 40 V10 H40 M216 10 H246 V40 M246 216 V246 H216 M40 246 H10 V216"/>
+  </g>
+  <g fill="#6cc4ff" fill-opacity=".7"><rect x="18" y="226" width="4" height="12"/><rect x="25" y="226" width="2" height="12"/><rect x="30" y="226" width="6" height="12"/><rect x="39" y="226" width="2" height="12"/></g>
+</svg>

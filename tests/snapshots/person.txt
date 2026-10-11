@@ -1,0 +1,21 @@
+pilot portraits/pilot.svg
+npc portraits/enemy.svg · ally portraits/pilot.svg
+staff staff portraits/staff.svg
+staff tech portraits/staff.svg
+staff crew portraits/staff.svg
+staff civil portraits/civil.svg
+staff kin portraits/civil.svg
+staff other portraits/staff.svg
+create staff: img portraits/civil.svg token portraits/civil.svg link true disp 1 bars 0 bar1 null
+create npc (без картинки): img portraits/enemy.svg token portraits/enemy.svg link false disp -1
+create pilot (своё фото): img не тронуто token worlds/w/faces/sova.webp
+create npc (картинки из компендиума): img не тронуто token planes/su-37.webp link true
+role → civil: img portraits/civil.svg token portraits/civil.svg
+role → tech при своей картинке: img не тронуто
+staff conscript: 1,1,1,1,1,1 blocked false
+staff duelist: 0,1,2,3,4,5 blocked false
+staff ace: 0,1,2,3,4,5 blocked false
+images img:Лицо:worlds/w/faces/ace.webp | artwork:Полный рост:worlds/w/art/ace.webp:показать | token:Токен:planes/su-47.webp
+pilots {"p1":"Сова (Сергей Волков)","p2":"Ира"} nemesis Сова
+bond pips ●●● was 2 · goal 6 · debts 1
+migrate 2 [{"_id":"a","img":"portraits/enemy.svg","prototypeToken.texture.src":"portraits/enemy.svg"},{"_id":"b","img":"portraits/civil.svg"}]

@@ -1,0 +1,57 @@
+<form class="tb-sheet {{cssClass}}" autocomplete="off">
+  <header class="tb-head">
+    <div class="tb-portrait-box">
+      <img class="tb-portrait" src="{{actor.img}}" data-edit="img" title="{{actor.name}}" alt="">
+      <div class="tb-insignia" data-insignia title="{{insigniaHint}}">{{#if system.insignia}}<img src="{{system.insignia}}" alt="">{{else}}<i class="fas fa-shield-halved"></i>{{/if}}</div>
+    </div>
+    <div class="tb-head-main">
+      <div class="tb-kicker">{{roleName}}{{#if system.position}} · {{system.position}}{{/if}}{{#if kinName}} · {{#if system.relation}}{{system.relation}}{{else}}близкий{{/if}} пилота {{kinName}}{{/if}}</div>
+      <input class="tb-name" type="text" name="name" value="{{actor.name}}" placeholder="Имя">
+      <div class="tb-head-row">
+        <label>Кто <select name="system.role">{{selectOptions roleOptions selected=system.role}}</select></label>
+        <label>Уровень <select name="system.tier">{{selectOptions tierOptions selected=system.tier}}</select></label>
+      </div>
+      <div class="tb-head-row">
+        <label>Должность, занятие <input type="text" name="system.position" value="{{system.position}}" placeholder="старший техник, учительница, начальник штаба"></label>
+      </div>
+      {{#if isKin}}
+      <div class="tb-head-row">
+        <label>Чей <select name="system.relatedTo">{{selectOptions person.pilotOptions selected=system.relatedTo blank="— пилот —"}}</select></label>
+        <label>Кем приходится <input type="text" name="system.relation" value="{{system.relation}}" placeholder="сестра, отец, невеста"></label>
+      </div>
+      {{/if}}
+    </div>
+  </header>
+
+  <nav class="tb-tabs" data-group="primary">
+    <a class="item" data-tab="main">Навыки и Связи</a>
+    <a class="item" data-tab="file">Личное дело</a>
+    <a class="item" data-tab="notes">Заметки AWACS</a>
+  </nav>
+
+  <section class="tb-body">
+    <div class="tab" data-group="primary" data-tab="main">
+      <fieldset class="tb-box">
+        <legend>Навыки <span class="tb-muted">проверка на земле</span></legend>
+        {{#if isConscript}}
+        <p class="tb-small">Конскрипт: ко всем навыкам <input class="tb-inline" type="number" name="system.bonus" value="{{system.bonus}}" min="0" max="1"> (+0 или +1), заполнять навыки не нужно.</p>
+        <ol class="tb-skills compact">{{#each skills as |sk|}}<li class="tb-skill"><a class="tb-roll" data-staff-roll="{{sk.key}}"><i class="fas fa-dice-d10"></i></a><span class="tb-skill-name"><b>{{sk.label}}</b> <small>{{sk.en}}</small></span><span class="tb-skill-total">{{sk.total}}</span></li>{{/each}}</ol>
+        {{else}}
+        <ol class="tb-skills compact">{{#each skills as |sk|}}<li class="tb-skill"><a class="tb-roll" data-staff-roll="{{sk.key}}"><i class="fas fa-dice-d10"></i></a><span class="tb-skill-name"><b>{{sk.label}}</b> <small>{{sk.en}}</small></span><input type="number" name="system.skills.{{sk.key}}" value="{{sk.value}}" min="0"></li>{{/each}}</ol>
+        <p class="tb-small tb-muted">{{#if isAce}}Ас: значимый человек, навыки свои.{{else}}Дуэлянт: навыки свои, без общей раскладки эскадрильи.{{/if}}</p>
+        {{/if}}
+      </fieldset>
+      {{> "systems/thunderbolt-shtab/templates/actor/parts/ties.hbs"}}
+    </div>
+
+    <div class="tab" data-group="primary" data-tab="file">
+      {{> "systems/thunderbolt-shtab/templates/actor/parts/images.hbs"}}
+      {{> "systems/thunderbolt-shtab/templates/actor/parts/biography.hbs"}}
+    </div>
+
+    <div class="tab" data-group="primary" data-tab="notes">
+      <p class="tb-hint">В бою этот персонаж не участвует: у него нет самолёта, Defense и HP. Если он всё же выйдет на сцену, его токен будет только картинкой.</p>
+      {{editor enrichedNotes target="system.notes" button=true editable=editable engine="prosemirror"}}
+    </div>
+  </section>
+</form>

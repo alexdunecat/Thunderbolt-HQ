@@ -1,0 +1,38 @@
+{{!-- Связи, личные цели и долги NPC (у пилота они во вкладке «Даунтайм») --}}
+<div class="tb-grid2">
+  <fieldset class="tb-box">
+    <legend>Связи <span class="tb-muted">0–3</span></legend>
+    {{#if person.bonds.length}}
+    <ul class="tb-list tb-bonds">
+      {{#each person.bonds as |b|}}
+      <li class="tb-item {{#if b.dead}}dead{{/if}}">
+        <span class="tb-item-name"><b>{{b.name}}</b>{{#if b.npc}} <small>NPC</small>{{/if}}{{#if b.dead}} <small class="tb-warn">погиб</small>{{/if}}</span>
+        {{#if b.was}}<s class="tb-muted" title="прежние значения">{{b.was}}</s>{{/if}}
+        <span class="tb-pips">{{#each b.pips as |p|}}<a class="tb-pip {{#if p.on}}on{{/if}}" data-bond-set="{{b.i}}" data-v="{{p.i}}">{{p.i}}</a>{{/each}}</span>
+        <a class="tb-icon" data-bond-del="{{b.i}}" title="Убрать"><i class="fas fa-trash"></i></a>
+      </li>
+      {{/each}}
+    </ul>
+    {{else}}<p class="tb-muted tb-small">Связей пока нет: ведомый, командир, соперник среди пилотов игроков.</p>{{/if}}
+    <a class="tb-btn" data-bond-add><i class="fas fa-plus"></i> Связь</a>
+  </fieldset>
+  <fieldset class="tb-box">
+    <legend>Личные цели</legend>
+    {{#if person.goals.length}}
+    <ul class="tb-list tb-goals">
+      {{#each person.goals as |g|}}
+      <li class="tb-item {{#if g.done}}done{{/if}}">
+        <input type="text" data-goal-field="name" data-goal="{{g.i}}" value="{{g.name}}" placeholder="отомстить за ведомого">
+        <select data-goal-field="size" data-goal="{{g.i}}"><option value="4" {{#if g.small}}selected{{/if}}>4</option><option value="6" {{#unless g.small}}selected{{/unless}}>6</option></select>
+        <span class="tb-clock">{{#each g.pips as |p|}}<i class="{{#if p.on}}on{{/if}}" data-goal-set="{{g.i}}" data-v="{{p.i}}"></i>{{/each}}</span>
+        <a class="tb-icon" data-goal-del="{{g.i}}" title="Убрать"><i class="fas fa-trash"></i></a>
+      </li>
+      {{/each}}
+    </ul>
+    {{/if}}
+    <a class="tb-btn" data-goal-add><i class="fas fa-plus"></i> Цель</a>
+    <h4>Долги</h4>
+    {{#if person.debts.length}}<ul class="tb-list tb-debts">{{#each person.debts as |d|}}<li class="{{#if d.struck}}struck{{/if}}">{{d.text}} <a class="tb-icon" data-debt-strike="{{d.i}}" title="{{#if d.struck}}Вернуть{{else}}Расплатился{{/if}}"><i class="fas fa-strikethrough"></i></a></li>{{/each}}</ul>{{else}}<p class="tb-muted tb-small">Нет.</p>{{/if}}
+    <a class="tb-btn" data-debt-add><i class="fas fa-plus"></i> Долг</a>
+  </fieldset>
+</div>

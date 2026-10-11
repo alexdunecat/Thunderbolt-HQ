@@ -769,3 +769,22 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
   background: linear-gradient(90deg, transparent, rgba(155,227,191,.13), transparent); animation: tb-pause-sweep 3.2s linear infinite; }
 @keyframes tb-pause-pulse { 50% { opacity: .62; } }
 @keyframes tb-pause-sweep { to { left: 100%; } }
+
+/* ---------- личное дело: три картинки, Немезида, персонаж на земле ---------- */
+.thunderbolt .tb-images .tb-image-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.thunderbolt .tb-image-slot { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; font-size: 12px; }
+.thunderbolt .tb-image-frame { width: 100%; height: 150px; display: grid; place-items: center; cursor: pointer; overflow: hidden;
+  border: 1px solid var(--tb-line); background: var(--tb-surface-2); color: var(--tb-muted); font-size: 28px; }
+.thunderbolt .tb-image-artwork .tb-image-frame img { object-position: center top; }
+.thunderbolt .tb-image-frame:hover { border-color: var(--tb-accent); }
+.thunderbolt .tb-image-frame img { width: 100%; height: 100%; object-fit: contain; border: 0; }
+.thunderbolt .tb-image-slot .tb-btn { margin-top: 2px; }
+.thunderbolt .tb-image-slot [data-img-clear] { position: absolute; top: 4px; right: 4px; background: var(--tb-bg); padding: 2px 4px; }
+.thunderbolt .tb-images { margin-bottom: 8px; }
+.thunderbolt .tb-nemesis-badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; padding: 2px 8px; align-self: flex-start;
+  font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--tb-bad); border: 1px solid var(--tb-bad); background: rgba(255, 107, 74, .1); }
+.thunderbolt .tb-nemesis-row { padding: 6px 8px; border: 1px dashed var(--tb-line); margin-bottom: 8px; }
+.thunderbolt .tb-nemesis-row.on { border: 1px solid var(--tb-bad); background: rgba(255, 107, 74, .07); }
+.thunderbolt .tb-nemesis-row.on b { color: var(--tb-bad); }
+.thunderbolt.staff .tb-head-row input[type="text"] { min-width: 220px; }
+.thunderbolt.staff .tb-head-row label { display: inline-flex; align-items: center; gap: 6px; }

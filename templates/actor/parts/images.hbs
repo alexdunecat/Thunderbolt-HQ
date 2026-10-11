@@ -1,0 +1,14 @@
+{{!-- Три картинки: лицо (список актёров, шапка листа), полный рост (артворк), токен (на поле боя) --}}
+<fieldset class="tb-box tb-images">
+  <legend>Картинки</legend>
+  <div class="tb-image-row">
+    {{#each person.images as |m|}}
+    <div class="tb-image-slot tb-image-{{m.key}}">
+      <div class="tb-image-frame" data-img-pick="{{m.key}}" title="Щелчок: выбрать картинку">{{#if m.src}}<img src="{{m.src}}" alt="">{{else}}<i class="fas fa-image"></i>{{/if}}</div>
+      <b>{{m.label}}</b><small class="tb-muted">{{m.hint}}</small>
+      {{#if m.src}}{{#if m.show}}<a class="tb-btn" data-art-show title="Открыть во весь экран; оттуда его можно показать игрокам"><i class="fas fa-eye"></i> Показать</a>{{/if}}{{/if}}
+      {{#if m.clear}}{{#if m.src}}<a class="tb-icon" data-img-clear="{{m.key}}" title="Убрать"><i class="fas fa-trash"></i></a>{{/if}}{{/if}}
+    </div>
+    {{/each}}
+  </div>
+</fieldset>

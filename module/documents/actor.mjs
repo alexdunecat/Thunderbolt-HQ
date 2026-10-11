@@ -5,20 +5,63 @@ import { esc } from "../utils.mjs";
 import { startStrain } from "../downtime.mjs";
 
 
+const PORTRAITS = `systems/${SYSTEM_ID}/assets/portraits/`;
+/** Пустая картинка: ничего или серый силуэт Foundry. */
+export const blankImg = src => !src || src.includes("mystery-man");
+/** Свой ли это портрет по умолчанию (его можно менять при смене роли и заменять самолётом на токене). */
+export const defaultImg = src => !!src && src.includes("/assets/portraits/");
+
+/** Портрет по умолчанию: пилот в шлеме, противник в красном, офицер штаба, гражданский. */
+export function defaultPortrait(type, sys = {}) {
+  if (type === "pilot") return `${PORTRAITS}pilot.svg`;
+  if (type === "staff") return `${PORTRAITS}${["civil", "kin"].includes(sys.role) ? "civil" : "staff"}.svg`;
+  return `${PORTRAITS}${sys.side === "ally" ? "pilot" : "enemy"}.svg`;
+}
+
+/** Готовность мира: актёры с серым силуэтом получают портрет системы (и их прототип токена тоже). */
+export async function migratePortraits() {
+  const updates = [];
+  for (const a of game.actors) {
+    if (!blankImg(a._source.img)) continue;
+    const img = defaultPortrait(a.type, a._source.system);
+    const u = { _id: a.id, img };
+    if (blankImg(a.prototypeToken.texture.src)) u["prototypeToken.texture.src"] = img;
+    updates.push(u);
+  }
+  if (updates.length) await Actor.updateDocuments(updates);
+  return updates.length;
+}
+
 export class TBActor extends Actor {
   async _preCreate(data, options, user) {
     if ((await super._preCreate(data, options, user)) === false) return false;
-    const pilot = this.type === "pilot";
+    const pilot = this.type === "pilot", staff = this.type === "staff";
     const proto = {
-      actorLink: pilot,
-      disposition: pilot ? CONST.TOKEN_DISPOSITIONS.FRIENDLY : CONST.TOKEN_DISPOSITIONS.HOSTILE,
-      displayBars: CONST.TOKEN_DISPLAY_MODES.OWNER_HOVER,
+      actorLink: pilot || staff,
+      disposition: pilot || staff ? CONST.TOKEN_DISPOSITIONS.FRIENDLY : CONST.TOKEN_DISPOSITIONS.HOSTILE,
+      displayBars: staff ? CONST.TOKEN_DISPLAY_MODES.NONE : CONST.TOKEN_DISPLAY_MODES.OWNER_HOVER,
       displayName: CONST.TOKEN_DISPLAY_MODES.HOVER,
-      bar1: { attribute: "hp" },
+      bar1: { attribute: staff ? null : "hp" },
       bar2: { attribute: pilot ? "strain" : null }
     };
-    if (data.img && !data.prototypeToken?.texture?.src) proto.texture = { src: data.img };
-    this.updateSource({ prototypeToken: foundry.utils.mergeObject(proto, data.prototypeToken ?? {}) });
+    // вместо серого силуэта Foundry — портрет в стиле «Брифинга»
+    const img = blankImg(data.img) ? defaultPortrait(this.type, data.system ?? {}) : data.img;
+    const update = { prototypeToken: foundry.utils.mergeObject(proto, data.prototypeToken ?? {}) };
+    if (img !== data.img) update.img = img;
+    if (blankImg(update.prototypeToken.texture?.src)) update.prototypeToken.texture = { ...(update.prototypeToken.texture ?? {}), src: img };
+    this.updateSource(update);
+  }
+
+  /** Смена роли персонажа на земле или стороны NPC: портрет по умолчанию меняется следом. */
+  async _preUpdate(changed, options, user) {
+    if ((await super._preUpdate(changed, options, user)) === false) return false;
+    const sys = changed.system ?? {};
+    if (!("role" in sys) && !("side" in sys)) return;
+    if (!defaultImg(this.img) || "img" in changed) return;
+    const img = defaultPortrait(this.type, { ...this._source.system, ...sys });
+    if (img === this.img) return;
+    changed.img = img;
+    if (this.prototypeToken.texture.src === this.img) foundry.utils.setProperty(changed, "prototypeToken.texture.src", img);
   }
 
   /* ---------- броски (обёртки для листов и макросов) ---------- */

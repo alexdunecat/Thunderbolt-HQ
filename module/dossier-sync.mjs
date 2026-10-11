@@ -101,7 +101,7 @@ export async function importDossier(raw, actor = null) {
   const upd = { name, ...Object.fromEntries(Object.entries(system).map(([k, v]) => [`system.${k}`, v])), [`flags.${SYSTEM_ID}.shtab`]: flag };
   if (raw.callsign) upd["prototypeToken.name"] = raw.callsign;
   if (plane?.img) {
-    const replaceable = src => !src || src.includes("mystery-man") || src.includes("/assets/planes/");
+    const replaceable = src => !src || src.includes("mystery-man") || src.includes("/assets/planes/") || src.includes("/assets/portraits/");
     if (replaceable(actor.prototypeToken.texture.src)) upd["prototypeToken.texture.src"] = plane.img;
   }
   const img = await uploadPhoto(raw);

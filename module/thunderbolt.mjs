@@ -1,11 +1,11 @@
 /* Thunderbolt: Штаб ВВС Юктобании — точка входа системы. */
 import "./delta-bridge.mjs";
-import { SYSTEM_ID, TB } from "./config.mjs";
-import { PilotData, NpcData, PlaneData, WeaponData, TriggerData } from "./data/models.mjs";
-import { TBActor, TBItem } from "./documents/actor.mjs";
+import { SYSTEM_ID, SYS_PATH, TB } from "./config.mjs";
+import { PilotData, NpcData, StaffData, PlaneData, WeaponData, TriggerData } from "./data/models.mjs";
+import { TBActor, TBItem, migratePortraits } from "./documents/actor.mjs";
 import { TBCombat, registerCombat } from "./documents/combat.mjs";
 import { registerActions } from "./actions.mjs";
-import { PilotSheet, NpcSheet } from "./sheets/actor-sheets.mjs";
+import { PilotSheet, NpcSheet, StaffSheet } from "./sheets/actor-sheets.mjs";
 import { TBItemSheet } from "./sheets/item-sheet.mjs";
 import * as R from "./dice/rolls.mjs";
 import { openImportDialog, importMission } from "./apps/mission-import.mjs";
@@ -75,17 +75,21 @@ Hooks.once("init", () => {
   CONFIG.Actor.documentClass = TBActor;
   CONFIG.Item.documentClass = TBItem;
   CONFIG.Combat.documentClass = TBCombat;
-  Object.assign(CONFIG.Actor.dataModels, { pilot: PilotData, npc: NpcData });
+  Object.assign(CONFIG.Actor.dataModels, { pilot: PilotData, npc: NpcData, staff: StaffData });
   Object.assign(CONFIG.Item.dataModels, { plane: PlaneData, weapon: WeaponData, trigger: TriggerData });
   CONFIG.Combat.initiative = { formula: "2", decimals: 0 };
   CONFIG.Actor.trackableAttributes = {
     pilot: { bar: ["hp", "strain"], value: ["speed"] },
-    npc: { bar: ["hp", "strain"], value: ["speed"] }
+    npc: { bar: ["hp", "strain"], value: ["speed"] },
+    staff: { bar: [], value: [] }
   };
 
   Actors.unregisterSheet("core", ActorSheet);
   Actors.registerSheet(SYSTEM_ID, PilotSheet, { types: ["pilot"], makeDefault: true, label: "Лист пилота" });
   Actors.registerSheet(SYSTEM_ID, NpcSheet, { types: ["npc"], makeDefault: true, label: "Лист NPC" });
+  Actors.registerSheet(SYSTEM_ID, StaffSheet, { types: ["staff"], makeDefault: true, label: "Лист персонажа на земле" });
+  // общие куски листов: картинки, личное дело, Связи и цели
+  loadTemplates(["images", "biography", "ties"].map(n => `${SYS_PATH}templates/actor/parts/${n}.hbs`));
   Items.unregisterSheet("core", ItemSheet);
   Items.registerSheet(SYSTEM_ID, TBItemSheet, { makeDefault: true, label: "Карточка" });
   DocumentSheetConfig.registerSheet(JournalEntry, SYSTEM_ID, TBMemoSheet, { makeDefault: false, label: "Памятка пилота (оформление Штаба)" });
@@ -144,6 +148,8 @@ Hooks.once("ready", async () => {
   // «В строю» читает союзника: после загрузки всех актёров пересчитать тех, кто стоит вплотную
   for (const a of game.actors) if (a.type === "pilot" && a.getFlag(SYSTEM_ID, "adjacent")?.length) { a.prepareData(); a.sheet?.rendered && a.sheet.render(false); }
   if (game.user.isGM) for (const a of game.actors) if (a.type === "pilot") a.syncPools();
+  // серые силуэты Foundry у старых актёров — на портреты системы
+  if (game.user.isGM) migratePortraits().catch(err => console.warn(`${SYSTEM_ID} | портреты`, err));
 });
 
 /* Триггер или самолёт добавлен, изменён, убран: максимумы пересчитаны, текущие HP и Strain сдвигаются следом. */
