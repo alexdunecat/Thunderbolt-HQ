@@ -311,12 +311,14 @@ function lineFor(e) {
   // ас со своими репликами говорит ими (и когда его тип молчит); если ни одна не подошла, общими фразами
   const own = isAce(actor) ? actor.getFlag?.(SYSTEM_ID, "replies")?.[event] : null;
   let text = Array.isArray(own) && own.length ? pickLine(`ace:${actor.uuid}:${event}`, own, vars) : null;
-  // машина эскадрильи дуэлянтов говорит репликами эскадрильи (и когда её тип молчит)
-  if (!text && isSquad(actor)) {
-    const sq = squadData(actor.system.squad).replies?.[event];
-    if (Array.isArray(sq) && sq.length) text = pickLine(`squad:${actor.system.squad}:${event}`, sq, vars);
-  }
   const scene = tok.parent ?? editScene();
+  // машина эскадрильи дуэлянтов говорит репликами эскадрильи (и когда её тип молчит): сначала этой сцены, потом общими
+  if (!text && isSquad(actor)) {
+    const name = actor.system.squad;
+    const here = sceneSquadReplies(scene, name)[event];
+    const sq = Array.isArray(here) && here.length ? here : squadData(name).replies?.[event];
+    if (Array.isArray(sq) && sq.length) text = pickLine(`squad:${name}:${sq === here ? "scene" : "all"}:${event}`, sq, vars);
+  }
   if (!text && muted(scene)[type]) return null;
   text ??= pickLine(bankKey(type, side, event), linesFor(type, side, event, scene), vars);
   return text ? { speaker: self, text, side: sideOf(actor) } : null;
@@ -335,6 +337,24 @@ async function setSquadData(name, patch) {
   for (const [ev, lines] of Object.entries(d.replies ?? {})) if (!lines?.length) delete d.replies[ev];
   all[name] = d;
   return game.settings.set(SYSTEM_ID, "squadChatter", all);
+}
+
+/** Реплики эскадрильи на сцене: флаг squadReplies — список [{ name, replies }] (в названии бывают точки). */
+export function sceneSquadReplies(scene, name) {
+  const list = scene?.getFlag?.(SYSTEM_ID, "squadReplies");
+  return (Array.isArray(list) ? list.find(x => x?.name === name)?.replies : null) ?? {};
+}
+
+async function setSceneSquadLines(scene, name, event, lines) {
+  if (!scene) return;
+  const list = foundry.utils.deepClone(scene.getFlag(SYSTEM_ID, "squadReplies") ?? []).filter(x => x?.name);
+  let entry = list.find(x => x.name === name);
+  if (!entry) list.push(entry = { name, replies: {} });
+  entry.replies ??= {};
+  if (lines.length) entry.replies[event] = lines;
+  else delete entry.replies[event];
+  const out = list.filter(x => Object.values(x.replies ?? {}).some(l => l?.length));
+  return out.length ? scene.setFlag(SYSTEM_ID, "squadReplies", out) : scene.unsetFlag(SYSTEM_ID, "squadReplies");
 }
 
 const squadNoOf = t => Number(t.getFlag?.(SYSTEM_ID, "squadNo")) || null;
@@ -385,6 +405,7 @@ class ChatterEditor extends FormApplication {
     super(...args);
     this.type ??= "air";
     this.side ??= "enemy";
+    this.squadScope ??= "scene";
   }
 
   static get defaultOptions() {
@@ -431,7 +452,7 @@ class ChatterEditor extends FormApplication {
     const squads = Object.keys(allSquads()).sort((a, b) => a.localeCompare(b, "ru"));
     const squadNav = `<h4>Эскадрильи дуэлянтов</h4>${squads.map(n => {
       const d = squadData(n), key = `squad:${n}`;
-      const own = Object.values(d.replies ?? {}).some(l => l?.length);
+      const own = [d.replies ?? {}, sceneSquadReplies(scene, n)].some(r => Object.values(r).some(l => l?.length));
       const here = squadSpeakers(n, scene).length;
       return `<button type="button" data-type="${esc(key)}" class="${key === this.type ? "on" : ""}${here ? "" : " muted"}">${esc(n)}${own ? ` <i class="fas fa-pen" title="есть свои реплики"></i>` : ""}</button>`;
     }).join("") || `<p class="tb-hint">Нет: панель AWACS, «Собрать из выделенных».</p>`}`;
@@ -502,18 +523,28 @@ class ChatterEditor extends FormApplication {
     return squadSpeakers(name, editScene())[0]?.actor ?? squadMembers(name).find(a => chatterType(a)) ?? null;
   }
 
+  /** «scene» — реплики этой сцены, «all» — общие для всех сцен. Без открытой сцены только общие. */
+  get #scope() { return editScene() && this.squadScope !== "all" ? "scene" : "all"; }
+
   #squadView(name) {
     const d = squadData(name), sample = this.#squadSample(name);
     const type = (sample && chatterType(sample)) ?? "air", side = sample ? bankSide(sample, type) : "enemy";
-    const scene = editScene(), own = d.replies ?? {};
+    const scene = editScene(), all = d.replies ?? {}, scope = this.#scope;
+    const own = scope === "scene" ? sceneSquadReplies(scene, name) : all;
     const rows = eventsFor(type, side).map(ev => {
       const e = CHATTER_EVENTS[ev], lines = Array.isArray(own[ev]) ? own[ev] : [];
-      return this.#row({ key: `squad.${ev}`, label: e.label, hint: e.hint, value: lines.join("\n"), placeholder: linesFor(type, side, ev, scene).join("\n"),
-        changed: lines.length > 0, resetTitle: "Убрать свои фразы: снова общие фразы типа" });
+      const common = scope === "scene" && Array.isArray(all[ev]) && all[ev].length ? all[ev] : linesFor(type, side, ev, scene);
+      return this.#row({ key: `squad.${ev}`, label: e.label, hint: e.hint, value: lines.join("\n"), placeholder: common.join("\n"),
+        changed: lines.length > 0, resetTitle: scope === "scene" ? "Убрать фразы сцены: снова общие реплики эскадрильи" : "Убрать свои фразы: снова общие фразы типа" });
     }).join("");
     const here = squadSpeakers(name, scene);
+    const scopes = `<div class="tb-chatter-sides">${[["scene", scene ? `Сцена «${scene.name}»` : "Сцена"], ["all", "Все сцены"]].map(([k, l]) =>
+      `<button type="button" data-squad-scope="${k}" class="tb-scope ${k === scope ? "on" : ""}" ${k === "scene" && !scene ? "disabled" : ""}>${esc(l)}</button>`).join("")}</div>`;
+    const how = scope === "scene"
+      ? "Реплики только для этой сцены (миссии). Пустое поле: общие реплики эскадрильи со вкладки «Все сцены», а если их нет, фразы типа (видны серым)."
+      : "Общие реплики на все сцены. Сцена со своими репликами говорит ими, пустые поля сцены берут эти. Пустое поле здесь: фразы типа (видны серым).";
     return `<header><h3>Эскадрилья «${esc(name)}»</h3>
-        <p class="tb-hint">Дуэлянты · ${esc(CHATTER_TYPES[type].label)} · ${esc(CHATTER_SIDES[side] ?? "")} · на сцене: ${here.length ? here.map(t => esc(nameOf(t.actor))).join(", ") : "никого"}. Реплики получат все машины эскадрильи, «Позывной в эфире» у каждой машины свой. Пустое поле: общие фразы типа (видны серым).</p></header>
+        <p class="tb-hint">Дуэлянты · ${esc(CHATTER_TYPES[type].label)} · ${esc(CHATTER_SIDES[side] ?? "")} · на сцене: ${here.length ? here.map(t => esc(nameOf(t.actor))).join(", ") : "никого"}. Реплики получат все машины эскадрильи, «Позывной в эфире» у каждой машины свой. ${how}</p>${scopes}</header>
       <div class="tb-chatter-list">${rows}</div>`;
   }
 
@@ -523,6 +554,7 @@ class ChatterEditor extends FormApplication {
     const ace = this.ace, squad = this.squad, scene = editScene();
     const sample = squad ? this.#squadSample(squad) : null;
     root.querySelectorAll("[data-type]").forEach(b => b.addEventListener("click", () => { this.type = b.dataset.type; this.render(false); }));
+    root.querySelectorAll("[data-squad-scope]").forEach(b => b.addEventListener("click", () => { this.squadScope = b.dataset.squadScope; this.render(false); }));
     root.querySelectorAll("[data-side]").forEach(b => b.addEventListener("click", () => { this.side = b.dataset.side; this.render(false); }));
     root.querySelector("[data-callsign]")?.addEventListener("change", async ev => {
       await setCallsign(ace, ev.target.value);
@@ -538,16 +570,11 @@ class ChatterEditor extends FormApplication {
       const area = row.querySelector("textarea");
       const mark = changed => { row.classList.toggle("changed", changed); row.querySelector("[data-reset]").disabled = !changed; };
       if (squad) {
-        const event = key.slice(6);
-        area.addEventListener("change", async () => {
-          const lines = splitLines(area.value);
-          await setSquadData(squad, { replies: { ...(squadData(squad).replies ?? {}), [event]: lines } });
-          mark(lines.length > 0);
-        });
-        row.querySelector("[data-reset]").addEventListener("click", async () => {
-          await setSquadData(squad, { replies: { ...(squadData(squad).replies ?? {}), [event]: [] } });
-          this.render(false);
-        });
+        const event = key.slice(6), onScene = this.#scope === "scene";
+        const save = lines => onScene ? setSceneSquadLines(scene, squad, event, lines)
+          : setSquadData(squad, { replies: { ...(squadData(squad).replies ?? {}), [event]: lines } });
+        area.addEventListener("change", async () => { const lines = splitLines(area.value); await save(lines); mark(lines.length > 0); });
+        row.querySelector("[data-reset]").addEventListener("click", async () => { await save([]); this.render(false); });
       } else if (ace) {
         const event = key.slice(4);
         area.addEventListener("change", async () => { const lines = splitLines(area.value); await saveAceLines(ace, event, lines); mark(lines.length > 0); });

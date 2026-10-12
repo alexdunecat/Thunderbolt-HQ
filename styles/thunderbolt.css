@@ -605,6 +605,8 @@ body[data-tb-skin="brief"] .tb-radio-log b.tb-log-caution { color: #f2c14e; } bo
 .tb-chatter-sides button { flex: 0 0 auto; width: auto; padding: 0 14px; line-height: 1.8; }
 .app.tb-chatter .tb-chatter-sides button.on.tb-side-ally { background: #3d8fc4; border-color: #3d8fc4; color: #fff; }
 .app.tb-chatter .tb-chatter-sides button.on.tb-side-enemy { background: #d4472b; border-color: #d4472b; color: #fff; }
+.app.tb-chatter .tb-chatter-sides button.on.tb-scope { background: var(--tb-accent); border-color: var(--tb-accent); color: var(--tb-accent-ink); }
+.tb-chatter-sides:has(.tb-scope) { margin-top: 6px; }
 .tb-chatter-list { flex: 1; overflow-y: auto; padding: 6px 12px 10px; }
 .tb-chatter-ev { margin: 0 0 10px; padding-left: 8px; border-left: 3px solid transparent; }
 .tb-chatter-ev.changed { border-left-color: var(--tb-warn, #b8860b); }

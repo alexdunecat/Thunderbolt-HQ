@@ -165,6 +165,13 @@ settings.squadChatter = { "Вороны": { replies: { fire: ["Вороны ат
 mute({ air: true });
 fire(msg({ card: { attack: true, delayed: true, actorUuid: extra[1].uuid, targetUuid: ship.uuid, targetName: "Адмирал", parts: [] } }));
 step("машина эскадрильи со своей фразой пуска при выключенном типе");
+scene.flags.squadReplies = [{ name: "Вороны", replies: { fire: ["Вороны над каньоном, {target} наш!"] } }];
+fire(msg({ card: { attack: true, delayed: true, actorUuid: extra[1].uuid, targetUuid: ship.uuid, targetName: "Адмирал", parts: [] } }));
+step("на сцене свои реплики эскадрильи: говорят ими");
+scene.flags.squadReplies = [{ name: "Вороны", replies: { destroyed: ["Ворон падает!"] } }];
+fire(msg({ card: { attack: true, delayed: true, actorUuid: extra[1].uuid, targetUuid: ship.uuid, targetName: "Адмирал", parts: [] } }));
+step("на сцене поле пуска пустое: общие реплики эскадрильи");
+delete scene.flags.squadReplies;
 mute({});
 console.log("говорят:", C.squadSpeakers("Вороны", scene).map(t => t.name).join(", "));
 for (const a of extra) { a.system.tier = "conscript"; a.system.squad = ""; }
