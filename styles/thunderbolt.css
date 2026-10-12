@@ -711,7 +711,8 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .thunderbolt .tb-edges .tb-edge-cost b { color: var(--tb-warn); }
 .thunderbolt .tb-edges select { max-width: 150px; }
 .thunderbolt .tb-bonds .dead b { text-decoration: line-through; opacity: .7; }
-.thunderbolt .tb-bonds s { font-family: var(--tb-data); font-size: 11px; margin-right: 4px; }
+.thunderbolt .tb-bonds .tb-item { grid-template-columns: minmax(0, 1fr) 3.5em auto 18px; }
+.thunderbolt .tb-bonds s.tb-bond-was { font-family: var(--tb-data); font-size: 11px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .thunderbolt .tb-goals .tb-item { gap: 6px; align-items: center; }
 .thunderbolt .tb-goals input[type=text] { flex: 1; min-width: 0; }
 .thunderbolt .tb-goals select { width: 46px; }

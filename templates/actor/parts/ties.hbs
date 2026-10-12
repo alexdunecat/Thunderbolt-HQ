@@ -7,7 +7,7 @@
       {{#each person.bonds as |b|}}
       <li class="tb-item {{#if b.dead}}dead{{/if}}">
         <span class="tb-item-name"><b>{{b.name}}</b>{{#if b.npc}} <small>NPC</small>{{/if}}{{#if b.dead}} <small class="tb-warn">погиб</small>{{/if}}</span>
-        {{#if b.was}}<s class="tb-muted" title="прежние значения">{{b.was}}</s>{{/if}}
+        <s class="tb-muted tb-bond-was" title="{{#if b.was}}прежние значения: {{b.was}}{{/if}}">{{b.was}}</s>
         <span class="tb-pips">{{#each b.pips as |p|}}<a class="tb-pip {{#if p.on}}on{{/if}}" data-bond-set="{{b.i}}" data-v="{{p.i}}">{{p.i}}</a>{{/each}}</span>
         <a class="tb-icon" data-bond-del="{{b.i}}" title="Убрать"><i class="fas fa-trash"></i></a>
       </li>
