@@ -7,7 +7,7 @@ import { openMapUpdateDialog, coreWeatherFor } from "./mission-import.mjs";
 import { targetGoals } from "../losses.mjs";
 import { gloryView, gloryDialog, gloryFields, gloryPrefill, applyGlory, setGlory } from "../glory.mjs";
 import { openRadioDialog } from "../radio.mjs";
-import { openChatterEditor, openSquadChatter, playSquadTalk, squadData } from "../chatter.mjs";
+import { openChatterEditor, openSquadChatter } from "../chatter.mjs";
 import { openMissionDialog } from "../mission.mjs";
 import { openAceIntro } from "../aces.mjs";
 import { openBriefing } from "../briefing.mjs";
@@ -89,7 +89,7 @@ export class AwacsPanel extends Application {
     }
     const squads = Object.entries(allSquads()).sort(([a], [b]) => a.localeCompare(b, "ru")).map(([name, l]) => {
       const used = squadPoints(l);
-      return { name, tag: l.tag ?? "", talk: !!squadData(name).talk?.length, used, over: used > SQUAD_POINTS, members: (scene?.tokens ?? []).filter(t => t.actor?.type === "npc" && t.actor.system.tier === "duelist" && t.actor.system.squad === name).map(t => t.name).join(", "),
+      return { name, tag: l.tag ?? "", used, over: used > SQUAD_POINTS, members: (scene?.tokens ?? []).filter(t => t.actor?.type === "npc" && t.actor.system.tier === "duelist" && t.actor.system.squad === name).map(t => t.name).join(", "),
         skills: Object.keys(TB.skills).map(k => ({ key: k, value: l[k] ?? 0 })) };
     });
     // в панели только эскадрильи, чьи машины стоят на этой сцене; остальные одной строкой
@@ -170,7 +170,6 @@ export class AwacsPanel extends Application {
     on("[data-squad-form]", () => squadFromSelection());
     on("[data-squad-num]", d => numberSquad(d.squadNum));
     on("[data-squad-talk]", d => openSquadChatter(d.squadTalk));
-    on("[data-squad-say]", d => playSquadTalk(d.squadSay));
     on("[data-squad-del]", async d => {
       if (await Dialog.confirm({ title: "Распустить эскадрилью", content: `<p>Распустить «${esc(d.squadDel)}»? Машины останутся дуэлянтами со своими навыками.</p>` })) deleteSquad(d.squadDel);
     });
