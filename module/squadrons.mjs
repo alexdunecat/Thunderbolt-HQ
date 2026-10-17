@@ -1,13 +1,32 @@
-/* Эскадрильи дуэлянтов: одна раскладка навыков на 4 очка на всю эскадрилью.
-   Раскладки хранятся в настройке мира по названию эскадрильи; у машины в листе только название. */
+/* Эскадрильи дуэлянтов: одна раскладка навыков на всю эскадрилью, 4 очка + 1 за каждую пройденную операцию кампании
+   (хоумрул 9, Alex 17.10). Раскладки хранятся в настройке мира по названию эскадрильи; у машины в листе только название. */
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { esc } from "./utils.mjs";
 
 export const SQUAD_POINTS = 4;
+/** Пройдено операций кампании (настройка мира, ведёт AWACS). */
+export const operationsDone = () => { try { return Math.max(0, Number(game.settings.get(SYSTEM_ID, "operationsDone")) || 0); } catch { return 0; } };
+/** Очков на раскладку эскадрильи сейчас: 4 + пройденные операции. */
+export const squadBudget = () => SQUAD_POINTS + operationsDone();
+/** «5 очков», «4 очка», «1 очко». */
+export function pointsText(n) {
+  const m10 = n % 10, m100 = n % 100;
+  return `${n} ${m10 === 1 && m100 !== 11 ? "очко" : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? "очка" : "очков"}`;
+}
+/** Ведущий: сколько операций пройдено. */
+export const setOperationsDone = n => game.settings.set(SYSTEM_ID, "operationsDone", Math.max(0, Math.floor(Number(n) || 0)));
 const KEYS = Object.keys(TB.skills);
 const blank = () => Object.fromEntries(KEYS.map(k => [k, 0]));
 
 export function registerSquadronSettings() {
+  game.settings.register(SYSTEM_ID, "operationsDone", {
+    name: "Пройдено операций кампании", hint: `Раскладка навыков эскадрилий дуэлянтов (и крупных кораблей-дуэлянтов): ${SQUAD_POINTS} очка + 1 за каждую пройденную операцию. Меняется и в панели AWACS.`,
+    scope: "world", config: true, type: Number, default: 0,
+    onChange: () => {
+      for (const a of npcActors()) if (a.sheet?.rendered) a.sheet.render(false);
+      Hooks.callAll(`${SYSTEM_ID}.squadrons`);
+    }
+  });
   game.settings.register(SYSTEM_ID, "squadrons", {
     scope: "world", config: false, type: Object, default: {},
     onChange: () => {
@@ -71,7 +90,7 @@ export async function squadFromSelection() {
   const names = Object.keys(allSquads());
   const name = await new Promise(resolve => new Dialog({
     title: "Эскадрилья дуэлянтов",
-    content: `<form class="tb-dialog"><p class="tb-hint">Машин выделено: ${tokens.length}. Они станут дуэлянтами с общей раскладкой навыков на ${SQUAD_POINTS} очка.</p>
+    content: `<form class="tb-dialog"><p class="tb-hint">Машин выделено: ${tokens.length}. Они станут дуэлянтами с общей раскладкой навыков на ${pointsText(squadBudget())}.</p>
       <div class="form-group"><label>Название</label><input type="text" name="squad" list="tb-squad-names" value="${esc(tokens[0].actor.system.squad)}" autofocus></div>
       <datalist id="tb-squad-names">${names.map(n => `<option value="${esc(n)}">`).join("")}</datalist></form>`,
     buttons: {

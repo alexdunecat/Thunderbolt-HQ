@@ -16,7 +16,7 @@ import { specialSections, setSectionState } from "../tunnel.mjs";
 import { campaignDate, campaignDateRaw, setCampaignDate, todayDate } from "../campaign-date.mjs";
 import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMarkAt, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
 import { DT } from "../config.mjs";
-import { SQUAD_POINTS, allSquads, squadPoints, squadMembers, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
+import { squadBudget, pointsText, operationsDone, setOperationsDone, allSquads, squadPoints, squadMembers, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
 
 let panel = null;
 let timer = null;
@@ -88,15 +88,16 @@ export class AwacsPanel extends Application {
       // ход идёт сейчас: его карточки среди последних сообщений, весь журнал не перебирать
       queued = game.messages.contents.slice(-300).filter(m => { const c = m.getFlag(SYSTEM_ID, "card"); return c?.delayed && c.combatKey === key && !c.resolved && !c.dmgApplied; }).length;
     }
+    const budget = squadBudget();
     const squads = Object.entries(allSquads()).sort(([a], [b]) => a.localeCompare(b, "ru")).map(([name, l]) => {
       const used = squadPoints(l);
-      return { name, tag: l.tag ?? "", used, over: used > SQUAD_POINTS, members: (scene?.tokens ?? []).filter(t => t.actor?.type === "npc" && t.actor.system.tier === "duelist" && t.actor.system.squad === name).map(t => t.name).join(", "),
+      return { name, tag: l.tag ?? "", used, over: used > budget, members: (scene?.tokens ?? []).filter(t => t.actor?.type === "npc" && t.actor.system.tier === "duelist" && t.actor.system.squad === name).map(t => t.name).join(", "),
         skills: Object.keys(TB.skills).map(k => ({ key: k, value: l[k] ?? 0 })) };
     });
     // в панели только эскадрильи, чьи машины стоят на этой сцене; остальные одной строкой
     const elsewhere = squads.filter(q => !q.members).map(q => q.name).join(", ");
     return {
-      sceneName: scene?.name ?? "сцена не выбрана", pilots, targets, groups, cells, squads: squads.filter(q => q.members), squadsElsewhere: elsewhere, squadBudget: SQUAD_POINTS,
+      sceneName: scene?.name ?? "сцена не выбрана", pilots, targets, groups, cells, squads: squads.filter(q => q.members), squadsElsewhere: elsewhere, squadBudget: budget, squadBudgetText: pointsText(budget), opsDone: operationsDone(),
       skillHeads: Object.values(TB.skills).map(v => ({ label: v.label, en: v.en })),
       weather: Object.entries(TB.weather).map(([id, d]) => ({ id, ...d, on: sceneWeather.has(id) })),
       round: combat?.started ? combat.round : null, queued, campaignDate: campaignDateRaw(), today: todayDate(),
@@ -159,6 +160,7 @@ export class AwacsPanel extends Application {
     on("[data-base-event]", () => baseEvent());
     on("[data-threat-add]", () => addThreat());
     on("[data-boss-add]", () => bossClockDialog());
+    el.querySelector("[data-ops-done]")?.addEventListener("change", ev => setOperationsDone(ev.target.value));
     on("[data-glory-add]", () => gloryDialog());
     on("[data-glory-step]", d => setGlory({ points: gloryView().points + Number(d.gloryStep) }));
     el.querySelectorAll("[data-tun-state]").forEach(n => n.addEventListener("change", () => setSectionState(game.scenes.viewed, n.dataset.tunState, n.value)));

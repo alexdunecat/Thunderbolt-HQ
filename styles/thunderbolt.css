@@ -856,3 +856,6 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-tunnel-states { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 2px 0 6px; }
 .tb-tunnel-states label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .tb-tunnel-states select { width: auto; }
+/* панель AWACS: пройдено операций (растит раскладку дуэлянтов) */
+.tb-ops-done { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; }
+.tb-ops-done input { width: 4em; text-align: center; }

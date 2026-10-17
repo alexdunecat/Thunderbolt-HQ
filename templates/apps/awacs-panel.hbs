@@ -56,6 +56,7 @@
     {{else}}<h3>Цели и машины на сцене</h3><p class="tb-empty">На сцене нет NPC.</p>{{/each}}
 
     <h3>Эскадрильи дуэлянтов <button type="button" class="tb-inline-btn" data-squad-form title="Выделите на сцене токены NPC"><i class="fas fa-users"></i> Собрать из выделенных</button></h3>
+    <label class="tb-ops-done" title="Хоумрул 9: раскладка эскадрильи дуэлянтов — 4 очка + 1 за каждую пройденную операцию кампании. Крупные корабли-дуэлянты растут так же.">Пройдено операций <input type="number" min="0" data-ops-done value="{{opsDone}}"> <small class="tb-muted">→ раскладка на {{squadBudgetText}}</small></label>
     {{#if squads.length}}
     <table class="tb-awacs-table tb-squads">
       <tr><th>Эскадрилья</th>{{#each skillHeads as |h|}}<th title="{{h.label}}">{{h.en}}</th>{{/each}}<th>Очки</th><th></th></tr>
@@ -68,7 +69,7 @@
       </tr>
       {{/each}}
     </table>
-    {{else}}<p class="tb-empty">На этой сцене эскадрилий нет. Выделите токены NPC и нажмите «Собрать из выделенных»: у них будет одна раскладка навыков на {{squadBudget}} очка.</p>{{/if}}
+    {{else}}<p class="tb-empty">На этой сцене эскадрилий нет. Выделите токены NPC и нажмите «Собрать из выделенных»: у них будет одна раскладка навыков на {{squadBudgetText}}.</p>{{/if}}
     {{#if squadsElsewhere}}<p class="tb-small tb-muted">На других сценах: {{squadsElsewhere}}.</p>{{/if}}
 
     <h3>Шкалы боя <button type="button" class="tb-inline-btn" data-boss-add title="Шкала со своим названием и делениями: шаблоны «Аркбёрд», SOLG, ракетная шахта, рейлган, Тревога стелс-миссии. AWACS говорит заготовленные реплики на 50 %, 75 %, 90 % и при заполнении"><i class="fas fa-hourglass-half"></i> Шкала боя</button></h3>

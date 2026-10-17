@@ -4,7 +4,7 @@ import { esc } from "../utils.mjs";
 import { weatherAt, defenseWithWeather, tokenOf, zoneDistance, rangeLabel, gunVs, ceilingOf, ALT_ORDER } from "../scene.mjs";
 import { leadership, formUp, nextMods, dropNext, adjacentOf, breakAdjacent } from "../squad.mjs";
 import { resolveActor } from "../utils.mjs";
-import { SQUAD_POINTS, allSquads, squadLayout, setSquadLayout, squadMembers } from "../squadrons.mjs";
+import { squadBudget, pointsText, allSquads, squadLayout, setSquadLayout, squadMembers } from "../squadrons.mjs";
 import { runAction, ACTIONS, startActionDrag } from "../macros.mjs";
 import { spendAction, actsSummary, allowAction, endTurn } from "../actions.mjs";
 import { openDossierExchange } from "../dossier-sync.mjs";
@@ -564,9 +564,10 @@ export class NpcSheet extends TBActorSheet {
     ctx.isDuelist = s.tier === "duelist" && !ctx.isShip;
     if (ctx.isDuelist) {
       ctx.squadNames = Object.keys(allSquads());
-      ctx.squadBudget = SQUAD_POINTS;
+      ctx.squadBudget = squadBudget();
+      ctx.squadBudgetText = pointsText(ctx.squadBudget);
       ctx.squadCount = s.squad ? Math.max(1, squadMembers(s.squad).length) : 0;
-      ctx.squadOver = s.squadPoints > SQUAD_POINTS;
+      ctx.squadOver = s.squadPoints > ctx.squadBudget;
       ctx.trackerOptions = { face: "лицо", insignia: s.insignia ? "шильдик эскадрильи" : "шильдик (не выбран, будет лицо)" };
     }
     ctx.kindOptions = TB.npcKinds;
