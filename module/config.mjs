@@ -168,6 +168,8 @@ export function footprintOf(sys) {
   if (/стратегическ/i.test(sys.cls ?? "") || sys.key === "b2a") return TB.footprints.strategic;
   // крупные самолёты: транспорт, ДРЛО, патрульные и AC-130
   if (sys.kind === "air" && (sys.grp === "support" || ["ac130", "widebody", "cargojet"].includes(sys.key))) return TB.footprints.large;
+  // «Анура» и «Арсион» компактнее остальных летающих крейсеров
+  if (["anura", "arcion"].includes(sys.key)) return TB.footprints.large;
   if (props.includes("aerialship")) return TB.footprints.aerialCruiser;
   if (props.includes("superdive")) return TB.footprints.superSub;
   if (sys.kind === "ground" && TB.longVehicles.includes(sys.key)) return TB.footprints.longVehicle;
