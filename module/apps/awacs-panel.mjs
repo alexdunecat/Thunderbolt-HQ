@@ -17,6 +17,7 @@ import { campaignDate, campaignDateRaw, setCampaignDate, todayDate } from "../ca
 import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMarkAt, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
 import { DT } from "../config.mjs";
 import { squadBudget, pointsText, operationsDone, setOperationsDone, allSquads, squadPoints, squadMembers, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
+import { markStrike, cancelStrike, strikesOfCombat, strikeWhere } from "../strikes.mjs";
 
 let panel = null;
 let timer = null;
@@ -104,6 +105,7 @@ export class AwacsPanel extends Application {
       glory: (() => { const g = gloryView(); return { ...g, pct: g.nextAt !== null ? Math.round(100 * g.points / g.nextAt) : 100,
         recent: (g.log ?? []).slice(-3).reverse().map(x => `${x.date} · ${x.op}: ${x.total >= 0 ? "+" : "−"}${Math.abs(x.total)}`) }; })(),
       tunnel: specialSections(scene),
+      strikes: strikesOfCombat(combat).map(s => ({ ...s, where: strikeWhere(s), when: s.round === combat.round ? "в конце раунда" : `в конце раунда ${s.round}` })),
       threats: threats().filter(t => t.kind !== "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size })),
       bossClocks: threats().filter(t => t.kind === "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size,
         pct: Math.round(100 * t.value / t.size),
@@ -160,6 +162,9 @@ export class AwacsPanel extends Application {
     on("[data-base-event]", () => baseEvent());
     on("[data-threat-add]", () => addThreat());
     on("[data-boss-add]", () => bossClockDialog());
+    on("[data-strike-add]", () => markStrike());
+    on("[data-strike-edit]", d => { const s = strikesOfCombat(game.combat).find(x => x.id === d.strikeEdit); if (s) markStrike(s); });
+    on("[data-strike-del]", d => cancelStrike(d.strikeDel));
     el.querySelector("[data-ops-done]")?.addEventListener("change", ev => setOperationsDone(ev.target.value));
     on("[data-glory-add]", () => gloryDialog());
     on("[data-glory-step]", d => setGlory({ points: gloryView().points + Number(d.gloryStep) }));

@@ -8,6 +8,7 @@ import { pickTargetToken, selectTarget } from "../pick.mjs";
 import { allowRoll } from "../actions.mjs";
 import { aimedWeapon } from "../range.mjs";
 import { renderGround, renderBreakdown, resolveButton, groundAction, checkBreakdown, practiceFor } from "../downtime.mjs";
+import { strikeShip } from "../strikes.mjs";
 
 const sign = n => (n >= 0 ? "+" : "−") + Math.abs(n);
 /** Strain могут тратить пилоты и асы-NPC. */
@@ -898,7 +899,7 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
 }
 
 /** Нанести урон попадания (залп или пушка); пилоту — сигнал. */
-async function hitTarget(r, roundKey) {
+export async function hitTarget(r, roundKey) {
   const target = resolveActor(r.uuid);
   if (!target?.isOwner) return;
   if (target.type === "pilot" && !game.user.isGM) {
@@ -1038,6 +1039,7 @@ export async function onCardAction(message, action, button) {
       if (game.user.isGM) game.thunderbolt.sortieResults();
       return;
     }
+    case "strike-ship": return strikeShip(message, button.dataset.uuid);
     case "volley-damage": {
       if (!game.user.isGM || card.applied) return;
       card.applied = true;

@@ -886,3 +886,9 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-cr-dj textarea { width: 100%; min-height: 120px; resize: vertical; }
 .tb-cr-dj .tb-scope button.active { background: var(--tb-accent); border-color: var(--tb-accent); color: var(--tb-accent-ink); }
 .tb-cr-dj .tb-hint { margin: 2px 0; }
+
+/* Удары по площади в панели AWACS */
+.tb-strikes { display: flex; flex-direction: column; gap: 4px; }
+.tb-strike { display: flex; align-items: center; gap: 8px; }
+.tb-strike .tb-strike-name { flex: 1; min-width: 0; }
+.tb-strike small { opacity: 0.8; }

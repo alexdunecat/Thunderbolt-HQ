@@ -89,6 +89,19 @@
     </div>
     {{else}}<p class="tb-small tb-muted">Шкал боя нет. «Шкала боя» заводит сброс «Аркбёрда», падение SOLG, пуск из шахты, заряд рейлгана, Тревогу стелс-миссии или свою шкалу, с репликами AWACS на отметках.</p>{{/if}}
 
+    <h3>Удары по площади <button type="button" class="tb-inline-btn" data-strike-add title="Супероружие и навесной огонь: в начале раунда отметить зоны и высоту на карте, в конце раунда урон всем, кто не ушёл"><i class="fas fa-crosshairs"></i> Отметить удар</button></h3>
+    {{#if strikes.length}}
+    <div class="tb-strikes">
+      {{#each strikes as |s|}}
+      <div class="tb-strike">
+        <span class="tb-strike-name"><b>{{s.label}}</b> <small>{{s.where}} · {{s.when}}</small></span>
+        <a data-strike-edit="{{s.id}}" title="Поправить зоны: снять сбитую ракету или перенести"><i class="fas fa-border-all"></i></a>
+        <a data-strike-del="{{s.id}}" title="Отменить удар"><i class="fas fa-trash"></i></a>
+      </div>
+      {{/each}}
+    </div>
+    {{else}}<p class="tb-small tb-muted">Ударов нет. «Отметить удар»: рельсотроны Арсиона, рельсотронный залп, шрапнельные ракеты, лазер «Аркбёрда», SOLG, навесной огонь, взрыв реактора или свой удар. Зоны видны всем на карте, урон в конце раунда сам.</p>{{/if}}
+
     {{#if tunnel.length}}
     <h3>Туннель</h3>
     <div class="tb-tunnel-states">
