@@ -55,23 +55,24 @@ function clampSpeed(actor) {
   if (max > 0 && (actor.system.speed ?? 0) > max) actor.update({ "system.speed": max }, { tbFree: true });
 }
 
-function applySkin(skin) {
-  document.body.dataset.tbSkin = TB.skins[skin] ? skin : "brief";
+/** Оформление одно — «Брифинг» (с 0.5.31 другие темы убраны). */
+function applySkin() {
+  document.body.dataset.tbSkin = "brief";
   applyDarkUi();
   for (const app of Object.values(ui.windows)) if (app.options?.classes?.includes("thunderbolt")) app.render(false);
 }
 
-/** Тёмные окна Foundry: при тёмном скине («Брифинг», «ОС AC5») стандартные окна тоже тёмные, если клиент не выключил. */
+/** Тёмные окна Foundry: стандартные окна тоже в тёмных цветах «Брифинга», если клиент не выключил. */
 function applyDarkUi() {
   let on = true;
   try { on = game.settings.get(SYSTEM_ID, "darkUi"); } catch {}
-  document.body.classList?.toggle("tb-dark-ui", on && ["brief", "ac5"].includes(document.body.dataset.tbSkin));
+  document.body.classList?.toggle("tb-dark-ui", on);
   let hud = true;
   try { hud = game.settings.get(SYSTEM_ID, "briefUi"); } catch {}
   const brief = hud && document.body.dataset.tbSkin === "brief";
   document.body.classList?.toggle("tb-brief-ui", brief);
   // подписи, рамки и прицел на холсте: при переключении холст перерисовывается
-  if (applyCanvasStyle(brief) && canvas?.ready) canvas.draw();
+  if (applyCanvasStyle(brief) && globalThis.canvas?.ready) canvas.draw();
   mirrorPopouts();
 }
 
@@ -79,9 +80,10 @@ function applyDarkUi() {
 Hooks.once("setup", () => {
   for (const f of ['16px "Jura"', '16px "JetBrains Mono"']) document.fonts?.load(f, "АБВ abc 123").catch(() => null);
   // стиль холста ставится до первой отрисовки сцены (сам интерфейс — на ready, в applySkin)
-  let skin = "brief", hud = true;
-  try { skin = game.settings.get(SYSTEM_ID, "skin"); hud = game.settings.get(SYSTEM_ID, "briefUi"); } catch {}
-  applyCanvasStyle(hud && skin === "brief");
+  document.body.dataset.tbSkin = "brief";
+  let hud = true;
+  try { hud = game.settings.get(SYSTEM_ID, "briefUi"); } catch {}
+  applyCanvasStyle(hud);
   patchTargetReticle();
 });
 
@@ -110,20 +112,14 @@ Hooks.once("init", () => {
   Items.registerSheet(SYSTEM_ID, TBItemSheet, { makeDefault: true, label: "Карточка" });
   DocumentSheetConfig.registerSheet(JournalEntry, SYSTEM_ID, TBMemoSheet, { makeDefault: false, label: "Памятка пилота (оформление Штаба)" });
 
-  game.settings.register(SYSTEM_ID, "skin", {
-    name: "TB.SkinName", hint: "TB.SkinHint", scope: "client", config: true, type: String,
-    choices: TB.skins, default: "brief", onChange: applySkin
-  });
-  // с 0.4.29 оформление по умолчанию — «Брифинг»: один раз переключить и тех, у кого было сохранено прежнее
   game.settings.register(SYSTEM_ID, "darkUi", {
-    name: "Тёмные окна Foundry", hint: "При тёмном оформлении («Брифинг», «ОС AC5») стандартные окна Foundry (настройки, журналы, диалоги других модулей) тоже тёмные, а не на светлом пергаменте.",
+    name: "Тёмные окна Foundry", hint: "Стандартные окна Foundry (настройки, журналы, диалоги других модулей) тоже тёмные, а не на светлом пергаменте.",
     scope: "client", config: true, type: Boolean, default: true, onChange: () => applyDarkUi()
   });
   game.settings.register(SYSTEM_ID, "briefUi", {
-    name: "Интерфейс Foundry в стиле «Брифинга»", hint: "При оформлении «Брифинг» инструменты сцены, игроки, панель макросов, боковая панель, навигация сцен, заголовки окон, подсказки, меню и уведомления Foundry тоже в его цветах и шрифтах, а вместо наковальни — эмблема.",
+    name: "Интерфейс Foundry в стиле «Брифинга»", hint: "Инструменты сцены, игроки, панель макросов, боковая панель, навигация сцен, заголовки окон, подсказки, меню и уведомления Foundry тоже в его цветах и шрифтах, а вместо наковальни — эмблема.",
     scope: "client", config: true, type: Boolean, default: true, onChange: () => applyDarkUi()
   });
-  game.settings.register(SYSTEM_ID, "skinBrief", { scope: "client", config: false, type: Boolean, default: false });
   // шрифты «Брифинга» лежат в системе (assets/fonts): их видят и надписи на карте
   Object.assign(CONFIG.fontDefinitions, { "Jura": { editor: true, fonts: [] }, "JetBrains Mono": { editor: true, fonts: [] } });
   registerTokenSettings();
@@ -162,11 +158,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", async () => {
-  if (!game.settings.get(SYSTEM_ID, "skinBrief")) {
-    await game.settings.set(SYSTEM_ID, "skin", "brief");
-    await game.settings.set(SYSTEM_ID, "skinBrief", true);
-  }
-  applySkin(game.settings.get(SYSTEM_ID, "skin"));
+  applySkin();
   // пилоты, созданные до автоматики триггеров: подтянуть HP и Strain к новым максимумам
   initSocket();
   R.initHitSocket();

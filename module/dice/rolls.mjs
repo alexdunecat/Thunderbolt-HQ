@@ -2,7 +2,7 @@
 import { SYSTEM_ID, TB } from "../config.mjs";
 import { esc, resolveActor } from "../utils.mjs";
 import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, stratLift, isAirTarget, inNarrowTunnel, wallBonus, zoneDistance, rangeLabel, isFlying, struckBy, gunVs } from "../scene.mjs";
-import { alarmRows, raiseAlarm, surprise, quietAA } from "../stealth.mjs";
+import { alarmRows, raiseAlarm, surprise, quietAA, markVolley } from "../stealth.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
 import { allowRoll } from "../actions.mjs";
@@ -890,7 +890,10 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
   const auto = targets.some(r => r.hit);
   const card = { type: "volley", round, roundKey: key, atTurnOf, targets, applied: auto, auto };
   const msg = await ChatMessage.create({ speaker: { alias: "AWACS" }, content: renderVolley(card), flags: { [SYSTEM_ID]: { card } } });
-  for (const r of targets.filter(x => x.hit && x.by === game.user.id)) await hitTarget(r, key);
+  // сбитые залпом сбиты в раунде залпа, хотя он считается уже на смене раунда (для Тревоги от уничтоженной РЛС)
+  markVolley(round);
+  try { for (const r of targets.filter(x => x.hit && x.by === game.user.id)) await hitTarget(r, key); }
+  finally { markVolley(null); }
   return msg;
 }
 

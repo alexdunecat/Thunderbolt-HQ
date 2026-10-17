@@ -52,7 +52,6 @@ class TBActorSheet extends ActorSheet {
     const a = this.actor, s = a.system;
     ctx.system = s;
     ctx.TB = TB;
-    ctx.skin = game.settings.get(SYSTEM_ID, "skin");
     ctx.skills = Object.entries(TB.skills).map(([k, v]) => ({
       key: k, ...v, value: s.skills[k], total: s.skillTotal[k], mod: s.skillMod?.[k] ?? 0, blocked: s.skillBlocked[k],
       perk3: (s.perkOn?.[k] ?? 4) < 4, comp2: (s.compOn?.[k] ?? 1) > 1
@@ -87,7 +86,7 @@ class TBActorSheet extends ActorSheet {
   activateListeners(html) {
     super.activateListeners(html);
     const el = html[0];
-    el.closest(".app")?.setAttribute("data-tb-skin", game.settings.get(SYSTEM_ID, "skin"));
+    el.closest(".app")?.setAttribute("data-tb-skin", "brief");
     // полный рост смотрят и те, кому лист только виден
     const a = this.actor;
     el.querySelectorAll("[data-art-show]").forEach(n => n.addEventListener("click", ev => {
@@ -664,7 +663,7 @@ export class StaffSheet extends TBActorSheet {
     const ctx = await ActorSheet.prototype.getData.call(this, options);
     const a = this.actor, s = a.system;
     Object.assign(ctx, {
-      system: s, TB, isGM: game.user.isGM, skin: game.settings.get(SYSTEM_ID, "skin"),
+      system: s, TB, isGM: game.user.isGM,
       skills: Object.entries(TB.skills).map(([k, v]) => ({ key: k, ...v, value: s.skills[k], total: s.skillTotal[k] })),
       isConscript: s.tier === "conscript", isAce: s.tier === "ace",
       roleOptions: TB.staffRoles, tierOptions: TB.tiers, statusOptions: TB.staffStatus,

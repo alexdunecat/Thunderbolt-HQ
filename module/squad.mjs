@@ -105,8 +105,12 @@ export async function leadership(actor) {
   const chosen = await pickDialog("Leadership: совет или приказ", `Кто послушал, прибавит ваш Lead (+${lead}) к следующему броску. Подходит и для «Сомкнуть строй».`, rows, "Приказать");
   if (!chosen?.length) return;
   for (const r of chosen) await giveNext(r.actor, { label: `Lead ${actor.name}`, value: lead });
+  // для Тревоги: приказ только соседям вплотную в эфир не выходит
+  const c = game.combat;
+  const quiet = chosen.every(r => adj.has(r.actor.uuid));
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
+    flags: { [SYSTEM_ID]: { lead: { actorUuid: actor.uuid, combat: c?.id ?? null, round: c?.round ?? null, quiet } } },
     content: `<div class="tb-card tb-card-lead"><header class="tb-card-head"><span class="tb-card-who">${esc(actor.name)}</span><span class="tb-card-what">Leadership</span></header><div class="tb-note">${chosen.map(r => `<b>${esc(r.actor.name)}</b>`).join(", ")}: +${lead} к следующему броску.</div></div>`
   });
 }

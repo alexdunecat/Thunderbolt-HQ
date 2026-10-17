@@ -264,7 +264,18 @@ export function landBlocked(doc, to) {
 /* ---------- туннели (секции из Планшета: флаг сцены tunnelCells, "col,row" → { type, n }) ---------- */
 const TSIDE = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
-/** Секция туннеля в клетке: { type, n, col, row } или null. */
+/**
+ * Состояние особых секций (поле state у секции): Ворота «open» (по умолчанию), «closed» (закрыты, не пролететь),
+ * «broken» (разбиты, пролёт свободен); Препятствие «up» (по умолчанию, +2 к пролёту) или «cleared» (уничтожено).
+ */
+export const GATE_STATES = { open: "открыты", closed: "закрыты", broken: "разбиты" };
+export const OBSTACLE_STATES = { up: "на месте", cleared: "уничтожено" };
+/** Закрытые Ворота: дальше не пролететь. */
+export const sectionBlocked = s => s?.type === "gate" && s.state === "closed";
+/** Секция трудная для пролёта (+2): Узость или неуничтоженное Препятствие. */
+export const sectionHard = s => s?.type === "narrow" || (s?.type === "obstacle" && s.state !== "cleared");
+
+/** Секция туннеля в клетке: { type, n, col, row, state? } или null. */
 export function sectionAt(scene, col, row) {
   const s = scene?.getFlag?.(SYSTEM_ID, "tunnelCells")?.[`${col},${row}`];
   return s ? { ...s, col, row } : null;
@@ -320,6 +331,7 @@ export function tunnelMoveProblem(doc, to) {
   const token = doc.object ?? { document: doc, actor: doc.actor };
   const alt = altOf(token, doc.actor);
   const from = sectionAt(scene, fc, fr), dest = sectionAt(scene, tc, tr);
+  if (sectionBlocked(dest) && alt === "low") return `${doc.name}: Ворота Т${dest.n} закрыты, пролёт только сквозь разбитые.`;
   const inside = from && (alt === "low" || (from.type === "hall" && alt === "med" && !!doc.getFlag?.(SYSTEM_ID, "tunnelIn")));
   if (!inside) {
     // внутрь по Низкой: только в крайнюю секцию (вход с любого конца); Зал открыт; в Шахту только Dive сверху

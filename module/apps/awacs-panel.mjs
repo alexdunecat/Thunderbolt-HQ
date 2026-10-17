@@ -12,6 +12,7 @@ import { openMissionDialog } from "../mission.mjs";
 import { openAceIntro } from "../aces.mjs";
 import { openBriefing } from "../briefing.mjs";
 import { openDossierExchange } from "../dossier-sync.mjs";
+import { specialSections, setSectionState } from "../tunnel.mjs";
 import { campaignDate, campaignDateRaw, setCampaignDate, todayDate } from "../campaign-date.mjs";
 import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMarkAt, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
 import { DT } from "../config.mjs";
@@ -101,6 +102,7 @@ export class AwacsPanel extends Application {
       round: combat?.started ? combat.round : null, queued, campaignDate: campaignDateRaw(), today: todayDate(),
       glory: (() => { const g = gloryView(); return { ...g, pct: g.nextAt !== null ? Math.round(100 * g.points / g.nextAt) : 100,
         recent: (g.log ?? []).slice(-3).reverse().map(x => `${x.date} · ${x.op}: ${x.total >= 0 ? "+" : "−"}${Math.abs(x.total)}`) }; })(),
+      tunnel: specialSections(scene),
       threats: threats().filter(t => t.kind !== "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size })),
       bossClocks: threats().filter(t => t.kind === "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size,
         pct: Math.round(100 * t.value / t.size),
@@ -159,6 +161,7 @@ export class AwacsPanel extends Application {
     on("[data-boss-add]", () => bossClockDialog());
     on("[data-glory-add]", () => gloryDialog());
     on("[data-glory-step]", d => setGlory({ points: gloryView().points + Number(d.gloryStep) }));
+    el.querySelectorAll("[data-tun-state]").forEach(n => n.addEventListener("change", () => setSectionState(game.scenes.viewed, n.dataset.tunState, n.value)));
     el.querySelector("[data-glory-nick]")?.addEventListener("change", ev => setGlory({ nickname: ev.target.value.trim() }));
     on("[data-boss-edit]", d => { const t = threats().find(x => x.id === d.bossEdit); if (t) bossClockDialog(t); });
     on("[data-threat-step]", d => stepThreat(d.threatStep, Number(d.delta)));

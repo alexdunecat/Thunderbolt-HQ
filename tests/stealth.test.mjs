@@ -71,6 +71,11 @@ const check = async (p, list) => { acts = list; const m = await S.alarmCheck(p, 
 console.log(await check(cases[0], ["Fox Two!", "Move"]));
 console.log(await check(cases[1], ["Move"]));
 console.log(await check(cases[2], ["Leadership"]));
+// Leadership только соседу вплотную в эфир не выходит
+cases[2].parent = { id: "c1" };
+game.messages.contents = [{ getFlag: (_s, k) => (k === "lead" ? { actorUuid: cases[2].actor.uuid, combat: "c1", round: 2, quiet: true } : null) }];
+console.log("lead adjacent only:", await check(cases[2], ["Leadership"]));
+game.messages.contents = [];
 console.log(await check(cases[4], []));
 console.log(await check(cases[5], []));
 // внезапность: первая атака своих по врагу, пока Тревоги нет
@@ -85,6 +90,13 @@ console.log("quiet AA:", ["С-300", "ПЗРК", "РЛС", "А-50"].map(n => `${n
 // карточки
 console.log("side fail:", strip(renderCard({ type: "side", label: "Тревога: Dodge против 7", rolled: true, d10: 3, d4: 2, parts: [["Уклонение", 1]], dc: 7, onFail: "alarm", notes: [], actorName: "Пилот" })));
 console.log("side dmg:", strip(renderCard({ type: "side", label: "Пролёт", rolled: true, d10: 2, d4: 2, parts: [], dc: 6, failDmg: 3, notes: [], actorName: "Пилот" })));
+// уничтоженная РЛС: её молчание замечают в конце следующего раунда
+const flags = { radarDown: [{ uuid: "Actor.РЛС", name: "РЛС-1", round: 3 }] };
+const combat = { getFlag: (_s, k) => flags[k], setFlag: async (_s, k, v) => { flags[k] = v; } };
+await S.radarSilence(combat, 3);
+console.log("end of round 3:", store.threats[0].value, JSON.stringify(flags.radarDown));
+await S.radarSilence(combat, 4);
+console.log("end of round 4:", store.threats[0].value, JSON.stringify(flags.radarDown));
 store.threats[0].value = 6;
 console.log("full:", S.alarmActive(), S.surprise(cases[0].actor, enemy), S.quietAA(scene.tokens[2].actor));
 for (const l of log) console.log(l);

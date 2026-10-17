@@ -22,10 +22,42 @@ export function registerStealth() {
   });
   for (const ev of ["createToken", "updateToken", "deleteToken", "updateActor", "canvasReady", "updateSetting", "createActiveEffect", "deleteActiveEffect"])
     Hooks.on(ev, refreshSoon);
-  // конец хода пилота: что могло поднять Тревогу
+  // конец хода пилота: что могло поднять Тревогу; конец раунда: молчание уничтоженной РЛС
   Hooks.on("updateCombat", (combat, change, options) => {
     const prev = endedTurn(combat, change, options);
     if (prev) alarmCheck(prev, combat.previous.round).catch(err => console.error(`${SYSTEM_ID} | Тревога`, err));
+    if (game.users.activeGM?.isSelf && "round" in change && options?.direction === 1 && change.round >= 2)
+      radarSilence(combat, change.round - 1).catch(err => console.error(`${SYSTEM_ID} | Тревога: РЛС`, err));
+  });
+  // РЛС врага уничтожена во время стелс-части: запомнить раунд (токен потом уходит с поля)
+  Hooks.on("updateActor", (actor, change) => {
+    const down = foundry.utils.getProperty(change, `flags.${SYSTEM_ID}.down`);
+    if (!down?.combat || !game.users.activeGM?.isSelf || actor.type !== "npc" || !isStation(actor) || sideOf(actor) !== "enemy" || !alarmActive()) return;
+    const combat = game.combats?.get(down.combat);
+    if (!combat) return;
+    const list = (combat.getFlag(SYSTEM_ID, "radarDown") ?? []).filter(x => x.uuid !== actor.uuid);
+    list.push({ uuid: actor.uuid, name: actor.token?.name ?? actor.name, round: volleyRound ?? down.round });
+    combat.setFlag(SYSTEM_ID, "radarDown", list);
+  });
+}
+
+let volleyRound = null;
+/** Идёт урон залпа раунда r (null — закончился): уничтоженное им уничтожено в раунде r. */
+export const markVolley = r => { volleyRound = r; };
+
+/** Конец раунда ended: уничтоженных раундом раньше РЛС хватились — Тревога +1 за каждую. */
+export async function radarSilence(combat, ended) {
+  const list = combat.getFlag(SYSTEM_ID, "radarDown") ?? [];
+  if (!list.length) return;
+  const due = list.filter(x => x.round <= ended - 1), rest = list.filter(x => x.round > ended - 1);
+  await combat.setFlag(SYSTEM_ID, "radarDown", rest);
+  if (!due.length || !alarmActive()) return;
+  await raiseAlarm(due.length);
+  const a = alarmClock();
+  return ChatMessage.create({
+    content: `<div class="tb-card tb-card-alarm"><header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">Тревога: конец раунда ${ended}</span></header>`
+      + due.map(x => `<div class="tb-note">Молчание уничтоженной РЛС «${esc(x.name)}» заметили: <b>+1</b></div>`).join("")
+      + (a ? `<div class="tb-note">${esc(a.name)} ${a.value}/${a.size}</div>` : "") + `</div>`
   });
 }
 
@@ -144,6 +176,13 @@ function actsOf(c, round) {
   return s?.round === round ? s.list ?? [] : [];
 }
 
+/** Был ли за ход Leadership не только соседям вплотную (по карточкам приказов; без отметки — считается шумным). */
+function loudLead(actor, combat, round) {
+  const mine = (game.messages?.contents ?? []).map(m => m.getFlag?.(SYSTEM_ID, "lead"))
+    .filter(l => l?.actorUuid === actor.uuid && l.combat === combat?.id && l.round === round);
+  return !mine.length || mine.some(l => !l.quiet);
+}
+
 /** Конец хода пилота во время стелс-части: карточка с тем, что поднимает Тревогу. */
 export async function alarmCheck(c, round) {
   const actor = c.actor, token = c.token?.object;
@@ -163,7 +202,7 @@ export async function alarmCheck(c, round) {
   const acts = actsOf(c, round);
   if (acts.some(x => x.startsWith("Fox Two!"))) { add += 1; rows.push(["Пуск ракеты или сброс бомбы", 1]); }
   if (alt === "low" && (actor.system.speed ?? 0) >= 4) { add += 1; rows.push([`Speed ${actor.system.speed} на Низкой: звуковой удар`, 1]); }
-  if (acts.some(x => x.startsWith("Leadership"))) { add += 1; rows.push(["Leadership в эфире (не в счёт, если сосед рядом)", 1]); }
+  if (acts.some(x => x.startsWith("Leadership")) && loudLead(actor, c.parent, round)) { add += 1; rows.push(["Leadership в эфире не только соседу вплотную", 1]); }
   if (!rows.length && !dodge.length) return null;
   const { postCard } = await import("./dice/rolls.mjs");
   const a = alarmClock();

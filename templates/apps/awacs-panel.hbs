@@ -88,6 +88,16 @@
     </div>
     {{else}}<p class="tb-small tb-muted">Шкал боя нет. «Шкала боя» заводит сброс «Аркбёрда», падение SOLG, пуск из шахты, заряд рейлгана, Тревогу стелс-миссии или свою шкалу, с репликами AWACS на отметках.</p>{{/if}}
 
+    {{#if tunnel.length}}
+    <h3>Туннель</h3>
+    <div class="tb-tunnel-states">
+      {{#each tunnel as |s|}}
+      <label title="{{#if s.gate}}Закрытые Ворота не пролететь, пока их не разобьют (заслонка с HP и Occlusion 4){{else}}Пока Препятствие на месте, пролёт через него +2 к сложности{{/if}}">Т{{s.n}} {{s.name}}
+        <select data-tun-state="{{s.key}}">{{#each s.states as |o|}}<option value="{{o.k}}" {{#if o.sel}}selected{{/if}}>{{o.v}}</option>{{/each}}</select></label>
+      {{/each}}
+    </div>
+    {{/if}}
+
     <h3>Слава эскадрильи <button type="button" class="tb-inline-btn" data-glory-add title="Начислить Славу по сводке последнего боя на сцене: задачи, рядовые, дуэлянты, асы, Немезида, корабли, супероружие"><i class="fas fa-star"></i> Начислить</button></h3>
     <div class="tb-glory">
       <span class="tb-glory-level lv-{{glory.key}}">{{glory.name}}</span>
