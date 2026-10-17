@@ -49,3 +49,12 @@ warn Гроза: Climb / Dive меняет высоту только на одн
 sheet H->L: false
 stall drop tbFree: undefined
 dead lock: Гроза выбыл из боя: действий нет.
+thunderbolt-shtab | Гроза: move
+thunderbolt-shtab | Гроза: climb
+--- быстро подряд
+move: undefined
+speed: undefined
+climb: undefined
+info Гроза: Move засчитан, действий 2 из 3.
+info Гроза: Climb / Dive засчитан, действий 2 из 3.
+  Ваш ход: действий 2 из 3 · скорость можно сменить заодно | Move, Change Speed (заодно), Climb / Dive

@@ -12,6 +12,7 @@ import { aimedWeapon, toggleAim } from "../range.mjs";
 import { rollGround, chooseEdge, edgeLabel, dropBond, useBond, useEdge, threats, clockPips, stepThreat, bondCap } from "../downtime.mjs";
 import { gloryView } from "../glory.mjs";
 import { openChatterEditor, nameOf, setCallsign } from "../chatter.mjs";
+import { openCivilRadio, RADIO_TRIGGER } from "../civil-radio.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -149,6 +150,7 @@ class TBActorSheet extends ActorSheet {
       const v = Math.max(0, Math.min(max, item.system.ammo.value + Number(d.delta)));
       item.update({ "system.ammo.value": v });
     });
+    on("[data-civil-radio]", () => openCivilRadio());
     on("[data-item-toggle]", d => {
       const item = this.actor.items.get(d.itemToggle);
       item?.update({ "system.used": !item.system.used });
@@ -422,7 +424,8 @@ export class PilotSheet extends TBActorSheet {
       hasToggle: t.system.hasToggle, hasStack: t.system.hasStack, needsWeapon: t.system.needsWeapon,
       toggleHint: TB.toggleHints[t.system.key] ?? "ситуативный бонус",
       fxText: describeChanges(t.system.changes),
-      hasOpts: t.system.skills > 0 || t.system.needsWeapon || t.system.hasToggle || t.system.hasStack
+      hasOpts: t.system.skills > 0 || t.system.needsWeapon || t.system.hasToggle || t.system.hasStack,
+      radio: t.system.key === RADIO_TRIGGER
     }));
     ctx.weaponOpts = weaponOpts;
     ctx.situational = ctx.triggers.filter(t => t.hasToggle || t.hasStack);

@@ -120,3 +120,18 @@ log.push("stall drop tbFree: " + altHook(g, { system: { alt: "med" } }, { tbFree
 g.statuses = new Set(["dead"]);
 log.push("dead lock: " + A.actionProblem(g, "lock"));
 console.log("--- speed\n" + log.join("\n"));
+// быстрые действия подряд, пока запись прошлого ещё летит на сервер: ни одно не теряется
+log.length = 0;
+g.statuses = new Set();
+const slow = cG.setFlag;
+await slow.call(cG, "thunderbolt-shtab", "acts", { round: cb.round, used: 0, rolled: false, freeSpeed: false, list: [] });
+cG.initiative = 3; g.system.alt = "med"; g.system.speed = 3; cb.turn = cb.turns.indexOf(cG); cb.flags["thunderbolt-shtab"].ready = cb.round;
+Object.assign(tokDoc, { x: 0, y: 0, elevation: 2 });
+cG.setFlag = async function (...a) { await wait(40); return slow.apply(this, a); };
+log.push("move: " + pre(tokDoc, { x: 350 }, {})); Object.assign(tokDoc, { x: 350 });
+log.push("speed: " + preA(g, { system: { speed: 4 } }, {})); g.system.speed = 4;
+log.push("climb: " + pre(tokDoc, { elevation: 3 }, {})); Object.assign(tokDoc, { elevation: 3 });
+await wait(300);
+log.push("  " + A.actsSummary(g).label + " | " + A.actsSummary(g).list);
+cG.setFlag = slow;
+console.log("--- быстро подряд\n" + log.join("\n"));

@@ -203,6 +203,7 @@
             <a data-chat-item="{{t.id}}" title="В чат"><b>{{t.name}}</b></a> <small>{{t.en}}</small>
             <span class="tb-tags">{{t.typeText}}</span>
             <label class="tb-check" title="Использован в этом вылете"><input type="checkbox" data-item-toggle="{{t.id}}" {{checked t.used}}> исп.</label>
+            {{#if t.radio}}<a class="tb-icon" data-civil-radio title="Гражданское радио: музыка у всех"><i class="fas fa-radio"></i></a>{{/if}}
             <a class="tb-icon" data-item-edit="{{t.id}}"><i class="fas fa-pen"></i></a>
             <a class="tb-icon" data-item-delete="{{t.id}}"><i class="fas fa-trash"></i></a>
           </div>

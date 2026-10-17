@@ -34,10 +34,16 @@ export function declaredOf(c) {
   return v > PASS ? v - PASS : v;
 }
 
+// своё последнее записанное, пока запись летит на сервер: следующее действие считается уже от него, а не от старого флага.
+// Когда запись дошла, флаг сам свежий и своё больше не нужно.
+const mine = new Map(), writing = new Map();
+
 /** Что сделано за этот ход: { used, rolled, freeSpeed, list }. */
 export function spentOf(c) {
-  const s = c?.getFlag(SYSTEM_ID, "acts");
-  return s?.round === c?.parent?.round ? s : { round: c?.parent?.round, used: 0, rolled: false, freeSpeed: false, list: [] };
+  const round = c?.parent?.round;
+  const fresh = s => (s?.round === round ? s : null);
+  const own = fresh(mine.get(c?.id));
+  return own ?? fresh(c?.getFlag(SYSTEM_ID, "acts")) ?? { round, used: 0, rolled: false, freeSpeed: false, list: [] };
 }
 
 /** Почему действие сейчас нельзя сделать, или null. Вне боя ограничений нет. */
@@ -85,7 +91,13 @@ export async function spendAction(actor, what, { rolled = false, token = null } 
   if (what === "move" || what === "climb") s.freeSpeed = true;
   if (rolled) s.rolled = true;
   s.list.push(free ? `${name} (заодно)` : name);
-  await c.setFlag(SYSTEM_ID, "acts", s);
+  // действия идут быстрее, чем сервер отвечает: считаю сразу у себя, а пишу по очереди, последним состоянием
+  mine.set(c.id, s);
+  const next = (writing.get(c.id) ?? Promise.resolve())
+    .then(() => mine.get(c.id) === s ? c.setFlag(SYSTEM_ID, "acts", s) : null)
+    .finally(() => { if (mine.get(c.id) === s) mine.delete(c.id); });
+  writing.set(c.id, next.catch(() => {}));
+  await next;
 }
 
 /** Строка для листа и трекера: «1 из 2», «бросок был». */
