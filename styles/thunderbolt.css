@@ -878,3 +878,11 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-cr-queue li.cur a { font-weight: bold; }
 .tb-cr-queue li.empty { opacity: 0.7; border: 0; }
 .tb-civil-radio-unlock { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); z-index: 100; width: auto; padding: 6px 14px; }
+.tb-cr-dj { border-top: 1px solid rgba(127, 127, 127, 0.3); padding-top: 6px; }
+.tb-cr-dj summary { cursor: pointer; font-weight: bold; margin-bottom: 6px; }
+.tb-cr-dj .tb-cr-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+.tb-cr-dj .tb-cr-row input[type="text"], .tb-cr-dj .tb-cr-row select { flex: 1; min-width: 0; }
+.tb-cr-dj .tb-cr-row button { flex: 1; }
+.tb-cr-dj textarea { width: 100%; min-height: 120px; resize: vertical; }
+.tb-cr-dj .tb-scope button.active { background: var(--tb-accent); border-color: var(--tb-accent); color: var(--tb-accent-ink); }
+.tb-cr-dj .tb-hint { margin: 2px 0; }

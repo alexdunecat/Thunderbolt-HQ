@@ -4,6 +4,9 @@ https://music.youtube.com/watch?v=dQw4w9WgXcQ&list=PL123abc → {"v":"dQw4w9WgXc
 https://www.youtube.com/playlist?list=PLxyz_9 → {"v":null,"list":"PLxyz_9"}
 https://youtube.com/shorts/dQw4w9WgXcQ → {"v":"dQw4w9WgXcQ","list":null}
 dQw4w9WgXcQ → {"v":"dQw4w9WgXcQ","list":null}
+https://youtu.be/GBMvRzd2eeU?list=RDGBMvRzd2eeU → {"v":"GBMvRzd2eeU","list":null}
+https://www.youtube.com/watch?list=RDGBMvRzd2eeU → {"v":"GBMvRzd2eeU","list":null}
+https://www.youtube.com/watch?v=GBMvRzd2eeU&list=RDMMGBMvRzd2eeU&start_radio=1 → {"v":"GBMvRzd2eeU","list":null}
 https://vimeo.com/123 → null
 привет → null
 add a      cur=0 li=0 играет pos=0.0 a
@@ -21,3 +24,10 @@ remove b   cur=0 li=0 играет pos=0.0 l
 clear      cur=-1 li=0 стоит pos=0.0 
 next пусто cur=-1 li=0 стоит pos=0.0 
 доступ: gm=true p1=true p2=false
+сцена: {"name":"Радио «Волна»","lines":["Своя"],"scope":"scene"}
+общие: {"name":"Радио «Волна»","lines":["Общая: {track}"],"scope":"all"}
+стандарт: default 7 Диджей
+С вами ночная смена. Не выключайте приёмник: дальше «Катюша».
+Сводку новостей прочитаем позже. А пока просто музыка.
+эта песня навсегда
+Б

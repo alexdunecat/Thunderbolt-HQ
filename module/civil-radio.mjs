@@ -4,18 +4,34 @@
    (в кабине стоит гражданское радио). Команда меняет общее состояние (очередь, трек, играет ли и с какой секунды)
    и расходится по сокету; каждый клиент сам подстраивает свой плеер под это состояние по времени сервера.
    Ведущий хранит состояние в настройке мира, чтобы его получили и зашедшие позже.
-   Громкость — ползунок «Музыка» во вкладке плейлистов Foundry, у каждого своя. */
+   Громкость — ползунок «Музыка» во вкладке плейлистов Foundry, у каждого своя.
+   Диджей (только ведущий): когда начинается новый трек, с заданной вероятностью вставляет в эфир реплику субтитрами,
+   как переговоры NPC. Реплики и имя свои у сцены (флаг сцены dj) или общие для всех сцен (настройка мира dj). */
 import { SYSTEM_ID } from "./config.mjs";
 import { esc } from "./utils.mjs";
+import { sendRadio } from "./radio.mjs";
 
 const CHANNEL = `system.${SYSTEM_ID}`;
 export const RADIO_TRIGGER = "outside";
+// {track} — название трека, который сейчас начнётся
+export const DJ_DEFAULT = {
+  name: "Диджей",
+  lines: [
+    "С вами ночная смена. Не выключайте приёмник: дальше {track}.",
+    "Для всех, кто сейчас за штурвалом, где бы вы ни были, звучит {track}.",
+    "Сводку новостей прочитаем позже. А пока просто музыка.",
+    "Нам дозвонились с аэродрома, просят погромче. Делаем погромче!",
+    "Над побережьем ясно, видимость отличная. Самое время для {track}.",
+    "Если вы слышите нас в кабине, держитесь там. Эта песня для вас.",
+    "Говорят, на частоте опять помехи. Не верьте, это мы так звучим. В эфире {track}."
+  ]
+};
 const DRIFT = 2;              // секунд расхождения, после которых плеер перематывается
 const EMPTY = { rev: 0, queue: [], cur: -1, li: 0, playing: false, t0: 0, pos: 0 };
 const YT_ERRORS = { 2: "неверная ссылка", 5: "плеер не смог его воспроизвести", 100: "ролик удалён или скрыт", 101: "автор запретил встраивание", 150: "автор запретил встраивание" };
 
 let state = { ...EMPTY };
-let player = null, playerReady = null, loaded = null, win = null, saveTimer = null, unlock = null, ticker = null;
+let player = null, playerReady = null, loaded = null, win = null, saveTimer = null, unlock = null, ticker = null, djLast = null;
 
 /** Ролик или плейлист из ссылки YouTube (или голый id ролика): { v, list } либо null. */
 export function parseYouTube(text) {
@@ -29,10 +45,16 @@ export function parseYouTube(text) {
   else if (host === "youtube.com" || host === "youtube-nocookie.com") {
     v = u.searchParams.get("v") ?? u.pathname.match(/^\/(?:embed|shorts|live|v)\/([\w-]{11})/)?.[1] ?? null;
   } else return null;
-  const list = u.searchParams.get("list");
+  let list = u.searchParams.get("list");
   if (v && !/^[\w-]{11}$/.test(v)) v = null;
+  if (list && !/^[\w-]+$/.test(list)) list = null;
+  // микс YouTube (list=RD…) собирается под зрителя и во встроенном плеере не играет: беру сам ролик
+  if (list?.startsWith("RD")) {
+    v ??= list.match(/^RD([\w-]{11})$/)?.[1] ?? null;
+    if (v) list = null;
+  }
   if (!v && !list) return null;
-  return { v, list: list && /^[\w-]+$/.test(list) ? list : null };
+  return { v, list };
 }
 
 /** С какой секунды трека сейчас должен звучать звук. */
@@ -119,8 +141,11 @@ function isDriver() {
 
 export function registerCivilRadio() {
   game.settings.register(SYSTEM_ID, "civilRadio", { scope: "world", config: false, type: Object, default: EMPTY });
+  game.settings.register(SYSTEM_ID, "djOn", { scope: "world", config: false, type: Boolean, default: true });
+  game.settings.register(SYSTEM_ID, "djChance", { scope: "world", config: false, type: Number, default: 40 });
+  game.settings.register(SYSTEM_ID, "dj", { scope: "world", config: false, type: Object, default: {} });
   Hooks.once("ready", () => {
-    accept(game.settings.get(SYSTEM_ID, "civilRadio"));
+    accept(game.settings.get(SYSTEM_ID, "civilRadio"), false, true);
     game.socket.on(CHANNEL, msg => {
       if (msg?.type === "civilRadio") {
         if (!canControl(game.users.get(msg.user))) return;
@@ -143,9 +168,11 @@ export function radioCommand(cmd) {
   if (isGM()) persist();
 }
 
-function accept(next, force = false) {
+function accept(next, force = false, quiet = false) {
   if (!next || (!force && (next.rev ?? 0) <= state.rev)) return;
+  const was = trackKey(state);
   state = { ...EMPTY, ...foundry.utils.deepClone(next) };
+  if (!quiet && state.playing && trackKey(state) && trackKey(state) !== was) maybeDj();
   sync();
   if (win?.rendered) win.render(false);
 }
@@ -153,6 +180,44 @@ function accept(next, force = false) {
 function persist() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => game.settings.set(SYSTEM_ID, "civilRadio", state), 500);
+}
+
+const trackKey = s => s.queue[s.cur] ? `${s.queue[s.cur].id}:${s.li}` : null;
+
+/* ---------- диджей ---------- */
+
+const djScene = () => game.scenes?.active ?? globalThis.canvas?.scene ?? null;
+/** Имя и реплики диджея: своей сцены, если заданы, иначе общие, иначе стандартные. */
+export function djConfig(scene = djScene()) {
+  const own = scene?.getFlag?.(SYSTEM_ID, "dj");
+  const all = game.settings.get(SYSTEM_ID, "dj") ?? {};
+  const pick = c => c?.lines?.length ? c : null;
+  const c = pick(own) ?? pick(all) ?? DJ_DEFAULT;
+  return { name: own?.name || all?.name || c.name || DJ_DEFAULT.name, lines: c.lines, scope: pick(own) ? "scene" : pick(all) ? "all" : "default" };
+}
+
+/** Реплика диджея к треку: без {track}, если название неизвестно; не та же, что в прошлый раз. */
+export function djLine(lines, title, last = null, rnd = Math.random) {
+  let pool = title ? lines : lines.filter(l => !l.includes("{track}"));
+  if (!pool.length) pool = lines;
+  if (pool.length > 1) pool = pool.filter(l => l !== last);
+  const line = pool[Math.floor(rnd() * pool.length)];
+  return { raw: line, text: line.replaceAll("{track}", title ? `«${title}»` : "эта песня") };
+}
+
+// говорит только клиент активного ведущего, чтобы реплика прозвучала один раз
+function maybeDj() {
+  if (!game.user?.isGM || !game.users?.activeGM?.isSelf) return;
+  if (!game.settings.get(SYSTEM_ID, "djOn")) return;
+  if (Math.random() * 100 >= game.settings.get(SYSTEM_ID, "djChance")) return;
+  const { name, lines } = djConfig();
+  if (!lines?.length) return;
+  const e = state.queue[state.cur];
+  const title = e?.list ? null : e?.title;
+  const { raw, text } = djLine(lines, title, djLast);
+  djLast = raw;
+  // пусть трек начнётся, потом голос
+  setTimeout(() => sendRadio({ speaker: name, text, side: "neutral" }), 2500);
 }
 
 /* ---------- плеер YouTube ---------- */
@@ -328,11 +393,28 @@ class CivilRadio extends Application {
       <form class="tb-cr-add"><input type="text" name="url" placeholder="Ссылка на ролик или плейлист YouTube" autocomplete="off">
         <button type="submit" title="В конец очереди"><i class="fas fa-plus"></i></button>
         <button type="button" data-now title="Играть сейчас"><i class="fas fa-play"></i></button></form>` : "";
-    const hint = can
-      ? "Звучит у всех за столом, видео не видно. Громкость — ползунок «Музыка» во вкладке плейлистов, у каждого своя."
-      : "Включают ведущий и пилоты с триггером «Внешний мир». Громкость — ползунок «Музыка» во вкладке плейлистов.";
     return $(`<div class="tb-cr-body"><div class="tb-cr-now">${now}</div>${controls}
-      <ol class="tb-cr-queue">${rows || `<li class="empty">Очередь пуста.</li>`}</ol><p class="tb-hint">${hint}</p></div>`);
+      <ol class="tb-cr-queue">${rows || `<li class="empty">Очередь пуста.</li>`}</ol>${isGM() ? this.#djPanel() : ""}</div>`);
+  }
+
+  // только ведущему: диджей
+  #djPanel() {
+    const scene = djScene(), c = djConfig(scene);
+    this.djScope ??= c.scope === "all" || !scene ? "all" : "scene";
+    const scope = scene ? this.djScope : "all";
+    const shown = scope === "scene" ? djConfig(scene) : djConfig(null);
+    const chance = game.settings.get(SYSTEM_ID, "djChance");
+    const where = { scene: "своя у этой сцены", all: "общая для всех сцен", default: "стандартная" }[c.scope];
+    return `<details class="tb-cr-dj" ${this.djOpen ? "open" : ""}><summary>Диджей</summary>
+      <label class="tb-cr-row"><input type="checkbox" data-dj-on ${game.settings.get(SYSTEM_ID, "djOn") ? "checked" : ""}> Вставляет реплики в эфир, когда начинается трек</label>
+      <label class="tb-cr-row">Как часто <select data-dj-chance>${[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(n => `<option value="${n}" ${n === chance ? "selected" : ""}>${n}%</option>`).join("")}</select></label>
+      <div class="tb-cr-row tb-scope">Реплики: ${scene ? `<button type="button" data-dj-scope="scene" class="${scope === "scene" ? "active" : ""}">Сцена «${esc(scene.name)}»</button>` : ""}<button type="button" data-dj-scope="all" class="${scope === "all" ? "active" : ""}">Все сцены</button></div>
+      <p class="tb-hint">Сейчас звучит: ${where}.</p>
+      <label class="tb-cr-row">Имя в эфире <input type="text" data-dj-name value="${esc(shown.name)}"></label>
+      <textarea data-dj-lines rows="7" placeholder="По реплике на строку">${esc(shown.lines.join("\n"))}</textarea>
+      <p class="tb-hint">По реплике на строку. {track} — название трека.</p>
+      <div class="tb-cr-row"><button type="button" data-dj-save><i class="fas fa-floppy-disk"></i> Сохранить</button><button type="button" data-dj-reset><i class="fas fa-rotate-left"></i> ${scope === "scene" ? "Как у всех сцен" : "Стандартные"}</button></div>
+    </details>`;
   }
 
   activateListeners(html) {
@@ -350,6 +432,27 @@ class CivilRadio extends Application {
       radioCommand({ op: "add", entry, now: playNow });
     };
     form?.addEventListener("submit", ev => { ev.preventDefault(); add(false); });
+    const dj = root.querySelector(".tb-cr-dj");
+    if (!dj) return;
+    dj.addEventListener("toggle", () => { this.djOpen = dj.open; });
+    dj.querySelector("[data-dj-on]").addEventListener("change", ev => game.settings.set(SYSTEM_ID, "djOn", ev.target.checked));
+    dj.querySelector("[data-dj-chance]").addEventListener("change", ev => game.settings.set(SYSTEM_ID, "djChance", Number(ev.target.value)));
+    dj.querySelectorAll("[data-dj-scope]").forEach(b => b.addEventListener("click", () => { this.djScope = b.dataset.djScope; this.render(false); }));
+    const scene = djScene(), toScene = this.djScope === "scene" && scene;
+    dj.querySelector("[data-dj-save]").addEventListener("click", async () => {
+      const name = dj.querySelector("[data-dj-name]").value.trim();
+      const lines = dj.querySelector("[data-dj-lines]").value.split("\n").map(l => l.trim()).filter(Boolean);
+      const val = { name: name || DJ_DEFAULT.name, lines };
+      if (toScene) await scene.setFlag(SYSTEM_ID, "dj", val);
+      else await game.settings.set(SYSTEM_ID, "dj", val);
+      ui.notifications.info(`Диджей: реплики сохранены (${toScene ? `сцена «${scene.name}»` : "все сцены"}).`);
+      this.render(false);
+    });
+    dj.querySelector("[data-dj-reset]").addEventListener("click", async () => {
+      if (toScene) await scene.unsetFlag(SYSTEM_ID, "dj");
+      else await game.settings.set(SYSTEM_ID, "dj", {});
+      this.render(false);
+    });
     root.querySelector("[data-now]")?.addEventListener("click", () => add(true));
   }
 }

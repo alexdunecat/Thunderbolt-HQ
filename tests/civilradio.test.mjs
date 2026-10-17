@@ -5,11 +5,13 @@ globalThis.Hooks = { on() {}, once() {} };
 globalThis.foundry = { utils: { mergeObject: Object.assign, deepClone: o => JSON.parse(JSON.stringify(o)) } };
 const pilot = (key, owner) => ({ type: "pilot", items: [{ type: "trigger", system: { key } }], testUserPermission: u => u.id === owner });
 const actors = [pilot("outside", "p1"), pilot("ace", "p2")];
-globalThis.game = { actors: { filter: f => actors.filter(f) } };
+const settings = { dj: { name: "Радио «Волна»", lines: ["Общая: {track}"] } };
+globalThis.game = { actors: { filter: f => actors.filter(f) }, settings: { get: (ns, k) => settings[k] ?? {} } };
 const R = await import(`${root}/module/civil-radio.mjs`);
 
 for (const s of ["https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42", "youtu.be/dQw4w9WgXcQ?si=x", "https://music.youtube.com/watch?v=dQw4w9WgXcQ&list=PL123abc",
-  "https://www.youtube.com/playlist?list=PLxyz_9", "https://youtube.com/shorts/dQw4w9WgXcQ", "dQw4w9WgXcQ", "https://vimeo.com/123", "привет"])
+  "https://www.youtube.com/playlist?list=PLxyz_9", "https://youtube.com/shorts/dQw4w9WgXcQ", "dQw4w9WgXcQ", "https://youtu.be/GBMvRzd2eeU?list=RDGBMvRzd2eeU",
+  "https://www.youtube.com/watch?list=RDGBMvRzd2eeU", "https://www.youtube.com/watch?v=GBMvRzd2eeU&list=RDMMGBMvRzd2eeU&start_radio=1", "https://vimeo.com/123", "привет"])
   console.log(s, "→", JSON.stringify(R.parseYouTube(s)));
 
 let s = { rev: 0, queue: [], cur: -1, li: 0, playing: false, t0: 0, pos: 0 };
@@ -31,3 +33,15 @@ s = R.applyCommand(s, { op: "clear" }, 119000); show("clear", s, 119000);
 s = R.applyCommand(s, { op: "next" }, 120000); show("next пусто", s, 120000);
 
 console.log("доступ:", ["gm", "p1", "p2"].map(id => `${id}=${R.canControl({ id, isGM: id === "gm" })}`).join(" "));
+
+// диджей: сцена → общие → стандартные; {track} только при известном названии; не повторяется подряд
+const scene = l => ({ getFlag: () => l });
+console.log("сцена:", JSON.stringify(R.djConfig(scene({ name: "", lines: ["Своя"] }))));
+console.log("общие:", JSON.stringify(R.djConfig(scene(undefined))));
+settings.dj = {};
+console.log("стандарт:", R.djConfig(null).scope, R.djConfig(null).lines.length, R.djConfig(null).name);
+const L = R.DJ_DEFAULT.lines;
+console.log(R.djLine(L, "Катюша", null, () => 0).text);
+console.log(R.djLine(L, null, null, () => 0).text);
+console.log(R.djLine(["{track} навсегда"], null, null, () => 0).text);
+console.log(R.djLine(["А", "Б"], null, "А", () => 0).text);
