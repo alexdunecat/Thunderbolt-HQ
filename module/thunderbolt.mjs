@@ -26,6 +26,7 @@ import { registerRadio, sendRadio, say, caution, openRadioDialog } from "./radio
 import { registerRange } from "./range.mjs";
 import * as Downtime from "./downtime.mjs";
 import { openRadioLog } from "./radio-log.mjs";
+import { registerCivilRadio, openCivilRadio, canControl as canRadio } from "./civil-radio.mjs";
 import { registerChatter, openChatterEditor } from "./chatter.mjs";
 import { registerMission, openMissionDialog } from "./mission.mjs";
 import { registerSounds, cue } from "./sounds.mjs";
@@ -130,6 +131,7 @@ Hooks.once("init", () => {
   registerChatter();
   registerMission();
   registerSounds();
+  registerCivilRadio();
   registerAces();
   registerPause();
   registerBoot();
@@ -226,12 +228,24 @@ async function breakLocks() {
 Hooks.on("getSceneControlButtons", controls => {
   const tokens = controls.find(c => c.name === "token");
   tokens?.tools.push({ name: "tb-radio-log", title: "Радиожурнал: AWACS и переговоры", icon: "fas fa-book-open", button: true, onClick: () => openRadioLog() });
+  if (canRadio()) tokens?.tools.push({ name: "tb-civil-radio", title: "Гражданское радио: музыка с YouTube у всех", icon: "fas fa-radio", button: true, onClick: () => openCivilRadio() });
   if (!game.user.isGM) return;
   tokens?.tools.push({ name: "tb-radio", title: "Радио AWACS: реплика всем", icon: "fas fa-tower-broadcast", button: true, onClick: () => openRadioDialog() });
   tokens?.tools.push({ name: "tb-chatter", title: "Реплики NPC: фразы союзников, противника и гражданских", icon: "fas fa-comments", button: true, onClick: () => openChatterEditor() });
   tokens?.tools.push({ name: "tb-awacs", title: "Панель AWACS", icon: "fas fa-satellite-dish", button: true, onClick: () => openAwacs() });
   tokens?.tools.push({ name: "tb-boot", title: "Заставка АСУ «Тайга» перед брифингом: у всех на экране", icon: "fas fa-terminal", button: true, onClick: () => openBootDialog() });
   tokens?.tools.push({ name: "tb-briefing", title: "Брифинг миссии: карта, этапы и субтитры у всех на экране", icon: "fas fa-map", button: true, onClick: () => openBriefing() });
+});
+/* Гражданское радио: кнопка во вкладке плейлистов у тех, кто им управляет. */
+Hooks.on("renderPlaylistDirectory", (app, html) => {
+  const bar = (html[0] ?? html).querySelector(".header-actions");
+  if (!bar || bar.querySelector(".tb-civil-radio-open") || !canRadio()) return;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "tb-civil-radio-open";
+  b.innerHTML = `<i class="fas fa-radio"></i> Гражданское радио`;
+  b.addEventListener("click", () => openCivilRadio());
+  bar.append(b);
 });
 Hooks.on("renderActorDirectory", (app, html) => {
   const root = html[0] ?? html;

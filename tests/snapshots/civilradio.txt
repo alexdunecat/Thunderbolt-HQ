@@ -1,0 +1,23 @@
+https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42 → {"v":"dQw4w9WgXcQ","list":null}
+youtu.be/dQw4w9WgXcQ?si=x → {"v":"dQw4w9WgXcQ","list":null}
+https://music.youtube.com/watch?v=dQw4w9WgXcQ&list=PL123abc → {"v":"dQw4w9WgXcQ","list":"PL123abc"}
+https://www.youtube.com/playlist?list=PLxyz_9 → {"v":null,"list":"PLxyz_9"}
+https://youtube.com/shorts/dQw4w9WgXcQ → {"v":"dQw4w9WgXcQ","list":null}
+dQw4w9WgXcQ → {"v":"dQw4w9WgXcQ","list":null}
+https://vimeo.com/123 → null
+привет → null
+add a      cur=0 li=0 играет pos=0.0 a
+add b      cur=0 li=0 играет pos=30.0 a,b
+pause      cur=0 li=0 стоит pos=30.0 a,b
+play       cur=0 li=0 играет pos=40.0 a,b
+add l now  cur=2 li=0 играет pos=0.0 a,b,l
+next в pl  cur=2 li=1 играет pos=1.0 a,b,l
+pl сам     cur=2 li=2 играет pos=1.5 a,b,l
+next конец cur=-1 li=0 стоит pos=0.0 a,b,l
+jump b     cur=1 li=0 играет pos=10.0 a,b,l
+prev >5с   cur=1 li=0 играет pos=0.0 a,b,l
+remove a   cur=0 li=0 играет pos=1.0 b,l
+remove b   cur=0 li=0 играет pos=0.0 l
+clear      cur=-1 li=0 стоит pos=0.0 
+next пусто cur=-1 li=0 стоит pos=0.0 
+доступ: gm=true p1=true p2=false

@@ -859,3 +859,22 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 /* панель AWACS: пройдено операций (растит раскладку дуэлянтов) */
 .tb-ops-done { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; }
 .tb-ops-done input { width: 4em; text-align: center; }
+
+/* Гражданское радио: плеер YouTube спрятан за краем экрана, слышен только звук */
+#tb-civil-radio-player { position: fixed; left: -10000px; top: 0; width: 320px; height: 180px; pointer-events: none; }
+.tb-civil-radio .window-content { padding: 8px 10px; }
+.tb-cr-body { display: flex; flex-direction: column; gap: 8px; }
+.tb-cr-now { font-size: 13px; }
+.tb-cr-controls { display: flex; gap: 4px; }
+.tb-cr-controls button { flex: 1; line-height: 26px; }
+.tb-cr-add { display: flex; gap: 4px; }
+.tb-cr-add input { flex: 1; min-width: 0; }
+.tb-cr-add button { flex: 0 0 32px; line-height: 24px; }
+.tb-cr-queue { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; }
+.tb-cr-queue li { display: flex; align-items: center; gap: 6px; padding: 3px 2px; border-bottom: 1px solid rgba(127, 127, 127, 0.2); }
+.tb-cr-queue li .n { flex: 0 0 22px; text-align: center; opacity: 0.7; font-variant-numeric: tabular-nums; }
+.tb-cr-queue li a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.tb-cr-queue li button { flex: 0 0 24px; line-height: 20px; padding: 0; }
+.tb-cr-queue li.cur a { font-weight: bold; }
+.tb-cr-queue li.empty { opacity: 0.7; border: 0; }
+.tb-civil-radio-unlock { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); z-index: 100; width: auto; padding: 6px 14px; }
