@@ -70,7 +70,11 @@ log.push("ORDER " + cb.turns.map(c => `${c.name}:${c.initiative}`).join(" ") + "
 msgs.push({ flags: { "thunderbolt-shtab": { card: { type: "attack", attack: true, delayed: true, atTurn: true, combatKey: "C1:1", targetUuid: "Actor.Ворон", targetName: "Ворон", parts: [["G-A", 6]], dmg: 5, actorName: "МиГ", actorUuid: "Actor.МиГ" } } }, getFlag(s, k) { return this.flags[s]?.[k]; }, async update(u) { for (const [k, v] of Object.entries(u)) if (k.startsWith("flags.")) setp(this, k, v); } });
 msgs.push({ flags: { "thunderbolt-shtab": { card: { type: "break", combatKey: "C1:1", speedDrop: 2, actorUuid: "Actor.МиГ", actorName: "МиГ", parts: [], d10: 5 } } }, getFlag(s, k) { return this.flags[s]?.[k]; }, async update(u) { for (const [k, v] of Object.entries(u)) if (k.startsWith("flags.")) setp(this, k, v); } });
 actors.МиГ.system.breakEv = 5;
+// сваливание в начале хода: Speed 0 → бросок сам у владельца; неразобранная карточка — без повтора
+const nextOf = cb.turns[cb.turn + 1]?.actor, sp = nextOf.system.speed;
+nextOf.system.speed = 0;
 await cb.nextTurn(); await wait(50); log.push("turn now " + cb.combatant?.name);
+nextOf.system.speed = sp;
 await cb.nextTurn(); await wait(50); log.push("turn now " + cb.combatant?.name);
 await cb.nextTurn(); await wait(600);
 log.push("ROUND " + cb.round + " inits " + cb.turns.map(c => `${c.name}:${c.initiative}`).join(" "));

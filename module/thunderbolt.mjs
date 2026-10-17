@@ -338,8 +338,8 @@ Hooks.on("updateActor", (actor, change, options, userId) => {
 
 async function onActorUpdate(actor, change, options, userId) {
   const has = p => foundry.utils.hasProperty(change, p);
-  // сваливание: Speed ≤ 0 у летящей машины. Бросает тот, кого назвал конец раунда (владелец пилота), иначе кто менял
-  if (has("system.speed") && actor.system.speed <= 0 && (options.tbStallBy ?? userId) === game.user.id) {
+  // сваливание: Speed ≤ 0 у летящей машины (сразу при падении Speed и в начале каждого хода). Бросает тот, кого назвал конец раунда (владелец пилота), иначе кто менял
+  if ((has("system.speed") || options.tbStallTurn) && actor.system.speed <= 0 && (options.tbStallBy ?? userId) === game.user.id) {
     const flying = actor.type === "pilot" || actor.system.kind === "air";
     const hover = actor.system.planeProps?.has?.("vtol") || actor.system.props?.some?.(p => p.key === "vtol" || p.key === "hover");
     if (flying && !hover) R.rollStall(actor);

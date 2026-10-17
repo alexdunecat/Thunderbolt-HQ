@@ -131,6 +131,14 @@ async function turnStart(combat) {
   // сбитый или отступивший ход не делает
   if (isOut(combat.combatant) || passive(a)) return combat.nextTurn();
   await resolveVolley(combat, { target: a.uuid, atTurnOf: combat.combatant.name });
+  // сваливание: Speed ≤ 0 в начале хода — бросок сам у владельца (повтор после провала), если прошлый не разобран
+  if (a.system.speed <= 0 && !pendingStall(a))
+    await a.update({ [`flags.${SYSTEM_ID}.stallTurn`]: `${combat.round}.${combat.turn}` }, { tbStallBy: ownerOf(a), tbStallTurn: true, tbFree: true });
+}
+
+/** Есть ли в чате неразобранная карточка сваливания этой машины (кнопку «Выровняться» или «Потерять высоту» ещё не нажали). */
+function pendingStall(actor) {
+  return game.messages.contents.slice(-30).some(m => { const c = m.getFlag(SYSTEM_ID, "card"); return c?.type === "stall" && !c.applied && c.actorUuid === actor.uuid; });
 }
 
 /** Конец раунда round: залп, потом конец Break! и его Speed, потом сброс заявок. */

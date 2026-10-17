@@ -18,6 +18,7 @@ const mkUser = (id, isGM, hotbar = {}) => ({ id, isGM, isSelf: isGM, hotbar, fla
 const gm = mkUser("gm", true);
 const users = [gm, mkUser("p1", false, { 3: "own" }), mkUser("p2", false)];
 macros.push(new Doc({ id: "own", name: "Свой", flags: {} }));
+macros.push(new Doc({ id: "oldstall", name: "Сваливание", flags: { "thunderbolt-shtab": { bar: "stall" } } }));   // из прошлой версии: должен удалиться
 Object.assign(globalThis, {
   foundry: { utils: { deepClone: x => structuredClone(x) }, abstract: { TypeDataModel: class {} }, data: { fields: { NumberField: F, StringField: F, BooleanField: F, SchemaField: F, ArrayField: F, HTMLField: F, ObjectField: F } } },
   CONST: { DOCUMENT_OWNERSHIP_LEVELS: { LIMITED: 1 } },
@@ -27,7 +28,8 @@ Object.assign(globalThis, {
   Folder: { create: async d => { const f = new Doc(d); folders.push(f); log.push("FOLDER " + d.name); return f; } },
   Macro: {
     createDocuments: async list => list.map(d => { const m = new Doc(d); macros.push(m); return m; }),
-    updateDocuments: async list => { log.push("MACRO UPD " + list.length); return list; }
+    updateDocuments: async list => { log.push("MACRO UPD " + list.length); return list; },
+    deleteDocuments: async ids => { log.push("MACRO DEL " + ids.join(",")); for (const id of ids) macros.splice(macros.findIndex(m => m.id === id), 1); return ids; }
   },
   Actor: class {}, Item: class {}, Combat: class {}, Application: class {}, FormApplication: class {}, ActorSheet: class {}, Dialog: class {}, fromUuidSync: () => null
 });

@@ -72,7 +72,7 @@ export function parseCommand(text) {
 }
 
 /** Панель макросов игрока: что и в каком порядке встаёт в слоты 1–9. */
-export const PILOT_BAR = ["lock", "missile", "guns", "break", "lead", "formup", "recover", "stall", "end"];
+export const PILOT_BAR = ["lock", "missile", "guns", "break", "lead", "formup", "recover", "end"];
 const BAR_VERSION = 1;
 const barName = act => act === "end" ? "Конец хода" : ACTIONS[act];
 
@@ -118,6 +118,9 @@ export async function ensureActionMacros() {
     else if (m.command !== want.command || m.img !== want.img || m.type !== want.type) update.push({ _id: m.id, ...want });
   }
   if (update.length) await Macro.updateDocuments(update);
+  // действия, убранные из набора (сваливание теперь бросается само): их макросы удаляем, слот на панели освобождается
+  const gone = game.macros.filter(m => { const act = m.getFlag(SYSTEM_ID, "bar"); return typeof act === "string" && !PILOT_BAR.includes(act); });
+  if (gone.length) { await Macro.deleteDocuments(gone.map(m => m.id)); for (const m of gone) delete found[m.getFlag(SYSTEM_ID, "bar")]; }
   for (const m of create.length ? await Macro.createDocuments(create) : []) found[m.getFlag(SYSTEM_ID, "bar")] = m;
   return found;
 }
