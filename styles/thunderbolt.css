@@ -1478,3 +1478,8 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-ck .st.tg { min-width: 120px; max-width: 220px; }
 .tb-ck > .tb-ck-fire.one { grid-template-columns: 1fr; }
 .tb-ck-seg label:has(input[type="checkbox"]) { flex: 0 1 auto; }
+/* панель супероружия: ЛУЧ и УДАР прямо на плитке системы — янтарные, как оружие */
+#tb-pilot-hud .tb-sys-top a.wpn { color: #1a1205; background: var(--ck-amber, #ffb547); border-color: #000; }
+#tb-pilot-hud .tb-sys-top a.wpn:hover { color: #fff; background: var(--tb-bad); }
+/* пульт высоты удара: пять кнопок в ряд */
+.tb-ck > .tb-ck-fire.alts { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }

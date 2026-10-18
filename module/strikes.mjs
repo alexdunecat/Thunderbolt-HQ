@@ -5,7 +5,7 @@
    Удары живут во флаге боя strikes; зоны рисует каждый клиент сам. */
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
-import { altOf, isFlying, hasRule, ALT_ORDER, weatherAt, defenseWithWeather } from "./scene.mjs";
+import { altOf, isFlying, hasRule, isBeam, ALT_ORDER, weatherAt, defenseWithWeather } from "./scene.mjs";
 import { cellName } from "./briefing.mjs";
 
 const LAYER = "tb-strikes";
@@ -37,6 +37,19 @@ export const STRIKES = {
   custom: { label: "Свой удар", rule: null, zones: 9, alts: "pick", dmg: 5, ships: "system",
     hint: "Любые зоны и высоты, свой урон." }
 };
+
+/** Системы, из которых бьёт удар (кнопка УДАР прямо на плитке системы в панели цели). */
+const STRIKE_SYS = { pwrail: /рельсотрон/i, railvolley: /главного калибра|рельсотрон/i, burst: /шахт/i, arklaser: /противоспутник/i };
+/** Похоже на оружие супероружия без своих чисел на листе: такой системе — свой удар с её именем. */
+const SUPER_SYS = /рельс|рейлган|railgun|лазер|laser|луч|калибр|орудие|пушк|ракет|шахт|излучат/i;
+
+/** Удар, которым бьёт система цели: по правилам листа, иначе «Свой удар» для оружия без G-A, G-G и Gun; null — не бьёт. */
+export function strikeOfSys(actor, y) {
+  if (!y || y.value <= 0 || y.ga || y.gg || y.gun || isBeam(actor, y)) return null;
+  const k = Object.keys(STRIKE_SYS).find(k => STRIKE_SYS[k].test(y.name ?? "") && hasRule(actor, STRIKES[k].rule));
+  if (k) return k;
+  return hasRule(actor, "boss") && SUPER_SYS.test(y.name ?? "") ? "custom" : null;
+}
 
 /** Какие удары есть у NPC (по правилам листа). */
 export function strikesOf(actor) {
@@ -134,17 +147,30 @@ export async function markStrike(edit = null, preset = null) {
     return ChatMessage.create({ speaker: { alias: "AWACS" }, content: `<div class="tb-card tb-card-round"><div class="tb-note">${esc(s.label)}: теперь ${zonesText(zones)}.</div></div>` });
   }
   const opts = strikeDialogData(scene);
-  const data = await strikeDialog(opts, preset);
+  // с панели цели: источник есть всегда, даже если у него нет удара по правилам («Свой удар» системы)
+  if (preset?.source && !opts.sources.some(x => x.uuid === preset.source)) {
+    const doc = scene.tokens.find(d => d.actor?.uuid === preset.source), a = doc?.actor;
+    if (a) opts.sources.push({ uuid: a.uuid, name: doc.name, kinds: [preset.kind ?? "custom"], gg: a.system.ground?.gg ?? a.system.gg ?? 0 });
+  }
+  // с панели цели без окна: высоты и урон удара по правилам, одна высота — кнопками на пульте; «Свой удар» — в окне
+  const P = preset?.quick && STRIKES[preset.kind];
+  let data;
+  if (P && P.alts !== "pick") {
+    const alt = P.alts === "one" ? await pickAlt(P, preset.label) : null;
+    if (P.alts === "one" && !alt) return;
+    data = { source: preset.source, kind: preset.kind, dmg: P.dmg, alt, alts: [] };
+  } else data = await strikeDialog(opts, preset);
   if (!data) return;
   const S = STRIKES[data.kind];
-  const zones = await pickZones(new Set(), S.zones, S.label);
-  if (!zones?.length) return;
   const src = opts.sources.find(x => x.uuid === data.source);
+  const name = preset?.label && data.kind === preset.kind ? preset.label : S.label;
+  const zones = await pickZones(new Set(), S.zones, name);
+  if (!zones?.length) return;
   const alts = S.alts === "one" ? [data.alt] : S.alts === "pick" ? data.alts : S.alts;
   if (!alts.length) return ui.notifications.warn("Не выбрано ни одной высоты.");
   const attack = S.attack === "gg" ? (src?.gg ?? 0) : S.attack ?? null;
   const strike = {
-    id: foundry.utils.randomID(), kind: data.kind, label: src ? `${S.label} · ${src.name}` : S.label, source: src?.name ?? "", sourceUuid: src?.uuid ?? null,
+    id: foundry.utils.randomID(), kind: data.kind, label: src ? `${name} · ${src.name}` : name, source: src?.name ?? "", sourceUuid: src?.uuid ?? null,
     zones, alts, dmg: Number(data.dmg) || S.dmg, attack, round: combat.round + (S.delay ?? 0), marked: combat.round,
     start: Object.fromEntries(unitsOn(scene).map(u => [u.uuid, `${u.zone}|${u.alt}`]))
   };
@@ -153,6 +179,14 @@ export async function markStrike(edit = null, preset = null) {
   const { sendRadio } = await import("./radio.mjs"); // лениво: radio-log тянет Application
   await sendRadio({ speaker: "AWACS", side: "ally", caution: { level: "warning", title: "WARNING", sub: S.label },
     text: `${S.label}: удар ${when} по ${zones.length > 1 ? "зонам" : "зоне"} ${zonesText(zones)}, ${altsText(alts)}. ${S.still ? "Смените зону или высоту!" : "Уходите из зоны!"}` });
+}
+
+/** Высота удара кнопками на пульте (рельсотрон бьёт одну высоту). */
+async function pickAlt(S, label) {
+  const { cockpitDialog } = await import("./aim.mjs");
+  const btn = a => `<button type="button" class="tb-ck-big ${a === "strat" || a === "high" ? "imp" : ""}" data-pick="${a}"><b>${{ ground: "ЗЕМЛЯ", low: "LOW", med: "MED", high: "HIGH", strat: "STRAT" }[a]}</b><small>${ALT_NAMES[a]}</small></button>`;
+  const r = await cockpitDialog(`${label ?? S.label}: высота`, `<p class="tb-hint">${esc(S.hint)}</p><div class="tb-ck-fire alts">${ALL.map(btn).join("")}</div>`, { width: 520 });
+  return r?.pick ?? null;
 }
 
 function strikeDialogData(scene) {

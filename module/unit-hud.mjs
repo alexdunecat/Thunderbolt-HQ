@@ -3,10 +3,10 @@
    шкалы, которые сами растут в конце раунда (scales.mjs), удары по площади этой цели и действия хода. */
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
-import { tokenOf, altOf, zoneDistance, flyingBoss, hasRule } from "./scene.mjs";
+import { tokenOf, altOf, zoneDistance, flyingBoss, hasRule, isBeam } from "./scene.mjs";
 import { combatantOf, spentOf, declaredOf, allowAction, spendAction } from "./actions.mjs";
 import { runAction } from "./macros.mjs";
-import { strikesOf, STRIKES } from "./strikes.mjs";
+import { strikesOf, strikeOfSys, STRIKES } from "./strikes.mjs";
 import { SCALES, scalesOf, scaleValue, scaleFull, setScale, sysCount, unitFlag } from "./scales.mjs";
 import { roleOf, ENGINE } from "./aim.mjs";
 import { hlSwitch } from "./range.mjs";
@@ -159,7 +159,7 @@ export function unitData(actor) {
   const alt = tok ? altOf(tok, actor) : s.alt;
   const fly = flyingBoss(actor);
   const systems = (s.systems ?? []).map((y, i) => ({ i, name: y.name, note: y.note ?? "", occ: y.occ, value: Math.max(0, y.value), hp: y.hp,
-    ga: y.ga, gg: y.gg, gun: y.gun, dead: y.value <= 0, role: roleOf(y) }));
+    ga: y.ga, gg: y.gg, gun: y.gun, dead: y.value <= 0, role: roleOf(y), beam: isBeam(actor, y), strike: strikeOfSys(actor, y) }));
   const g = s.ground ?? {};
   const mech = mechanics(actor, round);
   return {
@@ -192,7 +192,9 @@ function tile(y, owner) {
   return `<div class="tb-sys-tile ${y.role} ${y.dead ? "dead" : ""}" title="${esc(y.name)}${y.note ? `: ${esc(y.note)}` : ""}">
       <div class="tb-sys-top"><span class="tb-sys-name">${esc(y.name)}</span>
         ${!y.dead && (y.ga || y.gg) ? `<a data-u-sam="${y.i}" title="Пуск ракеты (${y.ga ? `по воздуху G-A ${y.ga}` : ""}${y.ga && y.gg ? ", " : ""}${y.gg ? `по земле и морю G-G ${y.gg}` : ""})">ПУСК</a>` : ""}
-        ${!y.dead && y.gun ? `<a data-u-gun="${y.i}" title="Огонь: Gun ${y.gun}">ОГОНЬ</a>` : ""}</div>
+        ${!y.dead && y.gun ? `<a data-u-gun="${y.i}" title="Огонь: Gun ${y.gun}">ОГОНЬ</a>` : ""}
+        ${!y.dead && y.beam ? `<a class="wpn" data-u-gun="${y.i}" title="Луч: один самолёт в своей или соседней зоне, d10 + 2 против Defense, урон 4">ЛУЧ</a>` : ""}
+        ${!y.dead && y.strike ? `<a class="wpn" data-u-strike="${y.strike}" data-u-sys="${y.i}" title="${esc(y.strike === "custom" ? "Удар по площади из этой системы: зоны, высоты и урон в окне" : `${STRIKES[y.strike].label}: ${STRIKES[y.strike].hint}`)}">УДАР</a>` : ""}</div>
       <div class="tb-sys-row"><span class="tb-sys-pips">${pips}</span><em>${y.value}/${y.hp}</em>
         ${owner ? `<a data-u-hp="${y.i}:-1" title="Снять 1 HP">−</a><a data-u-hp="${y.i}:1" title="Вернуть 1 HP">+</a>` : ""}</div>
       <div class="tb-sys-row tb-sys-stats"><span>Occ ${y.occ}</span>${arms ? `<span>${arms}</span>` : ""}</div>
@@ -285,7 +287,8 @@ export async function onUnitClick(t, actor) {
   if (d.uStrike) {
     if (!game.user.isGM) return ui.notifications.warn("Удары по площади отмечает ведущий."), true;
     const { markStrike } = await import("./strikes.mjs");
-    await markStrike(null, { source: actor.uuid, kind: d.uStrike });
+    const y = d.uSys !== undefined ? actor.system.systems?.[Number(d.uSys)] : null;
+    await markStrike(null, { source: actor.uuid, kind: d.uStrike, quick: true, label: y && d.uStrike === "custom" ? y.name.replace(/\s*№\s*\d+\s*$/, "") : undefined });
     return true;
   }
   return false;

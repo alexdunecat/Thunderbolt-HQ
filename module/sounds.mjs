@@ -159,7 +159,7 @@ export function playLocal(key) {
 }
 
 /** Взрывы и выстрелы супероружия по карточкам в чате: у всех клиентов, раз на карточку. */
-const LASER = /лазер|laser/i, RAIL = /рельс|рейлган|railgun/i;
+const LASER = /лазер|laser|^Луч:/i, RAIL = /рельс|рейлган|railgun/i;
 export function battleSounds(card) {
   if (!card) return null;
   if (card.type === "break" && card.actorUuid) return cue("flares", resolveActor(card.actorUuid));
@@ -182,13 +182,13 @@ const enemy = uuid => { const a = resolveActor(uuid); return !!a && a.type === "
 /* ---------- кнопки ---------- */
 
 const UI_ROOT = ".thunderbolt, .tb-dialog, .tb-card, #tb-pilot-hud, .tb-hud, #tb-civil-radio-panel";
-const BTN = "button, a.tb-btn, a[data-action], a[data-tb-action], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], .tb-ck-big, .tabs .item, nav.tabs a, [data-tab]";
+const BTN = "button, a.tb-btn, a[data-action], a[data-tb-action], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-u-gun], [data-u-sam], [data-u-strike], .tb-ck-big, .tabs .item, nav.tabs a, [data-tab]";
 /** Какой звук у нажатия: тумблер у станций оружия HUD, вкладки и большие кнопки, остальное — кнопка. */
 export function uiSoundFor(el) {
   if (!el?.closest) return null;
   const b = el.closest(BTN);
   if (!b || !b.closest(UI_ROOT) || b.disabled) return null;
-  if (b.closest("#tb-pilot-hud") && (b.closest(".tb-hud-wpns") || b.matches("[data-hud-spw], .tb-hud-pt, .tb-hud-arm [data-hud-act]"))) return "toggle";
+  if (b.closest("#tb-pilot-hud") && (b.closest(".tb-hud-wpns") || b.matches("[data-hud-spw], .tb-hud-pt, .tb-hud-arm [data-hud-act], [data-u-gun], [data-u-sam], [data-u-strike]"))) return "toggle";
   if (b.matches(".tabs .item, nav.tabs a, [data-tab], .tb-ck-big")) return "tab";
   return "click";
 }

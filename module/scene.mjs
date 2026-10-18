@@ -38,6 +38,9 @@ export const hasRule = (actor, key) => propKeys(actor).includes(key);
  */
 export const AA_GUN = /зенит|ЗАК|CIWS|автомат|Кортик/i;
 export function gunVs(actor, sys) {
+  if (sys?.beam) return "air";
+  // зенитные батареи и ЗАК бьют только по воздуху и у летающего корабля
+  if (sys && actor?.type === "npc" && actor.system.kind !== "air" && AA_GUN.test(sys.name ?? "")) return "air";
   if (actor?.type !== "npc" || actor.system.kind === "air" || flyingBoss(actor)) return "any";
   if (actor.system.kind === "ground") return hasRule(actor, "aafire") ? "air" : "ground";
   const guns = sys ? [sys] : (actor.system.systems ?? []).filter(y => (y.gun ?? 0) > 0);
@@ -46,6 +49,19 @@ export function gunVs(actor, sys) {
 
 /** Дальность пушки корабельной системы: «по своей и соседним зонам» в описании — 1, иначе своя зона. */
 export const sysGunReach = sys => /соседн/i.test(sys?.note ?? "") ? 1 : TB.range.guns;
+
+/** Лучевые системы крупных целей (турель «Аркбёрда», HPBC «Рузвельта»): правило цели и имя системы. */
+const BEAMS = [{ rule: "arkturret", re: /турел/i }, { rule: "pwhpbc", re: /HPBC|энергетическ/i }];
+export const isBeam = (actor, sys) => !!sys && BEAMS.some(b => b.re.test(sys.name ?? "") && hasRule(actor, b.rule));
+
+/**
+ * Система как пушка: луч бьёт как пушка один самолёт в своей или соседней зоне — d10 + 2 против Defense, урон 4
+ * (правила «Лазерная турель» и «Энергетические орудия»). Остальные системы — как есть.
+ */
+export function gunSys(actor, sys) {
+  if (!isBeam(actor, sys)) return sys;
+  return { ...sys, gun: 4, note: "Strafe +2; луч по своей и соседним зонам", beam: true };
+}
 
 /** Strafe системы: «Strafe +N» из описания; спаренные — +2, пока целы обе одноимённые установки, иначе +0. */
 export function sysStrafe(actor, sys) {

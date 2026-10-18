@@ -1,7 +1,7 @@
 /* Броски и чат-карточки: проверки, ракеты, пушка, Break!, Strain, урон, сваливание. */
 import { SYSTEM_ID, TB } from "../config.mjs";
 import { esc, resolveActor } from "../utils.mjs";
-import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, stratLift, isAirTarget, inNarrowTunnel, wallBonus, zoneDistance, rangeLabel, isFlying, struckBy, gunVs, sysGunReach, sysStrafe } from "../scene.mjs";
+import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, stratLift, isAirTarget, inNarrowTunnel, wallBonus, zoneDistance, rangeLabel, isFlying, struckBy, gunVs, sysGunReach, sysStrafe, gunSys } from "../scene.mjs";
 import { alarmRows, raiseAlarm, surprise, quietAA, markVolley } from "../stealth.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
 import { nemesisAttack, nemesisDefense } from "../nemesis.mjs";
@@ -969,7 +969,7 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
   if (blocked(actor, "strafe")) return;
   const podItems = s.broken === "sw" ? [] : actor.items.filter(i => i.type === "weapon" && isGunPod(i) && weaponReady(i));
   // цель: противник в зоне досягаемости; если их несколько или есть что выбрать, выбор на пульте
-  const sys = s.kind === "ship" && sysIndex !== undefined ? s.systems[sysIndex] : null;
+  const sys = s.kind === "ship" && sysIndex !== undefined ? gunSys(actor, s.systems[sysIndex]) : null;
   const { list, why, reach } = gunTargets(actor, podItems, sys);
   if (list && !list.length) return ui.notifications.warn(`Guns, Guns, Guns!: ${reach ? "в своей и соседних зонах" : "в своей зоне"} нет противника.${why.length ? ` Рядом: ${why.join("; ")}.` : ""}`, { permanent: why.length > 0 });
   const picked = currentTarget();
@@ -1001,11 +1001,11 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
   let label = "Guns, Guns, Guns!";
   if (actor.type === "npc" && s.kind === "ground") { strafe = s.ground.strafe; gun = s.ground.gun ?? 0; }
   if (actor.type === "npc" && s.kind === "ship" && sysIndex !== undefined) {
-    const y = s.systems[sysIndex];
-    gun = y?.gun ?? 0; label = `Огонь: ${y?.name}`;
+    const y = sys;
+    gun = y?.gun ?? 0; label = `${y?.beam ? "Луч" : "Огонь"}: ${y?.name}`;
     strafe = sysStrafe(actor, y);
   }
-  const parts = strafe === null ? skillParts(actor, "strafe", "Пушка") : [["Пушка", strafe]];
+  const parts = strafe === null ? skillParts(actor, "strafe", "Пушка") : [[sys?.beam ? "Луч" : "Пушка", strafe]];
   const pod = podItem;
   if (pod?.system.key === "MGP") { parts.push(["MGP", 1]); gun += 3; label += " (MGP)"; }
   if (pod?.system.key === "PLSL") { parts.push(["PLSL", 1]); gun = 6; label = "Импульсный лазер"; }
@@ -1077,29 +1077,32 @@ export function initHitSocket() {
 /** Пуск ЗРК или ракета корабельной системы: G-A, Speed 0, без броска. */
 export async function fireSam(actor, sysIndex) {
   const s = actor.system;
-  const t = currentTarget() ?? lockedTarget(actor);
-  if (t && !canFireAt(actor, t.actor)) return ui.notifications.warn(`Пуск: «${t.name}» на вашей стороне.`);
-  // по воздуху G-A (ЗРК), по земле и морю G-G
-  const air = !t || isAirTarget(t);
   const src = s.kind === "ship" ? s.systems[sysIndex] : s.ground;
+  let t = currentTarget() ?? lockedTarget(actor);
+  // цели нет: щелчок по токену на карте, как у Lock On!
+  if (!t && canvas?.ready && (src?.ga || src?.gg)) {
+    const tok = await pickTargetToken(actor, { title: s.kind === "ship" ? `Пуск: ${src?.name}` : "Пуск" });
+    if (!tok) return;
+    t = describeTarget(tok.actor, tok.name, tok);
+  }
+  if (t && !canFireAt(actor, t.actor)) return ui.notifications.warn(`Пуск: «${t.name}» на вашей стороне.`);
+  // по воздуху G-A (ЗРК), по земле и морю G-G; без цели — чем система стреляет
+  const air = t ? isAirTarget(t) : !!src?.ga;
   const ga = air ? src?.ga : src?.gg;
   const label = s.kind === "ship" ? `Пуск: ${src?.name}` : air ? "Пуск ЗРК" : "Пуск G-G";
-  if (!has(ga)) return ui.notifications.warn(air ? `${label}: по воздуху эта система не стреляет.` : `${label}: по земле и морю нечем, нет G-G, а «${t.name}» на земле или на воде.`);
-  const data = await formDialog(label, `
-    <p class="tb-hint">${t ? `Цель: <b>${esc(t.name)}</b>, защита ${t.defense}` : "Цель не выбрана."} Lock On и пуск: два действия.</p>
-    <div class="form-group"><label>Модификатор</label><input type="number" name="mod" value="0"></div>`, { ok: "Пуск" });
-  if (!data) return;
-  // ЗРК — та же ракета: нужен захват этой цели (Lock On! на листе), дальность ракеты
+  if (!has(ga)) return ui.notifications.warn(air ? `${label}: по воздуху эта система не стреляет.` : `${label}: по земле и морю нечем, нет G-G${t ? `, а «${t.name}» на земле или на воде` : ""}.`);
+  // ЗРК — та же ракета: нужен захват этой цели (Lock On! на листе), дальность ракеты.
+  // Системам корабля захват нужен, только если так сказано в описании («Lock On и пуск — два действия»): нижним орудиям — нет
+  const needLock = s.kind !== "ship" || /Lock On/i.test(src?.note ?? "");
   if (t) {
     const { problems } = reachProblems(actor, t, TB.range.missile);
-    if (s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
+    if (needLock && s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
     const quiet = quietAA(actor);
-    if (quiet) problems.unshift(quiet);
+    if (quiet && air) problems.unshift(quiet);
     problems.push(...nemesisAttack(actor, t.actor).problems, ...triggerAttack(actor, t.actor).problems);
     if (!(await confirmReach(problems, label))) return;
   }
   const parts = [[air ? "G-A" : "G-G", ga ?? 0]];
-  if (data.mod) parts.push(["мод.", data.mod]);
   const key = combatKey(), tBroken = t?.actor.system.broken === "ma";
   const card = {
     type: "attack", attack: true, label, rolled: false, parts, strain: 0, dc: t ? t.defense + wallBonus(t.token, t.actor) + nemesisDefense(actor, t.actor) + triggerDefense(actor, t.actor) : null, vsLabel: "защиты",

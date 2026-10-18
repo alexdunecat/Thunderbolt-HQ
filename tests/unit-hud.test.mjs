@@ -33,6 +33,12 @@ const H = await import(R + "/module/hud.mjs");
 const show = a => { const d = U.unitData(a); console.log(`${a.name}: ${d.kind}${d.scales.length ? " · шкалы " + d.scales.map(x => `${x.label} ${x.value}`).join(", ") : ""}${d.strikes.length ? " · удары " + d.strikes.map(x => x.label).join(", ") : ""}`);
   for (const m of d.mech) console.log(`   [${m.tone}] ${m.text}${m.btn ? ` {${m.btn.label}}` : ""}`); if (d.alerts.length) console.log("   ТРЕВОГА:", d.alerts.join(" | ")); };
 console.log("панели:", ["roosevelt", "solg", "arkbird", "icbm", "kirov", "nimitz", "sub", "t80u", "s300", "howitzer", "housing", "hq", "airliner", "f15c"].map(k => `${k}=${U.unitKind(mk(k)) ?? (H.hudFits(mk(k)) ? "истребитель" : "нет")}`).join(" "));
+// кнопки на плитках систем: ЛУЧ (как пушка, d10 + 2, урон 4), УДАР (удар по площади этой системы)
+const wpn = k => { const d = U.unitData(mk(k)); console.log(`${k} плитки: ${d.systems.filter(y => y.beam || y.strike).map(y => `${y.name}=${y.beam ? "ЛУЧ" : `УДАР ${y.strike}`}`).join(", ") || "нет"}`); };
+for (const k of ["roosevelt", "arkbird", "tarpan", "scinfaxi", "littoria", "solg"]) wpn(k);
+{ const Sc = await import(R + "/module/scene.mjs"), r = mk("roosevelt"), ys = r.system.systems;
+  const beam = Sc.gunSys(r, ys.find(y => /HPBC/.test(y.name))), aa = ys.find(y => /Зенитные батареи/.test(y.name));
+  console.log(`луч как пушка: Gun ${beam.gun}, Strafe +${Sc.sysStrafe(r, beam)}, дальность ${Sc.sysGunReach(beam)}, по ${Sc.gunVs(r, beam)} · зенитные батареи по ${Sc.gunVs(r, aa)}, дальность ${Sc.sysGunReach(aa)}`); }
 const roos = mk("roosevelt"); kill(roos, /сопла №[12]/); show(roos);
 kill(roos, /сопл/); show(roos);
 const tarpan = mk("tarpan"); kill(tarpan, /решётк/); kill(tarpan, /главного калибра №1/); show(tarpan);
