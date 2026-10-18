@@ -116,7 +116,7 @@ export const strikeWhere = s => `${zonesText(s.zones)}, ${altsText(s.alts)}`;
 const altsText = alts => alts.length >= ALL.length ? "все высоты" : alts.map(a => ALT_NAMES[a]).join(", ");
 
 /** Ведущий: отметить новый удар (или поправить зоны имеющегося). */
-export async function markStrike(edit = null) {
+export async function markStrike(edit = null, preset = null) {
   const combat = game.combat;
   if (!game.user.isGM) return;
   if (!combat?.started) return ui.notifications.warn("Удар по площади отмечают в начале раунда идущего боя.");
@@ -134,7 +134,7 @@ export async function markStrike(edit = null) {
     return ChatMessage.create({ speaker: { alias: "AWACS" }, content: `<div class="tb-card tb-card-round"><div class="tb-note">${esc(s.label)}: теперь ${zonesText(zones)}.</div></div>` });
   }
   const opts = strikeDialogData(scene);
-  const data = await strikeDialog(opts);
+  const data = await strikeDialog(opts, preset);
   if (!data) return;
   const S = STRIKES[data.kind];
   const zones = await pickZones(new Set(), S.zones, S.label);
@@ -166,7 +166,7 @@ function strikeDialogData(scene) {
   return { sources };
 }
 
-async function strikeDialog({ sources }) {
+async function strikeDialog({ sources }, preset = null) {
   const { formDialog } = await import("./dice/rolls.mjs");
   const kindOpts = Object.entries(STRIKES).map(([k, s]) => `<option value="${k}">${esc(s.label)}</option>`).join("");
   const srcOpts = `<option value="">— без источника —</option>` + sources.map(s => `<option value="${s.uuid}" data-kinds="${s.kinds.join(" ")}">${esc(s.name)}</option>`).join("");
@@ -196,7 +196,10 @@ async function strikeDialog({ sources }) {
         if (kinds[0]) { f("kind").value = kinds[0]; sync(); }
       });
       f("kind").addEventListener("change", sync);
-      if (sources[0]) { f("source").value = sources[0].uuid; f("kind").value = sources[0].kinds[0]; }
+      // с панели цели: сразу её удар; иначе первый источник на сцене
+      const pick = preset?.source && sources.find(x => x.uuid === preset.source);
+      if (pick) { f("source").value = pick.uuid; f("kind").value = preset.kind && pick.kinds.includes(preset.kind) ? preset.kind : pick.kinds[0]; }
+      else if (sources[0]) { f("source").value = sources[0].uuid; f("kind").value = sources[0].kinds[0]; }
       sync();
     }
   }).then(d => d && { ...d, alts: ALL.filter(a => d[`alt_${a}`]) });

@@ -10,6 +10,7 @@ import { SYSTEM_ID } from "../config.mjs";
 import { formDialog, resolveVolley, renderCard } from "../dice/rolls.mjs";
 import { clearLosses, lossLine } from "../losses.mjs";
 import { resolveStrikes } from "../strikes.mjs";
+import { advanceScales } from "../scales.mjs";
 import { esc } from "../utils.mjs";
 
 /** Значение инициативы: 1–3 заявлено действий, PASS пропуск, PASS + n отложил ход с n действиями. */
@@ -146,6 +147,8 @@ async function endRound(combat, round) {
   const volley = await resolveVolley(combat, { round });
   // удары по площади: после всех ходов, по тем, кто так и не ушёл из отмеченных зон
   try { await resolveStrikes(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | удары по площади`, err); }
+  // шкалы крупных целей: «Падение», «Сброс», «Над целью», перегрев, отсчёт до пуска
+  try { await advanceScales(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | шкалы`, err); }
   const key = `${combat.id}:${round}`;
   // Break!: Speed падает, когда атаки раунда разрешены
   const drops = new Map();

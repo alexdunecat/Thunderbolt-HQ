@@ -12,6 +12,7 @@ import { runAction, PILOT_BAR } from "./macros.mjs";
 import { lockersOf } from "./rwr.mjs";
 import { vmaxOf, kmhOf } from "./plane-speed.mjs";
 import { ejectNow } from "./dice/rolls.mjs";
+import { unitKind, unitHtml, onUnitClick, registerUnitHud } from "./unit-hud.mjs";
 
 const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, POS_KEY = `${SYSTEM_ID}.hudPos`;
 const BIG = new Set(["missile", "lock", "doom"]);
@@ -27,6 +28,7 @@ export function registerHud() {
   for (const ev of ["canvasReady", "controlToken", "updateActor", "updateActorDelta", "updateToken", "createToken", "deleteToken", "updateItem",
     "createCombat", "updateCombat", "deleteCombat", "updateCombatant", "createChatMessage", "updateChatMessage"]) Hooks.on(ev, () => refreshHud());
   globalThis.window?.addEventListener("resize", () => place());
+  registerUnitHud();
 }
 
 /** Перерисовать HUD (пачка обновлений даёт одну перерисовку). */
@@ -38,7 +40,7 @@ export function refreshHud() {
 /** Чей самолёт показывать: выделенный свой токен, иначе пилот игрока, иначе его первый пилот на сцене. У ведущего только выделенный. */
 export function hudActor() {
   const own = (canvas?.tokens?.controlled ?? []).filter(t => t.actor?.isOwner && ["pilot", "npc"].includes(t.actor.type));
-  if (own.length === 1 && !hudFits(own[0].actor)) return null;
+  if (own.length === 1 && !hudFits(own[0].actor) && !unitKind(own[0].actor)) return null;
   if (own.length === 1) return own[0].actor;
   if (game.user.isGM) return null;
   const ch = game.user.character;
@@ -257,7 +259,8 @@ function render() {
   }
   el.classList.toggle("folded", folded);
   el.classList.toggle("pinned", readPos().x !== undefined);
-  el.innerHTML = html(actor, hudData(actor), folded);
+  el.classList.toggle("tb-unit-hud", !hudFits(actor));
+  el.innerHTML = hudFits(actor) ? html(actor, hudData(actor), folded) : unitHtml(actor, folded);
   place();
 }
 
@@ -322,7 +325,7 @@ function dock() {
 async function onClick(ev) {
   if (ev.target.closest("[data-hud-dock]")) { ev.preventDefault(); ev.stopPropagation(); return dock(); }
   if (dragged && ev.target.closest("header")) { dragged = false; return; }
-  const t = ev.target.closest("[data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold]");
+  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold]");
   if (!t || !shown) return;
   ev.preventDefault();
   const d = t.dataset, actor = shown;
@@ -336,6 +339,7 @@ async function onClick(ev) {
     return;
   }
   if (!actor.isOwner) return ui.notifications.warn(`«${actor.name}» вам не принадлежит.`);
+  if (!hudFits(actor) && await onUnitClick(t, actor)) return;
   if (d.hudEject !== undefined) return ejectNow(actor);
   // скорость и высота как на листе и в меню токена: действие засчитывают хуки actions.mjs
   if (d.hudSpeed) {
