@@ -34,7 +34,10 @@ export const COCKPIT_SOUNDS = {
   toggle: { label: "Тумблер оружия", hint: "Станции оружия в HUD.", ui: true }
 };
 const CHANNEL = `system.${SYSTEM_ID}`;
-export const SRC = k => `systems/${SYSTEM_ID}/assets/sounds/${k}.ogg`;
+/** Ogg там, где браузер его играет (Chrome, Firefox), иначе mp3 (Safari, iPad, часть Edge). */
+let EXT = null;
+const ext = () => EXT ??= (() => { try { return new Audio().canPlayType('audio/ogg; codecs="vorbis"') ? "ogg" : "mp3"; } catch { return "ogg"; } })();
+export const SRC = k => `systems/${SYSTEM_ID}/assets/sounds/${k}.${ext()}`;
 /** Файл звука: у «взрыва вдали» один из трёх наугад. */
 const fileOf = k => { const f = COCKPIT_SOUNDS[k]?.files; return f ? f[Math.floor(Math.random() * f.length)] : k; };
 const muted = k => { try { return !!game.settings.get(SYSTEM_ID, "soundMute")?.[k]; } catch { return false; } };
@@ -120,12 +123,21 @@ function play(key, id, { loop = false, throttle = 1500 } = {}) {
   try {
     const res = foundry.audio.AudioHelper.play({ src, volume, autoplay: true, loop, channel: "interface" }, false);
     Promise.resolve(res).then(sound => { if (sound) playing.set(key, sound); })
-      .catch(err => console.warn(`${SYSTEM_ID} | звук ${key}`, err));
+      .catch(err => failed(key, src, err));
   } catch (err) {
     console.warn(`${SYSTEM_ID} | звук ${key}`, err);
     return false;
   }
   return true;
+}
+
+/** Звук не сыграл: один раз сказать игроку, почему (обычно файл не грузится или браузер не даёт играть). */
+let warned = false;
+function failed(key, src, err) {
+  console.warn(`${SYSTEM_ID} | звук ${key} (${src})`, err);
+  if (warned) return;
+  warned = true;
+  globalThis.ui?.notifications?.warn(`Звук «${COCKPIT_SOUNDS[key]?.label ?? key}» не сыграл: ${err?.message ?? err}. Подробности в консоли (F12).`);
 }
 
 /** Приоритетная цель своих: NPC с отметкой «Приоритетная цель» на стороне союзников, нейтральный или гражданский. */
@@ -213,7 +225,14 @@ const soundMenu = () => class SoundMenu extends FormApplication {
     const rows = Object.entries(COCKPIT_SOUNDS).map(([k, d]) => `<div class="form-group"><label><input type="checkbox" name="${k}" ${mute[k] ? "" : "checked"}> ${d.label}</label><p class="notes">${d.hint}</p></div>`).join("");
     new Dialog({
       title: "Звуки по отдельности",
-      content: `<form class="tb-dialog">${rows}</form>`,
+      content: `<form class="tb-dialog"><p><button type="button" data-tb-sound-test><i class="fas fa-volume-high"></i> Проверить звук</button></p>${rows}</form>`,
+      render: html => (html[0] ?? html).querySelector("[data-tb-sound-test]")?.addEventListener("click", ev => {
+        ev.preventDefault();
+        const vol = Number(setting("soundVolume", 70));
+        let iface = null; try { iface = Math.round(Number(game.settings.get("core", "globalInterfaceVolume")) * 100); } catch {}
+        const ok = play("tab", `test:${Date.now()}`, { throttle: 0 });
+        ui.notifications.info(ok ? `Проверка: должен прозвучать щелчок. Громкость системы ${vol}%, ползунок «Интерфейс» в плейлистах ${iface ?? "?"}%, файлы .${ext()}.` : `Звук не запущен: громкость системы ${vol}% или звук вкладок выключен ниже.`);
+      }),
       buttons: { ok: { label: "Сохранить", callback: html => {
         const root = html[0] ?? html, out = {};
         for (const el of root.querySelectorAll("input[type=checkbox]")) if (!el.checked) out[el.name] = true;
