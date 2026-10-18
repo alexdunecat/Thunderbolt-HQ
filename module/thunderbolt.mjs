@@ -91,6 +91,7 @@ Hooks.once("setup", () => {
 
 Hooks.once("init", () => {
   console.log(`${SYSTEM_ID} | init`);
+  registerToolLayers();
   CONFIG.TB = TB;
   CONFIG.Actor.documentClass = TBActor;
   CONFIG.Item.documentClass = TBItem;
@@ -226,17 +227,37 @@ async function breakLocks() {
   }
 }
 
-/* Панель AWACS: кнопка на панели токенов и в разделе «Актёры» (только ведущему). */
+/*
+ * Кнопки системы на панели слева. У токенов только «Панель AWACS» (ведущему), остальное в своих разделах:
+ * «Радио» (радиожурнал, гражданское радио, у ведущего реплика AWACS и реплики NPC) и «Брифинг» (только ведущему).
+ * Разделу Foundry нужен свой слой холста: по слою он находит, какой раздел подсветить, и с общим слоем токенов
+ * щелчок по разделу возвращал бы на «Токены». Поэтому у каждого раздела пустой слой интерфейса.
+ */
+const TOOL_LAYERS = { tbradio: "Радио", tbbrief: "Брифинг" };
+function registerToolLayers() {
+  if (!globalThis.InteractionLayer || !CONFIG.Canvas?.layers) return;
+  for (const name of Object.keys(TOOL_LAYERS)) {
+    const layerClass = class extends InteractionLayer {
+      static get layerOptions() { return foundry.utils.mergeObject(super.layerOptions, { name, zIndex: 0 }); }
+    };
+    CONFIG.Canvas.layers[name] = { layerClass, group: "interface" };
+  }
+}
 Hooks.on("getSceneControlButtons", controls => {
-  const tokens = controls.find(c => c.name === "token");
-  tokens?.tools.push({ name: "tb-radio-log", title: "Радиожурнал: AWACS и переговоры", icon: "fas fa-book-open", button: true, onClick: () => openRadioLog() });
-  if (canRadio()) tokens?.tools.push({ name: "tb-civil-radio", title: "Гражданское радио: музыка с YouTube у всех", icon: "fas fa-radio", button: true, onClick: () => openCivilRadio() });
+  const tool = (name, title, icon, onClick) => ({ name, title, icon, button: true, onClick });
+  const radio = [tool("tb-radio-log", "Радиожурнал: AWACS и переговоры", "fas fa-book-open", () => openRadioLog())];
+  if (canRadio()) radio.push(tool("tb-civil-radio", "Гражданское радио: музыка с YouTube у всех", "fas fa-radio", () => openCivilRadio()));
+  if (game.user.isGM) radio.push(
+    tool("tb-radio", "Радио AWACS: реплика всем", "fas fa-tower-broadcast", () => openRadioDialog()),
+    tool("tb-chatter", "Реплики NPC: фразы союзников, противника и гражданских", "fas fa-comments", () => openChatterEditor()));
+  const hasLayer = name => !!CONFIG.Canvas?.layers?.[name];
+  if (hasLayer("tbradio")) controls.push({ name: "tb-radio", title: "Радио", icon: "fas fa-headset", layer: "tbradio", activeTool: "", tools: radio });
   if (!game.user.isGM) return;
-  tokens?.tools.push({ name: "tb-radio", title: "Радио AWACS: реплика всем", icon: "fas fa-tower-broadcast", button: true, onClick: () => openRadioDialog() });
-  tokens?.tools.push({ name: "tb-chatter", title: "Реплики NPC: фразы союзников, противника и гражданских", icon: "fas fa-comments", button: true, onClick: () => openChatterEditor() });
-  tokens?.tools.push({ name: "tb-awacs", title: "Панель AWACS", icon: "fas fa-satellite-dish", button: true, onClick: () => openAwacs() });
-  tokens?.tools.push({ name: "tb-boot", title: "Заставка АСУ «Тайга» перед брифингом: у всех на экране", icon: "fas fa-terminal", button: true, onClick: () => openBootDialog() });
-  tokens?.tools.push({ name: "tb-briefing", title: "Брифинг миссии: карта, этапы и субтитры у всех на экране", icon: "fas fa-map", button: true, onClick: () => openBriefing() });
+  controls.find(c => c.name === "token")?.tools.push(tool("tb-awacs", "Панель AWACS", "fas fa-satellite-dish", () => openAwacs()));
+  if (hasLayer("tbbrief")) controls.push({ name: "tb-brief", title: "Брифинг", icon: "fas fa-chalkboard-user", layer: "tbbrief", activeTool: "", tools: [
+    tool("tb-boot", "Заставка АСУ «Тайга» перед брифингом: у всех на экране", "fas fa-terminal", () => openBootDialog()),
+    tool("tb-briefing", "Брифинг миссии: карта, этапы и субтитры у всех на экране", "fas fa-map", () => openBriefing())
+  ] });
 });
 /* Гражданское радио: кнопка во вкладке плейлистов у тех, кто им управляет. */
 Hooks.on("renderPlaylistDirectory", (app, html) => {
