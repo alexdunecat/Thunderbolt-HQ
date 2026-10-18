@@ -1,6 +1,6 @@
 /* HUD пилота: полоса внизу экрана над панелью макросов, как приборы в Ace Combat.
-   Слева HP и Strain делениями, в центре Speed, высота и действия хода, справа захват, спецоружие и предупреждения,
-   снизу кнопки действий с номерами панели макросов. Видна в бою, когда самолёт игрока стоит на сцене;
+   Одна широкая низкая строка: HP, Strain, защита, захват и системы; спидометр; альтиметр; силуэт машины с пилонами;
+   кнопки оружия, манёвров и конца хода. Видна в бою, когда самолёт игрока стоит на сцене;
    у ведущего показывает выделенный токен. Сворачивается щелчком по шапке, выключается в настройках клиента. */
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
@@ -13,7 +13,7 @@ import { lockersOf } from "./rwr.mjs";
 import { vmaxOf, kmhOf } from "./plane-speed.mjs";
 import { ejectNow } from "./dice/rolls.mjs";
 
-const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, WIDTH_KEY = `${SYSTEM_ID}.hudWidth`;
+const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, WIDTH_KEY = `${SYSTEM_ID}.hudWidthWide`;
 const BIG = new Set(["missile", "lock", "doom"]);
 const BIG_HINT = { missile: "ракета в воздухе: Break! или смена высоты", lock: "вас держат на захвате", doom: "машина обречена: катапульта или героическая гибель" };
 const BUTTONS = { lock: "Lock On", break: "Break", lead: "Lead", formup: "Вплотную", recover: "Strain", end: "Конец хода" };
@@ -125,24 +125,29 @@ function speedGauge(d) {
 const SPOTS = { gu: [[50, 7]], ms: [[17, 70], [83, 70]], sw: [[33, 60], [67, 60]], sw2: [[50, 68]], en: [[44, 92], [56, 92]], fl: [[28, 76], [72, 76]], ma: [[50, 36]] };
 const at = ([x, y]) => `left:${x}%;top:${y}%`;
 
-/** Схема машины сверху: силуэт самого токена, на нём пушка, ракеты и пилоны спецоружия (нажимаются) и отметки сломанной системы. */
+/** Схема машины сверху: силуэт самого токена, на нём пушка, ракеты и пилоны спецоружия (нажимаются) и отметки сломанной системы.
+    Картинка обычным <img>: относительный путь в CSS-переменной браузер разрешает от файла стилей, и маска не грузилась. */
 function fighter(d) {
   const broken = d.systems.find(x => x.broken)?.key;
   const spw = d.weapons.slice(0, 2);
   const point = (cls, spots, attrs, title, label = "") => spots.map(p => `<a class="tb-hud-pt ${cls}" style="${at(p)}" ${attrs} title="${esc(title)}">${label}</a>`).join("");
   return `<div class="tb-hud-sil">
-      <div class="tb-hud-mask" style="--sil:url('${encodeURI(d.img)}')"></div>
+      ${d.img ? `<img src="${esc(d.img)}" alt="" draggable="false">` : ""}
       ${point(`gun ${broken === "gu" ? "dead" : ""}`, SPOTS.gu, `data-hud-act="guns"`, "Guns, Guns, Guns!")}
       ${point(`msl ${d.aimed ? "" : "aimed"} ${broken === "ms" ? "dead" : ""}`, SPOTS.ms, `data-hud-act="missile"`, "Fox Two! стандартной ракетой")}
       ${spw[0] ? point(`spw ${spw[0].aimed ? "aimed" : ""} ${spw[0].empty ? "empty" : ""} ${broken === "sw" ? "dead" : ""}`, SPOTS.sw, `data-hud-spw="${spw[0].id}"`, `${spw[0].name} ${spw[0].ammo}: выбрать и пустить`) : ""}
       ${spw[1] ? point(`spw bomb ${spw[1].aimed ? "aimed" : ""} ${spw[1].empty ? "empty" : ""} ${broken === "sw" ? "dead" : ""}`, SPOTS.sw2, `data-hud-spw="${spw[1].id}"`, `${spw[1].name} ${spw[1].ammo}: выбрать и пустить`) : ""}
       ${broken && ["en", "fl", "ma"].includes(broken) ? point("hit", SPOTS[broken], "", `Сломано: ${TB.systems[broken].label} (${TB.systems[broken].hint})`, "✕") : ""}
-    </div>
-    <div class="tb-hud-arms">
-      <a data-hud-act="guns" class="${broken === "gu" ? "dead" : ""}"><b>${PILOT_BAR.indexOf("guns") + 1}</b> GUN</a>
-      <a data-hud-act="missile" class="${d.aimed ? "" : "aimed"} ${broken === "ms" ? "dead" : ""}"><b>${PILOT_BAR.indexOf("missile") + 1}</b> MSL</a>
-      ${d.weapons.map(w => `<a data-hud-spw="${w.id}" class="${w.aimed ? "aimed" : ""} ${w.empty ? "empty" : ""} ${broken === "sw" ? "dead" : ""}" title="Выбрать и пустить">${esc(w.name)} ${w.ammo}</a>`).join("")}
     </div>`;
+}
+
+/** Кнопки оружия: пушка, стандартная ракета и каждое спецоружие с остатком. Сломанная система перечёркивает свои. */
+function weaponButtons(d) {
+  const broken = d.systems.find(x => x.broken)?.key;
+  const n = act => PILOT_BAR.indexOf(act) + 1;
+  return `<button type="button" data-hud-act="guns" class="wpn ${broken === "gu" ? "dead" : ""}" title="Guns, Guns, Guns!"><b>${n("guns")}</b> GUNS</button>
+    <button type="button" data-hud-act="missile" class="wpn ${d.aimed ? "" : "aimed"} ${broken === "ms" ? "dead" : ""}" title="Fox Two! стандартной ракетой"><b>${n("missile")}</b> FOX 2</button>
+    ${d.weapons.map(w => `<button type="button" data-hud-spw="${w.id}" class="wpn spw ${w.aimed ? "aimed" : ""} ${w.empty ? "empty" : ""} ${broken === "sw" ? "dead" : ""}" title="${esc(w.name)}: выбрать и пустить">${esc(w.name)} <em>${w.ammo}</em></button>`).join("")}`;
 }
 
 /** Системы машины: целые зелёным, сломанная (Structure) красным с подсказкой, что она отключает. */
@@ -155,10 +160,11 @@ function html(actor, d, folded) {
   const actBoxes = d.acts && d.acts.declared !== null
     ? Array.from({ length: Math.max(d.acts.declared, d.acts.used) }, (_, i) => `<span class="${i < d.acts.used ? "used" : ""}" title="${esc(d.acts.list[i] ?? "")}">${esc(d.acts.list[i]?.replace(/ \(заодно\)$/, "") ?? String(i + 1))}</span>`).join("")
     : `<span class="tb-hud-none">${d.acts ? "заявки ещё нет" : "вне боя"}</span>`;
-  const buttons = Object.entries(BUTTONS).map(([act, label]) => {
+  const button = (act, label) => {
     const n = PILOT_BAR.indexOf(act) + 1;
     return `<button type="button" data-hud-act="${act}" class="${act === "end" ? "end" : ""}">${n ? `<b>${n}</b> ` : ""}${label}</button>`;
-  }).join("");
+  };
+  const moves = Object.entries(BUTTONS).filter(([act]) => act !== "end").map(([act, label]) => button(act, label)).join("");
   return `<header data-hud-fold title="Свернуть или развернуть HUD">
       <b>${esc(d.name)}</b> <small>${esc(d.plane)}</small>
       ${d.warn.filter(w => !BIG.has(w.key)).map(w => `<span class="tb-hud-warn ${w.key}">${w.text}</span>`).join("")}
@@ -167,34 +173,31 @@ function html(actor, d, folded) {
     </header>
     ${d.warn.filter(w => BIG.has(w.key)).map(w => `<div class="tb-hud-alert ${w.key}"><span>${w.key === "missile" ? "▲ " : ""}${w.text}${w.key === "missile" ? " ▲" : ""}</span><small>${BIG_HINT[w.key]}</small></div>`).join("")}
     ${folded ? "" : `<div class="tb-hud-grid">
-      <div class="tb-hud-col">
-        <small>HP</small><span class="tb-hud-pips hp ${d.hp.value <= 1 ? "low" : ""}">${pips(d.hp.value, d.hp.max)}</span><span class="tb-hud-num">${d.hp.value}/${d.hp.max}</span>
-        ${d.strain?.max ? `<small>STRAIN</small><span class="tb-hud-pips strain">${pips(d.strain.value, d.strain.max)}</span><span class="tb-hud-num">${d.strain.value}/${d.strain.max}</span>` : ""}
-        <small>DEF</small><span class="tb-hud-def">${d.defense ?? "—"}</span>
-        <small>СИСТЕМЫ</small>${systemsStrip(d)}
+      <div class="tb-hud-col tb-hud-stat">
+        <div class="tb-hud-row"><small>HP</small><span class="tb-hud-pips hp ${d.hp.value <= 1 ? "low" : ""}">${pips(d.hp.value, d.hp.max)}</span><span class="tb-hud-num">${d.hp.value}/${d.hp.max}</span></div>
+        ${d.strain?.max ? `<div class="tb-hud-row"><small>STRAIN</small><span class="tb-hud-pips strain">${pips(d.strain.value, d.strain.max)}</span><span class="tb-hud-num">${d.strain.value}/${d.strain.max}</span></div>` : ""}
+        <div class="tb-hud-row"><small>DEF</small><span class="tb-hud-def">${d.defense ?? "—"}</span>
+          <small class="tb-hud-lbl2">ЗАХВАТ</small>${d.lock ? `<a class="tb-hud-lock ${d.lock.gone ? "gone" : ""}" data-hud-lock title="Показать цель на карте"><i class="fas fa-crosshairs"></i> ${esc(d.lock.name)}${d.lock.dist ? ` · ${d.lock.dist}` : ""}${d.lock.gone ? " · нет на сцене" : ""}</a>` : `<span class="tb-hud-none">нет</span>`}</div>
+        <div class="tb-hud-row"><small>СИСТ.</small>${systemsStrip(d)}</div>
         ${d.grit ? `<div class="tb-hud-grit" title="Метка Grit: навык недоступен до конца вылета">GRIT · ${esc(d.grit)} отключён</div>` : ""}
         ${d.canEject ? `<button type="button" class="tb-hud-eject" data-hud-eject title="Бросок на катапультирование Push против 7: Strain добавится сам, если дотягивает, исход сразу в личное дело"><i class="fas fa-parachute-box"></i> КАТАПУЛЬТА</button>` : ""}
-        <small>ЗАХВАТ</small>${d.lock ? `<a class="tb-hud-lock ${d.lock.gone ? "gone" : ""}" data-hud-lock title="Показать цель на карте"><i class="fas fa-crosshairs"></i> ${esc(d.lock.name)}${d.lock.dist ? ` · ${d.lock.dist}` : ""}${d.lock.gone ? " · нет на сцене" : ""}</a>` : `<span class="tb-hud-none">нет</span>`}
       </div>
       <div class="tb-hud-col tb-hud-speed">
-        <small>SPEED</small>
-        <div class="tb-hud-dial">${speedGauge(d)}<div class="tb-hud-readout"><b class="${d.speed <= 0 ? "bad" : ""}">${d.speed}</b><em>/${d.maxSpeed}</em></div></div>
+        <div class="tb-hud-dial">${speedGauge(d)}</div>
+        <div class="tb-hud-readout"><a data-hud-speed="-1" title="Сбросить скорость (Change Speed)">−</a><span><b class="${d.speed <= 0 ? "bad" : ""}">${d.speed}</b><em>/${d.maxSpeed}</em></span><a data-hud-speed="1" title="Прибавить скорость (Change Speed)">+</a></div>
         <div class="tb-hud-kmh" title="Доля максимума машины (${d.vmax} км/ч) по Speed">${d.speed <= 0 ? "сваливание" : `${d.kmh} км/ч · M${d.mach}`}</div>
-        <div class="tb-hud-step"><a data-hud-speed="-1" title="Сбросить скорость (Change Speed)">−</a><a data-hud-speed="1" title="Прибавить скорость (Change Speed)">+</a></div>
       </div>
-      <div class="tb-hud-col tb-hud-altcol">
-        <small>ВЫСОТА</small>
-        <div class="tb-hud-alt">
-          <a class="tb-hud-altbtn" data-hud-alt="1" title="Набрать высоту (Climb)">▲</a>
-          <ol>${d.alts.map(a => `<li class="${a.on ? "on" : ""} ${a.can ? "" : "off"}" ${a.can ? `data-hud-alt-to="${a.key}"` : ""} title="${a.can ? `${a.label}` : `${a.label}: выше потолка машины`}"><span>${esc(a.label)}</span><em>${a.m.toLocaleString("ru")} м</em></li>`).join("")}</ol>
-          <a class="tb-hud-altbtn" data-hud-alt="-1" title="Снизиться (Dive)">▼</a>
-        </div>
+      <div class="tb-hud-col tb-hud-alt">
+        <a class="tb-hud-altbtn up" data-hud-alt="1" title="Набрать высоту (Climb)">▲</a>
+        <a class="tb-hud-altbtn down" data-hud-alt="-1" title="Снизиться (Dive)">▼</a>
+        <ol>${d.alts.map(a => `<li class="${a.on ? "on" : ""} ${a.can ? "" : "off"}" ${a.can ? `data-hud-alt-to="${a.key}"` : ""} title="${a.can ? `${a.label}` : `${a.label}: выше потолка машины`}"><span>${esc(a.label)}</span><em>${a.m.toLocaleString("ru")} м</em></li>`).join("")}</ol>
       </div>
       <div class="tb-hud-col tb-hud-arm">${fighter(d)}</div>
-    </div>
-    <div class="tb-hud-foot">
-      <div class="tb-hud-acts" title="Действия хода${d.acts?.rolled ? " · бросок уже был" : ""}"><small>ДЕЙСТВИЯ</small>${actBoxes}${d.acts?.rolled ? `<i class="fas fa-dice-d10" title="Бросок за ход уже был"></i>` : ""}</div>
-      <div class="tb-hud-btns">${buttons}</div>
+      <div class="tb-hud-col tb-hud-ctl">
+        <div class="tb-hud-btns tb-hud-wpns"><small>ОРУЖИЕ</small>${weaponButtons(d)}</div>
+        <div class="tb-hud-btns"><small>МАНЁВР</small>${moves}</div>
+        <div class="tb-hud-btns tb-hud-acts" title="Действия хода${d.acts?.rolled ? " · бросок уже был" : ""}"><small>ХОД</small>${actBoxes}${d.acts?.rolled ? `<i class="fas fa-dice-d10" title="Бросок за ход уже был"></i>` : ""}${button("end", BUTTONS.end)}</div>
+      </div>
     </div>`}`;
 }
 
@@ -216,11 +219,11 @@ function render() {
     try { w = Number(localStorage.getItem(WIDTH_KEY)) || 0; } catch (err) { /* хранилище недоступно */ }
     if (w) el.style.width = `${w}px`;
     document.body.append(el);
-    // ширину тянут за правый нижний угол: запоминаю её в этом браузере
+    // ширину тянут за правый нижний угол: браузер пишет её в style.width, её и запоминаю (окно браузера её не трогает)
     let saveTimer = null;
     new ResizeObserver(() => {
       clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => { try { if (el) localStorage.setItem(WIDTH_KEY, String(Math.round(el.offsetWidth))); } catch (err) { /* хранилище недоступно */ } }, 300);
+      saveTimer = setTimeout(() => { try { const w = parseInt(el?.style.width); if (w) localStorage.setItem(WIDTH_KEY, String(w)); } catch (err) { /* хранилище недоступно */ } place(); }, 300);
     }).observe(el);
   }
   el.classList.toggle("folded", folded);
@@ -228,12 +231,12 @@ function render() {
   place();
 }
 
-/** Над панелью макросов, по центру экрана. */
+/** Над панелью макросов, по её центру, не вылезая за край окна. */
 function place() {
   if (!el) return;
-  // по центру над панелью макросов; растягивается вправо от левого края
-  el.style.left = `${Math.max(8, Math.round((window.innerWidth - el.offsetWidth) / 2))}px`;
   const bar = document.getElementById("hotbar")?.getBoundingClientRect();
+  const mid = bar && bar.width ? bar.left + bar.width / 2 : window.innerWidth / 2;
+  el.style.left = `${Math.max(8, Math.min(window.innerWidth - el.offsetWidth - 8, Math.round(mid - el.offsetWidth / 2)))}px`;
   el.style.bottom = `${bar && bar.height ? Math.max(8, window.innerHeight - bar.top + 8) : 70}px`;
 }
 

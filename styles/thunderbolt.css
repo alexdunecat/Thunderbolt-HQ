@@ -903,67 +903,59 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-strike .tb-strike-name { flex: 1; min-width: 0; }
 .tb-strike small { opacity: 0.8; }
 
-/* ---------- HUD пилота: полоса над панелью макросов ---------- */
-#tb-pilot-hud { position: fixed; left: 50%; z-index: 70; width: 640px; min-width: 500px; max-width: calc(100vw - 40px); resize: horizontal; overflow: hidden; container-type: inline-size;
+/* ---------- HUD пилота: широкая низкая полоса над панелью макросов ---------- */
+#tb-pilot-hud { position: fixed; left: 50%; z-index: 70; width: min(1080px, calc(100vw - 420px)); min-width: 560px; max-width: calc(100vw - 40px); resize: horizontal; overflow: hidden; container-type: inline-size;
   background: color-mix(in srgb, var(--tb-bg) 90%, transparent); border: 1px solid var(--tb-line); box-shadow: inset 0 0 0 1px rgba(155, 227, 191, .08), 0 4px 18px rgba(0, 0, 0, .45);
   color: var(--tb-ink); font-family: var(--tb-data); font-size: 12px; pointer-events: auto; backdrop-filter: blur(2px); }
-#tb-pilot-hud header { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-bottom: 1px solid var(--tb-line); cursor: pointer; user-select: none; }
+#tb-pilot-hud header { display: flex; align-items: center; gap: 8px; padding: 2px 10px; border-bottom: 1px solid var(--tb-line); cursor: pointer; user-select: none; }
 #tb-pilot-hud.folded header { border-bottom: none; }
 #tb-pilot-hud header b { font-family: var(--tb-display); letter-spacing: .08em; text-transform: uppercase; }
-#tb-pilot-hud header small { color: var(--tb-muted); }
 #tb-pilot-hud header > .fas { margin-left: auto; color: var(--tb-muted); }
-#tb-pilot-hud small { display: block; color: var(--tb-muted); font-size: 10px; letter-spacing: .14em; margin-top: 4px; }
-#tb-pilot-hud header small { display: inline; letter-spacing: .04em; margin: 0; font-size: 11px; }
+#tb-pilot-hud small { color: var(--tb-muted); font-size: 10px; letter-spacing: .12em; }
+#tb-pilot-hud header small { letter-spacing: .04em; font-size: 11px; }
 .tb-hud-turn { color: var(--tb-player, var(--tb-warn)); border: 1px solid currentColor; padding: 0 6px; font-size: 10.5px; letter-spacing: .12em; }
 .tb-hud-warn { color: var(--tb-bad); border: 1px solid currentColor; padding: 0 6px; font-size: 10.5px; letter-spacing: .12em; animation: tb-hud-blink 1s steps(2, start) infinite; }
 .tb-hud-warn.lowalt, .tb-hud-warn.lock { color: var(--tb-warn); }
 @keyframes tb-hud-blink { to { visibility: hidden; } }
-.tb-hud-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .85fr) minmax(0, .95fr) minmax(0, 1fr); gap: 10px; padding: 4px 10px 6px; align-items: start; }
-@container (max-width: 560px) { .tb-hud-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
-@container (max-width: 700px) { .tb-hud-alt li em { display: none; } }
+/* одна строка приборов: состояние, спидометр, альтиметр, силуэт, кнопки; на узкой панели кнопки уходят вниз */
+.tb-hud-grid { display: grid; grid-template-columns: minmax(180px, 1fr) 112px minmax(156px, .75fr) 92px minmax(300px, 2.4fr); gap: 4px 12px; padding: 5px 10px 6px; align-items: center; }
+.tb-hud-col { min-width: 0; }
+@container (max-width: 960px) { .tb-hud-grid { grid-template-columns: minmax(180px, 1fr) 112px minmax(156px, .8fr) 92px; } .tb-hud-ctl { grid-column: 1 / -1; } }
+@container (max-width: 640px) { .tb-hud-alt li em { display: none; } .tb-hud-grid { grid-template-columns: minmax(170px, 1fr) 110px minmax(90px, .7fr) 80px; } }
 /* крупные предупреждения: полоса через весь HUD под шапкой */
-.tb-hud-alert { display: flex; align-items: baseline; justify-content: center; gap: 12px; padding: 4px 10px; background: color-mix(in srgb, var(--tb-bad) 22%, transparent);
+.tb-hud-alert { display: flex; align-items: baseline; justify-content: center; gap: 12px; padding: 2px 10px; background: color-mix(in srgb, var(--tb-bad) 22%, transparent);
   border-bottom: 1px solid var(--tb-bad); color: var(--tb-bad); animation: tb-hud-pulse .7s ease-in-out infinite alternate; }
-.tb-hud-alert span { font-family: var(--tb-display); font-size: 26px; font-weight: 800; letter-spacing: .3em; line-height: 1.1; text-shadow: 0 0 10px color-mix(in srgb, var(--tb-bad) 70%, transparent); }
-#tb-pilot-hud .tb-hud-alert small { display: inline; margin: 0; color: inherit; opacity: .85; letter-spacing: .04em; font-size: 11px; }
+.tb-hud-alert span { font-family: var(--tb-display); font-size: 24px; font-weight: 800; letter-spacing: .3em; line-height: 1.1; text-shadow: 0 0 10px color-mix(in srgb, var(--tb-bad) 70%, transparent); }
+#tb-pilot-hud .tb-hud-alert small { color: inherit; opacity: .85; letter-spacing: .04em; font-size: 11px; }
 .tb-hud-alert.lock { --tb-bad: var(--tb-warn); }
-.tb-hud-alert.lock span { font-size: 22px; }
+.tb-hud-alert.lock span { font-size: 20px; }
 @keyframes tb-hud-pulse { from { background: color-mix(in srgb, var(--tb-bad) 8%, transparent); } to { background: color-mix(in srgb, var(--tb-bad) 32%, transparent); } }
 #tb-pilot-hud:has(.tb-hud-alert.missile) { border-color: var(--tb-bad); box-shadow: 0 0 0 1px var(--tb-bad), 0 0 22px color-mix(in srgb, var(--tb-bad) 55%, transparent); }
-/* системы, Grit и катапульта */
+/* состояние: строки «подпись — значение» */
+.tb-hud-stat { display: flex; flex-direction: column; gap: 3px; }
+.tb-hud-row { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+.tb-hud-row > small:first-child { flex: 0 0 44px; }
+#tb-pilot-hud .tb-hud-row small.tb-hud-lbl2 { margin-left: 10px; }
+.tb-hud-pips { display: inline-flex; gap: 3px; }
+.tb-hud-pips i { width: 12px; height: 8px; border: 1px solid var(--tb-line); }
+.tb-hud-pips.hp i.on { background: var(--tb-accent); border-color: var(--tb-accent); }
+.tb-hud-pips.hp.low i.on { background: var(--tb-bad); border-color: var(--tb-bad); }
+.tb-hud-pips.strain i.on { background: var(--tb-warn); border-color: var(--tb-warn); }
+.tb-hud-num { color: var(--tb-muted); }
+.tb-hud-def { font-size: 15px; line-height: 1; }
+.tb-hud-none { color: var(--tb-muted); }
+#tb-pilot-hud .tb-hud-lock { min-width: 0; color: var(--tb-bad); cursor: pointer; overflow: hidden; text-overflow: ellipsis; }
+#tb-pilot-hud .tb-hud-lock.gone { color: var(--tb-muted); }
 .tb-hud-sys { display: flex; flex-wrap: wrap; gap: 3px; }
-.tb-hud-sys span { padding: 0 4px; font-size: 10px; line-height: 16px; border: 1px solid color-mix(in srgb, var(--tb-accent) 50%, transparent); color: var(--tb-accent); }
+.tb-hud-sys span { padding: 0 3px; font-size: 9.5px; line-height: 14px; border: 1px solid color-mix(in srgb, var(--tb-accent) 50%, transparent); color: var(--tb-accent); }
 .tb-hud-sys span.dead { border-color: var(--tb-bad); color: var(--tb-bad); background: color-mix(in srgb, var(--tb-bad) 18%, transparent); text-decoration: line-through; }
-.tb-hud-grit { margin-top: 4px; color: var(--tb-warn); font-size: 11px; }
-#tb-pilot-hud .tb-hud-eject { width: 100%; margin-top: 6px; line-height: 26px; font-family: var(--tb-display); font-size: 13px; letter-spacing: .2em; color: var(--tb-bg);
+.tb-hud-grit { color: var(--tb-warn); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#tb-pilot-hud .tb-hud-eject { width: 100%; line-height: 22px; font-family: var(--tb-display); font-size: 12px; letter-spacing: .2em;
   background: repeating-linear-gradient(-45deg, var(--tb-warn) 0 10px, #1a1a1a 10px 20px); border: 1px solid var(--tb-warn); text-shadow: 0 0 3px #000; color: #fff; border-radius: 0; }
 #tb-pilot-hud .tb-hud-eject:hover { filter: brightness(1.2); box-shadow: 0 0 10px var(--tb-warn); }
-.tb-hud-col { min-width: 0; }
-.tb-hud-pips { display: inline-flex; gap: 3px; vertical-align: middle; }
-.tb-hud-pips i { width: 13px; height: 8px; border: 1px solid var(--tb-line); }
-.tb-hud-pips.hp i.on { background: var(--tb-accent); border-color: var(--tb-accent); }
-.tb-hud-pips.strain i.on { background: var(--tb-warn); border-color: var(--tb-warn); }
-.tb-hud-num { margin-left: 6px; color: var(--tb-muted); }
-.tb-hud-big { display: flex; gap: 16px; }
-.tb-hud-big b { font-size: 20px; font-weight: 500; }
-.tb-hud-big b.bad { color: var(--tb-bad); }
-.tb-hud-big em { font-style: normal; color: var(--tb-muted); }
-.tb-hud-acts { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-#tb-pilot-hud .tb-hud-acts small { display: inline; margin: 0 4px 0 0; }
-.tb-hud-acts span { border: 1px solid var(--tb-line); padding: 0 6px; font-size: 10.5px; line-height: 18px; white-space: nowrap; }
-.tb-hud-acts span.used { color: var(--tb-muted); text-decoration: line-through; }
-.tb-hud-acts .fa-dice-d10 { color: var(--tb-muted); }
-.tb-hud-none { color: var(--tb-muted); }
-#tb-pilot-hud .tb-hud-lock { display: block; color: var(--tb-bad); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#tb-pilot-hud .tb-hud-lock.gone { color: var(--tb-muted); }
-.tb-hud-pips.hp.low i.on { background: var(--tb-bad); border-color: var(--tb-bad); }
-.tb-hud-weapons { display: block; overflow-wrap: anywhere; }
-.tb-hud-weapons .empty { color: var(--tb-muted); text-decoration: line-through; }
-.tb-hud-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 6px 10px 8px; border-top: 1px solid var(--tb-line); }
-.tb-hud-btns { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 360px; }
-.tb-hud-def { font-size: 16px; }
-/* спидометр */
-.tb-hud-dial { position: relative; width: 120px; max-width: 100%; }
+/* спидометр: дуга, под ней − Speed + и км/ч */
+.tb-hud-speed { display: flex; flex-direction: column; align-items: center; }
+.tb-hud-dial { width: 104px; }
 .tb-hud-gauge { display: block; width: 100%; height: auto; overflow: visible; }
 .tb-hud-gauge .track { fill: none; stroke: var(--tb-line); stroke-width: 6; }
 .tb-hud-gauge .fill { fill: none; stroke: var(--tb-accent); stroke-width: 6; }
@@ -971,50 +963,57 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-hud-gauge .needle { stroke: var(--tb-ink); stroke-width: 2; stroke-linecap: round; }
 .tb-hud-gauge .needle.bad, .tb-hud-gauge .fill.bad { stroke: var(--tb-bad); }
 .tb-hud-gauge .hub { fill: var(--tb-ink); }
-.tb-hud-readout { text-align: center; margin-top: -4px; }
-.tb-hud-readout b { font-size: 20px; font-weight: 500; }
+.tb-hud-readout { display: flex; align-items: center; gap: 8px; }
+.tb-hud-readout b { font-size: 19px; font-weight: 500; line-height: 1; }
 .tb-hud-readout b.bad { color: var(--tb-bad); }
 .tb-hud-readout em { font-style: normal; color: var(--tb-muted); }
-.tb-hud-kmh { margin-top: 4px; color: var(--tb-muted); font-size: 11px; white-space: nowrap; }
-.tb-hud-step { display: flex; gap: 4px; margin-top: 4px; }
-#tb-pilot-hud .tb-hud-step a, #tb-pilot-hud .tb-hud-altbtn { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 20px; border: 1px solid var(--tb-line);
+.tb-hud-kmh { color: var(--tb-muted); font-size: 10.5px; white-space: nowrap; }
+#tb-pilot-hud .tb-hud-readout a, #tb-pilot-hud .tb-hud-altbtn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 20px; border: 1px solid var(--tb-line);
   color: var(--tb-ink); background: var(--tb-surface); cursor: pointer; font-size: 13px; line-height: 1; }
-#tb-pilot-hud .tb-hud-step a:hover, #tb-pilot-hud .tb-hud-altbtn:hover { background: var(--tb-accent); color: var(--tb-accent-ink); }
-/* альтиметр: шкала ступеней сверху вниз, текущая подсвечена */
-.tb-hud-alt { display: flex; flex-direction: column; gap: 3px; }
-.tb-hud-alt ol { list-style: none; margin: 0; padding: 0 0 0 10px; border-left: 2px solid var(--tb-line); display: flex; flex-direction: column; gap: 1px; }
-.tb-hud-alt li { position: relative; display: flex; justify-content: space-between; gap: 6px; padding: 1px 6px; cursor: pointer; font-size: 11px; color: var(--tb-muted); }
+#tb-pilot-hud .tb-hud-readout a:hover, #tb-pilot-hud .tb-hud-altbtn:hover { background: var(--tb-accent); color: var(--tb-accent-ink); }
+/* альтиметр: ▲ ▼ слева, шкала ступеней справа, текущая подсвечена */
+.tb-hud-alt { display: grid; grid-template-columns: 24px minmax(0, 1fr); grid-template-rows: 1fr 1fr; column-gap: 8px; row-gap: 4px; }
+.tb-hud-alt .up { grid-area: 1 / 1; align-self: end; }
+.tb-hud-alt .down { grid-area: 2 / 1; align-self: start; }
+.tb-hud-alt ol { grid-area: 1 / 2 / 3 / 3; list-style: none; margin: 0; padding: 0 0 0 8px; border-left: 2px solid var(--tb-line); display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.tb-hud-alt li { position: relative; display: flex; justify-content: space-between; gap: 6px; padding: 0 5px; line-height: 17px; cursor: pointer; font-size: 11px; color: var(--tb-muted); white-space: nowrap; }
+.tb-hud-alt li span { overflow: hidden; text-overflow: ellipsis; }
 .tb-hud-alt li em { font-style: normal; font-size: 10px; opacity: .8; }
-.tb-hud-alt li::before { content: ""; position: absolute; left: -16px; top: 50%; width: 9px; border-top: 1px solid var(--tb-line); }
 .tb-hud-alt li.on { color: var(--tb-accent-ink); background: var(--tb-accent); font-weight: 600; }
-.tb-hud-alt li.on::before { left: -18px; width: 0; height: 0; border: 5px solid transparent; border-left-color: var(--tb-accent); border-top-width: 5px; top: calc(50% - 5px); }
+.tb-hud-alt li.on::before { content: ""; position: absolute; left: -14px; top: calc(50% - 5px); border: 5px solid transparent; border-left-color: var(--tb-accent); }
 .tb-hud-alt li.off { opacity: .35; cursor: default; text-decoration: line-through; }
 .tb-hud-alt li:not(.on):not(.off):hover { color: var(--tb-ink); }
-.tb-hud-alt .tb-hud-altbtn { align-self: flex-start; margin-left: 10px; }
-/* схема машины: силуэт токена маской, поверх пушка, пилоны и отметки сломанной системы */
-.tb-hud-sil { position: relative; width: 100%; max-width: 150px; aspect-ratio: 1; margin: 0 auto; }
-.tb-hud-mask { position: absolute; inset: 0; background: color-mix(in srgb, var(--tb-ink) 30%, var(--tb-surface-2));
-  -webkit-mask: var(--sil) center / contain no-repeat; mask: var(--sil) center / contain no-repeat; }
-#tb-pilot-hud .tb-hud-pt { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; cursor: pointer;
+/* схема машины: картинка токена, поверх пушка, пилоны и отметки сломанной системы */
+.tb-hud-sil { position: relative; width: 100%; aspect-ratio: 1; }
+.tb-hud-sil img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; border: none; opacity: .9; pointer-events: none;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--tb-accent) 35%, transparent)); }
+#tb-pilot-hud .tb-hud-pt { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; cursor: pointer;
   background: var(--tb-ink); border: 2px solid var(--tb-bg); box-shadow: 0 0 0 1px var(--tb-line); }
-#tb-pilot-hud .tb-hud-pt.msl { width: 6px; height: 18px; margin: -9px 0 0 -3px; border-radius: 3px 3px 1px 1px; }
-#tb-pilot-hud .tb-hud-pt.spw { width: 7px; height: 16px; margin: -8px 0 0 -3.5px; border-radius: 3px; background: var(--tb-warn); }
-#tb-pilot-hud .tb-hud-pt.spw.bomb { width: 9px; height: 14px; margin: -7px 0 0 -4.5px; border-radius: 5px; }
+#tb-pilot-hud .tb-hud-pt.msl { width: 6px; height: 15px; margin: -7.5px 0 0 -3px; border-radius: 3px 3px 1px 1px; }
+#tb-pilot-hud .tb-hud-pt.spw { width: 6px; height: 13px; margin: -6.5px 0 0 -3px; border-radius: 3px; background: var(--tb-warn); }
+#tb-pilot-hud .tb-hud-pt.spw.bomb { width: 8px; height: 12px; margin: -6px 0 0 -4px; border-radius: 4px; }
 #tb-pilot-hud .tb-hud-pt.aimed { box-shadow: 0 0 0 2px var(--tb-accent); }
 #tb-pilot-hud .tb-hud-pt.empty { background: transparent; border-color: var(--tb-muted); }
 #tb-pilot-hud .tb-hud-pt.dead { background: var(--tb-bad); box-shadow: 0 0 0 2px var(--tb-bad); }
 #tb-pilot-hud .tb-hud-pt.hit { width: 16px; height: 16px; margin: -8px 0 0 -8px; background: transparent; border: none; box-shadow: none; color: var(--tb-bad); font-size: 15px; font-weight: 800; line-height: 16px; text-align: center; cursor: help; }
 #tb-pilot-hud .tb-hud-pt:not(.hit):hover { background: var(--tb-accent); }
-#tb-pilot-hud .tb-hud-arms a.dead { color: var(--tb-bad); border-color: var(--tb-bad); text-decoration: line-through; }
-.tb-hud-arms { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 2px; }
-#tb-pilot-hud .tb-hud-arms a { border: 1px solid var(--tb-line); padding: 0 6px; font-size: 10.5px; line-height: 18px; color: var(--tb-ink); cursor: pointer; white-space: nowrap; }
-#tb-pilot-hud .tb-hud-arms a b { color: var(--tb-accent); }
-#tb-pilot-hud .tb-hud-arms a.aimed { border-color: var(--tb-accent); }
-#tb-pilot-hud .tb-hud-arms a.empty { color: var(--tb-muted); text-decoration: line-through; }
-#tb-pilot-hud .tb-hud-arms a:hover { background: var(--tb-accent); color: var(--tb-accent-ink); }
-#tb-pilot-hud .tb-hud-btns button { flex: 1 1 auto; width: auto; line-height: 22px; padding: 0 8px; font-family: var(--tb-data); font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+/* кнопки: оружие, манёвры, ход */
+.tb-hud-ctl { display: flex; flex-direction: column; gap: 4px; }
+.tb-hud-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.tb-hud-btns > small:first-child { flex: 0 0 54px; }
+#tb-pilot-hud .tb-hud-btns button { flex: 1 1 auto; width: auto; line-height: 22px; padding: 0 6px; font-family: var(--tb-data); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap;
   background: var(--tb-surface); color: var(--tb-ink); border: 1px solid var(--tb-line); border-radius: 0; }
 #tb-pilot-hud .tb-hud-btns button b { color: var(--tb-accent); }
 #tb-pilot-hud .tb-hud-btns button:hover { background: var(--tb-accent); color: var(--tb-accent-ink); box-shadow: none; }
 #tb-pilot-hud .tb-hud-btns button:hover b { color: inherit; }
+#tb-pilot-hud .tb-hud-btns button.wpn { font-family: var(--tb-display); font-weight: 700; letter-spacing: .12em; border-color: color-mix(in srgb, var(--tb-bad) 55%, var(--tb-line)); }
+#tb-pilot-hud .tb-hud-btns button.wpn.spw { color: var(--tb-warn); text-transform: none; letter-spacing: .04em; }
+#tb-pilot-hud .tb-hud-btns button.wpn em { font-style: normal; color: var(--tb-muted); }
+#tb-pilot-hud .tb-hud-btns button.wpn.aimed { box-shadow: inset 0 0 0 1px var(--tb-accent); }
+#tb-pilot-hud .tb-hud-btns button.wpn.empty { color: var(--tb-muted); text-decoration: line-through; }
+#tb-pilot-hud .tb-hud-btns button.wpn.dead { color: var(--tb-bad); border-color: var(--tb-bad); text-decoration: line-through; }
+#tb-pilot-hud .tb-hud-btns button.wpn:hover { background: var(--tb-bad); color: #fff; }
 #tb-pilot-hud .tb-hud-btns button.end { flex: 0 0 auto; margin-left: auto; }
+.tb-hud-acts span { border: 1px solid var(--tb-line); padding: 0 6px; font-size: 10.5px; line-height: 20px; white-space: nowrap; }
+.tb-hud-acts span.used { color: var(--tb-muted); text-decoration: line-through; }
+.tb-hud-acts .fa-dice-d10 { color: var(--tb-muted); }
