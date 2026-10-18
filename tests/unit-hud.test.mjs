@@ -17,8 +17,8 @@ Object.assign(globalThis, {
 });
 const scene = { id: "S", getFlag: () => null };
 globalThis.canvas = { ready: true, scene, grid: { type: 1, size: 100, getOffset: p => ({ i: Math.floor(p.y / 100), j: Math.floor(p.x / 100) }), measurePath: ([a, b]) => ({ spaces: Math.abs(a.x - b.x) / 100 }) }, tokens: { placeables: [], controlled: [] } };
-const packs = {};
-for (const f of fs.readdirSync(R + "/packs-src/npcs")) { const d = JSON.parse(fs.readFileSync(`${R}/packs-src/npcs/${f}`, "utf8")); if (d.type === "npc") packs[d.system.key] = d; }
+// выдержка из компендиума NPC (packs-src в репозиторий не входит)
+const packs = JSON.parse(fs.readFileSync(R + "/tests/fixtures/npcs.json", "utf8"));
 const mk = key => {
   const d = structuredClone(packs[key]), s = d.system, flags = {};
   if (s.kind === "ship") s.hp = { max: s.systems.reduce((t, y) => t + y.hp, 0), value: s.systems.reduce((t, y) => t + Math.max(0, y.value), 0) };
