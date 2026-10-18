@@ -924,7 +924,7 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-hud-warn.lowalt, .tb-hud-warn.lock { color: var(--tb-warn); }
 @keyframes tb-hud-blink { to { visibility: hidden; } }
 /* одна строка приборов: состояние, спидометр, альтиметр, силуэт, кнопки; на узкой панели кнопки уходят вниз */
-.tb-hud-grid { display: grid; grid-template-columns: minmax(180px, 1fr) 112px minmax(156px, .75fr) 92px minmax(300px, 2.4fr); gap: 4px 12px; padding: 5px 10px 6px; align-items: center; }
+.tb-hud-grid { display: grid; grid-template-columns: minmax(180px, 1fr) 118px minmax(176px, .8fr) 92px minmax(300px, 2.4fr); gap: 4px 12px; padding: 5px 10px 6px; align-items: center; }
 .tb-hud-col { min-width: 0; }
 @container (max-width: 960px) { .tb-hud-grid { grid-template-columns: minmax(180px, 1fr) 112px minmax(156px, .8fr) 92px; } .tb-hud-grid .tb-hud-ctl { grid-column: 1 / -1; } }
 @container (max-width: 640px) { .tb-hud-alt li em { display: none; } .tb-hud-grid { grid-template-columns: minmax(170px, 1fr) 110px minmax(90px, .7fr) 80px; } }
@@ -1102,3 +1102,94 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 #tb-pilot-hud .tb-unit-strike:hover { box-shadow: 0 0 10px var(--tb-bad); filter: brightness(1.15); }
 #tb-pilot-hud.tb-unit-hud .tb-hud-ctl .tb-hud-btns button.wpn { color: #fff; border-color: color-mix(in srgb, var(--tb-bad) 60%, var(--tb-line)); background: linear-gradient(#3a2320, #1c1110); }
 #tb-pilot-hud.tb-unit-hud .tb-hud-ctl .tb-hud-btns button.wpn:hover { background: var(--tb-bad); }
+/* ---------- кабина: вся панель (HUD пилота и панели целей) как приборная доска, в стиле пульта вооружения ---------- */
+#tb-pilot-hud { --ck-metal: linear-gradient(#262f2c, #151b19); --ck-well: #090e0d; --ck-edge: #040706; --ck-text: #d9e2dc; --ck-plate: #8f9c95;
+  --ck-lcd: #ffb547; --ck-led: #5ef08f; --ck-amber: #ffc94a; --ck-red: #ff4a3a;
+  background: var(--ck-metal); border: 1px solid var(--ck-edge); border-radius: 4px; color: var(--ck-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), inset 0 0 0 3px #1b2220, inset 0 0 0 4px rgba(0, 0, 0, .6), 0 6px 22px rgba(0, 0, 0, .6); backdrop-filter: none; }
+/* шапка — табличка с заклёпками */
+#tb-pilot-hud header { background: linear-gradient(#323c38, #1f2725); border-bottom: 1px solid var(--ck-edge); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12); padding: 3px 18px; position: relative; }
+#tb-pilot-hud header::before, #tb-pilot-hud header::after { content: ""; position: absolute; top: 50%; width: 5px; height: 5px; margin-top: -2.5px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #8a958f, #2a302d 70%); box-shadow: 0 1px 0 rgba(255, 255, 255, .1); }
+#tb-pilot-hud header::before { left: 6px; } #tb-pilot-hud header::after { right: 6px; }
+#tb-pilot-hud header b { color: #f1f5f2; text-shadow: 0 1px 0 #000; }
+#tb-pilot-hud header small, #tb-pilot-hud small { color: var(--ck-plate); text-shadow: 0 1px 0 #000; }
+/* табло-лампы в шапке */
+#tb-pilot-hud .tb-hud-warn, #tb-pilot-hud .tb-hud-turn, #tb-pilot-hud .tb-unit-kind { padding: 0 6px; border: 1px solid var(--ck-edge); border-radius: 2px; background: #120806; font-weight: 700;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, .9); text-shadow: 0 0 6px currentColor; }
+#tb-pilot-hud .tb-hud-turn { color: var(--ck-amber); background: #1a1305; }
+/* колодцы приборов: каждая колонка утоплена в панель */
+#tb-pilot-hud .tb-hud-grid > .tb-hud-col, #tb-pilot-hud .tb-unit-grid > .tb-hud-col { background: var(--ck-well); border: 1px solid var(--ck-edge); border-radius: 3px; padding: 5px 7px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .85), 0 1px 0 rgba(255, 255, 255, .07); align-self: stretch; }
+#tb-pilot-hud .tb-hud-grid > .tb-hud-ctl, #tb-pilot-hud .tb-unit-grid > .tb-hud-ctl { background: transparent; border: none; box-shadow: none; padding: 0; }
+#tb-pilot-hud .tb-hud-grid, #tb-pilot-hud .tb-unit-grid { gap: 6px 8px; padding: 7px 9px 8px; }
+/* деления HP и Strain — светодиоды */
+#tb-pilot-hud .tb-hud-pips i, #tb-pilot-hud .tb-sys-pips i { border: 1px solid #000; background: #18201d; border-radius: 1px; box-shadow: inset 0 1px 1px rgba(0, 0, 0, .8); }
+#tb-pilot-hud .tb-hud-pips.hp i.on, #tb-pilot-hud .tb-sys-pips i.on { background: var(--ck-led); box-shadow: 0 0 5px rgba(94, 240, 143, .7); border-color: #1b5a33; }
+#tb-pilot-hud .tb-hud-pips.hp.low i.on { background: var(--ck-red); box-shadow: 0 0 6px var(--ck-red); border-color: #5a1b14; }
+#tb-pilot-hud .tb-hud-pips.strain i.on { background: var(--ck-amber); box-shadow: 0 0 5px rgba(255, 201, 74, .7); border-color: #5a4614; }
+#tb-pilot-hud .tb-unit-bar { height: 9px; border: 1px solid #000; background: #18201d; box-shadow: inset 0 1px 2px #000; }
+#tb-pilot-hud .tb-unit-bar i { background: var(--ck-led); box-shadow: 0 0 6px rgba(94, 240, 143, .6); }
+#tb-pilot-hud .tb-unit-bar.low i { background: var(--ck-red); }
+/* цифры — янтарное табло */
+#tb-pilot-hud .tb-hud-num, #tb-pilot-hud .tb-hud-def, #tb-pilot-hud .tb-hud-readout b, #tb-pilot-hud .tb-hud-kmh, #tb-pilot-hud .tb-unit-scale b, #tb-pilot-hud .tb-unit-stats b, #tb-pilot-hud .tb-sys-row em {
+  color: var(--ck-lcd); text-shadow: 0 0 5px rgba(255, 170, 60, .7); font-family: var(--tb-data); }
+#tb-pilot-hud .tb-hud-def { padding: 0 5px; background: #0b0703; border: 1px solid #000; border-radius: 2px; box-shadow: inset 0 0 5px #000; }
+#tb-pilot-hud .tb-hud-readout b.bad { color: var(--ck-red); text-shadow: 0 0 6px var(--ck-red); }
+/* спидометр на тёмном циферблате */
+#tb-pilot-hud .tb-hud-dial { border-radius: 60px 60px 6px 6px; background: radial-gradient(ellipse at 50% 100%, #142019, #070b0a 70%); padding: 4px 4px 0; box-shadow: inset 0 0 6px #000; }
+#tb-pilot-hud .tb-hud-gauge .track { stroke: #1d2723; }
+#tb-pilot-hud .tb-hud-gauge .fill { stroke: var(--ck-led); filter: drop-shadow(0 0 3px rgba(94, 240, 143, .7)); }
+#tb-pilot-hud .tb-hud-gauge .needle { stroke: #f4f1e6; filter: drop-shadow(0 0 2px #000); }
+/* альтиметр — ЖК-шкала */
+#tb-pilot-hud .tb-hud-alt ol { border-left-color: #2a3632; }
+#tb-pilot-hud .tb-hud-alt li { color: #6f7d77; }
+#tb-pilot-hud .tb-hud-alt li.on { color: #0b0703; background: var(--ck-lcd); box-shadow: 0 0 8px rgba(255, 181, 71, .55); }
+#tb-pilot-hud .tb-hud-alt li.on::before { border-left-color: var(--ck-lcd); }
+/* системы — лампы-табло */
+#tb-pilot-hud .tb-hud-sys span { background: #07120c; border: 1px solid #000; border-radius: 2px; color: var(--ck-led); text-shadow: 0 0 5px rgba(94, 240, 143, .7); box-shadow: inset 0 0 4px #000; }
+#tb-pilot-hud .tb-hud-sys span.dead { background: #2a0805; color: #ffd0c8; text-decoration: none; text-shadow: 0 0 6px var(--ck-red); box-shadow: 0 0 6px rgba(255, 74, 58, .6), inset 0 0 3px #000; border-color: #5a1b14; }
+#tb-pilot-hud .tb-hud-grit { color: var(--ck-amber); text-shadow: 0 0 5px rgba(255, 201, 74, .6); }
+/* все кнопки — металлические нажимные, как станции пульта */
+#tb-pilot-hud .tb-hud-btns button:not(.st), #tb-pilot-hud .tb-hud-readout a, #tb-pilot-hud .tb-hud-altbtn, #tb-pilot-hud .tb-unit-btn, #tb-pilot-hud .tb-unit-count a, #tb-pilot-hud .tb-sys-row a {
+  color: var(--ck-text); background: linear-gradient(#2e3835, #171d1b); border: 1px solid var(--ck-edge); border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 -2px 0 rgba(0, 0, 0, .55); text-shadow: 0 1px 0 #000; }
+#tb-pilot-hud .tb-hud-btns button:not(.st) { height: 26px; line-height: 24px; font-family: var(--tb-display); font-weight: 700; letter-spacing: .1em; }
+#tb-pilot-hud .tb-hud-btns button:not(.st) b { color: var(--tb-accent-ink); background: var(--tb-accent); padding: 0 3px; border-radius: 2px; font-size: 9px; text-shadow: none; }
+#tb-pilot-hud .tb-hud-btns button:not(.st):hover, #tb-pilot-hud .tb-hud-readout a:hover, #tb-pilot-hud .tb-hud-altbtn:hover, #tb-pilot-hud .tb-unit-btn:hover, #tb-pilot-hud .tb-unit-count a:hover, #tb-pilot-hud .tb-sys-row a:hover {
+  color: #fff; background: linear-gradient(#36423e, #1d2422); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), inset 0 -2px 0 rgba(0, 0, 0, .55), 0 0 0 1px var(--tb-accent); }
+#tb-pilot-hud .tb-hud-btns button:not(.st):active, #tb-pilot-hud .tb-hud-readout a:active, #tb-pilot-hud .tb-hud-altbtn:active { transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0, 0, 0, .7); }
+#tb-pilot-hud .tb-hud-btns button.end { color: var(--ck-amber); }
+#tb-pilot-hud.tb-unit-hud .tb-hud-ctl .tb-hud-btns button.wpn { color: #fff; background: linear-gradient(#5a2a22, #2e1411); border-color: #1a0705; }
+#tb-pilot-hud.tb-unit-hud .tb-hud-ctl .tb-hud-btns button.wpn:hover { background: linear-gradient(#7a3328, #3e1813); box-shadow: 0 0 8px var(--ck-red); }
+/* клетки действий хода — лампы */
+#tb-pilot-hud .tb-hud-acts span { background: #07120c; border: 1px solid #000; border-radius: 2px; color: var(--ck-led); text-shadow: 0 0 5px rgba(94, 240, 143, .6); box-shadow: inset 0 0 4px #000; }
+#tb-pilot-hud .tb-hud-acts span.used { color: #4a5a52; text-shadow: none; }
+/* крупные предупреждения — табло MASTER CAUTION */
+#tb-pilot-hud .tb-hud-alert { margin: 5px 9px 0; border: 1px solid #000; border-radius: 3px; background: #2a0805; box-shadow: inset 0 0 10px #000, 0 0 14px rgba(255, 74, 58, .35);
+  animation: tb-ck-caution .7s ease-in-out infinite alternate; color: #ffd0c8; }
+#tb-pilot-hud .tb-hud-alert span { color: #ffe1db; text-shadow: 0 0 10px var(--ck-red), 0 0 2px #fff; }
+#tb-pilot-hud .tb-hud-alert.lock { background: #2a1d05; box-shadow: inset 0 0 10px #000, 0 0 14px rgba(255, 201, 74, .35); color: #ffe9b8; }
+#tb-pilot-hud .tb-hud-alert.lock span { color: #fff1cf; text-shadow: 0 0 10px var(--ck-amber), 0 0 2px #fff; }
+@keyframes tb-ck-caution { from { filter: brightness(.75); } to { filter: brightness(1.2); } }
+/* катапульта — ручка в жёлто-чёрной окантовке прямо в полосе DOOM */
+#tb-pilot-hud .tb-hud-alert .tb-hud-eject { width: auto; margin-left: auto; padding: 0 14px; line-height: 26px; font-size: 13px; letter-spacing: .22em; animation: none; border-radius: 3px;
+  background: #141005; color: #ffd76a; border: 4px solid #f2c14e; border-image: repeating-linear-gradient(-45deg, #f2c14e 0 6px, #111 6px 12px) 4; text-shadow: 0 0 6px rgba(242, 193, 78, .8); }
+#tb-pilot-hud .tb-hud-alert .tb-hud-eject:hover { box-shadow: 0 0 14px #f2c14e; filter: brightness(1.15); }
+#tb-pilot-hud .tb-hud-alert.doom { align-items: center; }
+/* панели целей: модули систем и лампы механик */
+#tb-pilot-hud .tb-sys-tile { background: linear-gradient(#1b2321, #111614); border: 1px solid var(--ck-edge); border-left-width: 3px; border-radius: 2px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06); }
+#tb-pilot-hud .tb-sys-tile.weapon { border-left-color: #b8432f; }
+#tb-pilot-hud .tb-sys-tile.engine { border-left-color: #c99a2e; }
+#tb-pilot-hud .tb-sys-tile.dead { background: #140605; opacity: .6; }
+#tb-pilot-hud .tb-unit-mech li { padding-left: 12px; }
+#tb-pilot-hud .tb-unit-mech li::before { width: 6px; height: 6px; top: 4px; border-radius: 50%; box-shadow: 0 0 5px currentColor; }
+#tb-pilot-hud .tb-unit-mech li.ok { color: var(--ck-led); }
+#tb-pilot-hud .tb-unit-mech li.warn { color: var(--ck-amber); }
+#tb-pilot-hud .tb-unit-mech li.bad { color: #ff8070; }
+#tb-pilot-hud .tb-unit-mech li.bad::before { background: var(--ck-red); animation: tb-hud-blink .8s steps(2, start) infinite; }
+#tb-pilot-hud .tb-unit-mech li.info { color: #a7b4ad; }
+#tb-pilot-hud .tb-unit-pips i { border-color: #000; background: #1a1305; box-shadow: inset 0 1px 1px #000; }
+#tb-pilot-hud .tb-unit-pips i.on { background: var(--ck-amber); box-shadow: 0 0 5px rgba(255, 201, 74, .7); }
+#tb-pilot-hud .tb-unit-scale.full .tb-unit-pips i.on { background: var(--ck-red); box-shadow: 0 0 6px var(--ck-red); }
+#tb-pilot-hud .tb-hud-lock { text-shadow: 0 0 5px rgba(255, 107, 74, .6); }

@@ -43,6 +43,7 @@ console.log(JSON.stringify(d, null, 1).replace(/\n\s*/g, " "));
 foe.system.lockUuid = ""; msgs.length = 0; me.system.speed = 3; me.system.alt = "high"; me.tok.document.elevation = 3; me.system.hp.value = 5; c.flags["thunderbolt-shtab"].acts = { round: 1, used: 2, list: [] };
 if (process.env.HUD_HTML) (await import("node:fs")).writeFileSync(process.env.HUD_HTML.replace(".html", "2.html"), H.hudHtml(me));
 me.system.markers.doom = true;
+if (process.env.HUD_HTML) (await import("node:fs")).writeFileSync(process.env.HUD_HTML.replace(".html", "3.html"), H.hudHtml(me));
 console.log("Doom:", JSON.stringify(H.hudData(me).warn.map(w => w.key)), "катапульта:", H.hudData(me).canEject, H.hudHtml(me).includes("data-hud-eject") ? "кнопка есть" : "кнопки нет");
 me.system.service.status = "ejected";
 console.log("после катапульты:", H.hudData(me).canEject);

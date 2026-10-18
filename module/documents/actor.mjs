@@ -180,7 +180,9 @@ export class TBActor extends Actor {
       await this.update({ "system.hp.value": 0 });
       return this.markDoom("одна метка у конскриптов и дуэлянтов", opts);
     }
-    const choice = await this.#chooseMarker();
+    // Grit и Structure уже стоят: выбирать нечего, это Doom
+    const m = s.markers;
+    const choice = m.grit && m.structure ? { marker: "doom" } : await this.#chooseMarker();
     const upd = { "system.hp.value": s.hp.max, "system.markers.lastRound": key };
     if (!choice) {
       await this.update(upd);

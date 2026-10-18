@@ -178,6 +178,9 @@ function systemsStrip(d) {
   return `<div class="tb-hud-sys">${d.systems.map(x => `<span class="${x.broken ? "dead" : ""}" title="${esc(x.label)}: ${x.broken ? `сломано, ${esc(x.hint)}` : "в порядке"}">${SHORT[x.key] ?? x.key}</span>`).join("")}</div>`;
 }
 
+/** Ручка катапульты: в полосе DOOM, её не спрятать ни размером панели, ни прокруткой. */
+const ejectButton = `<button type="button" class="tb-hud-eject" data-hud-eject title="Бросок на катапультирование Push против 7: Strain добавится сам, если дотягивает, исход сразу в личное дело"><i class="fas fa-parachute-box"></i> КАТАПУЛЬТА</button>`;
+
 function html(actor, d, folded) {
   const actBoxes = d.acts && d.acts.declared !== null
     ? Array.from({ length: Math.max(d.acts.declared, d.acts.used) }, (_, i) => `<span class="${i < d.acts.used ? "used" : ""}" title="${esc(d.acts.list[i] ?? "")}">${esc(d.acts.list[i]?.replace(/ \(заодно\)$/, "") ?? String(i + 1))}</span>`).join("")
@@ -194,7 +197,7 @@ function html(actor, d, folded) {
       <a class="tb-hud-dock" data-hud-dock title="Вернуть панель на место над панелью макросов и к обычному размеру"><i class="fas fa-thumbtack"></i></a>
       <i class="fas fa-chevron-${folded ? "up" : "down"}"></i>
     </header>
-    ${d.warn.filter(w => BIG.has(w.key)).map(w => `<div class="tb-hud-alert ${w.key}"><span>${w.key === "missile" ? "▲ " : ""}${w.text}${w.key === "missile" ? " ▲" : ""}</span><small>${BIG_HINT[w.key]}</small></div>`).join("")}
+    ${d.warn.filter(w => BIG.has(w.key)).map(w => `<div class="tb-hud-alert ${w.key}"><span>${w.key === "missile" ? "▲ " : ""}${w.text}${w.key === "missile" ? " ▲" : ""}</span><small>${BIG_HINT[w.key]}</small>${w.key === "doom" && d.canEject ? ejectButton : ""}</div>`).join("")}
     ${folded ? "" : `<div class="tb-hud-grid">
       <div class="tb-hud-col tb-hud-stat">
         <div class="tb-hud-row"><small>HP</small><span class="tb-hud-pips hp ${d.hp.value <= 1 ? "low" : ""}">${pips(d.hp.value, d.hp.max)}</span><span class="tb-hud-num">${d.hp.value}/${d.hp.max}</span></div>
@@ -203,7 +206,6 @@ function html(actor, d, folded) {
           <small class="tb-hud-lbl2">ЗАХВАТ</small>${d.lock ? `<a class="tb-hud-lock ${d.lock.gone ? "gone" : ""}" data-hud-lock title="Показать цель на карте"><i class="fas fa-crosshairs"></i> ${esc(d.lock.name)}${d.lock.dist ? ` · ${d.lock.dist}` : ""}${d.lock.gone ? " · нет на сцене" : ""}</a>` : `<span class="tb-hud-none">нет</span>`}</div>
         <div class="tb-hud-row"><small>СИСТ.</small>${systemsStrip(d)}</div>
         ${d.grit ? `<div class="tb-hud-grit" title="Метка Grit: навык недоступен до конца вылета">GRIT · ${esc(d.grit)} отключён</div>` : ""}
-        ${d.canEject ? `<button type="button" class="tb-hud-eject" data-hud-eject title="Бросок на катапультирование Push против 7: Strain добавится сам, если дотягивает, исход сразу в личное дело"><i class="fas fa-parachute-box"></i> КАТАПУЛЬТА</button>` : ""}
       </div>
       <div class="tb-hud-col tb-hud-speed">
         <div class="tb-hud-dial">${speedGauge(d)}</div>
