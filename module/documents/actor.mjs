@@ -139,8 +139,13 @@ export class TBActor extends Actor {
     // по одной машине урон идёт строго по очереди: пока открыт выбор метки, второе попадание ждёт,
     // а потом видит уже поставленную метку или сбитую машину (иначе две метки или два засчитанных сбитых)
     const run = () => this.#applyDamage(amount, opts);
-    this._tbDamage = (this._tbDamage ?? Promise.resolve()).then(run, run);
-    return this._tbDamage;
+    // прошлое попадание ещё ждёт выбора (метка, «Рядом с тобой»): сказать, почему урон не пришёл сразу
+    if (this._tbDamageBusy) ui.notifications.warn(`«${this.name}»: ${amount} урона ждут, пока закроют окно прошлого попадания.`);
+    this._tbDamageBusy = true;
+    const p = (this._tbDamage ?? Promise.resolve()).then(run, run);
+    this._tbDamage = p;
+    p.finally(() => { if (this._tbDamage === p) this._tbDamageBusy = false; }).catch(() => null);
+    return p;
   }
 
   async #applyDamage(amount, { source, sourceUuid, roundKey, system, guard = false } = {}) {

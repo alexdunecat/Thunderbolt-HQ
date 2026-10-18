@@ -55,10 +55,12 @@ export function registerSounds() {
   });
   game.settings.register(SYSTEM_ID, "soundMute", { scope: "client", config: false, type: Object, default: {} });
   // FormApplication в Foundry объявлен в общем скрипте через class: виден по имени, но не как globalThis.FormApplication
-  if (typeof FormApplication === "function") game.settings.registerMenu(SYSTEM_ID, "soundMenu", {
-    name: "Звуки по отдельности", label: "Выбрать звуки", hint: "Включить или выключить каждый звук у себя: сигналы кабины, взрывы, AWACS, сирену, кнопки.",
-    icon: "fas fa-volume-high", type: soundMenu(), restricted: false
-  });
+  if (typeof FormApplication === "function") try {
+    game.settings.registerMenu(SYSTEM_ID, "soundMenu", {
+      name: "Звуки по отдельности", label: "Выбрать звуки", hint: "Включить или выключить каждый звук у себя: сигналы кабины, взрывы, AWACS, сирену, кнопки.",
+      icon: "fas fa-volume-high", type: soundMenu(), restricted: false
+    });
+  } catch (err) { console.warn(`${SYSTEM_ID} | окно звуков`, err); }
   game.settings.register(SYSTEM_ID, "siren", { scope: "world", config: false, type: Boolean, default: false, onChange: () => syncSiren() });
   Hooks.once("ready", () => syncSiren());
   // очередь дошла до пилота: «ваш ход» у его владельца

@@ -1027,7 +1027,7 @@ async function autoHit(message) {
 
 /** Урон, который другой клиент поручил этому. */
 export function initHitSocket() {
-  game.socket.on(CHANNEL, msg => { if (msg?.type === "hit" && msg.to === game.user.id) hitTarget(msg.hit).catch(err => console.error("Thunderbolt | урон", err)); });
+  game.socket.on(CHANNEL, msg => { if (msg?.type === "hit" && msg.to === game.user.id) hitTarget(msg.hit).catch(err => damageFailed(msg.hit, err)); });
 }
 
 /** Пуск ЗРК или ракета корабельной системы: G-A, Speed 0, без броска. */
@@ -1172,7 +1172,13 @@ export async function hitTarget(r, roundKey) {
 export function onVolleyCreated(message) {
   const c = message.getFlag(SYSTEM_ID, "card");
   if (c?.type !== "volley" || !c.auto || game.user.isGM) return;
-  for (const r of c.targets.filter(x => x.hit && x.by === game.user.id)) hitTarget(r, c.roundKey).catch(err => console.error("Thunderbolt | урон залпа", err));
+  for (const r of c.targets.filter(x => x.hit && x.by === game.user.id)) hitTarget(r, c.roundKey).catch(err => damageFailed(r, err));
+}
+
+/** Урон не прошёл: сказать на экране, а не только в консоли, чтобы попадание не потерялось молча. */
+function damageFailed(r, err) {
+  console.error("Thunderbolt | урон", err);
+  ui.notifications.error(`Урон по «${r?.name ?? "цели"}» не нанесён (${err?.message ?? err}). Нажмите кнопку урона на карточке или поставьте HP вручную; подробности в консоли (F12).`, { permanent: true });
 }
 
 /* ---------- кнопки на карточках ---------- */
