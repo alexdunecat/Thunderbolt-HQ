@@ -49,6 +49,8 @@ import { registerPopout, mirrorPopouts } from "./popout.mjs";
 import { registerMedals, openMedals, award as awardMedal } from "./medals.mjs";
 import { registerNemesis, appear as nemesisAppear, startMonologue, endMonologue } from "./nemesis.mjs";
 import { registerCombatTriggers } from "./combat-triggers.mjs";
+import { registerNpcAdvice } from "./npc-advice.mjs";
+import { registerCareerTriggers } from "./career-triggers.mjs";
 
 // триггер выключен или машина сменилась: Max Speed мог упасть
 for (const ev of ["updateItem", "createItem", "deleteItem"])
@@ -160,6 +162,8 @@ Hooks.once("init", () => {
   registerLosses();
   registerNemesis();
   registerCombatTriggers();
+  registerNpcAdvice();
+  registerCareerTriggers();
   registerMedals();
   registerCombat();
   registerActions();

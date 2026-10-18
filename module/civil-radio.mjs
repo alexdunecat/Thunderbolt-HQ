@@ -144,6 +144,7 @@ export function registerCivilRadio() {
   game.settings.register(SYSTEM_ID, "djOn", { scope: "world", config: false, type: Boolean, default: true });
   game.settings.register(SYSTEM_ID, "djChance", { scope: "world", config: false, type: Number, default: 40 });
   game.settings.register(SYSTEM_ID, "dj", { scope: "world", config: false, type: Object, default: {} });
+  Hooks.on("renderActorSheet", (app, html) => paintButtons(html?.[0] ?? html));
   Hooks.once("ready", () => {
     accept(game.settings.get(SYSTEM_ID, "civilRadio"), false, true);
     game.socket.on(CHANNEL, msg => {
@@ -174,7 +175,26 @@ function accept(next, force = false, quiet = false) {
   state = { ...EMPTY, ...foundry.utils.deepClone(next) };
   if (!quiet && state.playing && trackKey(state) && trackKey(state) !== was) maybeDj();
   sync();
+  paintButtons();
   if (win?.rendered) win.render(false);
+}
+
+/** Что сейчас в эфире: { title } или null, если радио молчит. */
+export function onAir() {
+  const e = state.queue[state.cur];
+  if (!state.playing || !e) return null;
+  let title = e.title ?? "";
+  if (e.list) { try { title = player?.getVideoData?.()?.title || title; } catch {} }
+  return { title };
+}
+
+/** Кнопки «Радио» на листах: лампа горит, пока радио играет, в подсказке трек. */
+export function paintButtons(root = globalThis.document) {
+  const a = onAir();
+  for (const b of root?.querySelectorAll?.(".tb-radio-btn") ?? []) {
+    b.classList.toggle("on", !!a);
+    b.title = a ? `В эфире: ${a.title || "музыка"}. Щелчок: пульт радио` : "Гражданское радио молчит. Щелчок: пульт радио";
+  }
 }
 
 function persist() {
@@ -330,6 +350,7 @@ function tick() {
     if (info.index !== state.li) return radioCommand({ op: "listIndex" });
   }
   sync();
+  paintButtons();
   // браузер не дал включить звук без щелчка: кнопка «Включить радио»
   const ps = player.getPlayerState();
   if (state.playing && ps !== YT.PlayerState.PLAYING && ps !== YT.PlayerState.BUFFERING) {

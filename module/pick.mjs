@@ -6,7 +6,12 @@ let active = null;
  * Попросить щёлкнуть по токену цели. Целью игрока токен становится, только когда вызвавший подтвердит выбор (selectTarget).
  * Возвращает токен или null при отмене. Свой токен (self) не выбирается.
  */
+let preset = null;
+/** Следующий выбор цели уже сделан (совет ведущему): pickTargetToken сразу вернёт этот токен. */
+export function presetPick(token) { preset = token ?? null; }
+
 export function pickTargetToken(self, { title = "Lock On!" } = {}) {
+  if (preset) { const t = preset; preset = null; return Promise.resolve(t); }
   if (!canvas?.ready) { ui.notifications.warn("Нет активной сцены."); return Promise.resolve(null); }
   active?.cancel();
   const view = canvas.app.view;

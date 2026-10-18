@@ -77,12 +77,18 @@ export class TBCombat extends Combat {
 const declareText = v => (isPass(v) ? "пропуск" : `${v} ${v === 1 ? "действие" : "действия"}`);
 
 /** Форма заявки. Игроки видят, что заявили NPC. */
-function declareDialog(combat, list) {
+async function declareDialog(combat, list) {
+  // ведущему: число действий NPC по совету на ход (настройка «Совет на ход NPC»)
+  const advice = {};
+  if (game.user.isGM) {
+    const { adviseDeclare } = await import("../npc-advice.mjs");
+    for (const c of list) if (!c.actor?.hasPlayerOwner) advice[c.id] = adviseDeclare(c.actor);
+  }
   const npcs = combat.combatants.filter(c => npcSide(c) && declared(c) && !passive(c.actor));
   const seen = !game.user.isGM && npcs.length
     ? `<p class="tb-hint">Заявки врага: ${npcs.map(c => `${esc(c.name)} ${declareLabel(c.initiative)}`).join(", ")}.</p>` : "";
   const rows = list.map(c => `<div class="form-group"><label>${esc(c.name)}</label>
-    <select name="${c.id}"><option value="1">1 действие</option><option value="2" selected>2 действия</option><option value="3">3 действия</option><option value="${PASS}">Пропуск</option></select></div>`).join("");
+    <select name="${c.id}">${[1, 2, 3].map(n => `<option value="${n}" ${(advice[c.id] ?? 2) === n ? "selected" : ""}>${n} ${n === 1 ? "действие" : "действия"}${advice[c.id] === n ? " · совет" : ""}</option>`).join("")}<option value="${PASS}">Пропуск</option></select></div>`).join("");
   return formDialog(`Заявка действий: раунд ${combat.round}`,
     `<p class="tb-hint">Меньше действий: ходите раньше. Пропуск уходит в конец очереди.</p>${seen}${rows}`, { ok: "Заявить" });
 }

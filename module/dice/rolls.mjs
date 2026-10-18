@@ -5,7 +5,7 @@ import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, co
 import { alarmRows, raiseAlarm, surprise, quietAA, markVolley } from "../stealth.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
 import { nemesisAttack, nemesisDefense } from "../nemesis.mjs";
-import { triggerAttack, triggerDefense, triggerBreak, trashComp, coverPart, millionFor, letGo, trig, weakOf } from "../combat-triggers.mjs";
+import { triggerAttack, triggerDefense, triggerBreak, trashComp, coverPart, millionFor, letGo, trig, weakOf, followFor, offerFollow, followOffer, takeFollow } from "../combat-triggers.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
 import { allowRoll } from "../actions.mjs";
 import { aimedWeapon } from "../range.mjs";
@@ -241,6 +241,9 @@ export function renderCard(card) {
   // «Один на миллион»: промах можно сделать попаданием
   if (c.attack && c.dc !== null && c.dc !== undefined && !c.success && millionFor(c)) btn.push(`<button type="button" data-tb-action="million" class="tb-owner" title="Раз за вылет: выбранный выстрел попадает"><i class="fas fa-crosshairs"></i> ${esc(millionFor(c).name)}: попадание</button>`);
   if (c.million) rows.push(`<div class="tb-note">«${esc(c.million)}»: выстрел попадает.</div>`);
+  if (followFor(c)) btn.push(`<button type="button" data-tb-action="follow" class="tb-owner" title="Раз за вылет: союзники в этом раунде могут взять этот бросок"><i class="fas fa-plane-departure"></i> ${esc(followFor(c).name)}</button>`);
+  if (c.follow) rows.push(`<div class="tb-note">«За мной!»: союзники могут повторить этот бросок до конца раунда.</div>`);
+  if (c.followOf) rows.push(`<div class="tb-note">«За мной!»: бросок ${esc(c.followOf)}.</div>`);
   const queued = c.delayed && c.combatKey && !c.resolved && !c.dmgApplied;
   if (queued) rows.push(`<div class="tb-note tb-queued"><i class="fas fa-hourglass-half"></i> ${c.atTurn ? "Ждёт начала хода цели." : "В очереди залпа конца раунда."}</div>`);
   if (c.resolved) rows.push(`<div class="tb-note">${c.atTurn ? "Учтена в начале хода цели." : "Учтена в залпе конца раунда."}</div>`);
@@ -310,7 +313,14 @@ export function practicedReady(actor) {
  * Кубики хода. «Отточенное мастерство»: 10 и 4 без броска, раз за вылет (триггер отмечается использованным),
  * и это не тратит единственную проверку хода. Обычный бросок, когда проверка хода уже была, — null.
  */
-async function rollDice(actor, practiced, { turnRoll = true } = {}) {
+async function rollDice(actor, practiced, { turnRoll = true, follow = null } = {}) {
+  // «За мной!»: тот же бросок, что у ведущего манёвра; бросок хода всё равно тратится
+  const fo = follow ? followOffer(actor, follow) : null;
+  if (fo) {
+    if (turnRoll && !allowRoll(actor)) return null;
+    takeFollow(actor);
+    return { d10: fo.d10, d4: fo.d4, rolls: [], follow: fo.name };
+  }
   if (practiced) {
     const t = practicedReady(actor);
     if (t) {
@@ -331,6 +341,7 @@ function commonFields(actor, skill) {
     <div class="form-group"><label>Модификатор</label><input type="number" name="mod" value="0"></div>
     <div class="form-group"><label><input type="checkbox" name="storm" ${w.comp2 ? "checked" : ""}> Ураган: Complication на 1–2</label></div>
     ${w.list.length ? `<p class="tb-hint">Погода: ${w.list.map(d => `${d.ico} ${esc(d.name)}`).join(", ")}</p>` : ""}
+    ${followOffer(actor, skill) ? `<div class="form-group"><label><input type="checkbox" name="follow" checked> «За мной!» за ${esc(followOffer(actor, skill).name)}: d10 = ${followOffer(actor, skill).d10}, d4 = ${followOffer(actor, skill).d4}</label></div>` : ""}
     ${pr ? `<div class="form-group"><label><input type="checkbox" name="practiced"> Отточенное мастерство (раз за вылет): d10 = 10 и d4 = 4 без броска, проверка хода не тратится</label></div>` : ""}`;
 }
 
@@ -349,7 +360,7 @@ export async function rollCheck(actor, skill, { dc = TB.difficulty, label } = {}
     <div class="form-group"><label>Сложность</label><input type="number" name="dc" value="${dc}"></div>
     ${commonFields(actor, skill)}`);
   if (!data) return;
-  const dice = await rollDice(actor, data.practiced);
+  const dice = await rollDice(actor, data.practiced, { follow: data.follow ? skill : null });
   if (!dice) return;
   const parts = skillParts(actor, skill, sk.label);
   if (skill === "push") parts.push(...weatherParts(weatherAt(actor), "push"));
@@ -358,7 +369,7 @@ export async function rollCheck(actor, skill, { dc = TB.difficulty, label } = {}
   const card = {
     type: "check", label: label ?? `Проверка ${sk.label} (${sk.en})`, rolled: true, d10: dice.d10, d4: dice.d4,
     parts, strain: 0, dc: data.dc, strainable: canStrain(actor),
-    practiced: !!dice.practiced, ...thresholds(actor, skill, data.storm)
+    practiced: !!dice.practiced, followOf: dice.follow ?? "", ...thresholds(actor, skill, data.storm)
   };
   return postCard(actor, card, dice.rolls);
 }
@@ -368,7 +379,7 @@ export async function rollRecover(actor) {
   if (blocked(actor, "push")) return;
   const data = await formDialog("Восстановить Strain (Push против 7)", commonFields(actor, "push"));
   if (!data) return;
-  const dice = await rollDice(actor, data.practiced);
+  const dice = await rollDice(actor, data.practiced, { follow: data.follow ? "push" : null });
   if (!dice) return;
   const parts = skillParts(actor, "push", "Форсаж");
   parts.push(...weatherParts(weatherAt(actor), "push"));
@@ -376,7 +387,7 @@ export async function rollRecover(actor) {
   if (data.mod) parts.push(["мод.", data.mod]);
   const card = {
     type: "recover", label: "Восстановление Strain", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: 7,
-    strainable: true, practiced: !!dice.practiced, minRegain: actor.system.planeProps?.has?.("kitchen") ? 2 : 1,
+    strainable: true, practiced: !!dice.practiced, followOf: dice.follow ?? "", minRegain: actor.system.planeProps?.has?.("kitchen") ? 2 : 1,
     ...thresholds(actor, "push", data.storm)
   };
   return postCard(actor, card, dice.rolls);
@@ -479,7 +490,7 @@ export async function rollBreak(actor) {
     <div class="form-group"><label>Лидерство союзника</label><input type="number" name="lead" value="0"></div>
     ${commonFields(actor, "dodge")}`);
   if (!data) return;
-  const dice = await rollDice(actor, data.practiced);
+  const dice = await rollDice(actor, data.practiced, { follow: data.follow ? "dodge" : null });
   if (!dice) return;
   const parts = skillParts(actor, "dodge", "Уклонение");
   if (data.lead) parts.push(["Lead", data.lead]);
@@ -494,7 +505,7 @@ export async function rollBreak(actor) {
   const card = {
     type: "break", label: "Break!", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: null,
     ev: actor.system.evasion ?? actor.system.stats?.ev ?? 0, strainable: canStrain(actor),
-    speedDrop: (tvc ? 1 : 2) + thin, combatKey: combatKey(), practiced: !!dice.practiced, ...thresholds(actor, "dodge", data.storm)
+    speedDrop: (tvc ? 1 : 2) + thin, combatKey: combatKey(), practiced: !!dice.practiced, followOf: dice.follow ?? "", ...thresholds(actor, "dodge", data.storm)
   };
   const msg = await postCard(actor, card, dice.rolls);
   await tb.take();
@@ -606,6 +617,25 @@ function shipDc(t, aim, dc) {
 const sum = list => list.reduce((n, p) => n + (p?.[1] ?? 0), 0);
 /** Сумма навыка для подсказки на кнопке; у NPC без навыков — 0. */
 const skillSum = (actor, skill) => { try { return sum(skillParts(actor, skill)); } catch { return 0; } };
+
+/**
+ * Прикидка Fox Two! по цели для совета ведущему: итог без броска (fox), прибавка к d10 с броском (imp), с чем сравнивать (dc),
+ * попадёт ли без броска (hit) и доля бросков d10, что попадут (chance). Ракетой — стандартной, иначе первым подходящим спецоружием.
+ */
+export function foxEstimate(actor, t) {
+  const s = actor.system, kind = targetKind(t), air = kind === "air";
+  const w = stdMissile(actor, kind) ? null : s.broken === "sw" ? null : actor.items.find(i => i.type === "weapon" && weaponFits(i, kind) && weaponReady(i)) ?? null;
+  let base = air ? s.aa : s.ag;
+  if (actor.type === "npc" && s.kind === "ground") base = (air ? s.ground?.ga : s.ground?.gg) ?? 0;
+  const ws = w?.system, wx = weatherAt(actor);
+  const common = (air ? sum([stratLift(actor, t)]) : 0) - (s.speed ?? 0);
+  const ct = r => sum(triggerAttack(actor, t.actor, { rolled: r, skill: air ? "aim" : "deploy" }).parts) + sum(nemesisAttack(actor, t.actor, { rolled: r, skill: air ? "aim" : "deploy" }).parts);
+  const fox = (base ?? 0) + ((air ? ws?.aa : ws?.ag) ?? 0) + sum(weatherParts(wx, air ? "aa" : "ag")) + common + ct(false);
+  const imp = skillSum(actor, air ? "aim" : "deploy") + ((air ? ws?.aim : ws?.dep) ?? 0) + common + ct(true);
+  const dc = t.kind === "ship" || t.defense === null ? null : t.defense + wallBonus(t.token, t.actor) + nemesisDefense(actor, t.actor) + triggerDefense(actor, t.actor);
+  const chance = dc === null ? null : Math.max(0, Math.min(10, 11 - (dc - imp))) / 10;
+  return { fox, imp, dc, hit: dc !== null && fox >= dc, chance, weapon: w?.name ?? null };
+}
 
 /**
  * Пульт Fox Two! в стиле HUD: станции оружия, вид цели (если цели нет), схема корабля и две кнопки пуска:
@@ -823,7 +853,7 @@ export async function fireMissile(actor) {
     type: "attack", attack: true, label: `Fox Two! ${w ? w.name : "стандартная ракета"}`, rolled: !!data.improved,
     d10: dice.d10, d4: dice.d4, parts, strain: 0, ...shipDc(t, aim, t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) + nemDef + ctDef : null),
     strainable: !!data.improved && canStrain(actor), forceHit: nem.forceHit || ct.forceHit,
-    practiced: !!dice.practiced, dmg, delayed: atTurn || !(hv || tBroken), atTurn, combatKey: hv || tBroken ? (atTurn ? key : "") : key,
+    practiced: !!dice.practiced, followOf: dice.follow ?? "", dmg, delayed: atTurn || !(hv || tBroken), atTurn, combatKey: hv || tBroken ? (atTurn ? key : "") : key,
     targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes, maws: mawsOn(t), tkind: air ? "air" : "ground",
     ...thresholds(actor, skill, data.storm)
   };
@@ -920,7 +950,7 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
     if (!(await confirmReach([...nemesisAttack(actor, t.actor).problems, ...triggerAttack(actor, t.actor).problems], "Guns, Guns, Guns!"))) return;
     if (t.token) selectTarget(t.token);
   }
-  const dice = await rollDice(actor, data.practiced);
+  const dice = await rollDice(actor, data.practiced, { follow: data.follow ? "strafe" : null });
   if (!dice) return;
   let strafe = null;
   let gun = s.gun ?? 0;
@@ -951,7 +981,7 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
   const card = {
     type: "attack", attack: true, label, rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0,
     ...shipDc(t, aim, t && t.kind !== "ship" ? t.defense + nemDef + ctDef : null),
-    strainable: canStrain(actor), practiced: !!dice.practiced, forceHit: nem.forceHit || ct.forceHit,
+    strainable: canStrain(actor), practiced: !!dice.practiced, followOf: dice.follow ?? "", forceHit: nem.forceHit || ct.forceHit,
     dmg: gun + ct.dmg, delayed: false, instant: true, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "",
     notes: [...(t?.actor.system.breakEv != null && t.kind === "air" ? [`У цели Break!: защита ${t.defense}.`] : []),
       ...(pod?.system.key === "PLSL" ? ["Бьёт в своей и соседних зонах. Облака блокируют лазер."] : []),
@@ -1227,6 +1257,11 @@ export async function onCardAction(message, action, button) {
       if (m.structure) return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="tb-card tb-card-damage"><div class="tb-note"><b>${esc(actor.name)}</b>: Structure уже отмечена (${esc(TB.systems[m.sys]?.label ?? m.sys)}). Что сломалось ещё, решает ведущий.</div></div>` });
       await actor.update({ "system.markers.structure": true, "system.markers.sys": "en" });
       return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="tb-card tb-card-damage"><div class="tb-note"><b>${esc(actor.name)}</b>: двигатели не выдержали, метка Structure: ${esc(TB.systems.en?.label ?? "Engines")}.</div></div>` });
+    }
+    case "follow": {
+      if (!actor?.isOwner || !(await offerFollow(actor, card))) return;
+      card.follow = true;
+      return save();
     }
     case "million": {
       const t = millionFor(card);

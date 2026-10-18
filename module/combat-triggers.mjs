@@ -21,7 +21,7 @@ const CHANNEL = `system.${SYSTEM_ID}`;
    У боя: ctAtk — кто кого атаковал по раундам, ctFreq — «Общая частота» в раунде, ctTrash — «Трёп в эфире» по раундам. */
 const F = {
   sure: "ctSure", fired: "ctFired", dove: "ctDove", advev: "ctAdvEv", limiter: "ctLimiter", guns: "ctGuns", bypass: "ctBypass",
-  cover: "ctCover", guard: "ctGuard", bill: "ctBill", rear: "ctRear", weak: "ctWeak", turn: "ctTurn", atk: "ctAtk", freq: "ctFreq", trash: "ctTrash"
+  cover: "ctCover", guard: "ctGuard", bill: "ctBill", rear: "ctRear", weak: "ctWeak", turn: "ctTurn", atk: "ctAtk", freq: "ctFreq", trash: "ctTrash", follow: "ctFollow"
 };
 
 /**
@@ -60,14 +60,22 @@ export const CT = {
   divebomb: { fx: "+2 к Deploy, если в этот ход снизились на уровень, само" },
   limiter: { use: "Снять ограничитель", once: true, fx: "Max Speed +2 до конца хода, в конце хода Push против 7" },
   notatthis: { twist: true, toggle: true, fx: "переключатель работает только после Поворота" },
-  guns: { fx: "серия Strafe считается сама: успех +1, промах или пропуск хода — сброс" }
+  guns: { fx: "серия Strafe считается сама: успех +1, промах или пропуск хода — сброс" },
+  noquestions: { use: "Тяжёлое решение", life: true, fx: "тяжёлое решение или увиденное военное преступление: вместо Нервов деление на шкалу «Репутация» (6)" },
+  renegotiate: { use: "Пересмотр условий", once: true, twist: true, life: true, fx: "доплата (+1 Гонорар сверх лимита, если задача выполнена) или «ухожу»: выход из зоны операции без проверок" },
+  mentor: { use: "Урок", life: true, fx: "наставник и урок на вылет; выполненный урок сам отмечается в «Итогах вылета» (+1 очко). Гибель наставника меняет триггер на «Всё, чему я научился»" },
+  everything: { use: "Ученик", life: true, fx: "впишите ученика; при гибели пилота кнопка в чате создаёт его новым пилотом" },
+  legacy: { life: true, fx: "при гибели союзника в чате кнопка: взять его раскладку навыков, свои ранги выше остаются" },
+  projlegacy: { life: true, fx: "при гибели пилота в чате кнопка: союзник навсегда получает +1 к параметру самолёта" },
+  voice: { life: true, fx: "при гибели пилота в начале следующего боя ведущему приходит выбор аса или дуэлянта, который отказывается воевать или переходит к эскадрилье" },
+  follow: { once: true, fx: "на карточке удачного броска кнопка «За мной!»: союзники в этом раунде могут взять тот же бросок (галочка в окне броска того же навыка)" }
 };
 
 /* ---------- мелочи ---------- */
 
 const team = a => (sideOf(a) === "player" ? "ally" : sideOf(a));
 export const enemies = (a, b) => !!a && !!b && team(a) !== team(b);
-const callsign = a => (a?.type === "pilot" ? a.system.callsign || a.name : a?.isToken ? a.token?.name ?? a.name : tokenOf(a)?.name ?? a?.name ?? "");
+export const callsign = a => (a?.type === "pilot" ? a.system.callsign || a.name : a?.isToken ? a.token?.name ?? a.name : tokenOf(a)?.name ?? a?.name ?? "");
 const dead = a => !!a?.statuses?.has?.(CONFIG.specialStatusEffects?.DEFEATED) || !!a?.system?.markers?.doom;
 const same = (uuid, a) => !!uuid && !!a && (uuid === a.uuid || resolveActor(uuid) === a);
 const baseId = a => (a?.isToken ? a.token?.actorId ?? a.id : a?.id);
@@ -103,7 +111,7 @@ function viaOwner(actor, op, data) {
 }
 
 /** Сделать на клиенте ведущего: у ведущего сразу, у игрока — просьба по сокету. */
-function gm(op, data) {
+export function gm(op, data) {
   if (game.user.isGM) return run(op, data);
   if (!game.users.activeGM) { ui.notifications.warn("Триггер: ведущего нет в сети, на чужой лист не записать."); return null; }
   game.socket.emit(CHANNEL, { type: "ct", op, data, user: game.user.id });
@@ -127,10 +135,12 @@ async function run(op, d) {
     return c.setFlag(SYSTEM_ID, d.key, cur);
   }
   if (op === "end-limiter") return limiterCheck(a);
+  // «Голос в эфире»: враг переходит к эскадрилье насовсем (не до конца боя, как «Свои среди чужих»)
+  if (op === "defect" && a) return a.update({ "system.side": "ally" });
   return null;
 }
 
-function say(note, actor = null, what = "Триггер") {
+export function say(note, actor = null, what = "Триггер") {
   return ChatMessage.create({ speaker: actor ? ChatMessage.getSpeaker({ actor }) : { alias: "AWACS" },
     content: `<div class="tb-card tb-card-ctrig"><header class="tb-card-head"><span class="tb-card-who">${esc(actor?.name ?? "AWACS")}</span><span class="tb-card-what"><i class="fas fa-bolt"></i> ${esc(what)}</span></header><div class="tb-note">${note}</div></div>` });
 }
@@ -182,6 +192,8 @@ function chipOf(pilot, item) {
   if (k === "rearguard" && flag(pilot, F.rear)) return "арьергард";
   if (k === "trash" && trashOn(pilot)) return "в эфире";
   if (k === "code") { const f = duelFoe(pilot); return f ? `Поединок: ${callsign(f)}` : ""; }
+  if (k === "mentor") { const m = flag(pilot, "mentor"); return m?.name ? `${m.name}${m.done ? " · урок выполнен" : m.lesson ? ` · урок: ${m.lesson}` : ""}` : ""; }
+  if (k === "everything") { const st = flag(pilot, "student"); return st ? `ученик: ${st}` : ""; }
   return "";
 }
 
@@ -438,7 +450,7 @@ export async function billPaid(victim) {
 /* ---------- «Задействовать» ---------- */
 
 /** Выбрать токен на сцене с проверкой. ok(actor) — "" или почему нельзя. */
-async function pickToken(pilot, title, ok) {
+export async function pickToken(pilot, title, ok) {
   const { pickTargetToken } = await import("./pick.mjs");
   const tok = await pickTargetToken(pilot, { title });
   if (!tok) return null;
@@ -464,7 +476,7 @@ async function spend(pilot, label, { rolled = false } = {}) {
 }
 
 /** Союзник-пилот для «Прикрываю», «Рядом с тобой»: окно со списком. */
-async function pickAlly(pilot, title, intro) {
+export async function pickAlly(pilot, title, intro) {
   const list = (game.actors?.contents ?? [...(game.actors ?? [])]).filter(a => a.type === "pilot" && a.id !== pilot.id && a.hasPlayerOwner);
   if (!list.length) { ui.notifications.warn(`${title}: других пилотов нет.`); return null; }
   const r = await cockpitDialog(title, `<p class="tb-hint">${intro}</p><div class="tb-ck-fire tb-ct-pick">${list.map(a => `<button type="button" class="tb-ck-big" data-pick="${a.id}"><b>${esc(callsign(a))}</b><small>${esc(a.name)}</small></button>`).join("")}</div>`, { width: 460 });
@@ -494,6 +506,7 @@ export async function useCombatTrigger(pilot, item) {
   const why = waitReason(pilot, item);
   if (why) return ui.notifications.warn(`«${name}»: ${why}.`);
   const once = () => (def.once ? item.update({ "system.used": true }) : null);
+  if (def.life) return (await import("./career-triggers.mjs")).useLifeTrigger(pilot, item);
 
   switch (key) {
     case "million": {
@@ -652,7 +665,7 @@ export async function useCombatTrigger(pilot, item) {
 }
 
 /** Шкала «Репутация» (6) в личных целях: +1 деление. */
-async function reputation(pilot) {
+export async function reputation(pilot) {
   const goals = foundry.utils.deepClone(pilot.system.goals ?? []);
   const g = goals.find(x => /репутац/i.test(x.name));
   if (g) g.value = Math.min(g.size, g.value + 1);
@@ -679,6 +692,38 @@ export function millionFor(card) {
   if (!card?.attack || card.forceHit || card.resolved || card.dmgApplied || card.dc === null || card.dc === undefined) return null;
   const a = resolveActor(card.actorUuid);
   return a?.type === "pilot" ? ready(a, "million") : null;
+}
+
+/** «За мной!»: на карточке удачного броска пилота в бою, пока триггер не использован. */
+export function followFor(card) {
+  if (!card?.rolled || !card.success || !card.skill || card.follow || card.followOf || !cmb()) return null;
+  const a = resolveActor(card.actorUuid);
+  return a?.type === "pilot" ? ready(a, "follow") : null;
+}
+
+/** Нажали «За мной!»: бросок с карточки предлагается союзникам до конца раунда. */
+export async function offerFollow(actor, card) {
+  const t = followFor(card), c = cmb();
+  if (!t || !c) return false;
+  await t.update({ "system.used": true });
+  gm("combat", { key: F.follow, id: "offer", value: { by: baseId(actor), name: callsign(actor), skill: card.skill, d10: card.d10, d4: card.d4, round: c.round } });
+  const sk = TB.skills[card.skill]?.label ?? card.skill;
+  await say(`${esc(callsign(actor))}: «За мной!» Союзники до конца раунда могут повторить манёвр: в окне броска «${esc(sk)}» галочка «За мной!» даёт d10 = ${card.d10}, d4 = ${card.d4}.`, actor, t.name);
+  return true;
+}
+
+/** Бросок ведущего «За мной!», который этот пилот ещё может взять: { name, skill, d10, d4 } или null. */
+export function followOffer(actor, skill) {
+  const c = cmb(), f = c?.getFlag?.(SYSTEM_ID, F.follow);
+  const o = f?.offer;
+  if (!o || o.round !== c.round || o.skill !== skill || actor?.type !== "pilot" || o.by === baseId(actor) || f[baseId(actor)] === c.round) return null;
+  return o;
+}
+
+/** Взять бросок «За мной!»: отметить, что этот пилот его уже использовал. */
+export function takeFollow(actor) {
+  const c = cmb();
+  if (c) gm("combat", { key: F.follow, id: baseId(actor), value: c.round });
 }
 
 /* ---------- учёт по ходу боя ---------- */
@@ -789,7 +834,7 @@ export function hudTriggers(pilot) {
   const trigs = [], chips = [];
   for (const t of pilot.items.filter(i => i.type === "trigger" && CT[i.system.key])) {
     const st = ctState(pilot, t), chip = chipOf(pilot, t);
-    if (st === "ready" && t.system.key !== "code" && !["bill", "byside"].includes(t.system.key)) trigs.push({ id: t.id, name: t.name, hint: CT[t.system.key].fx });
+    if (st === "ready" && t.system.key !== "code" && !["bill", "byside"].includes(t.system.key) && !CT[t.system.key].life) trigs.push({ id: t.id, name: t.name, hint: CT[t.system.key].fx });
     if (chip) chips.push(chip);
   }
   return trigs.length || chips.length ? { trig: trigs, chips } : null;

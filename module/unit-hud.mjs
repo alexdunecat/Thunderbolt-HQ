@@ -10,6 +10,7 @@ import { strikesOf, STRIKES } from "./strikes.mjs";
 import { SCALES, scalesOf, scaleValue, scaleFull, setScale, sysCount, unitFlag } from "./scales.mjs";
 import { roleOf, ENGINE } from "./aim.mjs";
 import { hlSwitch } from "./range.mjs";
+import { adviceRow } from "./npc-advice.mjs";
 
 const SUPER_RULES = ["boss", "aerialship", "landship", "superdive", "solgfall", "strato"];
 
@@ -243,6 +244,7 @@ export function unitHtml(actor, folded = false) {
           ${d.indirect ? `<button type="button" class="wpn" data-u-strike="indirect" title="Отметить участок: удар в конце раунда"><i class="fas fa-explosion"></i> Навесной огонь</button>` : ""}
         </div>
         <div class="tb-hud-btns tb-hud-acts" title="Действия хода${d.acts?.rolled ? " · бросок уже был" : ""}"><small>ХОД</small>${actBoxes}${d.acts?.rolled ? `<i class="fas fa-dice-d10" title="Бросок за ход уже был"></i>` : ""}<button type="button" data-hud-act="end" class="end">Конец хода</button></div>
+        ${adviceRow(actor)}
       </div>
     </div>`}`;
 }

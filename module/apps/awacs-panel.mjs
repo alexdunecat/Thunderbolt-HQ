@@ -14,6 +14,7 @@ import { openBriefing } from "../briefing.mjs";
 import { openDossierExchange } from "../dossier-sync.mjs";
 import { specialSections, setSectionState } from "../tunnel.mjs";
 import { campaignDate, campaignDateRaw, setCampaignDate, todayDate } from "../campaign-date.mjs";
+import { lessonDone, lessonReset } from "../career-triggers.mjs";
 import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMarkAt, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
 import { DT } from "../config.mjs";
 import { squadBudget, pointsText, operationsDone, setOperationsDone, allSquads, squadPoints, squadMembers, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
@@ -280,6 +281,8 @@ async function writeDebrief({ op, objectives, rows, targets, date = campaignDate
 }
 
 /** Итоги вылета: +1 очко навыков, вылеты, сбитые и катапультирования в личное дело, разбор полёта в журнал. */
+const noq = a => a.items.some(i => i.type === "trigger" && i.system.key === "noquestions");
+
 export async function sortieResults() {
   if (!game.user.isGM) return;
   const pilots = game.actors.filter(a => a.type === "pilot").sort((a, b) => a.name.localeCompare(b.name, "ru"));
@@ -296,8 +299,8 @@ export async function sortieResults() {
       <td><input type="number" name="gnd_${a.id}" value="${k.ground ?? 0}" min="0"></td>
       <td><input type="checkbox" name="eject_${a.id}" ${a.system.markers.doom ? "checked" : ""}></td>
       <td><input type="number" name="pts_${a.id}" value="1" min="0"></td>
-      <td><input type="number" name="nerves_${a.id}" value="${nh.up}" min="0" max="2" title="${esc(nh.why || "две метки урона, гибель товарища со Связью или тяжёлое решение")}" ${a.system.edgeFly ? "disabled" : ""}> <small>${a.system.nerves}${nh.why ? ` · ${esc(nh.why)}` : ""}</small></td>
-      <td>${mentor ? `<label title="Урок наставника выполнен: +1 очко"><input type="checkbox" name="lesson_${a.id}"> урок</label>` : ""}</td>
+      <td><input type="number" name="nerves_${a.id}" value="${nh.up}" min="0" max="2" title="${esc(nh.why || (noq(a) ? "две метки урона или гибель товарища со Связью; тяжёлые решения у него идут в «Репутацию» (кнопка на листе)" : "две метки урона, гибель товарища со Связью или тяжёлое решение"))}" ${a.system.edgeFly ? "disabled" : ""}> <small>${a.system.nerves}${nh.why ? ` · ${esc(nh.why)}` : ""}</small></td>
+      <td>${mentor ? `<label title="Урок наставника выполнен: +1 очко"><input type="checkbox" name="lesson_${a.id}" ${lessonDone(a) ? "checked" : ""}> урок</label>` : ""}</td>
     </tr>`;
   }).join("");
   const last = scene?.getFlag(SYSTEM_ID, "lastBattle");
@@ -326,6 +329,7 @@ export async function sortieResults() {
     const sv = a.system.service, k = a.getFlag(SYSTEM_ID, "kills") ?? {};
     const air = Math.max(0, data[`air_${a.id}`] ?? 0), gnd = Math.max(0, data[`gnd_${a.id}`] ?? 0);
     const pts = Math.max(0, data[`pts_${a.id}`] ?? 0) + (data[`lesson_${a.id}`] ? 1 : 0);
+    await lessonReset(a);
     const eject = !!data[`eject_${a.id}`];
     const sortie = sv.sorties + 1;
     const names = kind => (k.list ?? []).filter(x => x.kind === kind).map(x => x.name);

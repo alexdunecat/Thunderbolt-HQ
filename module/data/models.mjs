@@ -174,6 +174,8 @@ export class PilotData extends foundry.abstract.TypeDataModel {
       else if (e.kind === "fatigue") push("strainMax", label, -2);
       else if (e.kind === "trauma" && SKILL_KEYS.includes(e.skill)) push(`skill.${e.skill}`, label, -1);
     }
+    // «Наследие проекта» погибшего товарища: +1 к параметру самолёта навсегда
+    for (const l of actor?.getFlag?.(SYSTEM_ID, "legacy") ?? []) if (DT.tune[l.stat]) push(DT.tune[l.stat][0], `Наследие проекта: ${l.from}`, DT.tune[l.stat][1]);
     // на пределе: Complication на 1–2 во всех проверках
     this.edgeFly = this.nerves >= DT.maxNerves && this.onEdge === "fly";
     if (this.edgeFly) for (const k of SKILL_KEYS) this.compOn[k] = Math.max(this.compOn[k], 2);
