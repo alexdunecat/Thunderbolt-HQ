@@ -119,7 +119,7 @@ export const TB = {
     "perk.all": "Perk во всех проверках выпадает от", "comp.all": "Complication во всех проверках выпадает до",
     points: "Очки навыков"
   },
-  effectWhen: { always: "всегда", twist: "после Поворота", toggle: "пока включён", stack: "× счётчик серии", proto: "на опытной машине", serial: "на серийной машине" },
+  effectWhen: { always: "всегда", twist: "после Поворота", toggle: "пока включён", nemesis: "против Немезиды, после «Задействовать»", stack: "× счётчик серии", proto: "на опытной машине", serial: "на серийной машине" },
   /* Встроенные эффекты книжных триггеров (если у триггера не задан свой список). */
   triggerEffects: {
     armor: [{ target: "hpMax", value: 1, when: "always" }],
@@ -129,8 +129,9 @@ export const TB = {
     reckless: [{ target: "skill.chosen", value: 2, when: "always" }, { target: "comp.chosen", value: 2, when: "always" }],
     cautious_rk: [{ target: "skill.chosen", value: -1, when: "always" }, { target: "perk.chosen", value: 3, when: "always" }],
     cautious_og: [{ target: "perk.chosen", value: 3, when: "always" }],
-    notyou: [{ target: "evasion", value: 1, when: "toggle" }],
-    handle: [{ target: "allRolls", value: 2, when: "toggle" }],
+    // триггеры Немезиды: считаются в атаке и защите против неё (nemesis.mjs), в листе не суммируются
+    notyou: [{ target: "evasion", value: 1, when: "nemesis" }],
+    handle: [{ target: "allRolls", value: 2, when: "nemesis" }],
     cutchatter: [{ target: "allRolls", value: 1, when: "toggle" }],
     tellme: [{ target: "allRolls", value: 1, when: "toggle" }],
     byside: [{ target: "allRolls", value: 1, when: "toggle" }],
@@ -144,7 +145,7 @@ export const TB = {
     wreath: [{ target: "skill.aim", value: 1, when: "toggle", group: "duel" }, { target: "skill.strafe", value: 1, when: "toggle", group: "duel" }, { target: "aa", value: 1, when: "toggle", group: "duel" }, { target: "evasion", value: 1, when: "toggle", group: "duel" }],
     oldschool: [{ target: "gun", value: 2, when: "toggle" }],
     finish: [{ target: "skill.aim", value: 1, when: "toggle" }, { target: "skill.deploy", value: 1, when: "toggle" }, { target: "skill.strafe", value: 1, when: "toggle" }, { target: "aa", value: 1, when: "toggle" }, { target: "ag", value: 1, when: "toggle" }],
-    expartner: [{ target: "allRolls", value: 1, when: "toggle" }],
+    expartner: [{ target: "allRolls", value: 1, when: "nemesis" }],
     bill: [{ target: "skill.aim", value: 2, when: "toggle" }, { target: "skill.deploy", value: 2, when: "toggle" }, { target: "skill.strafe", value: 2, when: "toggle" }, { target: "aa", value: 2, when: "toggle" }, { target: "ag", value: 2, when: "toggle" }],
     tester: [{ target: "perk.all", value: 3, when: "proto" }, { target: "comp.all", value: 2, when: "serial" }],
     limiter: [{ target: "maxSpeed", value: 2, when: "toggle" }],

@@ -125,6 +125,12 @@
         {{/each}}
       </div>
       {{/if}}
+      {{#if nemesis}}
+      <div class="tb-fx-bar tb-nem-bar">
+        <span class="tb-fx-title"><i class="fas fa-skull-crossbones"></i> Немезида{{#if nemesis.met}}: {{nemesis.met}}{{else}} <small>ещё не появилась</small>{{/if}}</span>
+        {{#each nemesis.list as |t|}}<a class="tb-fx-toggle tb-nem-trig {{t.state}}" data-nem-use="{{t.id}}" title="{{t.hint}}">{{t.name}}</a>{{/each}}
+      </div>
+      {{/if}}
       {{#if activeFx.length}}
       <p class="tb-fx-now tb-small"><span class="tb-muted">Сейчас действуют:</span> {{#each activeFx as |m|}}<span class="tb-chip" title="{{m.name}}">{{m.label}} {{m.sval}} <small>{{m.name}}</small></span>{{/each}}</p>
       {{/if}}
@@ -204,6 +210,7 @@
             <a data-chat-item="{{t.id}}" title="В чат"><b>{{t.name}}</b></a> <small>{{t.en}}</small>
             <span class="tb-tags">{{t.typeText}}</span>
             <label class="tb-check" title="Использован в этом вылете"><input type="checkbox" data-item-toggle="{{t.id}}" {{checked t.used}}> исп.</label>
+            {{#if t.nem}}<a class="tb-btn tb-nem-trig {{t.nemState}}" data-nem-use="{{t.id}}" title="{{t.nemHint}}"><i class="fas fa-skull-crossbones"></i> {{#if t.active}}действует{{else}}Задействовать{{/if}}</a>{{/if}}
             {{#if t.radio}}<a class="tb-icon" data-civil-radio title="Гражданское радио: музыка у всех"><i class="fas fa-radio"></i></a>{{/if}}
             <a class="tb-icon" data-item-edit="{{t.id}}"><i class="fas fa-pen"></i></a>
             <a class="tb-icon" data-item-delete="{{t.id}}"><i class="fas fa-trash"></i></a>

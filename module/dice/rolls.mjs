@@ -4,6 +4,7 @@ import { esc, resolveActor } from "../utils.mjs";
 import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, stratLift, isAirTarget, inNarrowTunnel, wallBonus, zoneDistance, rangeLabel, isFlying, struckBy, gunVs, sysGunReach, sysStrafe } from "../scene.mjs";
 import { alarmRows, raiseAlarm, surprise, quietAA, markVolley } from "../stealth.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
+import { nemesisAttack, nemesisDefense } from "../nemesis.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
 import { allowRoll } from "../actions.mjs";
 import { aimedWeapon } from "../range.mjs";
@@ -101,6 +102,7 @@ export function computeCard(c) {
     out.applies = out.value > c.ev;
   }
   if (c.dc !== null && c.dc !== undefined) out.success = out.total >= c.dc;   // ничьи: в проверках за пилотом, в атаках за атакующим
+  if (c.forceHit && c.dc !== null && c.dc !== undefined) out.success = true;   // «Хватит болтать»: атака посреди монолога
   if (c.forceFail) out.success = false;
   if (c.rolled) {
     out.perk = c.d4 >= (c.perkOn ?? 4);
@@ -619,14 +621,15 @@ export function foxPanel(actor, t, tk) {
       let base = air ? s.aa : s.ag;
       if (actor.type === "npc" && s.kind === "ground") base = (air ? s.ground.ga : s.ground.gg) ?? 0;
       const common = (air ? lift : 0) + sneak + ciws - speed;
+      const nem = r => sum(nemesisAttack(actor, t?.actor, { rolled: r, skill: air ? "aim" : "deploy" }).parts);
       prev[st.id][k] = {
-        fox: (base ?? 0) + ((air ? ws?.aa : ws?.ag) ?? 0) + sum(weatherParts(wx, air ? "aa" : "ag")) + common,
-        imp: skillSum(actor, air ? "aim" : "deploy") + ((air ? ws?.aim : ws?.dep) ?? 0) + common
+        fox: (base ?? 0) + ((air ? ws?.aa : ws?.ag) ?? 0) + sum(weatherParts(wx, air ? "aa" : "ag")) + common + nem(false),
+        imp: skillSum(actor, air ? "aim" : "deploy") + ((air ? ws?.aim : ws?.dep) ?? 0) + common + nem(true)
       };
     }
   }
   const first = stations.find(x => x.id === aimId && !x.empty) ?? stations.find(x => !x.empty) ?? stations[0];
-  const dc = t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) : null;
+  const dc = t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) + nemesisDefense(actor, t.actor) : null;
   const occ = t?.kind === "ship" ? Object.fromEntries((t.actor.system.systems ?? []).map((y, i) => [i, y.occ])) : null;
   const struck = struckBy(actor);
   const lockOk = !t || s.lockUuid === t.uuid;
@@ -728,10 +731,12 @@ export async function fireMissile(actor) {
     && !(await confirmReach(["Свободнопадающие бомбы под землёй работают только в Зале."], "Fox Two!"))) return;
   const wx = weatherAt(actor);
   const aim = t?.kind === "ship" ? aimAt(actor, t, Number(data.sys), { missile: true }) : null;
+  const nem = nemesisAttack(actor, t?.actor, { rolled: !!data.improved, skill });
   if (t) {
     const { problems } = reachProblems(actor, t, ws?.reach ?? TB.range.missile);
     if (s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
     if (aim) problems.push(...aim.problems);
+    problems.push(...nem.problems);
     if (!(await confirmReach(problems, "Fox Two!"))) return;
   }
 
@@ -758,6 +763,7 @@ export async function fireMissile(actor) {
   const sneak = surprise(actor, t);
   if (sneak) parts.push(sneak);
   if (aim) parts.push(...aim.parts);
+  parts.push(...nem.parts);
   if (speed) parts.push(["Speed", -speed]);
   if (data.mod) parts.push(["мод.", data.mod]);
 
@@ -774,18 +780,23 @@ export async function fireMissile(actor) {
       : "Ракета долетает в конце раунда. Каждая следующая ракета по той же цели: +1 к атаке самой точной или её урон в сумму.");
   if (t?.kind === "ship" && !aim) notes.push("Корабль: сравните итог с Occlusion выбранной системы.");
   if (t && wallBonus(t.token, t.actor)) notes.push("Цель в туннеле: стены сбивают ракеты, защита +2.");
+  const nemDef = t ? nemesisDefense(actor, t.actor) : 0;
+  if (nemDef) notes.push(`«Опять ты!»: защита ${esc(t.name)} против Немезиды +${nemDef}.`);
+  notes.push(...nem.notes.map(esc));
 
   if (w && !ws.unlimited) await w.update({ "system.ammo.value": Math.max(0, (ws.ammo.value ?? 0) - 1) });
 
   const card = {
     type: "attack", attack: true, label: `Fox Two! ${w ? w.name : "стандартная ракета"}`, rolled: !!data.improved,
-    d10: dice.d10, d4: dice.d4, parts, strain: 0, ...shipDc(t, aim, t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) : null),
-    strainable: !!data.improved && canStrain(actor),
+    d10: dice.d10, d4: dice.d4, parts, strain: 0, ...shipDc(t, aim, t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) + nemDef : null),
+    strainable: !!data.improved && canStrain(actor), forceHit: nem.forceHit,
     practiced: !!dice.practiced, dmg, delayed: atTurn || !(hv || tBroken), atTurn, combatKey: hv || tBroken ? (atTurn ? key : "") : key,
     targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes, maws: mawsOn(t), tkind: air ? "air" : "ground",
     ...thresholds(actor, skill, data.storm)
   };
-  return postCard(actor, card, dice.rolls);
+  const msg = await postCard(actor, card, dice.rolls);
+  await nem.take();
+  return msg;
 }
 
 /** Guns, Guns, Guns!: d10 + Strafe − Speed против защиты, урон сразу. */
@@ -872,6 +883,7 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
     if (aim && !(await confirmReach(aim.problems, "Guns, Guns, Guns!"))) return;
     const quiet = isAirTarget(t) ? quietAA(actor) : null;
     if (quiet && !(await confirmReach([quiet], "Guns, Guns, Guns!"))) return;
+    if (!(await confirmReach(nemesisAttack(actor, t.actor).problems, "Guns, Guns, Guns!"))) return;
     if (t.token) selectTarget(t.token);
   }
   const dice = await rollDice(actor, data.practiced);
@@ -894,19 +906,24 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
   parts.push(...await takeNext(actor));
   const sneak = surprise(actor, t);
   if (sneak) parts.push(sneak);
+  const nem = nemesisAttack(actor, t?.actor, { rolled: true, skill: "strafe" });
+  parts.push(...nem.parts);
+  const nemDef = t ? nemesisDefense(actor, t.actor) : 0;
   const speed = actor.type === "npc" && s.kind !== "air" ? 0 : (s.speed ?? 0);
   if (speed) parts.push(["Speed", -speed]);
   if (data.mod) parts.push(["мод.", data.mod]);
   const card = {
     type: "attack", attack: true, label, rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0,
-    ...shipDc(t, aim, t && t.kind !== "ship" ? t.defense : null),
-    strainable: canStrain(actor), practiced: !!dice.practiced,
+    ...shipDc(t, aim, t && t.kind !== "ship" ? t.defense + nemDef : null),
+    strainable: canStrain(actor), practiced: !!dice.practiced, forceHit: nem.forceHit,
     dmg: gun, delayed: false, instant: true, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "",
     notes: [...(t?.actor.system.breakEv != null && t.kind === "air" ? [`У цели Break!: защита ${t.defense}.`] : []),
-      ...(pod?.system.key === "PLSL" ? ["Бьёт в своей и соседних зонах. Облака блокируют лазер."] : [])],
+      ...(pod?.system.key === "PLSL" ? ["Бьёт в своей и соседних зонах. Облака блокируют лазер."] : []),
+      ...(nemDef ? [`«Опять ты!»: защита ${esc(t.name)} против Немезиды +${nemDef}.`] : []), ...nem.notes.map(esc)],
     ...thresholds(actor, "strafe", data.storm)
   };
   const msg = await postCard(actor, card, dice.rolls);
+  await nem.take();
   await autoHit(msg);
   return msg;
 }
@@ -966,13 +983,14 @@ export async function fireSam(actor, sysIndex) {
     if (s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
     const quiet = quietAA(actor);
     if (quiet) problems.unshift(quiet);
+    problems.push(...nemesisAttack(actor, t.actor).problems);
     if (!(await confirmReach(problems, label))) return;
   }
   const parts = [[air ? "G-A" : "G-G", ga ?? 0]];
   if (data.mod) parts.push(["мод.", data.mod]);
   const key = combatKey(), tBroken = t?.actor.system.broken === "ma";
   const card = {
-    type: "attack", attack: true, label, rolled: false, parts, strain: 0, dc: t ? t.defense + wallBonus(t.token, t.actor) : null, vsLabel: "защиты",
+    type: "attack", attack: true, label, rolled: false, parts, strain: 0, dc: t ? t.defense + wallBonus(t.token, t.actor) + nemesisDefense(actor, t.actor) : null, vsLabel: "защиты",
     dmg: TB.missileDamage, delayed: true, atTurn: tBroken && !!key, combatKey: key, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", maws: mawsOn(t),
     notes: [tBroken ? (key ? "Ракета ударит в начале хода цели (у неё сломан MAWS): посчитается сама." : "Попадает в начале хода цели: у неё сломан MAWS.")
       : key ? "Ракета долетит в конце раунда: залп посчитается сам." : "Ракета долетает в конце раунда."]
@@ -1037,9 +1055,10 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
     const extra = list.slice(1).map(x => x.c).sort((a, b) => (b.dmg ?? 0) - (a.dmg ?? 0));
     // корабль: против Occlusion системы на момент залпа; в туннеле стены сбивают ракеты
     if (y) { info.defense = y.occ; info.name = `${info.name}: ${y.name}`; }
-    else info.defense += wallBonus(info.token, actor);
+    else info.defense += wallBonus(info.token, actor) + nemesisDefense(resolveActor(best.actorUuid), actor);
     const need = Math.max(0, info.defense - best.total);
-    const hit = need <= extra.length;
+    // «Хватит болтать»: ракета, пущенная посреди монолога, попадает всегда
+    const hit = need <= extra.length || list.some(x => x.c.forceHit);
     const adders = hit ? extra.slice(0, extra.length - need) : [];
     const ev = actor.system.evasion ?? actor.system.stats?.ev ?? 0;
     targets.push({

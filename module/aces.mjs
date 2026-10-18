@@ -113,9 +113,12 @@ export async function announceAces(s, { text = "" } = {}) {
   return sendRadio({ text, caution: introCaution(s) });
 }
 
+/** Цвет заставки: синий у союзников, жёлтый у нейтралов (Немезида), иначе красный. */
+export const introSide = side => (side === "ally" || side === "neutral" ? side : "enemy");
+
 /** Разметка заставки: эмблема слева, справа название с подразделением, авиакрыло и девиз. mini — превью в окне. */
 export function introHtml(i, { mini = false } = {}) {
-  return `<div class="tb-intro tb-intro-${i.side === "ally" ? "ally" : "enemy"}${mini ? " mini" : ""}">
+  return `<div class="tb-intro tb-intro-${introSide(i.side)}${mini ? " mini" : ""}">
     ${i.emblem ? `<img class="tb-intro-emblem" src="${esc(i.emblem)}" alt="">` : ""}
     <div class="tb-intro-text">
       <div class="tb-intro-head"><span class="tb-intro-name">${esc(i.name)}</span>${i.unit ? `<span class="tb-intro-unit">${esc(i.unit)}</span>` : ""}</div>

@@ -78,3 +78,10 @@ game.user = users[1];
 Rm.onVolleyCreated(m);
 await new Promise(r => setTimeout(r, 20));
 console.log(log.join("\n"));
+// «Хватит болтать»: атака посреди монолога попадает всегда — и пушкой, и ракетой в залпе
+mkA("Мобиус", "npc", { grp: "fighter" }, false);
+msgs.push({ flags: { "thunderbolt-shtab": { card: { type: "attack", attack: true, rolled: true, d10: 1, strain: 0, delayed: true, combatKey: "C1:2", targetUuid: "Actor.Мобиус", targetName: "Мобиус", parts: [], dmg: 4, actorName: "Гроза", actorUuid: "Actor.Гроза", forceHit: true } } }, getFlag(s, k) { return this.flags[s]?.[k]; }, async update(u) { for (const [k, v] of Object.entries(u)) if (k.startsWith("flags.")) setp(this, k, v); } });
+game.user = users[0];
+const m2 = await Rm.resolveVolley(combat, { round: 2 });
+console.log("Хватит болтать: залп", JSON.stringify(m2.flags["thunderbolt-shtab"].card.targets.map(t => [t.name, t.hit, t.best, t.defense])),
+  "· пушка 1 против 9:", Rm.computeCard({ rolled: true, d10: 1, parts: [], dc: 9, forceHit: true }).success, "· без цели:", Rm.computeCard({ rolled: true, d10: 1, parts: [], dc: null, forceHit: true }).success ?? "нет сравнения");

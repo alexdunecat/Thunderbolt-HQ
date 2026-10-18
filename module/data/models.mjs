@@ -275,6 +275,12 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       this.aa = this.stats.aa; this.ag = this.stats.ag; this.gun = this.stats.gun;
       this.strain.max = this.tier === "ace" ? (this.stats.str ?? 0) : 0;
     }
+    // триггеры пилотов против Немезиды до конца вылета: «Знаю эту машину» (−1 к Evasion, Max Speed или A-A), «Я тоже в это верил» (Complication 1–2)
+    const nf = this.nemesis ? this.parent?.getFlag?.(SYSTEM_ID, "nemFx") ?? {} : {};
+    if (this.kind === "air" && nf.flaw === "ev") { this.evasion -= 1; this.defense = airDefense(this, this.evasion); }
+    if (this.kind === "air" && nf.flaw === "spd") this.maxSpeed = Math.max(1, this.maxSpeed - 1);
+    if (this.kind === "air" && nf.flaw === "aa" && this.aa !== null) this.aa -= 1;
+    if (nf.comp2) for (const k of SKILL_KEYS) this.compOn[k] = Math.max(this.compOn[k], 2);
   }
 }
 
@@ -356,6 +362,8 @@ export class TriggerData extends foundry.abstract.TypeDataModel {
     switch (change.when) {
       case "twist": return actorSystem.twist ? 1 : 0;
       case "toggle": return this.active ? 1 : 0;
+      // против Немезиды: в атаке и защите по ней (nemesis.mjs), на весь лист не действует
+      case "nemesis": return 0;
       case "stack": return this.stack;
       case "proto": return actorSystem.proto ? 1 : 0;
       case "serial": return actorSystem.proto ? 0 : 1;

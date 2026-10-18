@@ -184,7 +184,8 @@ export function chatterType(actor) {
 }
 
 const isCivil = type => !!CHATTER_TYPES[type]?.civil;
-const isAce = a => a?.type === "npc" && a.system?.tier === "ace" && !!chatterType(a);
+// личные реплики у асов и у Немезиды любого уровня
+const isAce = a => a?.type === "npc" && (a.system?.tier === "ace" || !!a.system?.nemesis) && !!chatterType(a);
 const isSquad = a => a?.type === "npc" && a.system?.tier === "duelist" && !!a.system?.squad && !!chatterType(a);
 const quiet = a => !!a?.getFlag?.(SYSTEM_ID, "quiet");
 /** Сцена, чьи фразы правит окно: открытая у ведущего. */

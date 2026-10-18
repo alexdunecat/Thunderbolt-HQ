@@ -6,7 +6,7 @@ import { SYSTEM_ID, TB } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
 import { record, registerRadioLog } from "./radio-log.mjs";
 import { MISSION_RESULTS } from "./mission.mjs";
-import { introHtml } from "./aces.mjs";
+import { introHtml, introSide } from "./aces.mjs";
 
 const MAX_QUEUE = 4;
 const queue = [], banners = [];
@@ -87,6 +87,8 @@ function reinforcements(doc, userId) {
   if (userId !== game.user.id || !game.user.isGM || !game.combat?.started || doc.parent?.id !== game.combat.scene?.id) return;
   const a = doc.actor;
   if (a?.type !== "npc" || (a.system.side ?? "enemy") !== "enemy") return;
+  // Немезиду представляет nemesis.mjs: заставкой асов и с отметкой у её пилотов
+  if (a.system.nemesis) return;
   const boss = a.system.grp === "boss", ace = a.system.tier === "ace", squad = a.system.tier === "duelist" && a.system.squad;
   if (!boss && !ace && !squad) return;
   pending.push({ name: doc.name, base: a.name, boss, ace, squad: squad || "", launch: a.system.key === "icbm" });
@@ -109,7 +111,7 @@ async function announce() {
 export function sendRadio({ speaker = "AWACS", text = "", caution = null, side = "ally" }) {
   side = sideClass(side);
   const intro = caution?.intro;
-  const body = [intro ? `<div class="tb-radio-caution-line tb-intro-line tb-intro-${intro.side === "ally" ? "ally" : "enemy"}">${intro.emblem ? `<img src="${esc(intro.emblem)}" alt="">` : ""}<span><b>${esc(intro.name)}</b>${intro.unit ? ` ${esc(intro.unit)}` : ""}${intro.wing ? `<small>${esc(intro.wing)}</small>` : ""}</span></div>`
+  const body = [intro ? `<div class="tb-radio-caution-line tb-intro-line tb-intro-${introSide(intro.side)}">${intro.emblem ? `<img src="${esc(intro.emblem)}" alt="">` : ""}<span><b>${esc(intro.name)}</b>${intro.unit ? ` ${esc(intro.unit)}` : ""}${intro.wing ? `<small>${esc(intro.wing)}</small>` : ""}</span></div>`
     : caution ? `<div class="tb-radio-caution-line${caution.mission ? ` tb-mission-line tb-mission-${esc(caution.level)}` : ""}">-- ${esc(caution.title)} -- ${esc(caution.sub ?? "")}</div>` : "", text ? `<div class="tb-note"><b class="tb-radio-${side}">${esc(speaker)}:</b> «${esc(text)}»</div>` : ""].join("");
   return ChatMessage.create({ speaker: { alias: speaker }, content: `<div class="tb-card tb-card-radio">${body}</div>`,
     flags: { [SYSTEM_ID]: { radio: { speaker, text, caution, side } } } });

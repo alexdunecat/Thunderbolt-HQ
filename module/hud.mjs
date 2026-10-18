@@ -13,6 +13,7 @@ import { lockersOf } from "./rwr.mjs";
 import { vmaxOf, kmhOf } from "./plane-speed.mjs";
 import { ejectNow } from "./dice/rolls.mjs";
 import { unitKind, unitHtml, onUnitClick, registerUnitHud } from "./unit-hud.mjs";
+import { hudNemesis, isNemesis, pilotsOf, monologue, startMonologue, endMonologue, appear, useTrigger, STATE_TEXT } from "./nemesis.mjs";
 
 const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, POS_KEY = `${SYSTEM_ID}.hudPos`;
 const BIG = new Set(["missile", "lock", "doom"]);
@@ -28,6 +29,7 @@ export function registerHud() {
   for (const ev of ["canvasReady", "controlToken", "updateActor", "updateActorDelta", "updateToken", "createToken", "deleteToken", "updateItem",
     "createCombat", "updateCombat", "deleteCombat", "updateCombatant", "createChatMessage", "updateChatMessage"]) Hooks.on(ev, () => refreshHud());
   Hooks.on(`${SYSTEM_ID}.hlMode`, () => refreshHud());
+  Hooks.on(`${SYSTEM_ID}.monologue`, () => refreshHud());
   globalThis.window?.addEventListener("resize", () => place());
   registerUnitHud();
 }
@@ -115,8 +117,31 @@ export function hudData(actor) {
     acts: c ? { declared, used: spent.used, rolled: spent.rolled, list: spent.list, turn: c.parent.combatant?.id === c.id } : null,
     lock: s.lockUuid || s.lock ? { name: target?.token?.name ?? tTok?.name ?? target?.name ?? s.lock, uuid: s.lockUuid, gone: !tTok,
       dist: dist === null ? "" : dist === 0 ? "своя зона" : `${dist} ${dist === 1 ? "зона" : dist < 5 ? "зоны" : "зон"}` } : null,
-    weapons, aimed: aim, warn
+    weapons, aimed: aim, warn,
+    // Немезида: у пилота — лампа с именем, дальностью и тем, что действует; у ведущего на её машине — «Появление» и «Монолог»
+    nem: pilot ? hudNemesis(actor) : null,
+    nemSelf: !pilot && isNemesis(actor) && game.user.isGM
+      ? { side: s.side === "ally" || s.side === "neutral" ? s.side : "enemy", who: pilotsOf(actor).map(p => p.system.callsign || p.name).join(", "), talking: monologue()?.uuid === actor.uuid } : null
   };
+}
+
+/** Строка Немезиды в HUD. */
+function nemRow(d) {
+  if (d.nem) {
+    const n = d.nem;
+    return `<div class="tb-hud-btns tb-hud-nem"><small title="Немезида">NEMESIS</small>
+      <a class="tb-hud-nemlamp ${n.side} ${n.lock ? "lock" : ""}" data-hud-nem title="${n.lock ? "Немезида держит вас на захвате. " : ""}Показать на карте"><i class="fas fa-skull-crossbones"></i> ${esc(n.name)}${n.dist ? ` · ${n.dist}` : ""}</a>
+      ${n.chips.map(c => `<span class="tb-hud-nemchip">${esc(c)}</span>`).join("")}
+      ${n.trig.map(t => `<button type="button" class="tb-hud-nemtrig" data-hud-nemtrig="${t.id}" title="Триггер Немезиды: ${esc(STATE_TEXT[t.state])}">${esc(t.name)}</button>`).join("")}</div>`;
+  }
+  if (d.nemSelf) {
+    const n = d.nemSelf;
+    return `<div class="tb-hud-btns tb-hud-nem"><small title="Немезида">NEMESIS</small>
+      <span class="tb-hud-nemlamp ${n.side}"><i class="fas fa-skull-crossbones"></i> ${n.who ? `враг: ${esc(n.who)}` : "пилот не выбран"}</span>
+      <button type="button" class="tb-hud-nemtrig" data-hud-appear title="Заставка и реплика AWACS у всех, у её пилотов открываются триггеры Немезиды">ПОЯВЛЕНИЕ</button>
+      <button type="button" class="tb-hud-nemtrig ${n.talking ? "on" : ""}" data-hud-mono title="${n.talking ? "Закончить монолог: кнопки ответа у игроков пропадут" : "Свободное действие: у пилотов появятся кнопки ответа триггерами Немезиды"}">${n.talking ? "КОНЕЦ МОНОЛОГА" : "МОНОЛОГ"}</button></div>`;
+  }
+  return "";
 }
 
 /** Дуга спидометра: 0…maxSpeed слева направо, стрелка на текущей Speed. */
@@ -224,6 +249,7 @@ function html(actor, d, folded) {
         <div class="tb-hud-btns tb-hud-wpns"><small title="Пульт вооружения">STORES</small>${weaponButtons(d)}</div>
         <div class="tb-hud-btns"><small>МАНЁВР</small>${moves}</div>
         <div class="tb-hud-btns tb-hud-acts" title="Действия хода${d.acts?.rolled ? " · бросок уже был" : ""}"><small>ХОД</small>${actBoxes}${d.acts?.rolled ? `<i class="fas fa-dice-d10" title="Бросок за ход уже был"></i>` : ""}${button("end", BUTTONS.end)}</div>
+        ${nemRow(d)}
       </div>
     </div>`}`;
 }
@@ -331,7 +357,7 @@ async function onClick(ev) {
   const hl = ev.target.closest("[data-hud-hl]");
   if (hl) { ev.preventDefault(); ev.stopPropagation(); return setHlMode(hl.dataset.hudHl); }
   if (dragged && ev.target.closest("header")) { dragged = false; return; }
-  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold]");
+  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-appear], [data-hud-mono]");
   if (!t || !shown) return;
   ev.preventDefault();
   const d = t.dataset, actor = shown;
@@ -344,7 +370,15 @@ async function onClick(ev) {
     if (tok) canvas.animatePan({ x: tok.center.x, y: tok.center.y, duration: 400 });
     return;
   }
+  if (d.hudNem !== undefined) {
+    const tok = tokenOf(resolveActor(hudNemesis(actor)?.uuid));
+    if (tok) canvas.animatePan({ x: tok.center.x, y: tok.center.y, duration: 400 });
+    return;
+  }
   if (!actor.isOwner) return ui.notifications.warn(`«${actor.name}» вам не принадлежит.`);
+  if (d.hudNemtrig) return useTrigger(actor, actor.items.get(d.hudNemtrig));
+  if (d.hudAppear !== undefined) return appear(actor);
+  if (d.hudMono !== undefined) return monologue()?.uuid === actor.uuid ? endMonologue() : startMonologue(actor);
   if (!hudFits(actor) && await onUnitClick(t, actor)) return;
   if (d.hudEject !== undefined) return ejectNow(actor);
   // скорость и высота как на листе и в меню токена: действие засчитывают хуки actions.mjs

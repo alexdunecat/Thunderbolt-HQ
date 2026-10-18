@@ -1302,3 +1302,53 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
   font: 600 12px/1.35 var(--tb-data, monospace); background: rgba(5, 9, 10, .92); box-shadow: 0 2px 10px rgba(0, 0, 0, .6); }
 #tb-move-tip.ok { color: #9be3bf; border-color: #2c6b4c; }
 #tb-move-tip.bad { color: #ffb3a8; border-color: #7a2a20; }
+
+/* ---------- Немезида ---------- */
+/* заставка нейтральной Немезиды — жёлтым, как реплики нейтралов */
+.tb-intro.tb-intro-neutral { --tb-i: #f2c14e; }
+.tb-card-radio .tb-intro-line.tb-intro-neutral { color: #b8860b; }
+.tb-card-nemesis { border-left: 3px solid #d4472b; }
+.tb-card-nemesis.tb-nem-ally { border-left-color: #3d8fc4; }
+.tb-card-nemesis.tb-nem-neutral { border-left-color: #b8860b; }
+.tb-card-nemesis .tb-card-who i { color: #d4472b; margin-right: 3px; }
+/* лист пилота: полоса триггеров Немезиды */
+.thunderbolt .tb-nem-bar .tb-fx-title i { color: var(--tb-bad); }
+.thunderbolt .tb-nem-trig.wait, .thunderbolt .tb-nem-trig.listen { opacity: .55; border-style: dashed; }
+.thunderbolt .tb-nem-trig.ready { border-color: var(--tb-bad); color: var(--tb-bad); }
+.thunderbolt .tb-nem-trig.on { background: color-mix(in srgb, var(--tb-bad) 18%, transparent); border-color: var(--tb-bad); }
+.thunderbolt .tb-nem-trig.used { opacity: .45; text-decoration: line-through; }
+.thunderbolt .tb-trigger-head .tb-nem-trig { padding: 1px 7px; font-size: 11px; }
+/* лист NPC: кнопки ведущего и отметки */
+.thunderbolt .tb-nem-btn { padding: 2px 8px; font-size: 11px; }
+.thunderbolt .tb-nem-btn.on { border-color: var(--tb-bad); color: var(--tb-bad); }
+.thunderbolt .tb-nem-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; width: 100%; }
+/* HUD: лампа Немезиды */
+#tb-pilot-hud .tb-hud-nem > small:first-child { color: #ff8a78; }
+#tb-pilot-hud .tb-hud-nemlamp { --nem: #ff4a3a; display: inline-flex; align-items: center; gap: 4px; min-width: 0; padding: 0 8px; font-size: 11px; line-height: 20px; font-weight: 700; letter-spacing: .04em;
+  color: #ffd0c8; background: #2a0805; border: 1px solid #5a1b14; border-radius: 2px; text-shadow: 0 0 6px var(--nem); box-shadow: 0 0 6px color-mix(in srgb, var(--nem) 50%, transparent), inset 0 0 3px #000; cursor: pointer; overflow: hidden; text-overflow: ellipsis; }
+#tb-pilot-hud .tb-hud-nemlamp.ally { --nem: #4fb3ff; color: #d6ecff; background: #06182a; border-color: #123a5a; }
+#tb-pilot-hud .tb-hud-nemlamp.neutral { --nem: #f2c14e; color: #fff0c8; background: #2a2005; border-color: #5a4614; }
+#tb-pilot-hud .tb-hud-nemlamp.lock { animation: tb-nem-blink .7s steps(2, start) infinite; }
+@keyframes tb-nem-blink { to { box-shadow: 0 0 12px var(--nem), inset 0 0 3px #000; background: color-mix(in srgb, var(--nem) 35%, #000); } }
+#tb-pilot-hud .tb-hud-nemchip { padding: 0 5px; font-size: 10px; line-height: 20px; color: #ffb8a8; border: 1px solid #5a1b14; border-radius: 2px; background: #1a0604; }
+#tb-pilot-hud .tb-hud-btns button.tb-hud-nemtrig { flex: 0 0 auto; line-height: 20px; color: #ffd0c8; background: #3a0c07; border: 1px solid #ff4a3a; border-radius: 2px; box-shadow: none; }
+#tb-pilot-hud .tb-hud-btns button.tb-hud-nemtrig.on, #tb-pilot-hud .tb-hud-btns button.tb-hud-nemtrig:hover { background: #ff4a3a; color: #1a0604; }
+/* панель монолога: у всех, кнопки ответа у пилотов Немезиды */
+#tb-monologue { position: fixed; top: 150px; left: 50%; transform: translateX(-50%); z-index: 72; display: flex; flex-direction: column; gap: 6px; min-width: 320px; max-width: min(92vw, 640px);
+  padding: 8px 12px 10px; color: #f4fbf8; background: rgba(8, 4, 4, .86); border: 1px solid #ff4a3a; box-shadow: 0 0 14px rgba(255, 74, 58, .45); font-family: "Jura", "Exo 2", system-ui, sans-serif; }
+#tb-monologue .tb-mono { display: contents; }
+#tb-monologue.tb-nem-ally { border-color: #4fb3ff; box-shadow: 0 0 14px rgba(79, 179, 255, .45); }
+#tb-monologue.tb-nem-neutral { border-color: #f2c14e; box-shadow: 0 0 14px rgba(242, 193, 78, .45); }
+#tb-monologue .tb-mono-head { display: flex; align-items: baseline; gap: 8px; text-transform: uppercase; }
+#tb-monologue .tb-mono-head i { color: #ff4a3a; }
+#tb-monologue .tb-mono-head small { font-size: 10px; letter-spacing: .14em; color: #ff8a78; }
+#tb-monologue .tb-mono-head b { font-size: 16px; letter-spacing: .06em; flex: 1; }
+#tb-monologue .tb-nem-ally .tb-mono-head i, #tb-monologue .tb-nem-ally .tb-mono-head small { color: #6cc4ff; }
+#tb-monologue .tb-nem-neutral .tb-mono-head i, #tb-monologue .tb-nem-neutral .tb-mono-head small { color: #f2c14e; }
+#tb-monologue .tb-mono-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#tb-monologue .tb-mono-row > span { font-weight: 700; letter-spacing: .04em; min-width: 70px; }
+#tb-monologue button { width: auto; flex: none; padding: 3px 10px; font: 700 12px/1.3 "Jura", system-ui, sans-serif; letter-spacing: .04em; text-transform: uppercase;
+  color: #ffd0c8; background: #3a0c07; border: 1px solid #ff4a3a; border-radius: 2px; cursor: pointer; }
+#tb-monologue button:hover { background: #ff4a3a; color: #1a0604; }
+#tb-monologue button:disabled { opacity: .5; cursor: default; }
+#tb-monologue .tb-mono-head button { padding: 1px 8px; font-size: 10px; }

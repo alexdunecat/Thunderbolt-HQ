@@ -2,6 +2,7 @@
 import { SYSTEM_ID, TB, DT } from "../config.mjs";
 import * as R from "../dice/rolls.mjs";
 import { esc } from "../utils.mjs";
+import { resetSortie } from "../nemesis.mjs";
 import { startStrain } from "../downtime.mjs";
 
 
@@ -370,6 +371,8 @@ export class TBActor extends Actor {
         items.push({ _id: i.id, "system.ammo.value": i.system.ammo.max + (this.system.ammoBonus?.[i.id] ?? 0) });
     }
     if (items.length) await this.updateEmbeddedDocuments("Item", items);
+    // Немезида ещё не появлялась: триггеры Немезиды снова закрыты, у её NPC сняты недостатки, вызов и поединок
+    if (this.type === "pilot") await resetSortie(this);
     await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: false }).catch(() => null);
     return this.#say(`<b>${esc(this.name)}</b> готов к вылету: Speed 1, Strain ${this.system.strain.value}, HP ${this.system.hp.max}${notes.length ? ` (${notes.map(esc).join("; ")})` : ""}.`);
   }

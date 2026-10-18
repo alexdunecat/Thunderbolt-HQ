@@ -13,6 +13,7 @@ import { rollGround, chooseEdge, edgeLabel, dropBond, useBond, useEdge, threats,
 import { gloryView } from "../glory.mjs";
 import { openChatterEditor, nameOf, setCallsign } from "../chatter.mjs";
 import { openCivilRadio, RADIO_TRIGGER } from "../civil-radio.mjs";
+import { NEM, STATE_TEXT, nemTriggers, trigState, metOf, useTrigger, appear, monologue, startMonologue, endMonologue, fxOf, clearFx } from "../nemesis.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -164,6 +165,7 @@ class TBActorSheet extends ActorSheet {
       if (item) item.update({ "system.stack": Math.max(0, item.system.stack + Number(d.delta)) });
     });
     on("[data-chat-item]", d => this.#itemToChat(this.actor.items.get(d.chatItem)));
+    on("[data-nem-use]", d => useTrigger(this.actor, this.actor.items.get(d.nemUse)));
     on("[data-end-turn]", () => endTurn(this.actor));
     // прицел: подсветка дальности по этому спецоружию (повторный щелчок — снова стандартная ракета)
     on("[data-aim]", d => {
@@ -425,10 +427,17 @@ export class PilotSheet extends TBActorSheet {
       toggleHint: TB.toggleHints[t.system.key] ?? "ситуативный бонус",
       fxText: describeChanges(t.system.changes),
       hasOpts: t.system.skills > 0 || t.system.needsWeapon || t.system.hasToggle || t.system.hasStack,
-      radio: t.system.key === RADIO_TRIGGER
+      radio: t.system.key === RADIO_TRIGGER,
+      nem: !!NEM[t.system.key] && t.system.types.includes("Nemesis"), nemState: trigState(a, t), nemHint: STATE_TEXT[trigState(a, t)]
     }));
     ctx.weaponOpts = weaponOpts;
     ctx.situational = ctx.triggers.filter(t => t.hasToggle || t.hasStack);
+    // триггеры Немезиды: открываются, когда она появилась в вылете; кнопка «Задействовать»
+    const nem = nemTriggers(a);
+    ctx.nemesis = nem.length ? { met: metOf(a)?.name ?? "", list: nem.map(t => {
+      const st = trigState(a, t);
+      return { id: t.id, name: t.name, state: st, hint: `${NEM[t.system.key].fx}. ${STATE_TEXT[st]}` };
+    }) } : null;
     ctx.activeFx = Object.entries(s.trigFx ?? {}).flatMap(([target, list]) =>
       list.map(m => ({ label: TB.effectTargets[target] ?? target, name: m.name, sval: `${m.value >= 0 ? "+" : ""}${m.value}` })));
     ctx.archOptions = opts(TB.archetypes);
@@ -590,6 +599,19 @@ export class NpcSheet extends TBActorSheet {
     ctx.statusOptions = TB.status;
     ctx.fate = fateOf(s.status);
     ctx.pilotBio = true;
+    // Немезида: ведущему кнопки «Появление» и «Монолог», что сейчас на ней висит от триггеров пилотов
+    if (s.nemesis) {
+      const f = fxOf(this.actor);
+      const chips = [
+        f.flaw && { key: "flaw", label: `Знаю эту машину: ${{ ev: "Evasion", spd: "Max Speed", aa: "A-A" }[f.flaw]} −1` },
+        f.comp2 && { key: "comp2", label: "Complication 1–2" },
+        f.taunt && { key: "taunt", label: `Вызов: преследует ${f.tauntName ?? "пилота"}` },
+        f.duel && { key: "duel", label: `Поединок с ${f.duelName ?? "пилотом"}` },
+        f.duelBonus && { key: "duelBonus", label: "Следующая атака по пилоту поединка +2" },
+        f.seen && { key: "seen", label: "Появилась в этом вылете" }
+      ].filter(Boolean);
+      ctx.nemView = { gm: game.user.isGM, talking: monologue()?.uuid === this.actor.uuid, chips };
+    }
     return ctx;
   }
 
@@ -613,6 +635,11 @@ export class NpcSheet extends TBActorSheet {
       ev.stopPropagation();
       this.actor.update({ [`flags.${SYSTEM_ID}.quiet`]: !ev.currentTarget.checked });
     });
+    // Немезида: появление, монолог и снятие отметок триггеров (ведущий)
+    const click = (sel, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); fn(n.dataset); }));
+    click("[data-nem-appear]", () => appear(this.actor));
+    click("[data-nem-mono]", () => monologue()?.uuid === this.actor.uuid ? endMonologue() : startMonologue(this.actor));
+    click("[data-nem-clear]", d => clearFx(this.actor, d.nemClear));
     el.querySelector("[data-tb-callsign]")?.addEventListener("change", ev => { ev.stopPropagation(); setCallsign(this.actor, ev.currentTarget.value); });
     el.querySelector("[data-tb-replies]")?.addEventListener("click", () => openChatterEditor(this.actor));
     el.querySelectorAll("[data-sys-field]").forEach(n => n.addEventListener("change", () => {

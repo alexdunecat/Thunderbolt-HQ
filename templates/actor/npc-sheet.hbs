@@ -13,7 +13,9 @@
         {{#unless isShip}}<label>Уровень <select name="system.tier">{{selectOptions tierOptions selected=system.tier}}</select></label>{{/unless}}
         <span class="tb-muted">{{system.cls}}</span>
       </div>
-      {{#if hasFile}}{{#if system.nemesis}}<div class="tb-nemesis-badge" title="Немезида: личный враг этого пилота"><i class="fas fa-skull-crossbones"></i> Немезида{{#if person.nemesisName}} · {{person.nemesisName}}{{/if}}</div>{{/if}}{{/if}}
+      {{#if hasFile}}{{#if system.nemesis}}<div class="tb-head-row"><div class="tb-nemesis-badge" title="Немезида: личный враг этого пилота"><i class="fas fa-skull-crossbones"></i> Немезида{{#if person.nemesisName}} · {{person.nemesisName}}{{/if}}</div>
+        {{#if nemView.gm}}<a class="tb-btn tb-nem-btn" data-nem-appear title="Заставка и реплика AWACS у всех, у её пилотов открываются триггеры Немезиды (в бою срабатывает само, когда она выходит на сцену)"><i class="fas fa-jet-fighter"></i> Появление</a>
+        <a class="tb-btn tb-nem-btn {{#if nemView.talking}}on{{/if}}" data-nem-mono title="{{#if nemView.talking}}Закончить монолог: кнопки ответа у игроков пропадут{{else}}Свободное действие: у пилотов появятся кнопки ответа триггерами Немезиды{{/if}}"><i class="fas fa-comment-dots"></i> {{#if nemView.talking}}Конец монолога{{else}}Монолог{{/if}}</a>{{/if}}</div>{{/if}}{{/if}}
     </div>
   </header>
 
@@ -157,6 +159,8 @@
       <div class="tb-side-row tb-nemesis-row {{#if system.nemesis}}on{{/if}}">
         <label class="tb-check" title="Личный враг одного из пилотов: свои счёты, свои реплики, своя история"><input type="checkbox" name="system.nemesis" {{checked system.nemesis}}> <b>Немезида</b></label>
         {{#if system.nemesis}}<label>для пилота <select name="system.nemesisOf">{{selectOptions person.pilotOptions selected=system.nemesisOf blank="— кого —"}}</select></label>{{/if}}
+        {{#if nemView.chips.length}}<div class="tb-nem-chips tb-small">{{#each nemView.chips as |c|}}<span class="tb-chip">{{c.label}}{{#if ../nemView.gm}} <a data-nem-clear="{{c.key}}" title="Снять">×</a>{{/if}}</span>{{/each}}</div>{{/if}}
+        {{#if system.nemesis}}<p class="tb-hint tb-small">Свои фразы Немезиды (появление, попадание, сбита и т. д.) задаются в «Реплики NPC», как у асов, цветом её стороны. Монолог произносите сами: кнопка «Монолог» в шапке листа или в HUD.</p>{{/if}}
       </div>
       {{> "systems/thunderbolt-shtab/templates/actor/parts/images.hbs"}}
       {{> "systems/thunderbolt-shtab/templates/actor/parts/biography.hbs"}}
