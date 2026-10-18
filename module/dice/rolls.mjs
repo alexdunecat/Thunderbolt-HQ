@@ -494,7 +494,8 @@ async function applyBreak(actor, card) {
 /* ---------- атаки ---------- */
 
 /** Вид цели для оружия: воздушная или наземная/морская. */
-const targetKind = t => (t?.kind === "air" ? "air" : "ground");
+/** Вид цели для ракет: воздушная — самолёты и летающие боссы (Аркбёрд, SOLG, воздушные крейсеры и линкоры), иначе наземная или морская. */
+const targetKind = t => (isAirTarget(t) ? "air" : "ground");
 const has = v => v !== null && v !== undefined;
 
 /** Спецоружие подходит к виду цели: противовоздушное только по воздуху, ударное только по земле и морю. */
@@ -864,12 +865,12 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
     const { problems } = reachProblems(actor, t, Math.max(gunReach(podItem), ...shipGuns(actor, sys).map(sysGunReach)));
     if (podItem?.system.key === "PLSL" && weatherAt(actor).list.some(d => d.id === "clouds")) problems.push("Облачность: импульсный лазер не бьёт.");
     const vs = gunVs(actor, sys);
-    if (vs === "air" && t.kind !== "air") problems.unshift("зенитное орудие не бьёт по земле и морю.");
-    if (vs === "ground" && t.kind === "air") problems.unshift("по воздуху это орудие не стреляет.");
-    if (podItem?.system.key === "RCL" && t.kind === "air") problems.unshift("НУР бьют только по земле и морю.");
+    if (vs === "air" && !isAirTarget(t)) problems.unshift("зенитное орудие не бьёт по земле и морю.");
+    if (vs === "ground" && isAirTarget(t)) problems.unshift("по воздуху это орудие не стреляет.");
+    if (podItem?.system.key === "RCL" && isAirTarget(t)) problems.unshift("НУР бьют только по земле и морю.");
     if (problems.length) return ui.notifications.warn(`Guns, Guns, Guns!: ${problems[0]}`);
     if (aim && !(await confirmReach(aim.problems, "Guns, Guns, Guns!"))) return;
-    const quiet = t.kind === "air" ? quietAA(actor) : null;
+    const quiet = isAirTarget(t) ? quietAA(actor) : null;
     if (quiet && !(await confirmReach([quiet], "Guns, Guns, Guns!"))) return;
     if (t.token) selectTarget(t.token);
   }
@@ -950,7 +951,7 @@ export async function fireSam(actor, sysIndex) {
   const t = currentTarget() ?? lockedTarget(actor);
   if (t && !canFireAt(actor, t.actor)) return ui.notifications.warn(`Пуск: «${t.name}» на вашей стороне.`);
   // по воздуху G-A (ЗРК), по земле и морю G-G
-  const air = !t || t.kind === "air";
+  const air = !t || isAirTarget(t);
   const src = s.kind === "ship" ? s.systems[sysIndex] : s.ground;
   const ga = air ? src?.ga : src?.gg;
   const label = s.kind === "ship" ? `Пуск: ${src?.name}` : air ? "Пуск ЗРК" : "Пуск G-G";

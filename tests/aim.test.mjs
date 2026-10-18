@@ -50,6 +50,7 @@ console.log("Strafe спаренных: обе целы", Sc.sysStrafe(sov, s1))
 sys(sov, /№2/).value = 0;
 console.log("Strafe спаренных: одна", Sc.sysStrafe(sov, s1), "· ЗАК Литтории", Sc.sysStrafe(lit, sys(lit, /Носовой/)), "· CIWS Нимица", Sc.sysStrafe(nim, sys(nim, /CIWS №1/)));
 
+console.log("воздушные цели для ракет:", ["littoria", "arkbird", "solg", "nimitz", "kirov"].map(k => `${k}=${Sc.isAirTarget({ kind: "ship", actor: mk(k) }) ? "Air-Air/Aim" : "Air-Gnd/Deploy"}`).join(" "));
 // схема: раскладка по ролям и запреты
 const p205 = mk("roosevelt");
 console.log("точки Рузвельта:", JSON.stringify(A.spotsOf(p205)));
