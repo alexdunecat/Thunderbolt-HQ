@@ -122,6 +122,14 @@ export function unitsOn(scene) {
 
 /* ---------- флаг боя ---------- */
 
+/**
+ * Где кто стоял в момент отметки: пары [uuid, "зона|высота"]. Не объект: uuid с точками («Actor.abc») Foundry во флаге
+ * разворачивает во вложенные ключи, и рельсотрон считал увернувшимися даже тех, кто не двигался.
+ */
+const startNow = scene => unitsOn(scene).map(u => [u.uuid, `${u.zone}|${u.alt}`]);
+export const startOf = s => Array.isArray(s.start) ? new Map(s.start)
+  : new Map(Object.entries(foundry.utils.flattenObject?.(s.start ?? {}) ?? s.start ?? {}));
+
 export const strikesOfCombat = combat => combat?.getFlag(SYSTEM_ID, "strikes") ?? [];
 const saveStrikes = (combat, list) => combat.setFlag(SYSTEM_ID, "strikes", list);
 
@@ -174,13 +182,17 @@ export async function markStrike(edit = null, preset = null) {
   const strike = {
     id: foundry.utils.randomID(), kind: data.kind, label: src ? `${name} · ${src.name}` : name, source: src?.name ?? "", sourceUuid: src?.uuid ?? null,
     zones, alts, dmg: Number(data.dmg) || S.dmg, attack, round: combat.round + (S.delay ?? 0), marked: combat.round,
-    start: Object.fromEntries(unitsOn(scene).map(u => [u.uuid, `${u.zone}|${u.alt}`]))
+    start: startNow(scene)
   };
   await saveStrikes(combat, [...strikesOfCombat(combat), strike]);
   const when = strike.round === combat.round ? "в конце раунда" : `в конце раунда ${strike.round}`;
   const { sendRadio } = await import("./radio.mjs"); // лениво: radio-log тянет Application
   await sendRadio({ speaker: "AWACS", side: "ally", caution: { level: "warning", title: "WARNING", sub: S.label },
     text: `${S.label}: удар ${when} по ${zones.length > 1 ? "зонам" : "зоне"} ${zonesText(zones)}, ${altsText(alts)}. ${S.still ? "Смените зону или высоту!" : "Уходите из зоны!"}` });
+  // выстрел рельсотрона или лазера слышен сразу у всех, взрыв в зонах — в конце раунда
+  const { shotOf, cueEveryone } = await import("./sounds.mjs");
+  const shot = shotOf(name);
+  if (shot) cueEveryone(shot);
 }
 
 /** Высота удара кнопками на пульте (рельсотрон бьёт одну высоту). */
@@ -254,7 +266,7 @@ export async function scheduleStrike(combat, actor, kind, round) {
   const strike = {
     id: foundry.utils.randomID(), kind, label: `${S.label} · ${name}`, source: name, sourceUuid: actor.uuid, destroy: actor.uuid,
     zones: [zone], alts: Array.isArray(S.alts) ? S.alts : ALL, dmg: S.dmg, attack: null, round, marked: combat.round,
-    start: Object.fromEntries(unitsOn(scene).map(u => [u.uuid, `${u.zone}|${u.alt}`]))
+    start: startNow(scene)
   };
   await saveStrikes(combat, [...strikesOfCombat(combat), strike]);
   return strike.id;
@@ -375,7 +387,8 @@ export async function resolveStrikes(combat, round) {
     if (s.attack !== null && s.attack !== undefined) for (const u of units) rolls[u.uuid] = (await new Roll("1d10").evaluate()).total;
     // сам взрывающийся или падающий корабль в своей зоне урона не получает: он уничтожен целиком
     const self = s.destroy ?? (s.kind === "reactor" ? s.sourceUuid : null);
-    const here = units.filter(u => u.uuid !== self).map(u => ({ ...u, start: s.start?.[u.uuid] ?? null }));
+    const start = startOf(s);
+    const here = units.filter(u => u.uuid !== self).map(u => ({ ...u, start: start.get(u.uuid) ?? null }));
     const hits = strikeHits(s, here, rolls);
     const key = `${combat.id}:${round}`;
     const rows = hits.map(h => {

@@ -29,9 +29,11 @@ updateCombat: тишина
 createChatMessage: flares.ogg @0.7
 createChatMessage: bomb.ogg @0.7, boom1.ogg @0.7
 createChatMessage: тишина
-createChatMessage: railgun.ogg @0.7
-createChatMessage: laser.ogg @0.7
 createChatMessage: bomb.ogg @0.7
+createChatMessage: bomb.ogg @0.7
+createChatMessage: bomb.ogg @0.7
+выстрел при пуске: Рельсотрон=railgun, Рельсотронный залп=railgun, Противоспутниковый лазер=laser, Рельсотроны №2=railgun, Шрапнельные ракеты=—, Удар SOLG с орбиты=—, Взрыв реактора=—
+пуск рельсотрона: railgun.ogg @0.7 | разослано: railgun
 createChatMessage: laser.ogg @0.7
 createChatMessage: laser.ogg @0.7
 createChatMessage: тишина

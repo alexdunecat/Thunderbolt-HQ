@@ -21,3 +21,8 @@ show("SOLG", { kind: "solg", zones: ["3,3"], alts: ["ground", "low", "med"], dmg
 show("навес", { kind: "indirect", zones: ["3,3"], alts: ["ground"], dmg: 5, attack: 7 }, { Гаубица: 1, Бункер: 1, Эсминец: 1 });
 show("реактор", { kind: "reactor", zones: ["3,3"], alts: ["low", "med", "high", "strat"], dmg: 6 });
 console.log("у Арсиона:", S.strikesOf({ system: { props: ["aerialship", "pwrail"] }, items: [] }).join(","));
+// где кто стоял: во флаге боя uuid с точками разворачиваются во вложенные ключи — старая запись тоже читается
+const flat = o => Object.fromEntries(Object.entries(o).flatMap(([k, v]) => v && typeof v === "object" && !Array.isArray(v) ? Object.entries(flat(v)).map(([k2, v2]) => [`${k}.${k2}`, v2]) : [[k, v]]));
+globalThis.foundry = { ...(globalThis.foundry ?? {}), utils: { ...(globalThis.foundry?.utils ?? {}), flattenObject: flat } };
+console.log("старт по парам:", S.startOf({ start: [["Scene.S.Token.T.Actor.A", "3,3|ground"]] }).get("Scene.S.Token.T.Actor.A"),
+  "· по развёрнутому объекту:", S.startOf({ start: { Actor: { abc: "4,3|ground" } } }).get("Actor.abc"));

@@ -36,7 +36,7 @@ const show = a => { const d = U.unitData(a); console.log(`${a.name}: ${d.kind}${
 console.log("панели:", ["roosevelt", "solg", "arkbird", "icbm", "kirov", "nimitz", "sub", "t80u", "s300", "howitzer", "housing", "hq", "airliner", "f15c"].map(k => `${k}=${U.unitKind(mk(k)) ?? (H.hudFits(mk(k)) ? "истребитель" : "нет")}`).join(" "));
 // кнопки на плитках систем: ЛУЧ (как пушка, d10 + 2, урон 4), УДАР (удар по площади этой системы)
 const wpn = k => { const d = U.unitData(mk(k)); console.log(`${k} плитки: ${d.systems.filter(y => y.beam || y.strike).map(y => `${y.name}=${y.beam ? "ЛУЧ" : `УДАР ${y.strike}`}`).join(", ") || "нет"}`); };
-for (const k of ["roosevelt", "arkbird", "tarpan", "scinfaxi", "littoria", "solg"]) wpn(k);
+for (const k of ["roosevelt", "arkbird", "tarpan", "scinfaxi", "littoria", "solg", "arcion"]) wpn(k);
 { const Sc = await import(R + "/module/scene.mjs"), r = mk("roosevelt"), ys = r.system.systems;
   const beam = Sc.gunSys(r, ys.find(y => /HPBC/.test(y.name))), aa = ys.find(y => /Зенитные батареи/.test(y.name));
   console.log(`луч как пушка: Gun ${beam.gun}, Strafe +${Sc.sysStrafe(r, beam)}, дальность ${Sc.sysGunReach(beam)}, по ${Sc.gunVs(r, beam)} · зенитные батареи по ${Sc.gunVs(r, aa)}, дальность ${Sc.sysGunReach(aa)}`); }

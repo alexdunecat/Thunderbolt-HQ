@@ -67,6 +67,9 @@ fire("createChatMessage", msg({ card: { type: "volley", targets: [{ hit: true, u
 fire("createChatMessage", msg({ card: { type: "strike", label: "Рельсотронный залп" } }));
 fire("createChatMessage", msg({ card: { type: "strike", label: "Противоспутниковый лазер" } }));
 fire("createChatMessage", msg({ card: { type: "strike", label: "Шрапнельные ракеты" } }));
+// выстрел при пуске удара: рейлган, лазер или ничего (взрыв — в конце раунда)
+console.log("выстрел при пуске:", ["Рельсотрон", "Рельсотронный залп", "Противоспутниковый лазер", "Рельсотроны №2", "Шрапнельные ракеты", "Удар SOLG с орбиты", "Взрыв реактора"].map(l => `${l}=${S.shotOf(l) ?? "—"}`).join(", "));
+emitted.length = 0; S.cueEveryone("railgun"); console.log("пуск рельсотрона:", played.splice(0).join(", "), "| разослано:", emitted.splice(0).join(",")); now += 2000;
 mig.system = npcSys("enemy", false);
 fire("createChatMessage", msg({ card: { attack: true, actorUuid: mig.uuid, label: "Луч: Лазерная турель на спине" } }));
 fire("createChatMessage", msg({ card: { attack: true, actorUuid: mig.uuid, label: "Луч: Энергетические орудия (HPBC) №1" } }));   // лучи «Рузвельта» — тоже лазер

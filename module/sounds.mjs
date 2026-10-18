@@ -160,6 +160,13 @@ export function playLocal(key) {
 
 // лучи (турель «Аркбёрда», энергетические орудия «Рузвельта») звучат как лазер
 const LASER = /лазер|laser|^Луч:/i, RAIL = /рельс|рейлган|railgun/i;
+/** Звук выстрела оружия супероружия по его названию: рейлган, лазер или null. */
+export const shotOf = label => (RAIL.test(label ?? "") ? "railgun" : LASER.test(label ?? "") ? "laser" : null);
+/** Общий звук у всех клиентов сразу: здесь и рассылкой остальным. */
+export function cueEveryone(key) {
+  game.socket?.emit(CHANNEL, { type: "sound", key });
+  return cueAll(key);
+}
 /** Взрывы и выстрелы супероружия по карточкам в чате: у всех клиентов, раз на карточку. */
 export function battleSounds(card) {
   if (!card) return null;
@@ -170,11 +177,12 @@ export function battleSounds(card) {
     if (hits.some(r => !r.bomb)) cueAll("boom");
     return hits.length > 0;
   }
-  if (card.type === "strike") return cueAll(RAIL.test(card.label) ? "railgun" : LASER.test(card.label) ? "laser" : "bomb");
+  // удар по площади: выстрел звучит при пуске (strikes.mjs), в конце раунда — взрыв в зонах
+  if (card.type === "strike") return cueAll("bomb");
   // выстрел систем супероружия по названию системы (лазерная турель, рельсотроны)
   if (card.attack && card.label) {
     const a = resolveActor(card.actorUuid);
-    if (a?.type === "npc" && (RAIL.test(card.label) || LASER.test(card.label))) return cueAll(RAIL.test(card.label) ? "railgun" : "laser");
+    if (a?.type === "npc" && shotOf(card.label)) return cueAll(shotOf(card.label));
   }
   return null;
 }
