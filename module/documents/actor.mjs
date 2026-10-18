@@ -240,15 +240,25 @@ export class TBActor extends Actor {
     return this.#say(`<b>${esc(this.name)}</b>: метка <b>Doom</b>${reason ? ` (${esc(reason)})` : ""}. Машина сбита.`);
   }
 
-  #chooseMarker(fake = null) {
+  /** Окно выбора метки нельзя просто закрыть: попадание уже засчитано, без выбора оно бы пропало. */
+  async #chooseMarker(fake = null) {
+    for (let i = 0; i < 20; i++) {
+      const d = await this.#markerDialog(fake, i);
+      if (d?.marker) return d;
+      ui.notifications.warn(`«${this.name}»: попадание уже засчитано, выберите метку.`);
+    }
+    return null;
+  }
+
+  #markerDialog(fake, again) {
     const m = this.system.markers;
     // сигнал «урон по системам» у того, кто выбирает метку
-    import("../sounds.mjs").then(x => x.playLocal("sysHit")).catch(() => null);
+    if (!again) import("../sounds.mjs").then(x => x.playLocal("sysHit")).catch(() => null);
     const skills = Object.entries(TB.skills).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join("");
     const systems = Object.entries(TB.systems).map(([k, v]) => `<option value="${k}">${v.label}: ${v.hint}</option>`).join("");
     const radio = (v, label, extra, disabled) => `<div class="form-group"><label><input type="radio" name="marker" value="${v}" ${disabled ? "disabled" : ""}> ${label}</label>${extra}</div>`;
     return R.formDialog(`${this.name}: HP до нуля`, `
-      <p class="tb-hint">Отметьте одну метку. HP восстановится до максимума.</p>
+      <p class="tb-hint">${again ? "<b>Попадание уже засчитано: без метки окно откроется снова.</b> " : ""}Отметьте одну метку. HP восстановится до максимума.</p>
       ${radio("grit", "Grit: навык недоступен", `<select name="skill">${skills}</select>`, m.grit)}
       ${radio("structure", "Structure: сломана система", `<select name="sys">${systems}</select>`, m.structure)}
       ${radio("doom", "Doom: машина обречена, бросок на катапультирование", "", m.doom)}
