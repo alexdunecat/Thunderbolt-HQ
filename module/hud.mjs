@@ -4,7 +4,7 @@
    у ведущего показывает выделенный токен. Сворачивается щелчком по шапке, выключается в настройках клиента. */
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
-import { tokenOf, weatherAt, defenseWithWeather, altOf, zoneDistance, isFlying, ceilingOf, flyingBoss, ALT_ORDER } from "./scene.mjs";
+import { tokenOf, weatherAt, defenseWithWeather, altOf, zoneDistance, isFlying, ceilingOf, flyingBoss, hasRule, ALT_ORDER } from "./scene.mjs";
 import { aimedWeapon, toggleAim } from "./range.mjs";
 import { stepAltitude } from "./altitude.mjs";
 import { combatantOf, spentOf, declaredOf, endTurn } from "./actions.mjs";
@@ -38,11 +38,20 @@ export function refreshHud() {
 /** Чей самолёт показывать: выделенный свой токен, иначе пилот игрока, иначе его первый пилот на сцене. У ведущего только выделенный. */
 export function hudActor() {
   const own = (canvas?.tokens?.controlled ?? []).filter(t => t.actor?.isOwner && ["pilot", "npc"].includes(t.actor.type));
+  if (own.length === 1 && !hudFits(own[0].actor)) return null;
   if (own.length === 1) return own[0].actor;
   if (game.user.isGM) return null;
   const ch = game.user.character;
   if (ch?.type === "pilot" && tokenOf(ch)) return ch;
   return game.actors.find(a => a.type === "pilot" && a.isOwner && tokenOf(a)) ?? null;
+}
+
+/** Приборы истребителя только у пилотов и военных самолётов NPC: у супероружия, кораблей, наземки, зданий и гражданских их нет. */
+export function hudFits(actor) {
+  if (actor?.type === "pilot") return true;
+  if (actor?.type !== "npc") return false;
+  const s = actor.system;
+  return s.kind === "air" && s.grp !== "boss" && s.grp !== "civil" && !hasRule(actor, "civilian") && !flyingBoss(actor) && !(s.systems?.length);
 }
 
 const pips = (value, max, cls = "") => Array.from({ length: Math.max(0, max) }, (_, i) => `<i class="${i < value ? "on" : ""} ${cls}"></i>`).join("");

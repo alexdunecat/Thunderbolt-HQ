@@ -54,3 +54,7 @@ console.log("у ведущего без выделения:", H.hudActor()?.name
 canvas.tokens.controlled = [foe.tok];
 console.log("у ведущего с выделенным:", H.hudActor()?.name ?? "нет", "·", H.hudData(foe).plane, H.hudData(foe).maxSpeed, JSON.stringify(H.hudData(foe).warn));
 console.log("свёрнут:", H.hudHtml(foe, true).includes("tb-hud-grid") ? "приборы видны" : "только шапка");
+const boss = mkActor("Линкор", "npc", { kind: "ship", grp: "boss", key: "air205", hp: { value: 41, max: 41 }, systems: [{ name: "ЗРК" }], rules: [{ key: "aerialship" }] });
+const tank = mkActor("Т-80", "npc", { kind: "ground", grp: "armor", hp: { value: 4, max: 4 } });
+const liner = mkActor("Лайнер", "npc", { kind: "air", grp: "civil", hp: { value: 4, max: 4 } });
+console.log("HUD истребителя:", [me, foe, boss, tank, liner].map(a => `${a.name} ${H.hudFits(a) ? "да" : "нет"}`).join(", "));
