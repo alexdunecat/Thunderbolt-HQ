@@ -854,7 +854,7 @@ export async function fireMissile(actor) {
     d10: dice.d10, d4: dice.d4, parts, strain: 0, ...shipDc(t, aim, t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) + nemDef + ctDef : null),
     strainable: !!data.improved && canStrain(actor), forceHit: nem.forceHit || ct.forceHit,
     practiced: !!dice.practiced, followOf: dice.follow ?? "", dmg, delayed: atTurn || !(hv || tBroken), atTurn, combatKey: hv || tBroken ? (atTurn ? key : "") : key,
-    targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes, maws: mawsOn(t), tkind: air ? "air" : "ground",
+    targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes, maws: mawsOn(t), tkind: air ? "air" : "ground", bomb: ["UGB", "GPB"].includes(ws?.key),
     ...thresholds(actor, skill, data.storm)
   };
   const msg = await postCard(actor, card, dice.rolls);
@@ -1135,6 +1135,7 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
       broke: !y && (actor.system.breakEv ?? -Infinity) > ev,
       boosts: hit ? need : 0, added: adders.length, dmg: (best.dmg ?? 0) + adders.reduce((s, x) => s + (x.dmg ?? 0), 0),
       sourceUuid: best.actorUuid, source: best.actorName, shooterUuids: [...new Set(list.map(x => x.c.actorUuid))],
+      bomb: list.some(x => x.c.bomb),
       // урон наносит клиент владельца-игрока (у него откроется выбор метки), иначе ведущий
       by: damageUser(actor) ?? game.user.id
     });

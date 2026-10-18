@@ -237,6 +237,8 @@ export class TBActor extends Actor {
 
   #chooseMarker(fake = null) {
     const m = this.system.markers;
+    // сигнал «урон по системам» у того, кто выбирает метку
+    import("../sounds.mjs").then(x => x.playLocal("sysHit")).catch(() => null);
     const skills = Object.entries(TB.skills).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join("");
     const systems = Object.entries(TB.systems).map(([k, v]) => `<option value="${k}">${v.label}: ${v.hint}</option>`).join("");
     const radio = (v, label, extra, disabled) => `<div class="form-group"><label><input type="radio" name="marker" value="${v}" ${disabled ? "disabled" : ""}> ${label}</label>${extra}</div>`;

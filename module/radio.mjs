@@ -35,6 +35,8 @@ function fromMessage(message) {
     // реплики AWACS и баннеры шлёт только ведущий: чужое сообщение с таким флагом (макрос игрока) не показываем
     if (!(message.author ?? message.user)?.isGM) return;
     if (r.to && !mine(r.to) && !(game.user.isGM && r.gm)) return;
+    // сигнал перед важной репликой AWACS (у итога миссии свой звук)
+    if ((r.speaker ?? "AWACS") === "AWACS" && !r.caution?.mission && (r.text || r.caution)) import("./sounds.mjs").then(x => x.cueAll("awacs")).catch(() => null);
     if (r.text) say(r.speaker ?? "AWACS", r.text, r.side);
     if (r.caution) caution(r.caution);
     return;

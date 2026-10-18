@@ -30,7 +30,7 @@ import { registerStrikes, markStrike } from "./strikes.mjs";
 import { registerCivilRadio, openCivilRadio, canControl as canRadio } from "./civil-radio.mjs";
 import { registerChatter, openChatterEditor } from "./chatter.mjs";
 import { registerMission, openMissionDialog } from "./mission.mjs";
-import { registerSounds, cue } from "./sounds.mjs";
+import { registerSounds, cue, setSiren, sirenOn } from "./sounds.mjs";
 import { registerHud } from "./hud.mjs";
 import { registerAces, openAceIntro, announceAces } from "./aces.mjs";
 import { registerPause } from "./pause.mjs";
@@ -263,7 +263,8 @@ Hooks.on("getSceneControlButtons", controls => {
   if (canRadio()) radio.push(tool("tb-civil-radio", "Гражданское радио: музыка с YouTube у всех", "fas fa-radio", () => openCivilRadio()));
   if (game.user.isGM) radio.push(
     tool("tb-radio", "Радио AWACS: реплика всем", "fas fa-tower-broadcast", () => openRadioDialog()),
-    tool("tb-chatter", "Реплики NPC: фразы союзников, противника и гражданских", "fas fa-comments", () => openChatterEditor()));
+    tool("tb-chatter", "Реплики NPC: фразы союзников, противника и гражданских", "fas fa-comments", () => openChatterEditor()),
+    { name: "tb-siren", title: "Сирена у всех: включить или выключить", icon: "fas fa-bell", toggle: true, active: sirenOn(), onClick: on => setSiren(on) });
   const hasLayer = name => !!CONFIG.Canvas?.layers?.[name];
   const tokens = controls.find(c => c.name === "token");
   // без своего слоя раздел не работает: тогда кнопки остаются у токенов, чтобы ничего не пропало

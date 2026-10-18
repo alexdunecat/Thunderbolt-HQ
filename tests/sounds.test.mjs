@@ -54,3 +54,25 @@ for (const a of [convoy, liner, plant, truck]) { const ok = S.priorityAlarm(a); 
 // итог миссии: общий звук у всех, и у ведущего
 game.user.isGM = true; S.cueAll("missionWin"); now += 2000; S.cueAll("missionFail");
 console.log("итог миссии:", played.splice(0).join(", "));
+
+// новые звуки: ход пилота, ловушки, взрывы залпа и бомбы, удары и выстрелы супероружия, кнопки
+settings.soundVolume = 70; settings.soundMute = {}; game.user.isGM = false; Math.random = () => 0;
+now += 5000;
+const cmb = { started: true, round: 2, combatant: { actor: me }, getFlag: () => 2 };
+fire("updateCombat", cmb, { turn: 1 });
+cmb.combatant = { actor: mate }; fire("updateCombat", cmb, { turn: 2 });   // чужой пилот — не слышно
+fire("createChatMessage", msg({ card: { type: "break", actorUuid: me.uuid } }));
+fire("createChatMessage", msg({ card: { type: "volley", targets: [{ hit: true, uuid: plant.uuid }, { hit: true, uuid: plant.uuid, bomb: true }] } }));
+fire("createChatMessage", msg({ card: { type: "volley", targets: [{ hit: true, uuid: convoy.uuid }, { hit: false, uuid: plant.uuid }] } }));   // по своим и мимо — тишина
+fire("createChatMessage", msg({ card: { type: "strike", label: "Рельсотронный залп" } }));
+fire("createChatMessage", msg({ card: { type: "strike", label: "Противоспутниковый лазер" } }));
+fire("createChatMessage", msg({ card: { type: "strike", label: "Шрапнельные ракеты" } }));
+mig.system = npcSys("enemy", false);
+fire("createChatMessage", msg({ card: { attack: true, actorUuid: mig.uuid, label: "Огонь: Лазерная турель на спине" } }));
+settings.soundMute = { boom: true };
+fire("createChatMessage", msg({ card: { type: "volley", targets: [{ hit: true, uuid: plant.uuid }] } }));   // выключен у себя — тишина
+const el = (sel, inside) => ({ closest: s => (s.split(", ").some(x => sel.includes(x.replace(/^\./, "").replace(/^#/, ""))) || (inside && s.includes(inside)) ? el(sel, inside) : null), matches: s => s.split(", ").some(x => sel.includes(x.replace(/^\./, ""))), disabled: false });
+console.log("кнопки:", S.uiSoundFor({ closest: s => s.startsWith("button") ? { closest: q => (q.includes(".thunderbolt") ? {} : null), matches: () => false } : null }),
+  S.uiSoundFor({ closest: s => s.startsWith("button") ? { closest: q => (q.includes(".thunderbolt") || q.includes(".tb-hud-wpns") || q === "#tb-pilot-hud" ? {} : null), matches: () => false } : null }),
+  S.uiSoundFor({ closest: s => s.startsWith("button") ? { closest: q => (q.includes(".thunderbolt") ? {} : null), matches: q => q.includes(".tabs .item") } : null }),
+  S.uiSoundFor({ closest: s => s.startsWith("button") ? { closest: () => null, matches: () => false } : null }));

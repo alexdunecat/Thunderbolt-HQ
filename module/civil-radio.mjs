@@ -171,8 +171,10 @@ export function radioCommand(cmd) {
 
 function accept(next, force = false, quiet = false) {
   if (!next || (!force && (next.rev ?? 0) <= state.rev)) return;
-  const was = trackKey(state);
+  const was = trackKey(state), wasPlaying = state.playing && !!state.queue[state.cur];
   state = { ...EMPTY, ...foundry.utils.deepClone(next) };
+  // радио заиграло после тишины: щелчок включения
+  if (!quiet && !wasPlaying && state.playing && state.queue[state.cur]) import("./sounds.mjs").then(x => x.cueAll("radioOn")).catch(() => null);
   if (!quiet && state.playing && trackKey(state) && trackKey(state) !== was) maybeDj();
   sync();
   paintButtons();

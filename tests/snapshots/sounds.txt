@@ -1,4 +1,4 @@
-сигналы: lock=lock.ogg locked=locked.ogg missile=missile.ogg stall=stall.ogg lowAlt=lowAlt.ogg fire=fire.ogg guns=guns.ogg ammoOut=ammoOut.ogg missionWin=missionWin.ogg missionFail=missionFail.ogg priority=priority.ogg
+сигналы: lock=lock.ogg locked=locked.ogg missile=missile.ogg stall=stall.ogg lowAlt=lowAlt.ogg fire=fire.ogg guns=guns.ogg ammoOut=ammoOut.ogg missionWin=missionWin.ogg missionFail=missionFail.ogg priority=priority.ogg turn=turn.ogg flares=flares.ogg sysHit=sysHit.ogg boom=boom.ogg bomb=bomb.ogg laser=laser.ogg railgun=railgun.ogg awacs=awacs.ogg radioOn=radioOn.ogg siren=siren.ogg click=click.ogg tab=tab.ogg toggle=toggle.ogg
 createChatMessage: lock.ogg @0.7
 createChatMessage: locked.ogg @0.7
 createChatMessage: тишина
@@ -24,3 +24,14 @@ createChatMessage: тишина
 тревога Actor.plant: нет | разослано: —
 тревога Actor.truck: нет | разослано: —
 итог миссии: missionWin.ogg @0.5, missionFail.ogg @0.5
+updateCombat: turn.ogg @0.7
+updateCombat: тишина
+createChatMessage: flares.ogg @0.7
+createChatMessage: bomb.ogg @0.7, boom1.ogg @0.7
+createChatMessage: тишина
+createChatMessage: railgun.ogg @0.7
+createChatMessage: laser.ogg @0.7
+createChatMessage: bomb.ogg @0.7
+createChatMessage: laser.ogg @0.7
+createChatMessage: тишина
+кнопки: click toggle tab null
