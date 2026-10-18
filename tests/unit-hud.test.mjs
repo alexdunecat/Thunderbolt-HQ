@@ -23,6 +23,7 @@ const mk = key => {
   const d = structuredClone(packs[key]), s = d.system, flags = {};
   if (s.kind === "ship") s.hp = { max: s.systems.reduce((t, y) => t + y.hp, 0), value: s.systems.reduce((t, y) => t + Math.max(0, y.value), 0) };
   const a = { name: d.name, type: "npc", uuid: "Actor." + key, isOwner: true, system: s, items: [], getActiveTokens: () => [],
+    markDoom: async why => chat.push(`DOOM ${d.name}: ${why}`), fireGuns: async o => (chat.push(`ЛУЧ ${d.name} #${o?.system}`), { id: "m" }),
     getFlag: (sc, k) => flags[k], update: async upd => { for (const [k, v] of Object.entries(upd)) { const path = k.replace(/^flags\.[^.]+\./, "").split("."); let o = flags; while (path.length > 1) o = o[path.shift()] ??= {}; o[path[0]] = v; } } };
   return a;
 };
@@ -39,6 +40,12 @@ for (const k of ["roosevelt", "arkbird", "tarpan", "scinfaxi", "littoria", "solg
 { const Sc = await import(R + "/module/scene.mjs"), r = mk("roosevelt"), ys = r.system.systems;
   const beam = Sc.gunSys(r, ys.find(y => /HPBC/.test(y.name))), aa = ys.find(y => /Зенитные батареи/.test(y.name));
   console.log(`луч как пушка: Gun ${beam.gun}, Strafe +${Sc.sysStrafe(r, beam)}, дальность ${Sc.sysGunReach(beam)}, по ${Sc.gunVs(r, beam)} · зенитные батареи по ${Sc.gunVs(r, aa)}, дальность ${Sc.sysGunReach(aa)}`); }
+// ЛУЧ: раз в раунд на каждый блок, вне хода (заявка и бросок хода не нужны)
+{ const r = mk("roosevelt"), i = r.system.systems.findIndex(y => /HPBC/.test(y.name)), warns = [];
+  ui.notifications.warn = m => warns.push(m);
+  await U.onUnitClick({ dataset: { uGun: String(i) } }, r); await U.onUnitClick({ dataset: { uGun: String(i) } }, r);
+  console.log("лучи:", chat.filter(x => x.startsWith("ЛУЧ")).length, "выстрел;", warns.join(" | "), "·", U.unitData(r).mech.find(m => /Лучи/.test(m.text))?.text);
+  ui.notifications.warn = () => {}; }
 const roos = mk("roosevelt"); kill(roos, /сопла №[12]/); show(roos);
 kill(roos, /сопл/); show(roos);
 const tarpan = mk("tarpan"); kill(tarpan, /решётк/); kill(tarpan, /главного калибра №1/); show(tarpan);

@@ -79,7 +79,9 @@ function mechanics(actor, round) {
   if (has("pwciws")) { const z = c(/ЗАК/); if (z.total) add(z.alive ? `ЗАК целы (${z.alive}): ракеты по системам не из его зоны −1` : "ЗАК уничтожены: штрафа к ракетам нет", z.alive ? "warn" : "ok"); }
   if (has("flakscreen")) { const z = c(/зенитные батареи/i); add(z.total && z.alive === z.total ? "Зенитный заслон: союзные корабли рядом +1 к Occlusion" : "Заслон снят: батарея уничтожена", z.alive === z.total ? "warn" : "ok"); }
   if (has("esmfield")) { const z = c(/радиоэлектрон/i); add(z.alive ? "РЭБ: своя и соседние зоны под помехами" : "Станция РЭБ уничтожена", z.alive ? "warn" : "ok"); }
-  if (has("pwhpbc")) { const z = c(/HPBC|энергетическ/i); add(`Лучей за раунд: ${z.alive} (d10 + 2 против Defense, урон 4)`, z.alive ? "warn" : "ok"); }
+  // лучи: каждый целый блок раз в раунд (кнопка ЛУЧ на плитке), вне хода
+  const beamsLeft = re => { const used = unitFlag(actor, "beams", {}) ?? {}; return (actor.system.systems ?? []).filter((y, i) => re.test(y.name) && y.value > 0 && used[i] !== round).length; };
+  if (has("pwhpbc")) { const z = c(/HPBC|энергетическ/i), left = beamsLeft(/HPBC|энергетическ/i); add(z.alive ? `Лучи в этом раунде: ${left} из ${z.alive} (ЛУЧ на плитке, вне хода; d10 + 2 против Defense, урон 4)` : "Энергетические орудия уничтожены", left ? "warn" : "ok"); }
   if (has("pwreactor")) {
     const n = c(/сопл/i), b = c(/HPBC|энергетическ/i), r = c(/реактор/i);
     const opened = n.total - n.alive >= 2 || (b.total && !b.alive);
@@ -97,7 +99,7 @@ function mechanics(actor, round) {
   if (has("vtoldeck")) launcher(actor, round, add, /палуба/i, "vtol", 2, "Палуба СВВП: пара «Харриеров» или F-35C", sub);
   if (has("uavbay")) launcher(actor, round, add, /ангар беспилот/i, "uav", 2, "Ангар: пара беспилотников", sub);
   if (has("uavports")) { const z = c(/порты/i); const t = every(actor, "ports", 3, round); add(z.alive ? `${ready(t, `Порты (${z.alive}): по беспилотнику с порта`)}` : "Порты уничтожены", z.alive && t.ready ? "warn" : "info", z.alive ? { attrs: `data-u-launch="ports"`, label: "Выпустили" } : null); }
-  if (has("arkturret")) { const z = c(/турель/i); add(z.alive ? "Турель: каждый раунд d10 + 2 против Defense, урон 4" : "Турель уничтожена", z.alive ? "warn" : "ok"); }
+  if (has("arkturret")) { const z = c(/турель/i), left = beamsLeft(/турел/i); add(z.alive ? `Турель: ${left ? "раз в этом раунде" : "в этом раунде уже била"} (ЛУЧ на плитке, вне хода; d10 + 2 против Defense, урон 4)` : "Турель уничтожена", left ? "warn" : "ok"); }
   if (has("boss")) add("Финал операции: эскорт, подкрепления и Twist наготове", "info");
 
   // ---------- флот ----------
@@ -159,7 +161,7 @@ export function unitData(actor) {
   const alt = tok ? altOf(tok, actor) : s.alt;
   const fly = flyingBoss(actor);
   const systems = (s.systems ?? []).map((y, i) => ({ i, name: y.name, note: y.note ?? "", occ: y.occ, value: Math.max(0, y.value), hp: y.hp,
-    ga: y.ga, gg: y.gg, gun: y.gun, dead: y.value <= 0, role: roleOf(y), beam: isBeam(actor, y), strike: strikeOfSys(actor, y) }));
+    ga: y.ga, gg: y.gg, gun: y.gun, dead: y.value <= 0, role: roleOf(y), beam: isBeam(actor, y), beamUsed: !!round && unitFlag(actor, "beams", {})?.[i] === round, strike: strikeOfSys(actor, y) }));
   const g = s.ground ?? {};
   const mech = mechanics(actor, round);
   return {
@@ -193,7 +195,7 @@ function tile(y, owner) {
       <div class="tb-sys-top"><span class="tb-sys-name">${esc(y.name)}</span>
         ${!y.dead && (y.ga || y.gg) ? `<a data-u-sam="${y.i}" title="Пуск ракеты (${y.ga ? `по воздуху G-A ${y.ga}` : ""}${y.ga && y.gg ? ", " : ""}${y.gg ? `по земле и морю G-G ${y.gg}` : ""})">ПУСК</a>` : ""}
         ${!y.dead && y.gun ? `<a data-u-gun="${y.i}" title="Огонь: Gun ${y.gun}">ОГОНЬ</a>` : ""}
-        ${!y.dead && y.beam ? `<a class="wpn" data-u-gun="${y.i}" title="Луч: один самолёт в своей или соседней зоне, d10 + 2 против Defense, урон 4">ЛУЧ</a>` : ""}
+        ${!y.dead && y.beam ? `<a class="wpn ${y.beamUsed ? "used" : ""}" data-u-gun="${y.i}" title="${y.beamUsed ? "Уже бил в этом раунде. " : ""}Луч: раз в раунд, вне хода и без броска хода; один самолёт в своей или соседней зоне, d10 + 2 против Defense, урон 4">ЛУЧ</a>` : ""}
         ${!y.dead && y.strike ? `<a class="wpn" data-u-strike="${y.strike}" data-u-sys="${y.i}" title="${esc(y.strike === "custom" ? "Удар по площади из этой системы: зоны, высоты и урон в окне" : `${STRIKES[y.strike].label}: ${STRIKES[y.strike].hint}`)}">УДАР</a>` : ""}</div>
       <div class="tb-sys-row"><span class="tb-sys-pips">${pips}</span><em>${y.value}/${y.hp}</em>
         ${owner ? `<a data-u-hp="${y.i}:-1" title="Снять 1 HP">−</a><a data-u-hp="${y.i}:1" title="Вернуть 1 HP">+</a>` : ""}</div>
@@ -263,7 +265,19 @@ async function act(actor, what, rolled, fn) {
 export async function onUnitClick(t, actor) {
   const d = t.dataset;
   if (d.uSam !== undefined) { await act(actor, "sam", false, () => d.uSam === "" ? actor.fireSam() : actor.fireSam(Number(d.uSam))); return true; }
-  if (d.uGun !== undefined) { await act(actor, "guns", true, () => d.uGun === "" ? actor.fireGuns() : actor.fireGuns({ system: Number(d.uGun) })); return true; }
+  if (d.uGun !== undefined) {
+    const i = Number(d.uGun), y = d.uGun === "" ? null : actor.system.systems?.[i];
+    // луч: каждый целый блок раз в раунд, вне действий и броска хода
+    if (y && isBeam(actor, y)) {
+      const round = game.combat?.started ? game.combat.round : null, used = unitFlag(actor, "beams", {})?.[i];
+      if (round !== null && used === round) return ui.notifications.warn(`«${y.name}» уже бил в этом раунде.`), true;
+      const msg = await actor.fireGuns({ system: i });
+      if (msg && round !== null) await actor.update({ [`flags.${SYSTEM_ID}.unit.beams.${i}`]: round });
+      return true;
+    }
+    await act(actor, "guns", true, () => d.uGun === "" ? actor.fireGuns() : actor.fireGuns({ system: i }));
+    return true;
+  }
   if (d.uHp) {
     const [i, delta] = d.uHp.split(":").map(Number), list = foundry.utils.deepClone(actor.system.systems);
     if (!list[i]) return true;

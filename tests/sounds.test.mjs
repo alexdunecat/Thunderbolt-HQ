@@ -68,7 +68,8 @@ fire("createChatMessage", msg({ card: { type: "strike", label: "Рельсотр
 fire("createChatMessage", msg({ card: { type: "strike", label: "Противоспутниковый лазер" } }));
 fire("createChatMessage", msg({ card: { type: "strike", label: "Шрапнельные ракеты" } }));
 mig.system = npcSys("enemy", false);
-fire("createChatMessage", msg({ card: { attack: true, actorUuid: mig.uuid, label: "Огонь: Лазерная турель на спине" } }));
+fire("createChatMessage", msg({ card: { attack: true, actorUuid: mig.uuid, label: "Луч: Лазерная турель на спине" } }));
+fire("createChatMessage", msg({ card: { attack: true, actorUuid: mig.uuid, label: "Луч: Энергетические орудия (HPBC) №1" } }));   // лучи «Рузвельта» — рейлган
 settings.soundMute = { boom: true };
 fire("createChatMessage", msg({ card: { type: "volley", targets: [{ hit: true, uuid: plant.uuid }] } }));   // выключен у себя — тишина
 const el = (sel, inside) => ({ closest: s => (s.split(", ").some(x => sel.includes(x.replace(/^\./, "").replace(/^#/, ""))) || (inside && s.includes(inside)) ? el(sel, inside) : null), matches: s => s.split(", ").some(x => sel.includes(x.replace(/^\./, ""))), disabled: false });

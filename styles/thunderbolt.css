@@ -1483,3 +1483,4 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 #tb-pilot-hud .tb-sys-top a.wpn:hover { color: #fff; background: var(--tb-bad); }
 /* пульт высоты удара: пять кнопок в ряд */
 .tb-ck > .tb-ck-fire.alts { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
+#tb-pilot-hud .tb-sys-top a.wpn.used { color: #6f7b74; background: #1a1f1d; border-color: #000; }

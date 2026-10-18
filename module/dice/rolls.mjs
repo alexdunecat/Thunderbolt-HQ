@@ -994,7 +994,8 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
     if (!(await confirmReach([...nemesisAttack(actor, t.actor).problems, ...triggerAttack(actor, t.actor).problems], "Guns, Guns, Guns!"))) return;
     if (t.token) selectTarget(t.token);
   }
-  const dice = await rollDice(actor, data.practiced, { follow: data.follow ? "strafe" : null });
+  // луч супероружия бьёт раз в раунд сам по себе: это не бросок хода
+  const dice = await rollDice(actor, data.practiced, { follow: data.follow ? "strafe" : null, turnRoll: !sys?.beam });
   if (!dice) return;
   let strafe = null;
   let gun = s.gun ?? 0;
