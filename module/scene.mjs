@@ -32,12 +32,30 @@ export const hasRule = (actor, key) => propKeys(actor).includes(key);
 
 /**
  * По кому бьёт пушка: самолёты — по всем; наземка с «Зенитным огнём» (Шилка, Вулкан, Тунгуска, зенитная батарея) — только по воздуху,
- * остальная наземка (танки, БМП, БТР) — только по земле и морю; корабельные орудия систем — по воздуху.
+ * остальная наземка (танки, БМП, БТР) — только по земле и морю. У кораблей — по системе: зенитные автоматы, ЗАК и CIWS — по воздуху,
+ * артустановки и главный калибр — и по кораблям, и по самолётам (книга: «обычно по кораблям, если их не атакуют напрямую»).
+ * Без системы корабль бьёт так, как бьёт хоть одна его пушка.
  */
-export function gunVs(actor) {
+export const AA_GUN = /зенит|ЗАК|CIWS|автомат|Кортик/i;
+export function gunVs(actor, sys) {
   if (actor?.type !== "npc" || actor.system.kind === "air" || flyingBoss(actor)) return "any";
   if (actor.system.kind === "ground") return hasRule(actor, "aafire") ? "air" : "ground";
-  return "air";
+  const guns = sys ? [sys] : (actor.system.systems ?? []).filter(y => (y.gun ?? 0) > 0);
+  return guns.some(y => !AA_GUN.test(y.name)) ? "any" : "air";
+}
+
+/** Дальность пушки корабельной системы: «по своей и соседним зонам» в описании — 1, иначе своя зона. */
+export const sysGunReach = sys => /соседн/i.test(sys?.note ?? "") ? 1 : TB.range.guns;
+
+/** Strafe системы: «Strafe +N» из описания; спаренные — +2, пока целы обе одноимённые установки, иначе +0. */
+export function sysStrafe(actor, sys) {
+  const note = sys?.note ?? "";
+  if (/спаренно/i.test(note)) {
+    const base = n => String(n).replace(/\s*№\s*\d+\s*$/, "").trim();
+    const twins = (actor?.system?.systems ?? []).filter(y => base(y.name) === base(sys.name));
+    return twins.length > 1 && twins.every(y => (y.value ?? 0) > 0) ? 2 : 0;
+  }
+  return Number(/Strafe \+(\d)/.exec(note)?.[1] ?? 0);
 }
 
 /** Летит ли машина: пилот, воздушный NPC или воздушный босс. */

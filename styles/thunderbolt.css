@@ -1193,3 +1193,101 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 #tb-pilot-hud .tb-unit-pips i.on { background: var(--ck-amber); box-shadow: 0 0 5px rgba(255, 201, 74, .7); }
 #tb-pilot-hud .tb-unit-scale.full .tb-unit-pips i.on { background: var(--ck-red); box-shadow: 0 0 6px var(--ck-red); }
 #tb-pilot-hud .tb-hud-lock { text-shadow: 0 0 5px rgba(255, 107, 74, .6); }
+/* ---------- окна пуска в стиле кабины: Fox Two!, Guns по кораблю, выбор системы ---------- */
+.tb-cockpit { --ck-metal: linear-gradient(#262f2c, #151b19); --ck-well: #090e0d; --ck-edge: #040706; --ck-text: #d9e2dc; --ck-plate: #8f9c95;
+  --ck-lcd: #ffb547; --ck-led: #5ef08f; --ck-amber: #ffc94a; --ck-red: #ff4a3a; }
+.tb-cockpit .window-header { background: linear-gradient(#323c38, #1f2725); color: #f1f5f2; border-bottom: 1px solid var(--ck-edge); font-family: var(--tb-display); letter-spacing: .08em; }
+.tb-cockpit .window-content { background: var(--ck-metal); color: var(--ck-text); padding: 8px 10px 10px; box-shadow: inset 0 0 0 3px #1b2220, inset 0 0 0 4px rgba(0, 0, 0, .6); }
+.tb-cockpit .tb-dialog small, .tb-ck small { color: var(--ck-plate); font-family: var(--tb-display); font-size: 9.5px; letter-spacing: .18em; text-shadow: 0 1px 0 #000; }
+.tb-cockpit .tb-hint { color: #a7b4ad; }
+.tb-cockpit .form-group label { color: var(--ck-text); }
+.tb-cockpit input[type="number"], .tb-cockpit select { background: #0b0703; color: var(--ck-lcd); border: 1px solid #000; box-shadow: inset 0 0 6px rgba(0, 0, 0, .9); font-family: var(--tb-data); }
+.app.thunderbolt.tb-cockpit .dialog-buttons button { font-family: var(--tb-display); letter-spacing: .14em; text-transform: uppercase; color: #fff; background: linear-gradient(#5a2a22, #2e1411);
+  border: 1px solid #1a0705; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 -2px 0 rgba(0, 0, 0, .55); }
+.app.thunderbolt.tb-cockpit .dialog-buttons button[data-button="cancel"] { background: linear-gradient(#2e3835, #171d1b); border-color: var(--ck-edge); }
+.app.thunderbolt.tb-cockpit .dialog-buttons button:hover { box-shadow: 0 0 8px var(--ck-red); }
+.tb-ck { display: grid; gap: 8px; }
+.tb-ck > div, .tb-ck > details { background: var(--ck-well); border: 1px solid var(--ck-edge); border-radius: 3px; padding: 6px 8px; box-shadow: inset 0 1px 3px rgba(0, 0, 0, .8), 0 1px 0 rgba(255, 255, 255, .05); }
+.tb-ck-tgt { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tb-ck-tgt b { color: #f1f5f2; font-family: var(--tb-display); letter-spacing: .06em; }
+.tb-ck-def { margin-left: auto; padding: 0 6px; font-family: var(--tb-data); font-size: 13px; color: var(--ck-lcd); background: #0b0703; border: 1px solid #000; border-radius: 2px; text-shadow: 0 0 5px rgba(255, 170, 60, .8); }
+.tb-ck-def.muted { color: #6f7b74; text-shadow: none; }
+.tb-ck-lamp { padding: 0 6px; font-family: var(--tb-display); font-size: 10px; letter-spacing: .16em; border: 1px solid #000; border-radius: 2px; }
+.tb-ck-lamp.ok { color: var(--ck-led); background: #07120c; text-shadow: 0 0 5px rgba(94, 240, 143, .8); }
+.tb-ck-lamp.bad { color: #ffd0c8; background: #2a0805; text-shadow: 0 0 6px var(--ck-red); animation: tb-hud-blink .8s steps(2, start) infinite; }
+.tb-ck-seg { display: flex; align-items: center; gap: 6px; }
+.tb-ck-seg label { flex: 1 1 0; }
+.tb-ck-seg input, .tb-ck .st input { position: absolute; opacity: 0; pointer-events: none; }
+.tb-ck-seg span { display: block; text-align: center; padding: 3px 6px; font-family: var(--tb-display); font-size: 11px; letter-spacing: .14em; color: #a7b4ad; cursor: pointer;
+  background: linear-gradient(#2e3835, #171d1b); border: 1px solid var(--ck-edge); border-radius: 3px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 -2px 0 rgba(0, 0, 0, .55); }
+.tb-ck-seg input:checked + span { color: #0b0703; background: var(--ck-lcd); box-shadow: 0 0 8px rgba(255, 181, 71, .55); text-shadow: none; }
+.tb-ck-stores { display: grid; gap: 4px; }
+.tb-ck-st { display: flex; flex-wrap: wrap; gap: 6px 6px; padding-top: 4px; }
+.tb-ck .st { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: 15px 17px; align-items: center; column-gap: 5px; row-gap: 2px;
+  flex: 1 1 0; min-width: 86px; max-width: 150px; height: 42px; padding: 3px 5px 4px 6px; cursor: pointer;
+  font-family: var(--tb-display); font-weight: 700; text-transform: uppercase; color: #d9e2dc;
+  background: linear-gradient(#2a3330, #161c1a); border: 1px solid #050807; border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 -2px 0 rgba(0, 0, 0, .55), 0 1px 0 rgba(155, 227, 191, .12); }
+.tb-ck .st:hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), inset 0 -2px 0 rgba(0, 0, 0, .55), 0 0 0 1px var(--tb-accent); }
+.tb-ck .st .st-led { width: 7px; height: 7px; border-radius: 50%; background: var(--ck-led); box-shadow: 0 0 6px var(--ck-led), inset 0 -1px 1px rgba(0, 0, 0, .4); }
+.tb-ck .st .st-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 15px; letter-spacing: .1em; text-shadow: 0 1px 0 #000; }
+.tb-ck .st .st-cnt { grid-column: 1 / -1; padding: 0 4px; line-height: 15px; font-family: var(--tb-data); font-size: 11px; font-weight: 600; letter-spacing: .18em; text-align: right;
+  color: var(--ck-lcd); background: #0b0703; border: 1px solid #000; border-radius: 2px; box-shadow: inset 0 0 6px rgba(0, 0, 0, .9); text-shadow: 0 0 5px rgba(255, 170, 60, .8); }
+.tb-ck .st .st-key { position: absolute; top: -7px; right: -4px; padding: 0 3px; font-family: var(--tb-data); font-size: 9px; line-height: 12px; letter-spacing: 0; color: var(--tb-accent-ink); background: var(--tb-accent); border-radius: 2px; }
+.tb-ck .st.aimed { border-color: #c99a2e; box-shadow: 0 0 0 1px #c99a2e, 0 0 10px rgba(255, 201, 74, .35); }
+.tb-ck .st.aimed .st-led { background: var(--ck-amber); box-shadow: 0 0 7px var(--ck-amber); }
+.tb-ck .st.empty, .tb-ck .st.off { cursor: default; }
+.tb-ck .st.empty .st-led, .tb-ck .st.off .st-led { background: #2b2f2d; box-shadow: none; }
+.tb-ck .st.empty .st-name, .tb-ck .st.empty .st-cnt, .tb-ck .st.off .st-name, .tb-ck .st.off .st-cnt { opacity: .4; text-shadow: none; }
+.tb-ck-more summary { cursor: pointer; color: var(--ck-plate); font-family: var(--tb-display); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; }
+.tb-ck-more[open] summary { margin-bottom: 6px; }
+.tb-ck > .tb-ck-fire { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: none; border: 0; box-shadow: none; padding: 0; }
+.app.thunderbolt .window-content button.tb-ck-big { position: relative; display: grid; gap: 2px; justify-items: center; height: auto; min-height: 58px; padding: 6px 8px; line-height: 1.1; cursor: pointer;
+  color: #fff; border: 1px solid #1a0705; border-radius: 4px; background: linear-gradient(#6a2c22, #2e1411);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16), inset 0 -3px 0 rgba(0, 0, 0, .55), 0 2px 0 rgba(0, 0, 0, .5); }
+.app.thunderbolt .window-content button.tb-ck-big b { font-family: var(--tb-display); font-size: 19px; letter-spacing: .2em; text-shadow: 0 0 8px rgba(255, 120, 90, .6), 0 1px 0 #000; }
+.app.thunderbolt .window-content button.tb-ck-big small { color: #ffd9cf; font-family: var(--tb-data); font-size: 11px; letter-spacing: .04em; text-transform: none; }
+.app.thunderbolt .window-content button.tb-ck-big small span { color: var(--ck-lcd); font-weight: 700; }
+.app.thunderbolt .window-content button.tb-ck-big.imp { background: linear-gradient(#2e3835, #141a18); border-color: var(--ck-edge); }
+.app.thunderbolt .window-content button.tb-ck-big.imp b { text-shadow: 0 0 8px rgba(94, 240, 143, .5), 0 1px 0 #000; color: #e8fff0; }
+.app.thunderbolt .window-content button.tb-ck-big.imp small { color: #a7b4ad; }
+.app.thunderbolt .window-content button.tb-ck-big:hover:not([disabled]) { filter: brightness(1.15); box-shadow: 0 0 12px rgba(255, 74, 58, .55); }
+.app.thunderbolt .window-content button.tb-ck-big.imp:hover:not([disabled]) { box-shadow: 0 0 12px rgba(94, 240, 143, .45); }
+.app.thunderbolt .window-content button.tb-ck-big:active:not([disabled]) { transform: translateY(1px); box-shadow: inset 0 3px 6px rgba(0, 0, 0, .7); }
+.app.thunderbolt .window-content button.tb-ck-big[disabled] { filter: grayscale(.8) brightness(.6); cursor: not-allowed; }
+.tb-ck-hit { position: absolute; top: 7px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: #2b2f2d; }
+.tb-ck-hit.ok { background: var(--ck-led); box-shadow: 0 0 8px var(--ck-led); }
+.tb-ck-hit.bad { background: var(--ck-red); box-shadow: 0 0 8px var(--ck-red); }
+/* схема цели: картинка токена на тёмном экране, точки систем, легенда */
+.tb-aim { display: grid; gap: 6px; background: var(--ck-well, #090e0d); border: 1px solid var(--ck-edge, #040706); border-radius: 3px; padding: 6px 8px; color: var(--ck-text, #d9e2dc); }
+.tb-aim[hidden] { display: none; }
+.tb-aim-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.tb-aim-head b { color: #f1f5f2; font-family: var(--tb-display); letter-spacing: .06em; }
+.tb-aim-hint { margin-left: auto; color: #6f7b74; font-size: 10.5px; }
+.tb-aim-scope { position: relative; aspect-ratio: 2 / 1; max-width: 100%; overflow: hidden; border: 1px solid #000; border-radius: 3px;
+  background: radial-gradient(ellipse at center, #0f2419 0%, #06100b 70%), #06100b; box-shadow: inset 0 0 18px #000; }
+.tb-aim-scope::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(94, 240, 143, .06) 0 1px, transparent 1px 3px), linear-gradient(90deg, transparent 49.8%, rgba(94, 240, 143, .18) 50%, transparent 50.2%), linear-gradient(0deg, transparent 49.6%, rgba(94, 240, 143, .18) 50%, transparent 50.4%); }
+.tb-aim-scope img { position: absolute; inset: 6%; width: 88%; height: 88%; object-fit: contain; border: 0; filter: grayscale(1) brightness(.75) sepia(1) hue-rotate(80deg) saturate(1.6) drop-shadow(0 0 6px rgba(94, 240, 143, .4)); opacity: .8; }
+.app.thunderbolt .window-content button.tb-aim-spot { position: absolute; z-index: 1; transform: translate(-50%, -50%); width: 24px; height: 24px; min-height: 0; padding: 0; line-height: 20px; border-radius: 50%; cursor: pointer; touch-action: none;
+  font-family: var(--tb-data); font-size: 11px; font-weight: 700; color: #d9ffe6; background: rgba(6, 16, 11, .75); border: 2px solid var(--ck-led, #5ef08f); box-shadow: 0 0 6px rgba(94, 240, 143, .6); }
+.app.thunderbolt .window-content button.tb-aim-spot.weapon { border-color: #ff7a5c; box-shadow: 0 0 6px rgba(255, 122, 92, .6); color: #ffe1db; }
+.app.thunderbolt .window-content button.tb-aim-spot.engine { border-color: var(--ck-amber, #ffc94a); box-shadow: 0 0 6px rgba(255, 201, 74, .6); color: #fff1cf; }
+.app.thunderbolt .window-content button.tb-aim-spot.shut { border-style: dashed; opacity: .75; }
+.app.thunderbolt .window-content button.tb-aim-spot.dead { border-color: #3a403d; color: #59615d; box-shadow: none; text-decoration: line-through; cursor: default; background: rgba(0, 0, 0, .6); }
+.app.thunderbolt .window-content button.tb-aim-spot.sel { z-index: 2; color: #0b0703; background: var(--ck-lcd, #ffb547); border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 181, 71, .35), 0 0 14px var(--ck-lcd, #ffb547); }
+.app.thunderbolt .window-content button.tb-aim-spot.sel::before, .app.thunderbolt .window-content button.tb-aim-spot.sel::after { content: ""; position: absolute; left: 50%; top: 50%; pointer-events: none; border: 1px solid var(--ck-lcd, #ffb547); }
+.app.thunderbolt .window-content button.tb-aim-spot.sel::before { width: 40px; height: 40px; margin: -21px; border-radius: 50%; border-style: dashed; animation: tb-aim-spin 4s linear infinite; }
+.app.thunderbolt .window-content button.tb-aim-spot.sel::after { width: 56px; height: 0; margin-left: -28px; border-width: 1px 0 0; opacity: .6; }
+@keyframes tb-aim-spin { to { transform: rotate(360deg); } }
+.tb-aim-legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 3px 8px; margin: 0; padding: 0; list-style: none; }
+.tb-aim-legend li { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto auto; align-items: center; gap: 5px; padding: 2px 5px; font-size: 11.5px; cursor: pointer;
+  border: 1px solid transparent; border-left: 3px solid var(--ck-led, #5ef08f); border-radius: 2px; background: #111614; }
+.tb-aim-legend li.weapon { border-left-color: #b8432f; }
+.tb-aim-legend li.engine { border-left-color: #c99a2e; }
+.tb-aim-legend li b { font-family: var(--tb-data); color: var(--ck-plate, #8f9c95); }
+.tb-aim-legend li .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-aim-legend li .occ, .tb-aim-legend li .hp { font-family: var(--tb-data); font-size: 10.5px; color: var(--ck-lcd, #ffb547); }
+.tb-aim-legend li em { grid-column: 2 / -1; font-size: 10px; color: var(--ck-amber, #ffc94a); font-style: normal; }
+.tb-aim-legend li.sel { border-color: var(--ck-lcd, #ffb547); background: #1f1606; }
+.tb-aim-legend li.dead { opacity: .4; text-decoration: line-through; cursor: default; }

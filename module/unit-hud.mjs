@@ -8,6 +8,7 @@ import { combatantOf, spentOf, declaredOf, allowAction, spendAction } from "./ac
 import { runAction } from "./macros.mjs";
 import { strikesOf, STRIKES } from "./strikes.mjs";
 import { SCALES, scalesOf, scaleValue, scaleFull, setScale, sysCount, unitFlag } from "./scales.mjs";
+import { roleOf, ENGINE } from "./aim.mjs";
 
 const SUPER_RULES = ["boss", "aerialship", "landship", "superdive", "solgfall", "strato"];
 
@@ -23,15 +24,6 @@ export function unitKind(actor) {
 }
 
 const KIND_LABEL = { super: "Супероружие", fleet: "Флот", ground: "Техника" };
-const ENGINE = /двигат|сопл|ускорител/i;
-
-/** Роль системы по имени и оружию: двигатель, оружие или прочее. */
-function roleOf(y) {
-  if (ENGINE.test(y.name)) return "engine";
-  if (y.ga || y.gg || y.gun || /рельсотрон|лазер|орудия|калибр|шахты|турель|пусков/i.test(y.name)) return "weapon";
-  return "other";
-}
-
 /** Таймер «раз в N раундов»: когда событие было последний раз и можно ли снова. */
 function every(actor, key, n, round) {
   const last = unitFlag(actor, "launch", {})?.[key];

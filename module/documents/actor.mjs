@@ -141,14 +141,14 @@ export class TBActor extends Actor {
     return this._tbDamage;
   }
 
-  async #applyDamage(amount, { source, sourceUuid, roundKey } = {}) {
+  async #applyDamage(amount, { source, sourceUuid, roundKey, system } = {}) {
     amount = Number(amount) || 0;
     if (amount <= 0 || !["pilot", "npc"].includes(this.type)) return;
     const s = this.system;
     // по уже сбитой машине урон не идёт: иначе второй сбитый засчитался бы дважды
     if (this.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) || s.markers?.doom)
       return this.#say(`<b>${esc(this.name)}</b> уже ${this.type === "pilot" ? "катапультировался" : "сбит"}: урон не нужен.`);
-    const opts = { sourceUuid, roundKey };
+    const opts = { sourceUuid, roundKey, system };
     this.#alarm();
     if (this.type === "npc" && s.kind === "ship") return this.#damageShip(amount, opts);
     if (this.type === "npc" && s.kind === "ground") {
@@ -264,24 +264,57 @@ export class TBActor extends Actor {
     await shooter.setFlag(SYSTEM_ID, "kills", k);
   }
 
-  async #damageShip(amount, { sourceUuid } = {}) {
+  /**
+   * Урон по кораблю: по системе, на которую навёлся стрелок (system — её номер), иначе выбор в окне.
+   * Система уничтожена, а урон остался — лишнее идёт на другую систему на выбор (книга: «Sea Targets»).
+   */
+  async #damageShip(amount, { sourceUuid, system } = {}) {
     const systems = foundry.utils.deepClone(this.system.systems);
-    const alive = systems.map((y, i) => ({ y, i })).filter(o => o.y.value > 0);
-    if (!alive.length) return this.#say(`${esc(this.name)}: все системы уже уничтожены.`);
-    const data = await R.formDialog(`${this.name}: куда попали`, `
-      <div class="form-group"><label>Система</label><select name="i">${alive.map(o => `<option value="${o.i}">${esc(o.y.name)} · Occ ${o.y.occ} · HP ${o.y.value}/${o.y.hp}</option>`).join("")}</select></div>`, { ok: "Нанести" });
-    if (!data) return;
-    const y = systems[Number(data.i)];
-    y.value = Math.max(0, y.value - amount);
+    const lines = [];
+    let left = amount, i = Number.isInteger(system) && systems[system] ? system : null;
+    if (i !== null && systems[i].value <= 0) { lines.push(`«${esc(systems[i].name)}» уже уничтожена`); i = null; }
+    while (left > 0) {
+      const alive = systems.map((y, k) => ({ y, k })).filter(o => o.y.value > 0);
+      if (!alive.length) break;
+      if (i === null) {
+        i = await this.#pickSystem(systems, left, !!lines.length);
+        if (i === null) break;
+      }
+      const y = systems[i], take = Math.min(y.value, left);
+      y.value -= take; left -= take;
+      lines.push(`«${esc(y.name)}» −${take} HP${y.value ? `, осталось ${y.value}` : ", система уничтожена"}`);
+      i = null;
+    }
+    if (!lines.length || systems.every((y, k) => y.value === this.system.systems[k].value)) {
+      if (!systems.some(y => y.value > 0)) return this.#say(`${esc(this.name)}: все системы уже уничтожены.`);
+      return;
+    }
     await this.update({ "system.systems": systems });
-    const left = systems.filter(s => s.value > 0).length;
-    if (left) this.#chatter("damaged");
-    if (!left) {
+    const alive = systems.filter(s => s.value > 0).length;
+    if (alive) this.#chatter("damaged");
+    if (!alive) {
       await this.#creditKill(sourceUuid);
       await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
-      return this.#say(`<b>${esc(this.name)}</b>: уничтожена последняя система. Цель потоплена.`);
+      return this.#say(`<b>${esc(this.name)}</b>: ${lines.join("; ")}. Уничтожена последняя система. Цель потоплена.`);
     }
-    return this.#say(`<b>${esc(this.name)}</b>: «${esc(y.name)}» −${amount} HP${y.value ? `, осталось ${y.value}` : ", система уничтожена"}. Целых систем: ${left}.`);
+    return this.#say(`<b>${esc(this.name)}</b>: ${lines.join("; ")}${left > 0 ? `. ${left} урона не досталось ни одной системе` : ""}. Целых систем: ${alive}.`);
+  }
+
+  /** Окно выбора системы по схеме: куда попали или куда уходит лишний урон. Номер системы или null. */
+  async #pickSystem(systems, amount, excess) {
+    const { schematicHtml } = await import("../aim.mjs");
+    const { tokenOf } = await import("../scene.mjs");
+    // схема показывает HP с учётом уже снятого этим попаданием
+    const view = new Proxy(this, { get: (t, k) => { if (k === "system") return { ...t.system, systems }; const v = Reflect.get(t, k); return typeof v === "function" ? v.bind(t) : v; } });
+    const shadow = { actor: view, token: tokenOf(this), name: this.token?.name ?? this.name };
+    const pick = systems.findIndex(y => y.value > 0);
+    const data = await R.formDialog(`${this.name}: ${excess ? `лишний урон ${amount}` : "куда попали"}`,
+      `${excess ? `<p class="tb-hint">Система уничтожена, осталось <b>${amount}</b> урона: на какую систему его пустить?</p>` : `<p class="tb-hint">${amount} урона: выберите систему.</p>`}
+      ${schematicHtml(shadow, { selected: pick })}`,
+      { ok: "Нанести", width: 520, cockpit: true, render: async root => (await import("../aim.mjs")).bindSchematic(root) });
+    if (!data) return null;
+    const i = Number(data.sys);
+    return systems[i]?.value > 0 ? i : null;
   }
 
   /** Тревога у всех, если это приоритетная цель союзников или гражданских (sounds.mjs). */
