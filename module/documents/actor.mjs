@@ -3,6 +3,7 @@ import { SYSTEM_ID, TB, DT } from "../config.mjs";
 import * as R from "../dice/rolls.mjs";
 import { esc } from "../utils.mjs";
 import { resetSortie } from "../nemesis.mjs";
+import { resetCombatTriggers, fakeoutReady, offerMercy, offerGuard, afterKill, billPaid } from "../combat-triggers.mjs";
 import { startStrain } from "../downtime.mjs";
 
 
@@ -142,7 +143,7 @@ export class TBActor extends Actor {
     return this._tbDamage;
   }
 
-  async #applyDamage(amount, { source, sourceUuid, roundKey, system } = {}) {
+  async #applyDamage(amount, { source, sourceUuid, roundKey, system, guard = false } = {}) {
     amount = Number(amount) || 0;
     if (amount <= 0 || !["pilot", "npc"].includes(this.type)) return;
     const s = this.system;
@@ -150,6 +151,8 @@ export class TBActor extends Actor {
     if (this.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) || s.markers?.doom)
       return this.#say(`<b>${esc(this.name)}</b> уже ${this.type === "pilot" ? "катапультировался" : "сбит"}: урон не нужен.`);
     const opts = { sourceUuid, roundKey, system };
+    // «Рядом с тобой»: товарищ в той же зоне может принять удар на себя
+    if (this.type === "pilot" && !guard && await offerGuard(this, amount, { source, sourceUuid, roundKey })) return;
     this.#alarm();
     if (this.type === "npc" && s.kind === "ship") return this.#damageShip(amount, opts);
     if (this.type === "npc" && s.kind === "ground") {
@@ -178,18 +181,30 @@ export class TBActor extends Actor {
     }
     const full = this.type === "pilot" || this.system.fullMarkers;
     if (!full) {
+      // «Пощада»: стрелок может отпустить дуэлянта вместо Doom
+      if (await offerMercy(this, sourceUuid)) return;
       await this.update({ "system.hp.value": 0 });
       return this.markDoom("одна метка у конскриптов и дуэлянтов", opts);
     }
-    // Grit и Structure уже стоят: выбирать нечего, это Doom
+    // Grit и Structure уже стоят: выбирать нечего, это Doom («Обманный манёвр» ещё может отменить попадание)
     const m = s.markers;
-    const choice = m.grit && m.structure ? { marker: "doom" } : await this.#chooseMarker();
+    const fake = fakeoutReady(this, { guard });
+    const choice = m.grit && m.structure && !fake ? { marker: "doom" } : await this.#chooseMarker(fake);
+    if (choice?.marker === "fakeout") {
+      await fake.update({ "system.used": true });
+      return this.#say(`<b>${esc(this.name)}</b>: «${esc(fake.name)}». Попадание отменено, метку отмечать не нужно. HP остаётся ${s.hp.value}.`);
+    }
     const upd = { "system.hp.value": s.hp.max, "system.markers.lastRound": key };
     if (!choice) {
       await this.update(upd);
       return this.#say(`<b>${esc(this.name)}</b>: HP до нуля. Метку выберите на листе, HP восстановлен до ${s.hp.max}.`);
     }
-    if (choice.marker === "doom") { await this.update(upd); return this.markDoom("", opts); }
+    if (choice.marker === "doom") {
+      if (this.type === "npc" && await offerMercy(this, sourceUuid)) return;
+      await this.update(upd);
+      // «Рядом с тобой»: принял удар за товарища и получил Doom — гибнет сразу, без последних слов
+      return this.markDoom(guard ? "принял удар за товарища («Рядом с тобой»)" : "", { ...opts, fallen: guard });
+    }
     if (choice.marker === "grit") Object.assign(upd, { "system.markers.grit": true, "system.markers.gritSkill": choice.skill });
     if (choice.marker === "structure") Object.assign(upd, { "system.markers.structure": true, "system.markers.sys": choice.sys });
     await this.update(upd);
@@ -199,7 +214,7 @@ export class TBActor extends Actor {
     return this.#say(`<b>${esc(this.name)}</b> получает метку ${what}. HP восстановлен до ${s.hp.max}.${this.system.markerCount >= 2 ? " После двух меток пора уходить из боя." : ""}`);
   }
 
-  async markDoom(reason, { sourceUuid, roundKey } = {}) {
+  async markDoom(reason, { sourceUuid, roundKey, fallen = false } = {}) {
     await this.update({ "system.markers.doom": true, "system.markers.lastRound": roundKey ?? this.roundKey }, { tbDoom: true });
     // Doom — машина сбита у всех, и у пилота, и у аса: знак X, в конце раунда токен уходит с поля
     // отметка «сбит» со стрелком раньше статуса: хук статуса иначе поставит её без стрелка
@@ -208,6 +223,10 @@ export class TBActor extends Actor {
     await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
     // пилоту: судьбу решает бросок на катапультирование, либо героическая гибель по своему выбору
     // карточку пишем от имени игрока пилота, чтобы кнопки достались ему, даже если урон нанёс ведущий
+    if (this.type === "pilot" && fallen) {
+      await this.update({ "system.service.status": "kia" });
+      return this.#say(`<b>${esc(this.name)}</b>: метка <b>Doom</b>${reason ? ` (${esc(reason)})` : ""}. Пилот гибнет сразу, без последних слов.`);
+    }
     if (this.type === "pilot") {
       // игрок может писать карточку только от своего имени; ведущий отдаёт её активному игроку пилота
       const player = game.user.isGM ? game.users.find(u => !u.isGM && u.active && this.testUserPermission(u, "OWNER")) : game.user;
@@ -216,7 +235,7 @@ export class TBActor extends Actor {
     return this.#say(`<b>${esc(this.name)}</b>: метка <b>Doom</b>${reason ? ` (${esc(reason)})` : ""}. Машина сбита.`);
   }
 
-  #chooseMarker() {
+  #chooseMarker(fake = null) {
     const m = this.system.markers;
     const skills = Object.entries(TB.skills).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join("");
     const systems = Object.entries(TB.systems).map(([k, v]) => `<option value="${k}">${v.label}: ${v.hint}</option>`).join("");
@@ -225,7 +244,8 @@ export class TBActor extends Actor {
       <p class="tb-hint">Отметьте одну метку. HP восстановится до максимума.</p>
       ${radio("grit", "Grit: навык недоступен", `<select name="skill">${skills}</select>`, m.grit)}
       ${radio("structure", "Structure: сломана система", `<select name="sys">${systems}</select>`, m.structure)}
-      ${radio("doom", "Doom: машина обречена, бросок на катапультирование", "", m.doom)}`, { ok: "Отметить" })
+      ${radio("doom", "Doom: машина обречена, бросок на катапультирование", "", m.doom)}
+      ${fake ? radio("fakeout", `«${esc(fake.name)}»: отменить попадание (раз за вылет)`, "", false) : ""}`, { ok: "Отметить" })
       .then(d => (d?.marker ? d : null));
   }
 
@@ -256,7 +276,10 @@ export class TBActor extends Actor {
   async #creditKill(sourceUuid) {
     await this.markDown(sourceUuid);
     const shooter = sourceUuid ? R.resolveActor(sourceUuid) : null;
+    // «Счёт к оплате»: сбит виновный; «Отличная работа!»: товарищ подбадривает стрелка
+    await billPaid(this).catch(err => console.warn(`${SYSTEM_ID} | Счёт к оплате`, err));
     if (shooter?.type !== "pilot") return;
+    await afterKill(this, shooter).catch(err => console.warn(`${SYSTEM_ID} | Отличная работа`, err));
     const kind = this.system.kind === "air" ? "air" : "ground";
     const k = foundry.utils.deepClone(shooter.getFlag(SYSTEM_ID, "kills") ?? { air: 0, ground: 0 });
     k[kind] = (k[kind] ?? 0) + 1;
@@ -373,6 +396,9 @@ export class TBActor extends Actor {
     if (items.length) await this.updateEmbeddedDocuments("Item", items);
     // Немезида ещё не появлялась: триггеры Немезиды снова закрыты, у её NPC сняты недостатки, вызов и поединок
     if (this.type === "pilot") await resetSortie(this);
+    // боевые триггеры: разовые отметки вылета, выведенное «Форсированным выстрелом» спецоружие снова в строю
+    if (this.type === "pilot") await resetCombatTriggers(this);
+    for (const w of this.items.filter(i => i.type === "weapon" && i.getFlag(SYSTEM_ID, "off"))) await w.unsetFlag(SYSTEM_ID, "off");
     await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: false }).catch(() => null);
     return this.#say(`<b>${esc(this.name)}</b> готов к вылету: Speed 1, Strain ${this.system.strain.value}, HP ${this.system.hp.max}${notes.length ? ` (${notes.map(esc).join("; ")})` : ""}.`);
   }

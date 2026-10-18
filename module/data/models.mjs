@@ -33,7 +33,7 @@ function downtimeFields() {
     onEdge: str(),                 // на Нервах 5 перед вылетом: "fly" — летит на пределе
     breakdown: str(),              // срыв в этом вылете: stupor, rage, panic ("" — ещё не было)
     resolve: int(0, { min: 0, max: DT.maxResolve }),
-    fee: int(0, { min: 0, max: 3 }),   // Гонорар Наёмника
+    fee: int(0, { min: 0, max: 5 }),   // Гонорар Наёмника (лимит 3, «Счёт к оплате» даёт сверх лимита)
     downtime: new f.SchemaField({
       actions: int(2, { min: 0, max: 2 }),   // сколько действий осталось в этом даунтайме
       resolveGot: bool(),                     // Решимость за этот даунтайм уже получена
@@ -204,7 +204,9 @@ export class PilotData extends foundry.abstract.TypeDataModel {
     this.pointsBudget = (this.archetype === "rookie" ? 3 : 6) + this.bonusPoints + sum("points");
 
     // самолёт с поправками триггеров и поломок
-    const broken = this.markers.structure ? this.markers.sys : "";
+    // «Обходная цепь»: сломанная система снова работает, метка остаётся
+    const bypass = actor.getFlag?.(SYSTEM_ID, "ctBypass");
+    const broken = this.markers.structure && bypass !== this.markers.sys ? this.markers.sys : "";
     // разреженный воздух стратосферы: Max Speed +1, Evasion −1
     const thin = this.alt === "strat" ? 1 : 0;
     this.maxSpeed = Math.max(1, ps.spd + sum("maxSpeed") - (broken === "en" ? 1 : 0) + thin);
@@ -332,6 +334,10 @@ export class WeaponData extends foundry.abstract.TypeDataModel {
     };
   }
   get unlimited() { return this.ammo.max === null; }
+  /** Выведено из строя до конца вылета («Форсированный выстрел»). */
+  get offline() { return !!this.parent?.getFlag?.(SYSTEM_ID, "off"); }
+  /** Можно стрелять: не выведено из строя и есть боезапас. */
+  get ready() { return !this.offline && (this.unlimited || (this.ammo.value ?? 0) > 0); }
   /** Дальность в зонах: 0 своя, 1 соседние, 2 обычная ракета, 99 вся зона операции. */
   get reach() { return this.range ?? TB.weaponRange[this.key] ?? (this.target === "gun" ? TB.range.guns : TB.range.missile); }
 }
@@ -353,7 +359,7 @@ export class TriggerData extends foundry.abstract.TypeDataModel {
 
   /** Эффекты, которые сейчас действуют на чарник. */
   get changes() { return this.effects ?? TB.triggerEffects[this.key] ?? []; }
-  get hasToggle() { return this.changes.some(c => c.when === "toggle"); }
+  get hasToggle() { return this.changes.some(c => c.when === "toggle" || c.when === "twisttoggle"); }
   get hasStack() { return this.changes.some(c => c.when === "stack"); }
   get needsWeapon() { return this.changes.some(c => c.target === "ammo"); }
 
@@ -364,6 +370,9 @@ export class TriggerData extends foundry.abstract.TypeDataModel {
       case "toggle": return this.active ? 1 : 0;
       // против Немезиды: в атаке и защите по ней (nemesis.mjs), на весь лист не действует
       case "nemesis": return 0;
+      // боевые триггеры: Поединок и условия атаки считаются в самой атаке (combat-triggers.mjs)
+      case "duel": case "attack": return 0;
+      case "twisttoggle": return this.active && actorSystem.twist ? 1 : 0;
       case "stack": return this.stack;
       case "proto": return actorSystem.proto ? 1 : 0;
       case "serial": return actorSystem.proto ? 0 : 1;

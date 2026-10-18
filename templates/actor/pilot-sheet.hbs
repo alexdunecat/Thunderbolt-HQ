@@ -160,6 +160,7 @@
             {{#each weapons as |w|}}
             <li class="tb-item" data-item-id="{{w.id}}">
               <span class="tb-item-name"><a data-chat-item="{{w.id}}" title="В чат">{{w.name}}</a><small>{{#if w.target}}{{w.target}} · {{/if}}урон {{w.dmg}} · <i class="fas fa-ruler-horizontal"></i> {{w.range}}{{#if w.mods}} · {{w.mods}}{{/if}}</small></span>
+              {{#if w.offline}}<a class="tb-chip tb-ct-off" data-weapon-on="{{w.id}}" title="«Форсированный выстрел»: не работает до конца вылета. Щелчок: вернуть в строй вручную">OFF</a>{{/if}}
               {{#if w.unlimited}}<span class="tb-ammo">∞</span>{{else}}
               <span class="tb-ammo" {{#if w.bonus}}title="+{{w.bonus}} от триггера"{{/if}}><a data-ammo="{{w.id}}" data-delta="-1">−</a>{{w.ammo}}/{{w.max}}<a data-ammo="{{w.id}}" data-delta="1">+</a></span>{{/if}}
               <a class="tb-icon tb-aim{{#if w.aimed}} on{{/if}}" data-aim="{{w.id}}" title="{{#if w.aimed}}Подсветка дальности по этому оружию. Щелчок: обратно стандартная ракета{{else}}Подсвечивать дальность этого оружия у выделенного самолёта{{/if}}"><i class="fas fa-crosshairs"></i></a>
@@ -211,6 +212,7 @@
             <span class="tb-tags">{{t.typeText}}</span>
             <label class="tb-check" title="Использован в этом вылете"><input type="checkbox" data-item-toggle="{{t.id}}" {{checked t.used}}> исп.</label>
             {{#if t.nem}}<a class="tb-btn tb-nem-trig {{t.nemState}}" data-nem-use="{{t.id}}" title="{{t.nemHint}}"><i class="fas fa-skull-crossbones"></i> {{#if t.active}}действует{{else}}Задействовать{{/if}}</a>{{/if}}
+            {{#if t.ct}}{{#if t.ct.chip}}<span class="tb-chip tb-ct-chip">{{t.ct.chip}}</span>{{/if}}{{#if t.ct.use}}<a class="tb-btn tb-ct-trig {{t.ct.state}}" data-ct-use="{{t.id}}" title="{{t.ct.hint}}"><i class="fas fa-bolt"></i> {{#if t.ct.on}}действует{{else}}{{t.ct.use}}{{/if}}</a>{{else}}<span class="tb-ct-auto {{t.ct.state}}" title="{{t.ct.hint}}"><i class="fas fa-gears"></i> {{#if t.ct.waiting}}ждёт Поворота{{else}}само{{/if}}</span>{{/if}}{{/if}}
             {{#if t.radio}}<a class="tb-icon" data-civil-radio title="Гражданское радио: музыка у всех"><i class="fas fa-radio"></i></a>{{/if}}
             <a class="tb-icon" data-item-edit="{{t.id}}"><i class="fas fa-pen"></i></a>
             <a class="tb-icon" data-item-delete="{{t.id}}"><i class="fas fa-trash"></i></a>

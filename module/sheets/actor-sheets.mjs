@@ -14,6 +14,7 @@ import { gloryView } from "../glory.mjs";
 import { openChatterEditor, nameOf, setCallsign } from "../chatter.mjs";
 import { openCivilRadio, RADIO_TRIGGER } from "../civil-radio.mjs";
 import { rack, openMedals } from "../medals.mjs";
+import { CT, ctView, useCombatTrigger } from "../combat-triggers.mjs";
 import { NEM, STATE_TEXT, nemTriggers, trigState, metOf, useTrigger, appear, monologue, startMonologue, endMonologue, fxOf, clearFx } from "../nemesis.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
@@ -36,8 +37,14 @@ function weaponView(w, bonus = 0) {
   if (s.aim !== null) mods.push(`Aim ${s.aim >= 0 ? "+" : ""}${s.aim}`);
   if (s.dep !== null) mods.push(`Deploy ${s.dep >= 0 ? "+" : ""}${s.dep}`);
   return { id: w.id, name: w.name, img: w.img, key: s.key, dmg: s.dmg, fx: s.fx, mods: mods.join(" · "),
-    unlimited: s.ammo.max === null, ammo: s.ammo.value, max: s.ammo.max === null ? null : s.ammo.max + bonus, bonus, target: TB.weaponTargets[s.target] ?? "",
+    unlimited: s.ammo.max === null, ammo: s.ammo.value, offline: s.offline, max: s.ammo.max === null ? null : s.ammo.max + bonus, bonus, target: TB.weaponTargets[s.target] ?? "",
     range: s.target === "util" ? "действует на свою и соседние зоны" : s.target === "line" ? "линия через всю зону операции" : rangeLabel(s.reach) };
+}
+
+/** Боевой триггер для листа: кнопка, состояние, подсказка, что действует. */
+function ctSheet(actor, t) {
+  const v = ctView(actor, t);
+  return v ? { ...v, on: v.state === "on", waiting: v.state === "wait" && !v.use } : null;
 }
 
 class TBActorSheet extends ActorSheet {
@@ -159,6 +166,9 @@ class TBActorSheet extends ActorSheet {
     });
     on("[data-trigger-active]", d => {
       const item = this.actor.items.get(d.triggerActive);
+      // «Отставить болтовню», «Не такой ценой»: только после Поворота
+      if (item && !item.system.active && CT[item.system.key]?.twist && !this.actor.system.twist)
+        return ui.notifications.warn(`«${item.name}» работает только после Поворота: сначала отметьте «Поворот».`);
       item?.update({ "system.active": !item.system.active });
     });
     on("[data-trigger-stack]", d => {
@@ -167,6 +177,8 @@ class TBActorSheet extends ActorSheet {
     });
     on("[data-chat-item]", d => this.#itemToChat(this.actor.items.get(d.chatItem)));
     on("[data-nem-use]", d => useTrigger(this.actor, this.actor.items.get(d.nemUse)));
+    on("[data-ct-use]", d => useCombatTrigger(this.actor, this.actor.items.get(d.ctUse)));
+    on("[data-weapon-on]", d => this.actor.items.get(d.weaponOn)?.unsetFlag(SYSTEM_ID, "off"));
     on("[data-medals]", () => openMedals(this.actor));
     on("[data-end-turn]", () => endTurn(this.actor));
     // прицел: подсветка дальности по этому спецоружию (повторный щелчок — снова стандартная ракета)
@@ -430,8 +442,11 @@ export class PilotSheet extends TBActorSheet {
       fxText: describeChanges(t.system.changes),
       hasOpts: t.system.skills > 0 || t.system.needsWeapon || t.system.hasToggle || t.system.hasStack,
       radio: t.system.key === RADIO_TRIGGER,
-      nem: !!NEM[t.system.key] && t.system.types.includes("Nemesis"), nemState: trigState(a, t), nemHint: STATE_TEXT[trigState(a, t)]
+      nem: !!NEM[t.system.key] && t.system.types.includes("Nemesis"), nemState: trigState(a, t), nemHint: STATE_TEXT[trigState(a, t)],
+      ct: ctSheet(a, t)
     }));
+    // кнопками боевых триггеров управляет «задействовать», ручного переключателя у них нет
+    for (const t of ctx.triggers) if (t.ct?.use) t.hasToggle = false;
     ctx.weaponOpts = weaponOpts;
     ctx.situational = ctx.triggers.filter(t => t.hasToggle || t.hasStack);
     // триггеры Немезиды: открываются, когда она появилась в вылете; кнопка «Задействовать»

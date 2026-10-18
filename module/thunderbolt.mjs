@@ -48,6 +48,7 @@ import { registerAltitude, stepAltitude } from "./altitude.mjs";
 import { registerPopout, mirrorPopouts } from "./popout.mjs";
 import { registerMedals, openMedals, award as awardMedal } from "./medals.mjs";
 import { registerNemesis, appear as nemesisAppear, startMonologue, endMonologue } from "./nemesis.mjs";
+import { registerCombatTriggers } from "./combat-triggers.mjs";
 
 // триггер выключен или машина сменилась: Max Speed мог упасть
 for (const ev of ["updateItem", "createItem", "deleteItem"])
@@ -158,6 +159,7 @@ Hooks.once("init", () => {
   registerSideColor();
   registerLosses();
   registerNemesis();
+  registerCombatTriggers();
   registerMedals();
   registerCombat();
   registerActions();
@@ -222,7 +224,7 @@ async function breakLocks() {
     const a = tok.actor, uuid = a?.system.lockUuid;
     if (!uuid) continue;
     const target = R.resolveActor(uuid);
-    const far = a.items.some(i => i.type === "weapon" && i.system.reach >= TB.range.operation && (i.system.unlimited || i.system.ammo.value > 0));
+    const far = a.items.some(i => i.type === "weapon" && i.system.reach >= TB.range.operation && R.weaponReady(i));
     const dist = zoneDistance(tok, tokenOf(target));
     if (far || dist === null || dist <= TB.range.lockHold) continue;
     await a.update({ "system.lock": "", "system.lockUuid": "" });

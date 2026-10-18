@@ -119,7 +119,8 @@ export const TB = {
     "perk.all": "Perk во всех проверках выпадает от", "comp.all": "Complication во всех проверках выпадает до",
     points: "Очки навыков"
   },
-  effectWhen: { always: "всегда", twist: "после Поворота", toggle: "пока включён", nemesis: "против Немезиды, после «Задействовать»", stack: "× счётчик серии", proto: "на опытной машине", serial: "на серийной машине" },
+  effectWhen: { always: "всегда", twist: "после Поворота", toggle: "пока включён", twisttoggle: "после Поворота, пока включён", nemesis: "против Немезиды, после «Задействовать»",
+    duel: "в Поединке, считается в атаке", attack: "когда условие выполнено, считается само", stack: "× счётчик серии", proto: "на опытной машине", serial: "на серийной машине" },
   /* Встроенные эффекты книжных триггеров (если у триггера не задан свой список). */
   triggerEffects: {
     armor: [{ target: "hpMax", value: 1, when: "always" }],
@@ -132,32 +133,33 @@ export const TB = {
     // триггеры Немезиды: считаются в атаке и защите против неё (nemesis.mjs), в листе не суммируются
     notyou: [{ target: "evasion", value: 1, when: "nemesis" }],
     handle: [{ target: "allRolls", value: 2, when: "nemesis" }],
-    cutchatter: [{ target: "allRolls", value: 1, when: "toggle" }],
-    tellme: [{ target: "allRolls", value: 1, when: "toggle" }],
-    byside: [{ target: "allRolls", value: 1, when: "toggle" }],
-    advevasion: [{ target: "skill.dodge", value: 2, when: "toggle" }],
-    divebomb: [{ target: "skill.deploy", value: 2, when: "toggle" }],
+    cutchatter: [{ target: "allRolls", value: 1, when: "twisttoggle" }],
+    // боевые триггеры (combat-triggers.mjs): условие проверяется в самой атаке или Break!
+    tellme: [{ target: "allRolls", value: 1, when: "attack" }],
+    byside: [{ target: "allRolls", value: 1, when: "attack" }],
+    advevasion: [{ target: "skill.dodge", value: 2, when: "attack" }],
+    divebomb: [{ target: "skill.deploy", value: 2, when: "attack" }],
     guns: [{ target: "skill.strafe", value: 1, when: "stack" }],
     // архетипы Стрэйнджриала
     // Поединок: +1 к атакам (с броском и без) и к Evasion; Перчатка или Венок поднимают его до +2 (вместе не складываются: group)
-    code: [{ target: "skill.aim", value: 1, when: "toggle" }, { target: "skill.strafe", value: 1, when: "toggle" }, { target: "aa", value: 1, when: "toggle" }, { target: "evasion", value: 1, when: "toggle" }],
-    gauntlet: [{ target: "skill.aim", value: 1, when: "toggle", group: "duel" }, { target: "skill.strafe", value: 1, when: "toggle", group: "duel" }, { target: "aa", value: 1, when: "toggle", group: "duel" }, { target: "evasion", value: 1, when: "toggle", group: "duel" }],
-    wreath: [{ target: "skill.aim", value: 1, when: "toggle", group: "duel" }, { target: "skill.strafe", value: 1, when: "toggle", group: "duel" }, { target: "aa", value: 1, when: "toggle", group: "duel" }, { target: "evasion", value: 1, when: "toggle", group: "duel" }],
-    oldschool: [{ target: "gun", value: 2, when: "toggle" }],
-    finish: [{ target: "skill.aim", value: 1, when: "toggle" }, { target: "skill.deploy", value: 1, when: "toggle" }, { target: "skill.strafe", value: 1, when: "toggle" }, { target: "aa", value: 1, when: "toggle" }, { target: "ag", value: 1, when: "toggle" }],
+    code: [{ target: "allRolls", value: 1, when: "duel" }, { target: "evasion", value: 1, when: "duel" }],
+    gauntlet: [{ target: "allRolls", value: 2, when: "duel" }, { target: "evasion", value: 2, when: "duel" }],
+    wreath: [{ target: "allRolls", value: 2, when: "duel" }, { target: "evasion", value: 2, when: "duel" }],
+    oldschool: [{ target: "gun", value: 2, when: "duel" }],
+    finish: [{ target: "allRolls", value: 1, when: "attack" }],
     expartner: [{ target: "allRolls", value: 1, when: "nemesis" }],
-    bill: [{ target: "skill.aim", value: 2, when: "toggle" }, { target: "skill.deploy", value: 2, when: "toggle" }, { target: "skill.strafe", value: 2, when: "toggle" }, { target: "aa", value: 2, when: "toggle" }, { target: "ag", value: 2, when: "toggle" }],
+    bill: [{ target: "allRolls", value: 2, when: "attack" }],
     tester: [{ target: "perk.all", value: 3, when: "proto" }, { target: "comp.all", value: 2, when: "serial" }],
     limiter: [{ target: "maxSpeed", value: 2, when: "toggle" }],
-    notatthis: [{ target: "allRolls", value: 2, when: "toggle" }]
+    notatthis: [{ target: "allRolls", value: 2, when: "twisttoggle" }]
   },
   /* Подсказка на кнопке включения ситуативных триггеров. */
   toggleHints: {
-    notyou: "против Немезиды", handle: "один на один с Немезидой", cutchatter: "пока молчишь", tellme: "союзник даёт Lead после Поворота",
+    notyou: "против Немезиды", handle: "один на один с Немезидой", cutchatter: "пока молчишь, после Поворота", tellme: "союзник даёт Lead после Поворота",
     byside: "защищаешь своего союзника", advevasion: "снизился на уровень высоты", divebomb: "снизился перед атакой",
     code: "Поединок: бьёшь только его, союзники не вмешиваются", gauntlet: "перчатка брошена: Поединок +2", wreath: "первый бой с Немезидой: Поединок +2",
     oldschool: "Guns по цели Поединка", finish: "цель уже отметила метку урона", expartner: "против Немезиды", bill: "по виновному",
-    limiter: "до конца хода, в конце Push против 7", notatthis: "мешаешь удару супероружия или по гражданским"
+    limiter: "до конца хода, в конце Push против 7", notatthis: "мешаешь удару супероружия или по гражданским, после Поворота"
   }
 };
 

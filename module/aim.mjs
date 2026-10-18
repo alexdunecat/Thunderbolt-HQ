@@ -5,6 +5,7 @@ import { SYSTEM_ID } from "./config.mjs";
 import { esc } from "./utils.mjs";
 import { tokenOf, zoneDistance, hasRule } from "./scene.mjs";
 import { sysCount, unitFlag } from "./scales.mjs";
+import { weakOf } from "./combat-triggers.mjs";
 
 export const ENGINE = /двигат|сопл|ускорител/i;
 
@@ -149,7 +150,9 @@ export function aimAt(attacker, target, i, { missile = false } = {}) {
     const d = zoneDistance(tokenOf(attacker), target.token ?? tokenOf(a));
     if (d !== 0) parts.push(["ЗАК цели", -1]);
   }
-  return { i, y, occ: y.occ, parts, problems };
+  // «Уязвимость»: AWACS назвал эту систему — Occlusion −2 для эскадрильи
+  const weak = weakOf(attacker, a, i);
+  return { i, y, occ: y.occ - weak, parts, problems };
 }
 
 /**

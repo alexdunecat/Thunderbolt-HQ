@@ -5,6 +5,7 @@ import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, co
 import { alarmRows, raiseAlarm, surprise, quietAA, markVolley } from "../stealth.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
 import { nemesisAttack, nemesisDefense } from "../nemesis.mjs";
+import { triggerAttack, triggerDefense, triggerBreak, trashComp, coverPart, millionFor, letGo, trig, weakOf } from "../combat-triggers.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
 import { allowRoll } from "../actions.mjs";
 import { aimedWeapon } from "../range.mjs";
@@ -83,7 +84,8 @@ export function formDialog(title, content, { ok = "Бросить", width = 380,
 function skillParts(actor, skill, label = TB.skills[skill].label) {
   const s = actor.system;
   if (!s.skillParts) return [[label, s.skillTotal[skill]]];
-  return [[label, s.skills[skill]], ...s.skillParts[skill].map(m => [m.name, m.value])];
+  const cover = coverPart(actor, skill);
+  return [[label, s.skills[skill]], ...(cover ? [cover] : []), ...s.skillParts[skill].map(m => [m.name, m.value])];
 }
 
 function hasTrigger(actor, key) { return actor.items.some(i => i.type === "trigger" && i.system.key === key); }
@@ -130,18 +132,19 @@ function renderAlarm(c) {
  * Проверка вне хода: не считается броском хода (Тревога, пролёт в туннеле).
  * onFail: "alarm" — кнопка ведущему «Тревога +1»; failDmg — урон при провале (кнопка владельцу).
  */
-export async function rollSideCheck(actor, skill, { dc = 7, label, notes = [], onFail = "", failDmg = 0 } = {}) {
+export async function rollSideCheck(actor, skill, { dc = 7, label, notes = [], onFail = "", failDmg = 0, turnRoll = false, onWin = null } = {}) {
   // обязательная проверка не пропадает из-за Grit: навык недоступен — автоматический провал
   if (actor.system.skillBlocked?.[skill]) return postCard(actor, {
     type: "side", label: label ?? `${TB.skills[skill].label} против ${dc}`, rolled: false, parts: [[`${TB.skills[skill].label} недоступен (Grit)`, 0]], strain: 0, dc,
-    forceFail: true, strainable: false, skill, onFail, failDmg, notes: ["Метка Grit: навык недоступен, проверка провалена.", ...notes.map(esc)]
+    forceFail: true, strainable: false, skill, onFail, failDmg, onWin, notes: ["Метка Grit: навык недоступен, проверка провалена.", ...notes.map(esc)]
   }, []);
-  const dice = await rollDice(actor, false, { turnRoll: false });
+  const dice = await rollDice(actor, false, { turnRoll });
+  if (!dice) return null;
   const w = weatherAt(actor);
   const parts = [...skillParts(actor, skill), ...(skill === "push" ? weatherParts(w, "push") : []), ...await takeNext(actor)];
   const card = {
     type: "side", label: label ?? `${TB.skills[skill].label} против ${dc}`, rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc,
-    strainable: canStrain(actor), skill, onFail, failDmg, notes: ["Не считается броском хода.", ...notes.map(esc)],
+    strainable: canStrain(actor), skill, onFail, failDmg, onWin, notes: [...(turnRoll ? [] : ["Не считается броском хода."]), ...notes.map(esc)],
     ...thresholds(actor, skill, w.comp2)
   };
   return postCard(actor, card, dice.rolls);
@@ -213,11 +216,14 @@ export function renderCard(card) {
     btn.push(`<button type="button" data-tb-action="dt-practice" class="tb-owner" title="Задел «Наработка»: раз за вылет перебросить d10 и взять лучший"><i class="fas fa-rotate"></i> Наработка: перебросить d10</button>`);
   if (c.reroll) rows.push(`<div class="tb-note">Наработка: d10 переброшен (${c.reroll.join(" → ")}), взят лучший.</div>`);
   if (c.rolled && c.strainable && !c.resolved && !settled) btn.push(`<button type="button" data-tb-action="strain" class="tb-owner"><i class="fas fa-bolt"></i> +1 Strain</button>`);
+  if (c.type === "side" && c.success && c.onWin && !c.applied) btn.push(`<button type="button" data-tb-action="side-win" class="tb-owner"><i class="fas fa-door-open"></i> «${esc(c.onWin.name)}» выходит из боя</button>`);
+  if (c.type === "side" && c.success && c.onWin && c.applied) rows.push(`<div class="tb-note">«${esc(c.onWin.name)}» выходит из боя.</div>`);
   if (c.type === "side" && !c.success && !c.applied) {
+    if (c.onFail === "engines") btn.push(`<button type="button" data-tb-action="side-engines" class="tb-owner"><i class="fas fa-fire"></i> Structure: Engines</button>`);
     if (c.onFail === "alarm") btn.push(`<button type="button" data-tb-action="alarm-up" data-n="1" class="tb-gm"><i class="fas fa-bell"></i> Тревога +1</button>`);
     if (c.failDmg) btn.push(`<button type="button" data-tb-action="side-dmg" class="tb-owner"><i class="fas fa-burst"></i> ${c.failDmg} урона</button>`);
   }
-  if (c.type === "side" && c.applied) rows.push(`<div class="tb-note">${c.onFail === "alarm" ? "Тревога +1 записана." : "Урон нанесён."}</div>`);
+  if (c.type === "side" && c.applied && !c.success) rows.push(`<div class="tb-note">${c.onFail === "alarm" ? "Тревога +1 записана." : c.onFail === "engines" ? "Отмечена Structure: Engines." : "Урон нанесён."}</div>`);
   if (c.type === "break" && !c.speedApplied) btn.push(`<button type="button" data-tb-action="break-speed" class="tb-owner">Speed −${c.speedDrop} после атак</button>`);
   if (c.type === "break" && !c.speedApplied && c.combatKey) rows.push(`<div class="tb-note">Speed −${c.speedDrop} спишется сам в конце раунда.</div>`);
   if (c.type === "break" && c.speedApplied) rows.push(`<div class="tb-note">Speed −${c.speedDrop} списан.</div>`);
@@ -232,6 +238,9 @@ export function renderCard(card) {
     if (c.success) btn.push(`<button type="button" data-tb-action="stall-ok" class="tb-owner">Выровняться: Speed 1</button>`);
     else btn.push(`<button type="button" data-tb-action="stall-fail" class="tb-owner">${c.alt === "low" ? "Удар о землю: Doom" : c.alt === "strat" ? "Спуститься на Высокую" : "Потерять высоту"}</button>`);
   }
+  // «Один на миллион»: промах можно сделать попаданием
+  if (c.attack && c.dc !== null && c.dc !== undefined && !c.success && millionFor(c)) btn.push(`<button type="button" data-tb-action="million" class="tb-owner" title="Раз за вылет: выбранный выстрел попадает"><i class="fas fa-crosshairs"></i> ${esc(millionFor(c).name)}: попадание</button>`);
+  if (c.million) rows.push(`<div class="tb-note">«${esc(c.million)}»: выстрел попадает.</div>`);
   const queued = c.delayed && c.combatKey && !c.resolved && !c.dmgApplied;
   if (queued) rows.push(`<div class="tb-note tb-queued"><i class="fas fa-hourglass-half"></i> ${c.atTurn ? "Ждёт начала хода цели." : "В очереди залпа конца раунда."}</div>`);
   if (c.resolved) rows.push(`<div class="tb-note">${c.atTurn ? "Учтена в начале хода цели." : "Учтена в залпе конца раунда."}</div>`);
@@ -287,7 +296,8 @@ async function lightningStrike(actor) {
 /** Пороги Perk/Complication с учётом погоды «Ураган» (Complication на 1–2). */
 function thresholds(actor, skill, extraComp) {
   const s = actor.system;
-  return { perkOn: s.perkOn?.[skill] ?? 4, compOn: Math.max(s.compOn?.[skill] ?? 1, extraComp ? 2 : 1), skill };
+  // «Трёп в эфире» эскадрильи: у врагов Complication на 1–2
+  return { perkOn: s.perkOn?.[skill] ?? 4, compOn: Math.max(s.compOn?.[skill] ?? 1, extraComp || trashComp(actor) ? 2 : 1), skill };
 }
 
 /** Триггер «Отточенное мастерство» (Practiced Competence), ещё не использованный в этом вылете. */
@@ -474,6 +484,9 @@ export async function rollBreak(actor) {
   const parts = skillParts(actor, "dodge", "Уклонение");
   if (data.lead) parts.push(["Lead", data.lead]);
   parts.push(...await takeNext(actor));
+  // «Продвинутое уклонение», «Общая частота» союзника, «Скажи, что делать» (если Lead дали в этом окне)
+  const tb = triggerBreak(actor, { lead: data.lead && !parts.some(p => p[0] === trig(actor, "tellme")?.name) ? data.lead : 0 });
+  parts.push(...tb.parts);
   if (data.mod) parts.push(["мод.", data.mod]);
   const tvc = actor.system.planeProps?.has?.("tvc") || actor.system.props?.some?.(p => p.key === "tvc");
   // в разреженном воздухе стратосферы Break! стоит на 1 Speed больше
@@ -484,6 +497,7 @@ export async function rollBreak(actor) {
     speedDrop: (tvc ? 1 : 2) + thin, combatKey: combatKey(), practiced: !!dice.practiced, ...thresholds(actor, "dodge", data.storm)
   };
   const msg = await postCard(actor, card, dice.rolls);
+  await tb.take();
   await applyBreak(actor, card);
   return msg;
 }
@@ -494,6 +508,9 @@ async function applyBreak(actor, card) {
 }
 
 /* ---------- атаки ---------- */
+
+/** Спецоружие готово: не выведено из строя («Форсированный выстрел») и есть боезапас. */
+export const weaponReady = w => w.system.ready ?? (!w.getFlag?.(SYSTEM_ID, "off") && (w.system.ammo?.max === null || (w.system.ammo?.value ?? 0) > 0));
 
 /** Вид цели для оружия: воздушная или наземная/морская. */
 /** Вид цели для ракет: воздушная — самолёты и летающие боссы (Аркбёрд, SOLG, воздушные крейсеры и линкоры), иначе наземная или морская. */
@@ -521,7 +538,7 @@ export function strikeMeans(actor, kind) {
   if (actor.type === "npc" && s.kind === "ground" && has(air ? s.ground.ga : s.ground.gg)) out.push(air ? "ЗРК" : "G-G");
   if (actor.type === "npc" && s.kind === "ship" && s.systems.some(y => y.value > 0 && has(air ? y.ga : y.gg))) out.push("ракетная система");
   if (s.broken !== "sw") for (const w of actor.items)
-    if (w.type === "weapon" && weaponFits(w, kind) && (w.system.unlimited || (w.system.ammo.value ?? 0) > 0)) out.push(w.name);
+    if (w.type === "weapon" && weaponFits(w, kind) && weaponReady(w)) out.push(w.name);
   return out;
 }
 
@@ -536,7 +553,7 @@ function weaponOptions(actor, missile, kind = null) {
       const isGun = isGunPod(w);
       if (missile === isGun) continue;
       if (missile && (s.target === "util" || (kind && !weaponFits(w, kind)))) continue;
-      const empty = !w.system.unlimited && (s.ammo.value ?? 0) <= 0;
+      const empty = !weaponReady(w);
       const vs = s.target === "air" ? "по воздуху" : s.target === "ground" ? "по земле и морю" : "";
       // оружие под прицелом подсветки дальности стоит выбранным
       opts.push(`<option value="${w.id}" ${empty ? "disabled" : w.id === aim ? "selected" : ""}>${esc(w.name)}${w.system.unlimited ? "" : ` · ${s.ammo.value}/${s.ammo.max}`} · ${[vs, rangeLabel(s.reach)].filter(Boolean).join(", ")}</option>`);
@@ -564,7 +581,7 @@ export async function lockOn(actor) {
   const kind = targetKind(t);
   if (!strikeMeans(actor, kind).length)
     return ui.notifications.warn(`Lock On! невозможен: у «${actor.name}» нечем бить по ${kind === "air" ? "воздушным" : "наземным и морским"} целям.`);
-  const longRange = actor.items.find(i => i.type === "weapon" && weaponFits(i, kind) && i.system.reach >= TB.range.operation && (i.system.unlimited || i.system.ammo.value > 0));
+  const longRange = actor.items.find(i => i.type === "weapon" && weaponFits(i, kind) && i.system.reach >= TB.range.operation && weaponReady(i));
   const { dist, far, problems } = reachProblems(actor, t, longRange ? TB.range.operation : TB.range.lockOn);
   // дальше своей и соседней зоны захват не берётся; запреты по высоте ведущий может разрешить
   if (far) return ui.notifications.warn(`Lock On! невозможен: ${problems[0]}`);
@@ -610,8 +627,8 @@ export function foxPanel(actor, t, tk) {
   if (s.broken !== "sw") for (const w of actor.items.filter(i => i.type === "weapon" && !isGunPod(i) && i.system.target !== "util")) {
     const fits = kinds.filter(k => weaponFits(w, k));
     if (!fits.length) continue;
-    const empty = !w.system.unlimited && (w.system.ammo.value ?? 0) <= 0;
-    stations.push({ id: w.id, code: w.name.split(" · ")[0], cnt: w.system.unlimited ? "∞" : String(w.system.ammo.value ?? 0).padStart(2, "0"), dmg: parseInt(w.system.dmg) || 0, fits, w, empty });
+    const empty = !weaponReady(w);
+    stations.push({ id: w.id, code: w.name.split(" · ")[0], cnt: w.getFlag?.(SYSTEM_ID, "off") ? "OFF" : w.system.unlimited ? "∞" : String(w.system.ammo.value ?? 0).padStart(2, "0"), dmg: parseInt(w.system.dmg) || 0, fits, w, empty });
   }
   const prev = {};
   for (const st of stations) {
@@ -621,7 +638,8 @@ export function foxPanel(actor, t, tk) {
       let base = air ? s.aa : s.ag;
       if (actor.type === "npc" && s.kind === "ground") base = (air ? s.ground.ga : s.ground.gg) ?? 0;
       const common = (air ? lift : 0) + sneak + ciws - speed;
-      const nem = r => sum(nemesisAttack(actor, t?.actor, { rolled: r, skill: air ? "aim" : "deploy" }).parts);
+      const nem = r => sum(nemesisAttack(actor, t?.actor, { rolled: r, skill: air ? "aim" : "deploy" }).parts)
+        + sum(triggerAttack(actor, t?.actor, { rolled: r, skill: air ? "aim" : "deploy" }).parts);
       prev[st.id][k] = {
         fox: (base ?? 0) + ((air ? ws?.aa : ws?.ag) ?? 0) + sum(weatherParts(wx, air ? "aa" : "ag")) + common + nem(false),
         imp: skillSum(actor, air ? "aim" : "deploy") + ((air ? ws?.aim : ws?.dep) ?? 0) + common + nem(true)
@@ -629,7 +647,9 @@ export function foxPanel(actor, t, tk) {
     }
   }
   const first = stations.find(x => x.id === aimId && !x.empty) ?? stations.find(x => !x.empty) ?? stations[0];
-  const dc = t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) + nemesisDefense(actor, t.actor) : null;
+  const dc = t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) + nemesisDefense(actor, t.actor) + triggerDefense(actor, t.actor) : null;
+  // «Форсированный выстрел»: раз за вылет спецоружием +2 к атаке и урону, потом оно не работает
+  const oc = stations.some(x => x.w) ? practicedOvercharge(actor) : null;
   const occ = t?.kind === "ship" ? Object.fromEntries((t.actor.system.systems ?? []).map((y, i) => [i, y.occ])) : null;
   const struck = struckBy(actor);
   const lockOk = !t || s.lockUuid === t.uuid;
@@ -656,6 +676,7 @@ export function foxPanel(actor, t, tk) {
       <div class="form-group"><label>Модификатор</label><input type="number" name="mod" value="0"></div>
       <div class="form-group"><label><input type="checkbox" name="storm" ${wx.comp2 ? "checked" : ""}> Ураган: Complication на 1–2</label></div>
       ${pr ? `<div class="form-group"><label><input type="checkbox" name="practiced"> Отточенное мастерство: d10 = 10 и d4 = 4 без броска</label></div>` : ""}
+      ${oc ? `<div class="form-group"><label title="${esc(oc.system.text)}"><input type="checkbox" name="overcharge"> ${esc(oc.name)}: спецоружием +2 к атаке и урону, потом оно не работает до конца вылета</label></div>` : ""}
       ${wx.list.length ? `<p class="tb-hint">Погода: ${wx.list.map(d => `${d.ico} ${esc(d.name)}`).join(", ")}</p>` : ""}
     </details>
     <div class="tb-ck-fire">
@@ -677,7 +698,9 @@ export function foxPanel(actor, t, tk) {
       }
       if (!form.querySelector('[name="weapon"]:checked')) form.querySelector('.tb-ck-st .st:not(.off):not(.empty) input')?.click();
       const p = prev[val("weapon")]?.[k] ?? { fox: 0, imp: 0 };
-      const mod = Number(form.querySelector('[name="mod"]')?.value) || 0;
+      const ocBox = form.querySelector('[name="overcharge"]');
+      if (ocBox) { ocBox.disabled = !val("weapon"); if (ocBox.disabled) ocBox.checked = false; }
+      const mod = (Number(form.querySelector('[name="mod"]')?.value) || 0) + (ocBox?.checked ? 2 : 0);
       const fox = p.fox + mod, imp = p.imp + mod;
       const need = occ ? occ[Number(val("sys"))] : dc;
       const set = (sel, v) => { const n = form.querySelector(sel); if (n) n.textContent = v; };
@@ -696,6 +719,9 @@ export function foxPanel(actor, t, tk) {
   };
   return cockpitDialog(`Fox Two! · ${actor.token?.name ?? actor.name}`, content, { render, width: t?.kind === "ship" ? 560 : 460 });
 }
+
+/** «Форсированный выстрел», если он ещё не использован в этом вылете. */
+const practicedOvercharge = actor => actor.items.find(i => i.type === "trigger" && i.system.key === "overcharge" && !i.system.used) ?? null;
 
 /** Fox Two!: ракета или спецоружие. Без броска: AA/AG + мод оружия − Speed. Improved: d10 + Aim/Deploy + мод − Speed. */
 export async function fireMissile(actor) {
@@ -732,11 +758,13 @@ export async function fireMissile(actor) {
   const wx = weatherAt(actor);
   const aim = t?.kind === "ship" ? aimAt(actor, t, Number(data.sys), { missile: true }) : null;
   const nem = nemesisAttack(actor, t?.actor, { rolled: !!data.improved, skill });
+  const ct = triggerAttack(actor, t?.actor, { rolled: !!data.improved, skill });
+  const oc = data.overcharge && w ? practicedOvercharge(actor) : null;
   if (t) {
     const { problems } = reachProblems(actor, t, ws?.reach ?? TB.range.missile);
     if (s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
     if (aim) problems.push(...aim.problems);
-    problems.push(...nem.problems);
+    problems.push(...nem.problems, ...ct.problems);
     if (!(await confirmReach(problems, "Fox Two!"))) return;
   }
 
@@ -763,11 +791,12 @@ export async function fireMissile(actor) {
   const sneak = surprise(actor, t);
   if (sneak) parts.push(sneak);
   if (aim) parts.push(...aim.parts);
-  parts.push(...nem.parts);
+  parts.push(...nem.parts, ...ct.parts);
+  if (oc) parts.push([oc.name, 2]);
   if (speed) parts.push(["Speed", -speed]);
   if (data.mod) parts.push(["мод.", data.mod]);
 
-  const dmg = w ? (parseInt(ws.dmg) || 0) : TB.missileDamage;
+  const dmg = (w ? (parseInt(ws.dmg) || 0) : TB.missileDamage) + (oc ? 2 : 0) + ct.dmg;
   const notes = weatherNotes(wx).filter(n => !data.improved || !/A-A/.test(n));
   if (w?.system.fx) notes.push(esc(w.system.fx));
   const hv = w?.system.key === "HVAA";
@@ -782,20 +811,25 @@ export async function fireMissile(actor) {
   if (t && wallBonus(t.token, t.actor)) notes.push("Цель в туннеле: стены сбивают ракеты, защита +2.");
   const nemDef = t ? nemesisDefense(actor, t.actor) : 0;
   if (nemDef) notes.push(`«Опять ты!»: защита ${esc(t.name)} против Немезиды +${nemDef}.`);
-  notes.push(...nem.notes.map(esc));
+  notes.push(...nem.notes.map(esc), ...ct.notes.map(esc));
+  const ctDef = t ? triggerDefense(actor, t.actor) : 0;
+  if (ctDef) notes.push(ctDef < 0 ? `«Уязвимость»: защита ${esc(t.name)} ${ctDef}.` : `Поединок: защита ${esc(t.name)} +${ctDef}.`);
+  if (oc) notes.push(`«${esc(oc.name)}»: +2 к атаке и урону. ${esc(w.name)} больше не работает до конца вылета.`);
 
   if (w && !ws.unlimited) await w.update({ "system.ammo.value": Math.max(0, (ws.ammo.value ?? 0) - 1) });
+  if (oc) { await oc.update({ "system.used": true }); await w.setFlag(SYSTEM_ID, "off", true); }
 
   const card = {
     type: "attack", attack: true, label: `Fox Two! ${w ? w.name : "стандартная ракета"}`, rolled: !!data.improved,
-    d10: dice.d10, d4: dice.d4, parts, strain: 0, ...shipDc(t, aim, t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) + nemDef : null),
-    strainable: !!data.improved && canStrain(actor), forceHit: nem.forceHit,
+    d10: dice.d10, d4: dice.d4, parts, strain: 0, ...shipDc(t, aim, t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) + nemDef + ctDef : null),
+    strainable: !!data.improved && canStrain(actor), forceHit: nem.forceHit || ct.forceHit,
     practiced: !!dice.practiced, dmg, delayed: atTurn || !(hv || tBroken), atTurn, combatKey: hv || tBroken ? (atTurn ? key : "") : key,
     targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes, maws: mawsOn(t), tkind: air ? "air" : "ground",
     ...thresholds(actor, skill, data.storm)
   };
   const msg = await postCard(actor, card, dice.rolls);
   await nem.take();
+  await ct.take();
   return msg;
 }
 
@@ -841,7 +875,7 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
   const s = actor.system;
   if (s.broken === "gu") return ui.notifications.warn("Пушка сломана (метка Structure).");
   if (blocked(actor, "strafe")) return;
-  const podItems = s.broken === "sw" ? [] : actor.items.filter(i => i.type === "weapon" && isGunPod(i) && (i.system.unlimited || (i.system.ammo.value ?? 0) > 0));
+  const podItems = s.broken === "sw" ? [] : actor.items.filter(i => i.type === "weapon" && isGunPod(i) && weaponReady(i));
   const pods = weaponOptions(actor, false);
   // цель: противник в своей зоне; если их несколько, выбор в окне
   const sys = s.kind === "ship" && sysIndex !== undefined ? s.systems[sysIndex] : null;
@@ -883,7 +917,7 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
     if (aim && !(await confirmReach(aim.problems, "Guns, Guns, Guns!"))) return;
     const quiet = isAirTarget(t) ? quietAA(actor) : null;
     if (quiet && !(await confirmReach([quiet], "Guns, Guns, Guns!"))) return;
-    if (!(await confirmReach(nemesisAttack(actor, t.actor).problems, "Guns, Guns, Guns!"))) return;
+    if (!(await confirmReach([...nemesisAttack(actor, t.actor).problems, ...triggerAttack(actor, t.actor).problems], "Guns, Guns, Guns!"))) return;
     if (t.token) selectTarget(t.token);
   }
   const dice = await rollDice(actor, data.practiced);
@@ -907,23 +941,27 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
   const sneak = surprise(actor, t);
   if (sneak) parts.push(sneak);
   const nem = nemesisAttack(actor, t?.actor, { rolled: true, skill: "strafe" });
-  parts.push(...nem.parts);
+  const ct = triggerAttack(actor, t?.actor, { rolled: true, skill: "strafe", guns: !pod || pod.system.key !== "RCL" });
+  parts.push(...nem.parts, ...ct.parts);
   const nemDef = t ? nemesisDefense(actor, t.actor) : 0;
+  const ctDef = t ? triggerDefense(actor, t.actor) : 0;
   const speed = actor.type === "npc" && s.kind !== "air" ? 0 : (s.speed ?? 0);
   if (speed) parts.push(["Speed", -speed]);
   if (data.mod) parts.push(["мод.", data.mod]);
   const card = {
     type: "attack", attack: true, label, rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0,
-    ...shipDc(t, aim, t && t.kind !== "ship" ? t.defense + nemDef : null),
-    strainable: canStrain(actor), practiced: !!dice.practiced, forceHit: nem.forceHit,
-    dmg: gun, delayed: false, instant: true, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "",
+    ...shipDc(t, aim, t && t.kind !== "ship" ? t.defense + nemDef + ctDef : null),
+    strainable: canStrain(actor), practiced: !!dice.practiced, forceHit: nem.forceHit || ct.forceHit,
+    dmg: gun + ct.dmg, delayed: false, instant: true, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "",
     notes: [...(t?.actor.system.breakEv != null && t.kind === "air" ? [`У цели Break!: защита ${t.defense}.`] : []),
       ...(pod?.system.key === "PLSL" ? ["Бьёт в своей и соседних зонах. Облака блокируют лазер."] : []),
-      ...(nemDef ? [`«Опять ты!»: защита ${esc(t.name)} против Немезиды +${nemDef}.`] : []), ...nem.notes.map(esc)],
+      ...(nemDef ? [`«Опять ты!»: защита ${esc(t.name)} против Немезиды +${nemDef}.`] : []), ...nem.notes.map(esc), ...ct.notes.map(esc),
+      ...(ctDef ? [ctDef < 0 ? `«Уязвимость»: защита ${esc(t.name)} ${ctDef}.` : `Поединок: защита ${esc(t.name)} +${ctDef}.`] : [])],
     ...thresholds(actor, "strafe", data.storm)
   };
   const msg = await postCard(actor, card, dice.rolls);
   await nem.take();
+  await ct.take();
   await autoHit(msg);
   return msg;
 }
@@ -983,14 +1021,14 @@ export async function fireSam(actor, sysIndex) {
     if (s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
     const quiet = quietAA(actor);
     if (quiet) problems.unshift(quiet);
-    problems.push(...nemesisAttack(actor, t.actor).problems);
+    problems.push(...nemesisAttack(actor, t.actor).problems, ...triggerAttack(actor, t.actor).problems);
     if (!(await confirmReach(problems, label))) return;
   }
   const parts = [[air ? "G-A" : "G-G", ga ?? 0]];
   if (data.mod) parts.push(["мод.", data.mod]);
   const key = combatKey(), tBroken = t?.actor.system.broken === "ma";
   const card = {
-    type: "attack", attack: true, label, rolled: false, parts, strain: 0, dc: t ? t.defense + wallBonus(t.token, t.actor) + nemesisDefense(actor, t.actor) : null, vsLabel: "защиты",
+    type: "attack", attack: true, label, rolled: false, parts, strain: 0, dc: t ? t.defense + wallBonus(t.token, t.actor) + nemesisDefense(actor, t.actor) + triggerDefense(actor, t.actor) : null, vsLabel: "защиты",
     dmg: TB.missileDamage, delayed: true, atTurn: tBroken && !!key, combatKey: key, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", maws: mawsOn(t),
     notes: [tBroken ? (key ? "Ракета ударит в начале хода цели (у неё сломан MAWS): посчитается сама." : "Попадает в начале хода цели: у неё сломан MAWS.")
       : key ? "Ракета долетит в конце раунда: залп посчитается сам." : "Ракета долетает в конце раунда."]
@@ -1054,8 +1092,9 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
     if (info.kind === "ship" && !y) { targets.push({ uuid, name: info.name, ship: true, count: list.length, best: best.total }); continue; }
     const extra = list.slice(1).map(x => x.c).sort((a, b) => (b.dmg ?? 0) - (a.dmg ?? 0));
     // корабль: против Occlusion системы на момент залпа; в туннеле стены сбивают ракеты
-    if (y) { info.defense = y.occ; info.name = `${info.name}: ${y.name}`; }
-    else info.defense += wallBonus(info.token, actor) + nemesisDefense(resolveActor(best.actorUuid), actor);
+    const shooter = resolveActor(best.actorUuid);
+    if (y) { info.defense = y.occ - weakOf(shooter, actor, sys); info.name = `${info.name}: ${y.name}`; }
+    else info.defense += wallBonus(info.token, actor) + nemesisDefense(shooter, actor) + triggerDefense(shooter, actor);
     const need = Math.max(0, info.defense - best.total);
     // «Хватит болтать»: ракета, пущенная посреди монолога, попадает всегда
     const hit = need <= extra.length || list.some(x => x.c.forceHit);
@@ -1175,6 +1214,28 @@ export async function onCardAction(message, action, button) {
       if (!actor?.isOwner || card.dodged) return;
       card.dodged = true; await save();
       return rollSideCheck(actor, "dodge", { dc: 7, label: "Тревога: Dodge против 7", notes: card.dodge, onFail: "alarm" });
+    }
+    case "side-win": {
+      if (!actor?.isOwner || card.applied || !card.onWin) return;
+      card.applied = true; await save();
+      return letGo(actor, card.onWin);
+    }
+    case "side-engines": {
+      if (!actor?.isOwner || card.applied) return;
+      card.applied = true; await save();
+      const m = actor.system.markers;
+      if (m.structure) return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="tb-card tb-card-damage"><div class="tb-note"><b>${esc(actor.name)}</b>: Structure уже отмечена (${esc(TB.systems[m.sys]?.label ?? m.sys)}). Что сломалось ещё, решает ведущий.</div></div>` });
+      await actor.update({ "system.markers.structure": true, "system.markers.sys": "en" });
+      return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="tb-card tb-card-damage"><div class="tb-note"><b>${esc(actor.name)}</b>: двигатели не выдержали, метка Structure: ${esc(TB.systems.en?.label ?? "Engines")}.</div></div>` });
+    }
+    case "million": {
+      const t = millionFor(card);
+      if (!actor?.isOwner || !t) return;
+      await t.update({ "system.used": true });
+      card.forceHit = true; card.million = t.name;
+      await save();
+      if (card.instant) await autoHit(message);
+      return;
     }
     case "side-dmg": {
       if (!actor?.isOwner || card.applied) return;

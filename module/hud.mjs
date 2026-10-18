@@ -11,8 +11,9 @@ import { combatantOf, spentOf, declaredOf, endTurn } from "./actions.mjs";
 import { runAction, PILOT_BAR } from "./macros.mjs";
 import { lockersOf } from "./rwr.mjs";
 import { vmaxOf, kmhOf } from "./plane-speed.mjs";
-import { ejectNow } from "./dice/rolls.mjs";
+import { ejectNow, weaponReady } from "./dice/rolls.mjs";
 import { unitKind, unitHtml, onUnitClick, registerUnitHud } from "./unit-hud.mjs";
+import { hudTriggers, useCombatTrigger } from "./combat-triggers.mjs";
 import { hudNemesis, isNemesis, pilotsOf, monologue, startMonologue, endMonologue, appear, useTrigger, STATE_TEXT } from "./nemesis.mjs";
 
 const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, POS_KEY = `${SYSTEM_ID}.hudPos`;
@@ -97,7 +98,7 @@ export function hudData(actor) {
   const aim = aimedWeapon(actor)?.id ?? null;
   const weapons = actor.items.filter(i => i.type === "weapon").map(i => {
     const a = i.system.ammo, max = a.max === null ? null : a.max + (s.ammoBonus?.[i.id] ?? 0);
-    return { id: i.id, name: i.name, ammo: max === null ? "∞" : `${a.value}/${max}`, empty: max !== null && a.value <= 0, aimed: i.id === aim };
+    return { id: i.id, name: i.name, ammo: max === null ? "∞" : `${a.value}/${max}`, empty: !weaponReady(i), aimed: i.id === aim };
   });
   // альтиметр: доступные ступени (потолок машины, у боссов свои), остальные тусклые
   const ceil = ceilingOf(actor);
@@ -120,9 +121,19 @@ export function hudData(actor) {
     weapons, aimed: aim, warn,
     // Немезида: у пилота — лампа с именем, дальностью и тем, что действует; у ведущего на её машине — «Появление» и «Монолог»
     nem: pilot ? hudNemesis(actor) : null,
+    // боевые триггеры: что можно задействовать сейчас и что действует
+    ct: pilot ? hudTriggers(actor) : null,
     nemSelf: !pilot && isNemesis(actor) && game.user.isGM
       ? { side: s.side === "ally" || s.side === "neutral" ? s.side : "enemy", who: pilotsOf(actor).map(p => p.system.callsign || p.name).join(", "), talking: monologue()?.uuid === actor.uuid } : null
   };
+}
+
+/** Строка боевых триггеров в HUD: кнопки «задействовать» и то, что действует. */
+function ctRow(d) {
+  if (!d.ct) return "";
+  return `<div class="tb-hud-btns tb-hud-ct"><small title="Боевые триггеры">TRIG</small>
+    ${d.ct.chips.map(c => `<span class="tb-hud-ctchip">${esc(c)}</span>`).join("")}
+    ${d.ct.trig.map(t => `<button type="button" class="tb-hud-cttrig" data-hud-ctrig="${t.id}" title="${esc(t.hint)}">${esc(t.name)}</button>`).join("")}</div>`;
 }
 
 /** Строка Немезиды в HUD. */
@@ -249,6 +260,7 @@ function html(actor, d, folded) {
         <div class="tb-hud-btns tb-hud-wpns"><small title="Пульт вооружения">STORES</small>${weaponButtons(d)}</div>
         <div class="tb-hud-btns"><small>МАНЁВР</small>${moves}</div>
         <div class="tb-hud-btns tb-hud-acts" title="Действия хода${d.acts?.rolled ? " · бросок уже был" : ""}"><small>ХОД</small>${actBoxes}${d.acts?.rolled ? `<i class="fas fa-dice-d10" title="Бросок за ход уже был"></i>` : ""}${button("end", BUTTONS.end)}</div>
+        ${ctRow(d)}
         ${nemRow(d)}
       </div>
     </div>`}`;
@@ -357,7 +369,7 @@ async function onClick(ev) {
   const hl = ev.target.closest("[data-hud-hl]");
   if (hl) { ev.preventDefault(); ev.stopPropagation(); return setHlMode(hl.dataset.hudHl); }
   if (dragged && ev.target.closest("header")) { dragged = false; return; }
-  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-appear], [data-hud-mono]");
+  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono]");
   if (!t || !shown) return;
   ev.preventDefault();
   const d = t.dataset, actor = shown;
@@ -377,6 +389,7 @@ async function onClick(ev) {
   }
   if (!actor.isOwner) return ui.notifications.warn(`«${actor.name}» вам не принадлежит.`);
   if (d.hudNemtrig) return useTrigger(actor, actor.items.get(d.hudNemtrig));
+  if (d.hudCtrig) return useCombatTrigger(actor, actor.items.get(d.hudCtrig));
   if (d.hudAppear !== undefined) return appear(actor);
   if (d.hudMono !== undefined) return monologue()?.uuid === actor.uuid ? endMonologue() : startMonologue(actor);
   if (!hudFits(actor) && await onUnitClick(t, actor)) return;

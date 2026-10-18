@@ -2,6 +2,10 @@
    Значок видят ведущий, владелец цели и тот, кто держит захват. Сигнал «Ракета!» молчит, если у цели сломан MAWS. */
 import { SYSTEM_ID } from "./config.mjs";
 import { resolveActor, layoutChanged } from "./utils.mjs";
+import { sideOf } from "./scene.mjs";
+
+/** У игрока есть пилот с «Общей частотой». */
+const sharedFreq = () => (game.actors ?? []).some(a => a.type === "pilot" && a.isOwner && a.items.some(i => i.type === "trigger" && i.system.key === "sharedfreq"));
 
 export function registerRwr() {
   Hooks.on("refreshToken", (t, flags) => { if (layoutChanged(flags)) drawBadge(t); });
@@ -28,7 +32,9 @@ export function lockersOf(token) {
 }
 
 function drawBadge(token) {
-  const seen = lockersOf(token).filter(l => game.user.isGM || token.actor?.isOwner || l.actor?.isOwner);
+  // «Общая частота»: пилот игрока видит захваты на всех союзниках
+  const freq = !game.user.isGM && ["player", "ally"].includes(sideOf(token.actor)) && sharedFreq();
+  const seen = lockersOf(token).filter(l => game.user.isGM || token.actor?.isOwner || l.actor?.isOwner || freq);
   let g = token.tbLockBadge;
   if (!seen.length) {
     if (g && !g.destroyed) g.destroy({ children: true });

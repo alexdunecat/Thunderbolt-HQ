@@ -42,7 +42,11 @@ export async function takeNext(actor) {
   const list = nextMods(actor);
   if (!list.length || !actor.isOwner) return [];
   await actor.unsetFlag(SYSTEM_ID, NEXT);
-  return list.map(m => [m.label, m.value]);
+  const out = list.map(m => [m.label, m.value]);
+  // «Скажи, что делать»: после Поворота ещё +1 к броску, где союзник даёт Lead
+  const tell = actor.items?.find?.(i => i.type === "trigger" && i.system.key === "tellme");
+  if (tell && actor.system.twist && list.some(m => /^Lead\b/.test(m.label ?? ""))) out.push([tell.name, 1]);
+  return out;
 }
 
 export async function dropNext(actor, index) {

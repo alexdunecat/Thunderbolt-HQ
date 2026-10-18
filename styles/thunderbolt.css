@@ -1436,3 +1436,20 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-mk footer .tb-mk-dirty { border-color: var(--tb-accent); color: var(--tb-accent); font-weight: 700; }
 .tb-medals footer { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--tb-line); }
 .tb-medals footer button { flex: 1; }
+
+/* Боевые триггеры: кнопка «задействовать», значок «само», что действует, оружие вне строя */
+.thunderbolt .tb-ct-trig { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 1px 8px; font-family: var(--tb-data); font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+  border: 1px solid var(--tb-accent); border-radius: 3px; color: var(--tb-accent); background: transparent; cursor: pointer; white-space: nowrap; }
+.thunderbolt .tb-ct-trig:hover, .thunderbolt .tb-ct-trig.on { background: var(--tb-accent); color: var(--tb-accent-ink); }
+.thunderbolt .tb-ct-trig.wait, .thunderbolt .tb-ct-trig.used, .thunderbolt .tb-ct-trig.broken { opacity: .5; border-style: dashed; color: var(--tb-ink); border-color: currentColor; }
+.thunderbolt .tb-ct-auto { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; font-family: var(--tb-data); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; opacity: .7; white-space: nowrap; }
+.thunderbolt .tb-ct-auto.wait { opacity: .45; font-style: italic; }
+.thunderbolt .tb-ct-auto.broken { color: var(--tb-bad); opacity: 1; }
+.thunderbolt .tb-ct-chip { background: color-mix(in srgb, var(--tb-accent) 22%, transparent); }
+.thunderbolt .tb-ct-off { background: var(--tb-bad); color: #fff; cursor: pointer; }
+.tb-ct-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; }
+.tb-ct-pick button[disabled] { opacity: .35; }
+.tb-card-ctrig { border-left: 3px solid var(--tb-accent, #c8a24a); }
+#tb-pilot-hud .tb-hud-ctchip { padding: 0 5px; font-size: 10px; line-height: 20px; color: #b8ffcf; border: 1px solid #1d5a33; border-radius: 2px; background: #04140a; }
+#tb-pilot-hud .tb-hud-btns button.tb-hud-cttrig { flex: 0 0 auto; line-height: 20px; color: #ffe7a8; background: #2e2408; border: 1px solid #e0b030; border-radius: 2px; box-shadow: none; }
+#tb-pilot-hud .tb-hud-btns button.tb-hud-cttrig:hover { background: #e0b030; color: #1a1404; }
