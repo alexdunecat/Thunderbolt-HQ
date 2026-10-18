@@ -41,6 +41,7 @@ if (process.env.HUD_HTML) (await import("node:fs")).writeFileSync(process.env.HU
 console.log("кнопки:", [...H.hudHtml(me).matchAll(/data-hud-act="(\w+)"[^>]*>(?:<b>(\d)<\/b> )?([^<]+)/g)].map(m => `${m[2] ?? "-"}:${m[1]}`).join(" "));
 console.log(JSON.stringify(d, null, 1).replace(/\n\s*/g, " "));
 foe.system.lockUuid = ""; msgs.length = 0; me.system.speed = 3; me.system.alt = "high"; me.tok.document.elevation = 3; me.system.hp.value = 5; c.flags["thunderbolt-shtab"].acts = { round: 1, used: 2, list: [] };
+if (process.env.HUD_HTML) (await import("node:fs")).writeFileSync(process.env.HUD_HTML.replace(".html", "2.html"), H.hudHtml(me));
 console.log("спокойно:", JSON.stringify(H.hudData(me).warn), JSON.stringify(H.hudData(me).acts), H.hudData(me).alt, H.hudData(me).lock.dist);
 console.log("у игрока:", H.hudActor()?.name ?? "нет");
 game.user.isGM = true;

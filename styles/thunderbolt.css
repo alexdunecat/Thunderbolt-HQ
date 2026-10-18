@@ -904,7 +904,7 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-strike small { opacity: 0.8; }
 
 /* ---------- HUD пилота: полоса над панелью макросов ---------- */
-#tb-pilot-hud { position: fixed; left: 50%; transform: translateX(-50%); z-index: 70; width: min(760px, calc(100vw - 340px)); min-width: 520px;
+#tb-pilot-hud { position: fixed; left: 50%; transform: translateX(-50%); z-index: 70; width: min(920px, calc(100vw - 360px)); min-width: 600px;
   background: color-mix(in srgb, var(--tb-bg) 88%, transparent); border: 1px solid var(--tb-line); box-shadow: inset 0 0 0 1px rgba(155, 227, 191, .08), 0 4px 18px rgba(0, 0, 0, .45);
   color: var(--tb-ink); font-family: var(--tb-data); font-size: 12px; pointer-events: auto; backdrop-filter: blur(2px); }
 #tb-pilot-hud header { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-bottom: 1px solid var(--tb-line); cursor: pointer; user-select: none; }
@@ -918,7 +918,7 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-hud-warn { color: var(--tb-bad); border: 1px solid currentColor; padding: 0 6px; font-size: 10.5px; letter-spacing: .12em; animation: tb-hud-blink 1s steps(2, start) infinite; }
 .tb-hud-warn.lowalt, .tb-hud-warn.lock { color: var(--tb-warn); }
 @keyframes tb-hud-blink { to { visibility: hidden; } }
-.tb-hud-grid { display: grid; grid-template-columns: 1fr 1.1fr 1.3fr; gap: 14px; padding: 4px 10px 6px; }
+.tb-hud-grid { display: grid; grid-template-columns: 1.15fr .9fr .9fr 1.25fr; gap: 14px; padding: 4px 10px 6px; align-items: start; }
 .tb-hud-col { min-width: 0; }
 .tb-hud-pips { display: inline-flex; gap: 3px; vertical-align: middle; }
 .tb-hud-pips i { width: 13px; height: 8px; border: 1px solid var(--tb-line); }
@@ -929,7 +929,8 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-hud-big b { font-size: 20px; font-weight: 500; }
 .tb-hud-big b.bad { color: var(--tb-bad); }
 .tb-hud-big em { font-style: normal; color: var(--tb-muted); }
-.tb-hud-acts { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 6px; }
+.tb-hud-acts { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+#tb-pilot-hud .tb-hud-acts small { display: inline; margin: 0 4px 0 0; }
 .tb-hud-acts span { border: 1px solid var(--tb-line); padding: 0 6px; font-size: 10.5px; line-height: 18px; white-space: nowrap; }
 .tb-hud-acts span.used { color: var(--tb-muted); text-decoration: line-through; }
 .tb-hud-acts .fa-dice-d10 { color: var(--tb-muted); }
@@ -939,7 +940,56 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-hud-pips.hp.low i.on { background: var(--tb-bad); border-color: var(--tb-bad); }
 .tb-hud-weapons { display: block; overflow-wrap: anywhere; }
 .tb-hud-weapons .empty { color: var(--tb-muted); text-decoration: line-through; }
-.tb-hud-btns { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px 8px; border-top: 1px solid var(--tb-line); }
+.tb-hud-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 6px 10px 8px; border-top: 1px solid var(--tb-line); }
+.tb-hud-btns { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 360px; }
+.tb-hud-def { font-size: 16px; }
+/* спидометр */
+.tb-hud-dial { position: relative; width: 120px; max-width: 100%; }
+.tb-hud-gauge { display: block; width: 100%; height: auto; overflow: visible; }
+.tb-hud-gauge .track { fill: none; stroke: var(--tb-line); stroke-width: 6; }
+.tb-hud-gauge .fill { fill: none; stroke: var(--tb-accent); stroke-width: 6; }
+.tb-hud-gauge .ticks line { stroke: var(--tb-muted); stroke-width: 1.2; }
+.tb-hud-gauge .needle { stroke: var(--tb-ink); stroke-width: 2; stroke-linecap: round; }
+.tb-hud-gauge .needle.bad, .tb-hud-gauge .fill.bad { stroke: var(--tb-bad); }
+.tb-hud-gauge .hub { fill: var(--tb-ink); }
+.tb-hud-readout { text-align: center; margin-top: -4px; }
+.tb-hud-readout b { font-size: 20px; font-weight: 500; }
+.tb-hud-readout b.bad { color: var(--tb-bad); }
+.tb-hud-readout em { font-style: normal; color: var(--tb-muted); }
+.tb-hud-kmh { margin-top: 4px; color: var(--tb-muted); font-size: 11px; white-space: nowrap; }
+.tb-hud-step { display: flex; gap: 4px; margin-top: 4px; }
+#tb-pilot-hud .tb-hud-step a, #tb-pilot-hud .tb-hud-altbtn { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 20px; border: 1px solid var(--tb-line);
+  color: var(--tb-ink); background: var(--tb-surface); cursor: pointer; font-size: 13px; line-height: 1; }
+#tb-pilot-hud .tb-hud-step a:hover, #tb-pilot-hud .tb-hud-altbtn:hover { background: var(--tb-accent); color: var(--tb-accent-ink); }
+/* альтиметр: шкала ступеней сверху вниз, текущая подсвечена */
+.tb-hud-alt { display: flex; flex-direction: column; gap: 3px; }
+.tb-hud-alt ol { list-style: none; margin: 0; padding: 0 0 0 10px; border-left: 2px solid var(--tb-line); display: flex; flex-direction: column; gap: 1px; }
+.tb-hud-alt li { position: relative; display: flex; justify-content: space-between; gap: 6px; padding: 1px 6px; cursor: pointer; font-size: 11px; color: var(--tb-muted); }
+.tb-hud-alt li em { font-style: normal; font-size: 10px; opacity: .8; }
+.tb-hud-alt li::before { content: ""; position: absolute; left: -16px; top: 50%; width: 9px; border-top: 1px solid var(--tb-line); }
+.tb-hud-alt li.on { color: var(--tb-accent-ink); background: var(--tb-accent); font-weight: 600; }
+.tb-hud-alt li.on::before { left: -18px; width: 0; height: 0; border: 5px solid transparent; border-left-color: var(--tb-accent); border-top-width: 5px; top: calc(50% - 5px); }
+.tb-hud-alt li.off { opacity: .35; cursor: default; text-decoration: line-through; }
+.tb-hud-alt li:not(.on):not(.off):hover { color: var(--tb-ink); }
+.tb-hud-alt .tb-hud-altbtn { align-self: flex-start; margin-left: 10px; }
+/* схема истребителя: пушка, ракеты и спецоружие нажимаются */
+.tb-hud-plane { display: block; width: 100%; max-width: 230px; height: auto; margin: 0 auto; }
+.tb-hud-plane .body { fill: var(--tb-surface-2); stroke: var(--tb-line); stroke-width: 1.4; }
+.tb-hud-plane .canopy { fill: none; stroke: var(--tb-muted); stroke-width: 1; }
+.tb-hud-plane .hp { cursor: pointer; }
+.tb-hud-plane .hp path, .tb-hud-plane .hp rect, .tb-hud-plane .gun circle:not(.halo) { fill: var(--tb-ink); stroke: var(--tb-bg); stroke-width: .8; }
+.tb-hud-plane .gun .halo { fill: transparent; stroke: var(--tb-line); stroke-dasharray: 2 2; }
+.tb-hud-plane .spw path, .tb-hud-plane .spw rect { fill: var(--tb-warn); }
+.tb-hud-plane .spw.aimed path, .tb-hud-plane .spw.aimed rect { fill: var(--tb-accent); }
+.tb-hud-plane .spw.empty path, .tb-hud-plane .spw.empty rect { fill: transparent; stroke: var(--tb-muted); }
+.tb-hud-plane .hp:hover path, .tb-hud-plane .hp:hover rect, .tb-hud-plane .gun:hover circle:not(.halo) { fill: var(--tb-accent); }
+.tb-hud-plane .gun:hover .halo { stroke: var(--tb-accent); }
+.tb-hud-arms { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 2px; }
+#tb-pilot-hud .tb-hud-arms a { border: 1px solid var(--tb-line); padding: 0 6px; font-size: 10.5px; line-height: 18px; color: var(--tb-ink); cursor: pointer; white-space: nowrap; }
+#tb-pilot-hud .tb-hud-arms a b { color: var(--tb-accent); }
+#tb-pilot-hud .tb-hud-arms a.aimed { border-color: var(--tb-accent); }
+#tb-pilot-hud .tb-hud-arms a.empty { color: var(--tb-muted); text-decoration: line-through; }
+#tb-pilot-hud .tb-hud-arms a:hover { background: var(--tb-accent); color: var(--tb-accent-ink); }
 #tb-pilot-hud .tb-hud-btns button { flex: 1 1 auto; width: auto; line-height: 22px; padding: 0 8px; font-family: var(--tb-data); font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
   background: var(--tb-surface); color: var(--tb-ink); border: 1px solid var(--tb-line); border-radius: 0; }
 #tb-pilot-hud .tb-hud-btns button b { color: var(--tb-accent); }
