@@ -10,8 +10,12 @@ import { stepAltitude } from "./altitude.mjs";
 import { combatantOf, spentOf, declaredOf, endTurn } from "./actions.mjs";
 import { runAction, PILOT_BAR } from "./macros.mjs";
 import { lockersOf } from "./rwr.mjs";
+import { vmaxOf, kmhOf } from "./plane-speed.mjs";
+import { ejectNow } from "./dice/rolls.mjs";
 
-const FOLD_KEY = `${SYSTEM_ID}.hudFolded`;
+const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, WIDTH_KEY = `${SYSTEM_ID}.hudWidth`;
+const BIG = new Set(["missile", "lock", "doom"]);
+const BIG_HINT = { missile: "ракета в воздухе: Break! или смена высоты", lock: "вас держат на захвате", doom: "машина обречена: катапульта или героическая гибель" };
 const BUTTONS = { lock: "Lock On", break: "Break", lead: "Lead", formup: "Вплотную", recover: "Strain", end: "Конец хода" };
 let el = null, timer = null, shown = null;
 
@@ -53,8 +57,6 @@ function incoming(actor) {
   }).length;
 }
 
-/** Speed в км/ч для приборов: игровая Speed — шкала, а не скорость, так что это только картинка. 1 ≈ 500 км/ч, 3 ≈ 1100, 5 ≈ 1700. */
-export const speedKmh = speed => (speed <= 0 ? 0 : 200 + speed * 300);
 /** Высоты на альтиметре: игровая ступень и высота в метрах для подписи. */
 const ALT_METERS = { low: 300, med: 3000, high: 9000, strat: 18000 };
 
@@ -76,7 +78,8 @@ export function hudData(actor) {
   else if (lockedBy) warn.push({ key: "lock", text: "LOCK" });
   if (flying && s.speed <= 0) warn.push({ key: "stall", text: "STALL" });
   if (flying && alt === "low") warn.push({ key: "lowalt", text: "LOW ALT" });
-  if (s.hp.value <= 1 && s.hp.max > 1) warn.push({ key: "damage", text: "DAMAGE" });
+  if (s.markers?.doom) warn.push({ key: "doom", text: "DOOM" });
+  else if (s.hp.value <= 1 && s.hp.max > 1) warn.push({ key: "damage", text: "DAMAGE" });
   const aim = aimedWeapon(actor)?.id ?? null;
   const weapons = actor.items.filter(i => i.type === "weapon").map(i => {
     const a = i.system.ammo, max = a.max === null ? null : a.max + (s.ammoBonus?.[i.id] ?? 0);
@@ -85,10 +88,16 @@ export function hudData(actor) {
   // альтиметр: доступные ступени (потолок машины, у боссов свои), остальные тусклые
   const ceil = ceilingOf(actor);
   const allowed = flyingBoss(actor) ?? (ceil ? ALT_ORDER.slice(0, ALT_ORDER.indexOf(ceil) + 1) : ALT_ORDER);
-  const kmh = speedKmh(s.speed);
+  const kmh = kmhOf(actor, s.speed, maxSpeed);
+  // повреждения: Structure ломает систему, Grit отключает навык, Doom — машина обречена
+  const m = s.markers ?? {};
+  const systems = Object.entries(TB.systems).map(([k, v]) => ({ key: k, label: v.label, hint: v.hint, broken: s.broken === k }));
+  const grit = m.grit ? (TB.skills[m.gritSkill]?.label ?? m.gritSkill ?? "навык не выбран") : "";
   return {
     name: (pilot && s.callsign) || tok?.name || actor.name, plane: pilot ? s.plane?.name ?? "без самолёта" : TB.npcKinds?.[s.kind] ?? "",
-    hp: s.hp, strain: s.strain, speed: s.speed, maxSpeed, kmh, mach: (kmh / 1225).toFixed(1),
+    hp: s.hp, strain: s.strain, speed: s.speed, maxSpeed, kmh, vmax: vmaxOf(actor), mach: (kmh / 1225).toFixed(1),
+    img: tok?.document?.texture?.src ?? actor.img ?? "", systems, grit, doom: !!m.doom,
+    canEject: pilot && !!m.doom && !["ejected", "kia", "mia", "hospital"].includes(s.service?.status),
     alt: TB.altitudes[alt] ?? alt ?? "", altKey: alt, flying, defense: defenseWithWeather(actor, w),
     alts: ALT_ORDER.map(k => ({ key: k, label: TB.altitudes[k] ?? k, m: ALT_METERS[k], on: k === alt, can: allowed.includes(k) })).reverse(),
     acts: c ? { declared, used: spent.used, rolled: spent.rolled, list: spent.list, turn: c.parent.combatant?.id === c.id } : null,
@@ -112,26 +121,34 @@ function speedGauge(d) {
     </svg>`;
 }
 
-/** Схема истребителя сверху: пушка в носу, ракеты под консолями, спецоружие на внутренних пилонах и под фюзеляжем. Всё нажимается. */
+/** Где на силуэте (в долях квадрата токена, нос вверху) пушка, пилоны и системы. */
+const SPOTS = { gu: [[50, 7]], ms: [[17, 70], [83, 70]], sw: [[33, 60], [67, 60]], sw2: [[50, 68]], en: [[44, 92], [56, 92]], fl: [[28, 76], [72, 76]], ma: [[50, 36]] };
+const at = ([x, y]) => `left:${x}%;top:${y}%`;
+
+/** Схема машины сверху: силуэт самого токена, на нём пушка, ракеты и пилоны спецоружия (нажимаются) и отметки сломанной системы. */
 function fighter(d) {
+  const broken = d.systems.find(x => x.broken)?.key;
   const spw = d.weapons.slice(0, 2);
-  const missile = (x, y) => `<path d="M${x} ${y - 9} l2 3 v12 l2 3 h-8 l2 -3 v-12 z"/>`;
-  const bomb = (x, y) => `<rect x="${x - 3}" y="${y - 7}" width="6" height="14" rx="3"/>`;
-  const pylon = (w, places, key) => w ? `<g class="hp spw ${w.aimed ? "aimed" : ""} ${w.empty ? "empty" : ""}" data-hud-spw="${w.id}" tabindex="0">
-        <title>${esc(w.name)} ${w.ammo}: выбрать и пустить</title>${places.map(([x, y]) => key === "c" ? bomb(x, y) : missile(x, y)).join("")}</g>` : "";
-  return `<svg class="tb-hud-plane" viewBox="0 0 200 128" aria-label="Оружие">
-      <path class="body" d="M100 6 C104 16 107 26 107 42 L107 54 L184 84 L184 92 L107 84 L106 102 L126 114 L126 119 L100 115 L74 119 L74 114 L94 102 L93 84 L16 92 L16 84 L93 54 L93 42 C93 26 96 16 100 6 Z"/>
-      <path class="canopy" d="M100 22 C103 26 104 32 103 40 L97 40 C96 32 97 26 100 22 Z"/>
-      <g class="hp gun" data-hud-act="guns" tabindex="0"><title>Guns, Guns, Guns!</title><circle cx="100" cy="8" r="9" class="halo"/><circle cx="100" cy="8" r="2.5"/></g>
-      <g class="hp msl" data-hud-act="missile" tabindex="0"><title>Fox Two! стандартной ракетой</title>${missile(32, 82)}${missile(168, 82)}</g>
-      ${pylon(spw[0], [[62, 74], [138, 74]], "w")}
-      ${pylon(spw[1], [[100, 96]], "c")}
-    </svg>
+  const point = (cls, spots, attrs, title, label = "") => spots.map(p => `<a class="tb-hud-pt ${cls}" style="${at(p)}" ${attrs} title="${esc(title)}">${label}</a>`).join("");
+  return `<div class="tb-hud-sil">
+      <div class="tb-hud-mask" style="--sil:url('${encodeURI(d.img)}')"></div>
+      ${point(`gun ${broken === "gu" ? "dead" : ""}`, SPOTS.gu, `data-hud-act="guns"`, "Guns, Guns, Guns!")}
+      ${point(`msl ${d.aimed ? "" : "aimed"} ${broken === "ms" ? "dead" : ""}`, SPOTS.ms, `data-hud-act="missile"`, "Fox Two! стандартной ракетой")}
+      ${spw[0] ? point(`spw ${spw[0].aimed ? "aimed" : ""} ${spw[0].empty ? "empty" : ""} ${broken === "sw" ? "dead" : ""}`, SPOTS.sw, `data-hud-spw="${spw[0].id}"`, `${spw[0].name} ${spw[0].ammo}: выбрать и пустить`) : ""}
+      ${spw[1] ? point(`spw bomb ${spw[1].aimed ? "aimed" : ""} ${spw[1].empty ? "empty" : ""} ${broken === "sw" ? "dead" : ""}`, SPOTS.sw2, `data-hud-spw="${spw[1].id}"`, `${spw[1].name} ${spw[1].ammo}: выбрать и пустить`) : ""}
+      ${broken && ["en", "fl", "ma"].includes(broken) ? point("hit", SPOTS[broken], "", `Сломано: ${TB.systems[broken].label} (${TB.systems[broken].hint})`, "✕") : ""}
+    </div>
     <div class="tb-hud-arms">
-      <a data-hud-act="guns"><b>${PILOT_BAR.indexOf("guns") + 1}</b> GUN</a>
-      <a data-hud-act="missile" class="${d.aimed ? "" : "aimed"}"><b>${PILOT_BAR.indexOf("missile") + 1}</b> MSL</a>
-      ${d.weapons.map(w => `<a data-hud-spw="${w.id}" class="${w.aimed ? "aimed" : ""} ${w.empty ? "empty" : ""}" title="Выбрать и пустить">${esc(w.name)} ${w.ammo}</a>`).join("")}
+      <a data-hud-act="guns" class="${broken === "gu" ? "dead" : ""}"><b>${PILOT_BAR.indexOf("guns") + 1}</b> GUN</a>
+      <a data-hud-act="missile" class="${d.aimed ? "" : "aimed"} ${broken === "ms" ? "dead" : ""}"><b>${PILOT_BAR.indexOf("missile") + 1}</b> MSL</a>
+      ${d.weapons.map(w => `<a data-hud-spw="${w.id}" class="${w.aimed ? "aimed" : ""} ${w.empty ? "empty" : ""} ${broken === "sw" ? "dead" : ""}" title="Выбрать и пустить">${esc(w.name)} ${w.ammo}</a>`).join("")}
     </div>`;
+}
+
+/** Системы машины: целые зелёным, сломанная (Structure) красным с подсказкой, что она отключает. */
+function systemsStrip(d) {
+  const SHORT = { en: "ДВГ", fl: "ЗКР", ma: "MAWS", ms: "РКТ", sw: "СПО", gu: "ПШК" };
+  return `<div class="tb-hud-sys">${d.systems.map(x => `<span class="${x.broken ? "dead" : ""}" title="${esc(x.label)}: ${x.broken ? `сломано, ${esc(x.hint)}` : "в порядке"}">${SHORT[x.key] ?? x.key}</span>`).join("")}</div>`;
 }
 
 function html(actor, d, folded) {
@@ -144,21 +161,25 @@ function html(actor, d, folded) {
   }).join("");
   return `<header data-hud-fold title="Свернуть или развернуть HUD">
       <b>${esc(d.name)}</b> <small>${esc(d.plane)}</small>
-      ${d.warn.map(w => `<span class="tb-hud-warn ${w.key}">${w.text}</span>`).join("")}
+      ${d.warn.filter(w => !BIG.has(w.key)).map(w => `<span class="tb-hud-warn ${w.key}">${w.text}</span>`).join("")}
       ${d.acts?.turn ? `<span class="tb-hud-turn">ВАШ ХОД</span>` : ""}
       <i class="fas fa-chevron-${folded ? "up" : "down"}"></i>
     </header>
+    ${d.warn.filter(w => BIG.has(w.key)).map(w => `<div class="tb-hud-alert ${w.key}"><span>${w.key === "missile" ? "▲ " : ""}${w.text}${w.key === "missile" ? " ▲" : ""}</span><small>${BIG_HINT[w.key]}</small></div>`).join("")}
     ${folded ? "" : `<div class="tb-hud-grid">
       <div class="tb-hud-col">
         <small>HP</small><span class="tb-hud-pips hp ${d.hp.value <= 1 ? "low" : ""}">${pips(d.hp.value, d.hp.max)}</span><span class="tb-hud-num">${d.hp.value}/${d.hp.max}</span>
         ${d.strain?.max ? `<small>STRAIN</small><span class="tb-hud-pips strain">${pips(d.strain.value, d.strain.max)}</span><span class="tb-hud-num">${d.strain.value}/${d.strain.max}</span>` : ""}
         <small>DEF</small><span class="tb-hud-def">${d.defense ?? "—"}</span>
+        <small>СИСТЕМЫ</small>${systemsStrip(d)}
+        ${d.grit ? `<div class="tb-hud-grit" title="Метка Grit: навык недоступен до конца вылета">GRIT · ${esc(d.grit)} отключён</div>` : ""}
+        ${d.canEject ? `<button type="button" class="tb-hud-eject" data-hud-eject title="Бросок на катапультирование Push против 7: Strain добавится сам, если дотягивает, исход сразу в личное дело"><i class="fas fa-parachute-box"></i> КАТАПУЛЬТА</button>` : ""}
         <small>ЗАХВАТ</small>${d.lock ? `<a class="tb-hud-lock ${d.lock.gone ? "gone" : ""}" data-hud-lock title="Показать цель на карте"><i class="fas fa-crosshairs"></i> ${esc(d.lock.name)}${d.lock.dist ? ` · ${d.lock.dist}` : ""}${d.lock.gone ? " · нет на сцене" : ""}</a>` : `<span class="tb-hud-none">нет</span>`}
       </div>
       <div class="tb-hud-col tb-hud-speed">
         <small>SPEED</small>
         <div class="tb-hud-dial">${speedGauge(d)}<div class="tb-hud-readout"><b class="${d.speed <= 0 ? "bad" : ""}">${d.speed}</b><em>/${d.maxSpeed}</em></div></div>
-        <div class="tb-hud-kmh">${d.speed <= 0 ? "сваливание" : `≈ ${d.kmh} км/ч · M${d.mach}`}</div>
+        <div class="tb-hud-kmh" title="Доля максимума машины (${d.vmax} км/ч) по Speed">${d.speed <= 0 ? "сваливание" : `${d.kmh} км/ч · M${d.mach}`}</div>
         <div class="tb-hud-step"><a data-hud-speed="-1" title="Сбросить скорость (Change Speed)">−</a><a data-hud-speed="1" title="Прибавить скорость (Change Speed)">+</a></div>
       </div>
       <div class="tb-hud-col tb-hud-altcol">
@@ -191,7 +212,16 @@ function render() {
     el.id = "tb-pilot-hud";
     el.className = "thunderbolt tb-hud";
     el.addEventListener("click", onClick);
+    let w = 0;
+    try { w = Number(localStorage.getItem(WIDTH_KEY)) || 0; } catch (err) { /* хранилище недоступно */ }
+    if (w) el.style.width = `${w}px`;
     document.body.append(el);
+    // ширину тянут за правый нижний угол: запоминаю её в этом браузере
+    let saveTimer = null;
+    new ResizeObserver(() => {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => { try { if (el) localStorage.setItem(WIDTH_KEY, String(Math.round(el.offsetWidth))); } catch (err) { /* хранилище недоступно */ } }, 300);
+    }).observe(el);
   }
   el.classList.toggle("folded", folded);
   el.innerHTML = html(actor, hudData(actor), folded);
@@ -201,12 +231,14 @@ function render() {
 /** Над панелью макросов, по центру экрана. */
 function place() {
   if (!el) return;
+  // по центру над панелью макросов; растягивается вправо от левого края
+  el.style.left = `${Math.max(8, Math.round((window.innerWidth - el.offsetWidth) / 2))}px`;
   const bar = document.getElementById("hotbar")?.getBoundingClientRect();
   el.style.bottom = `${bar && bar.height ? Math.max(8, window.innerHeight - bar.top + 8) : 70}px`;
 }
 
 async function onClick(ev) {
-  const t = ev.target.closest("[data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold]");
+  const t = ev.target.closest("[data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold]");
   if (!t || !shown) return;
   ev.preventDefault();
   const d = t.dataset, actor = shown;
@@ -220,6 +252,7 @@ async function onClick(ev) {
     return;
   }
   if (!actor.isOwner) return ui.notifications.warn(`«${actor.name}» вам не принадлежит.`);
+  if (d.hudEject !== undefined) return ejectNow(actor);
   // скорость и высота как на листе и в меню токена: действие засчитывают хуки actions.mjs
   if (d.hudSpeed) {
     const v = Math.min(hudData(actor).maxSpeed, actor.system.speed + Number(d.hudSpeed));

@@ -421,6 +421,40 @@ export async function rollEject(actor) {
   return postCard(actor, card, dice.rolls);
 }
 
+/**
+ * Катапульта одной кнопкой (HUD при метке Doom): без окон. Карточка Doom отмечается выбором «катапульта»,
+ * бросок Push против 7, при провале сам тратится Strain, если его хватает дотянуть до 7, исход сразу пишется в личное дело.
+ */
+export async function ejectNow(actor) {
+  if (!actor?.isOwner || actor.type !== "pilot") return null;
+  if (!actor.system.markers.doom) return ui.notifications.warn(`${actor.name}: катапульта только при метке Doom.`);
+  const doom = game.messages.contents.slice(-200).reverse().find(m => { const c = m.getFlag(SYSTEM_ID, "card"); return c?.type === "doomfate" && c.actorUuid === actor.uuid; });
+  const doomCard = doom ? foundry.utils.deepClone(doom.getFlag(SYSTEM_ID, "card")) : null;
+  if (doomCard?.chosen) return ui.notifications.warn(doomCard.chosen === "eject" ? `${actor.name}: катапульта уже сработала.` : `${actor.name}: выбрана героическая гибель.`);
+  if (doom && doom.canUserModify(game.user, "update")) {
+    doomCard.chosen = "eject";
+    await doom.update({ content: renderCard(doomCard), [`flags.${SYSTEM_ID}.card`]: doomCard });
+  }
+  const dice = await rollDice(actor, false, { turnRoll: false });
+  if (!dice) return null;
+  const card = {
+    type: "eject", label: "Катапультирование: Push против 7", rolled: true, d10: dice.d10, d4: dice.d4,
+    parts: [...skillParts(actor, "push", "Форсаж"), ...await takeNext(actor)], strain: 0, dc: 7, strainable: true,
+    skill: "push", perkOn: 4, compOn: 1
+  };
+  // не хватает до 7, а Strain дотягивает: тратится сам
+  const gap = card.dc - computeCard(card).total, have = actor.system.strain.value ?? 0;
+  if (gap > 0 && gap <= have) {
+    card.strain = gap;
+    card.notes = [`Strain потрачен сам: ${gap}.`];
+    await actor.update({ "system.strain.value": have - gap });
+  }
+  const fate = ejectFate(computeCard(card));
+  card.applied = fate.status;
+  await actor.update({ "system.service.status": fate.status });
+  return postCard(actor, card, dice.rolls);
+}
+
 /** Break!: d10 + Dodge (+Strain, +Lead союзника), пополам вверх. */
 export async function rollBreak(actor) {
   if (blocked(actor, "dodge")) return;

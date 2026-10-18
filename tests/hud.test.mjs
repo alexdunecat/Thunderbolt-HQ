@@ -16,14 +16,14 @@ Object.assign(globalThis, {
   Actor: class {}, Item: class {}, Combat: class {}, Application: class {}, FormApplication: class {}, ActorSheet: class {}, Dialog: class {}, fromUuidSync: () => null
 });
 const scene = { id: "S", getFlag: () => null };
-const mkTok = (id, actor, x, elevation) => ({ id, name: actor.name, actor, center: { x, y: 50 }, document: { parent: scene, elevation, width: 1, height: 1, x: x - 50, y: 0 } });
+const mkTok = (id, actor, x, elevation) => ({ id, name: actor.name, actor, center: { x, y: 50 }, document: { parent: scene, elevation, width: 1, height: 1, x: x - 50, y: 0, texture: { src: process.env.HUD_IMG ?? "systems/thunderbolt-shtab/assets/planes/mig29.svg" } } });
 const mkActor = (name, type, system, items = []) => {
   const a = { name, type, uuid: "Actor." + name, isOwner: true, isToken: false, system, items, ...flags({}) };
   a.getActiveTokens = () => (a.tok ? [a.tok] : []);
   return a;
 };
 const gun = (name, value, max) => ({ id: name, type: "weapon", name, system: { ammo: { value, max } } });
-const me = mkActor("Гроза", "pilot", { callsign: "Гроза", plane: { name: "МиГ-29" }, hp: { value: 1, max: 6 }, strain: { value: 2, max: 4 }, speed: 0, maxSpeed: 5, evasion: 3, alt: "low",
+const me = mkActor("Гроза", "pilot", { callsign: "Гроза", plane: { name: "МиГ-29", system: { key: "mig29a" } }, broken: "ms", markers: { structure: true, sys: "ms", grit: true, gritSkill: "aim" }, service: { status: "active" }, hp: { value: 1, max: 6 }, strain: { value: 2, max: 4 }, speed: 0, maxSpeed: 5, evasion: 3, alt: "low",
   lockUuid: "Actor.Стрикс-2", lock: "", ammoBonus: { QAAM: 1 } }, [gun("QAAM", 0, 1), gun("UGB", 3, null)]);
 const foe = mkActor("Стрикс-2", "npc", { kind: "air", hp: { value: 3, max: 3 }, speed: 3, alt: "low", lockUuid: "Actor.Гроза", stats: { spd: 4, ev: 3 } });
 me.tok = mkTok("T1", me, 50, 1); foe.tok = mkTok("T2", foe, 250, 1);
@@ -42,6 +42,11 @@ console.log("кнопки:", [...H.hudHtml(me).matchAll(/data-hud-act="(\w+)"[^>
 console.log(JSON.stringify(d, null, 1).replace(/\n\s*/g, " "));
 foe.system.lockUuid = ""; msgs.length = 0; me.system.speed = 3; me.system.alt = "high"; me.tok.document.elevation = 3; me.system.hp.value = 5; c.flags["thunderbolt-shtab"].acts = { round: 1, used: 2, list: [] };
 if (process.env.HUD_HTML) (await import("node:fs")).writeFileSync(process.env.HUD_HTML.replace(".html", "2.html"), H.hudHtml(me));
+me.system.markers.doom = true;
+console.log("Doom:", JSON.stringify(H.hudData(me).warn.map(w => w.key)), "катапульта:", H.hudData(me).canEject, H.hudHtml(me).includes("data-hud-eject") ? "кнопка есть" : "кнопки нет");
+me.system.service.status = "ejected";
+console.log("после катапульты:", H.hudData(me).canEject);
+me.system.markers.doom = false; me.system.service.status = "active";
 console.log("спокойно:", JSON.stringify(H.hudData(me).warn), JSON.stringify(H.hudData(me).acts), H.hudData(me).alt, H.hudData(me).lock.dist);
 console.log("у игрока:", H.hudActor()?.name ?? "нет");
 game.user.isGM = true;
