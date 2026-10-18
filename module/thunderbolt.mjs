@@ -235,9 +235,11 @@ async function breakLocks() {
  */
 const TOOL_LAYERS = { tbradio: "Радио", tbbrief: "Брифинг" };
 function registerToolLayers() {
-  if (!globalThis.InteractionLayer || !CONFIG.Canvas?.layers) return;
+  // классы Foundry объявлены в общем скрипте через class: они видны по имени, но не как globalThis.InteractionLayer
+  const Base = foundry.canvas?.layers?.InteractionLayer ?? (typeof InteractionLayer !== "undefined" ? InteractionLayer : null);
+  if (!Base || !CONFIG.Canvas?.layers) return console.warn(`${SYSTEM_ID} | нет InteractionLayer: разделы «Радио» и «Брифинг» уйдут к токенам`);
   for (const name of Object.keys(TOOL_LAYERS)) {
-    const layerClass = class extends InteractionLayer {
+    const layerClass = class extends Base {
       static get layerOptions() { return foundry.utils.mergeObject(super.layerOptions, { name, zIndex: 0 }); }
     };
     CONFIG.Canvas.layers[name] = { layerClass, group: "interface" };
@@ -251,13 +253,18 @@ Hooks.on("getSceneControlButtons", controls => {
     tool("tb-radio", "Радио AWACS: реплика всем", "fas fa-tower-broadcast", () => openRadioDialog()),
     tool("tb-chatter", "Реплики NPC: фразы союзников, противника и гражданских", "fas fa-comments", () => openChatterEditor()));
   const hasLayer = name => !!CONFIG.Canvas?.layers?.[name];
+  const tokens = controls.find(c => c.name === "token");
+  // без своего слоя раздел не работает: тогда кнопки остаются у токенов, чтобы ничего не пропало
   if (hasLayer("tbradio")) controls.push({ name: "tb-radio", title: "Радио", icon: "fas fa-headset", layer: "tbradio", activeTool: "", tools: radio });
+  else tokens?.tools.push(...radio);
   if (!game.user.isGM) return;
-  controls.find(c => c.name === "token")?.tools.push(tool("tb-awacs", "Панель AWACS", "fas fa-satellite-dish", () => openAwacs()));
-  if (hasLayer("tbbrief")) controls.push({ name: "tb-brief", title: "Брифинг", icon: "fas fa-chalkboard-user", layer: "tbbrief", activeTool: "", tools: [
+  tokens?.tools.push(tool("tb-awacs", "Панель AWACS", "fas fa-satellite-dish", () => openAwacs()));
+  const brief = [
     tool("tb-boot", "Заставка АСУ «Тайга» перед брифингом: у всех на экране", "fas fa-terminal", () => openBootDialog()),
     tool("tb-briefing", "Брифинг миссии: карта, этапы и субтитры у всех на экране", "fas fa-map", () => openBriefing())
-  ] });
+  ];
+  if (hasLayer("tbbrief")) controls.push({ name: "tb-brief", title: "Брифинг", icon: "fas fa-chalkboard-user", layer: "tbbrief", activeTool: "", tools: brief });
+  else tokens?.tools.push(...brief);
 });
 /* Гражданское радио: кнопка во вкладке плейлистов у тех, кто им управляет. */
 Hooks.on("renderPlaylistDirectory", (app, html) => {
@@ -325,7 +332,7 @@ function markFallen(root) {
 // состояние сменилось: список «Актёры» может и не перерисоваться, метки ставлю сразу
 Hooks.on("updateActor", (actor, change) => {
   if (!foundry.utils.hasProperty(change, "system.service.status") && !foundry.utils.hasProperty(change, "system.status")) return;
-  for (const el of [ui.actors?.element, ...Object.values(ui.windows).filter(w => globalThis.ActorDirectory && w instanceof ActorDirectory).map(w => w.element)]) {
+  for (const el of [ui.actors?.element, ...Object.values(ui.windows).filter(w => typeof ActorDirectory !== "undefined" && w instanceof ActorDirectory).map(w => w.element)]) {
     const root = el?.[0] ?? el;
     if (root?.querySelectorAll) markFallen(root);
   }

@@ -16,13 +16,19 @@ Object.assign(globalThis, {
   CONST: { TOKEN_DISPOSITIONS: {}, GRID_TYPES: {}, DRAWING_FILL_TYPES: {}, TOKEN_DISPLAY_MODES: {} },
   document: { body: { dataset: {} } }, ui: { windows: {} }
 });
+// как в Foundry: класс из общего скрипта виден по имени, но не как globalThis.InteractionLayer
+(await import("node:vm")).runInThisContext("class InteractionLayer { static get layerOptions() { return {}; } }");
+CONFIG.Canvas = { layers: {} };
 const root = new URL("..", import.meta.url).pathname;
 await import(root + "module/thunderbolt.mjs");
 for (const f of hooks.init ?? []) f();
 for (const f of hooks.ready ?? []) f();
 const controls = [{ name: "token", tools: [] }];
 for (const f of hooks.getSceneControlButtons ?? []) f(controls);
-if (!controls[0].tools.length) throw new Error("нет кнопки панели AWACS");
+if (controls[0].tools.map(t => t.name).join() !== "tb-awacs") throw new Error("у токенов должна быть только панель AWACS: " + controls[0].tools.map(t => t.name));
+const cats = controls.slice(1).map(c => `${c.name}[${c.layer}]: ${c.tools.map(t => t.name).join(",")}`);
+if (cats.length !== 2 || !CONFIG.Canvas.layers.tbradio || !CONFIG.Canvas.layers.tbbrief) throw new Error("нет разделов «Радио» и «Брифинг»: " + cats.join("; "));
+console.log("разделы:", cats.join("; "));
 // карточки рисуются без ошибок
 const { renderCard } = await import(root + "module/dice/rolls.mjs");
 renderCard({ type: "attack", attack: true, label: "Fox Two!", rolled: false, parts: [["Air-Air", 6], ["Speed", -2]], dc: 5, dmg: 5, delayed: true, combatKey: "c:1", targetUuid: "x", targetName: "МиГ", actorName: "Гроза" });
