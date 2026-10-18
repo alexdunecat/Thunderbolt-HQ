@@ -34,3 +34,24 @@ console.log("панель:", (html.match(/data-medal-give="(\w+)" disabled/g) ??
 await game.settings.set("x", "medalList", [{ id: "own", name: "Знак «Штурман года»", cond: "За точный выход на цель.", ribbon: M.DEFAULT_MEDALS[0].ribbon, need: { sorties: 3 }, repeat: false }]);
 console.log("свой список:", M.medalList().map(m => `${m.name} ${M.progress(pilot, m).text}`).join(", "), "· старая награда видна:", M.rack(pilot)[0].title);
 console.log("звезда:", /polygon/.test(M.ribbonSvg(M.DEFAULT_MEDALS.find(m => m.id === "hero"))) ? "есть" : "нет");
+// конструктор: черновик, полосы с симметрией, образцы, счёт, порядок
+await game.settings.set("x", "medalList", []);
+const st = M.startEdit(), rib = () => st.draft[st.sel].ribbon.map(([c, n]) => `${c.slice(1, 4)}:${n}`).join(" ");
+M.builderAct(st, "select", st.draft.findIndex(m => m.id === "ace"));
+console.log("конструктор: выбрана", st.draft[st.sel].name, "· симметрия", st.sym, "·", rib());
+M.builderAct(st, "stripe", 1); M.builderAct(st, "paint", "#b22222"); console.log("покраска 2-й с отражением:", rib());
+M.builderAct(st, "wide"); console.log("шире:", rib());
+M.builderAct(st, "add"); console.log("добавить полосу (парой):", rib(), "· выбрана", st.stripe + 1);
+M.builderAct(st, "del"); console.log("убрать (парой):", rib());
+M.builderAct(st, "stripe", 2); M.builderAct(st, "add"); console.log("добавить у середины:", rib());
+M.builderAct(st, "sym", false); M.builderAct(st, "stripe", 0); M.builderAct(st, "paint", "#2b4a8b"); console.log("без симметрии:", rib(), "· симметрична", M.isSymmetric(st.draft[st.sel].ribbon));
+M.builderAct(st, "sym", true); console.log("снова симметрично (левая половина отражена):", rib());
+M.builderAct(st, "pattern", 1); console.log("образец «Кайма»:", rib());
+M.builderAct(st, "addneed", "sorties"); M.builderAct(st, "need", { k: "air", v: "7" }); M.builderAct(st, "unneed", "sorties"); console.log("счёт:", JSON.stringify(st.draft[st.sel].need));
+M.builderAct(st, "field", { k: "name", v: "Знак «Ас Юктобании»" }); M.builderAct(st, "field", { k: "star", v: true });
+M.builderAct(st, "copy"); M.builderAct(st, "up"); M.builderAct(st, "up");
+console.log("копия и порядок:", st.draft.slice(4, 9).map(m => m.name).join(" · "), "· правки", st.dirty);
+console.log("в списке мира до сохранения:", M.medalList().find(m => m.id === "ace").name);
+const ehtml = M.panelHtml(null, { edit: true });
+console.log("разметка конструктора:", ["data-mk-stripe", "data-mk-paint", "data-mk-pattern", "data-mk-addneed", "tb-ribbon-big", "Сохранить *"].map(k => `${k} ${ehtml.includes(k) ? "✔" : "✘"}`).join(", "));
+M.stopEdit();
