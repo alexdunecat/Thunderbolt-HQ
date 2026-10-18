@@ -902,3 +902,47 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-strike { display: flex; align-items: center; gap: 8px; }
 .tb-strike .tb-strike-name { flex: 1; min-width: 0; }
 .tb-strike small { opacity: 0.8; }
+
+/* ---------- HUD пилота: полоса над панелью макросов ---------- */
+#tb-pilot-hud { position: fixed; left: 50%; transform: translateX(-50%); z-index: 70; width: min(760px, calc(100vw - 340px)); min-width: 520px;
+  background: color-mix(in srgb, var(--tb-bg) 88%, transparent); border: 1px solid var(--tb-line); box-shadow: inset 0 0 0 1px rgba(155, 227, 191, .08), 0 4px 18px rgba(0, 0, 0, .45);
+  color: var(--tb-ink); font-family: var(--tb-data); font-size: 12px; pointer-events: auto; backdrop-filter: blur(2px); }
+#tb-pilot-hud header { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-bottom: 1px solid var(--tb-line); cursor: pointer; user-select: none; }
+#tb-pilot-hud.folded header { border-bottom: none; }
+#tb-pilot-hud header b { font-family: var(--tb-display); letter-spacing: .08em; text-transform: uppercase; }
+#tb-pilot-hud header small { color: var(--tb-muted); }
+#tb-pilot-hud header > .fas { margin-left: auto; color: var(--tb-muted); }
+#tb-pilot-hud small { display: block; color: var(--tb-muted); font-size: 10px; letter-spacing: .14em; margin-top: 4px; }
+#tb-pilot-hud header small { display: inline; letter-spacing: .04em; margin: 0; font-size: 11px; }
+.tb-hud-turn { color: var(--tb-player, var(--tb-warn)); border: 1px solid currentColor; padding: 0 6px; font-size: 10.5px; letter-spacing: .12em; }
+.tb-hud-warn { color: var(--tb-bad); border: 1px solid currentColor; padding: 0 6px; font-size: 10.5px; letter-spacing: .12em; animation: tb-hud-blink 1s steps(2, start) infinite; }
+.tb-hud-warn.lowalt, .tb-hud-warn.lock { color: var(--tb-warn); }
+@keyframes tb-hud-blink { to { visibility: hidden; } }
+.tb-hud-grid { display: grid; grid-template-columns: 1fr 1.1fr 1.3fr; gap: 14px; padding: 4px 10px 6px; }
+.tb-hud-col { min-width: 0; }
+.tb-hud-pips { display: inline-flex; gap: 3px; vertical-align: middle; }
+.tb-hud-pips i { width: 13px; height: 8px; border: 1px solid var(--tb-line); }
+.tb-hud-pips.hp i.on { background: var(--tb-accent); border-color: var(--tb-accent); }
+.tb-hud-pips.strain i.on { background: var(--tb-warn); border-color: var(--tb-warn); }
+.tb-hud-num { margin-left: 6px; color: var(--tb-muted); }
+.tb-hud-big { display: flex; gap: 16px; }
+.tb-hud-big b { font-size: 20px; font-weight: 500; }
+.tb-hud-big b.bad { color: var(--tb-bad); }
+.tb-hud-big em { font-style: normal; color: var(--tb-muted); }
+.tb-hud-acts { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 6px; }
+.tb-hud-acts span { border: 1px solid var(--tb-line); padding: 0 6px; font-size: 10.5px; line-height: 18px; white-space: nowrap; }
+.tb-hud-acts span.used { color: var(--tb-muted); text-decoration: line-through; }
+.tb-hud-acts .fa-dice-d10 { color: var(--tb-muted); }
+.tb-hud-none { color: var(--tb-muted); }
+#tb-pilot-hud .tb-hud-lock { display: block; color: var(--tb-bad); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#tb-pilot-hud .tb-hud-lock.gone { color: var(--tb-muted); }
+.tb-hud-pips.hp.low i.on { background: var(--tb-bad); border-color: var(--tb-bad); }
+.tb-hud-weapons { display: block; overflow-wrap: anywhere; }
+.tb-hud-weapons .empty { color: var(--tb-muted); text-decoration: line-through; }
+.tb-hud-btns { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px 8px; border-top: 1px solid var(--tb-line); }
+#tb-pilot-hud .tb-hud-btns button { flex: 1 1 auto; width: auto; line-height: 22px; padding: 0 8px; font-family: var(--tb-data); font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+  background: var(--tb-surface); color: var(--tb-ink); border: 1px solid var(--tb-line); border-radius: 0; }
+#tb-pilot-hud .tb-hud-btns button b { color: var(--tb-accent); }
+#tb-pilot-hud .tb-hud-btns button:hover { background: var(--tb-accent); color: var(--tb-accent-ink); box-shadow: none; }
+#tb-pilot-hud .tb-hud-btns button:hover b { color: inherit; }
+#tb-pilot-hud .tb-hud-btns button.end { flex: 0 0 auto; margin-left: auto; }

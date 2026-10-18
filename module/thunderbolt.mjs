@@ -31,6 +31,7 @@ import { registerCivilRadio, openCivilRadio, canControl as canRadio } from "./ci
 import { registerChatter, openChatterEditor } from "./chatter.mjs";
 import { registerMission, openMissionDialog } from "./mission.mjs";
 import { registerSounds, cue } from "./sounds.mjs";
+import { registerHud } from "./hud.mjs";
 import { registerAces, openAceIntro, announceAces } from "./aces.mjs";
 import { registerPause } from "./pause.mjs";
 import { registerBoot, openBootDialog, startBoot, playBoot, stopBoot } from "./boot.mjs";
@@ -133,6 +134,7 @@ Hooks.once("init", () => {
   registerChatter();
   registerMission();
   registerSounds();
+  registerHud();
   registerStrikes();
   registerCivilRadio();
   registerAces();

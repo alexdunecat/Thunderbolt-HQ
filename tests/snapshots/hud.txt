@@ -1,0 +1,7 @@
+кнопки: 1:lock 2:missile 3:guns 4:break 5:lead 6:formup 7:recover 8:end
+{ "name": "Гроза", "plane": "МиГ-29", "hp": { "value": 1, "max": 6 }, "strain": { "value": 2, "max": 4 }, "speed": 0, "maxSpeed": 5, "alt": "Низкая", "defense": 3, "acts": { "declared": 3, "used": 1, "rolled": true, "list": [ "Move" ], "turn": true }, "lock": { "name": "Стрикс-2", "uuid": "Actor.Стрикс-2", "gone": false, "dist": "2 зоны" }, "weapons": [ { "name": "QAAM", "ammo": "0/2", "empty": true }, { "name": "UGB", "ammo": "∞", "empty": false } ], "warn": [ { "key": "missile", "text": "MISSILE" }, { "key": "stall", "text": "STALL" }, { "key": "lowalt", "text": "LOW ALT" }, { "key": "damage", "text": "DAMAGE" } ] }
+спокойно: [] {"declared":3,"used":0,"rolled":false,"list":[],"turn":true} Высокая 2 зоны
+у игрока: Гроза
+у ведущего без выделения: нет
+у ведущего с выделенным: Стрикс-2 · Воздушная цель 4 [{"key":"lock","text":"LOCK"},{"key":"lowalt","text":"LOW ALT"}]
+свёрнут: только шапка
