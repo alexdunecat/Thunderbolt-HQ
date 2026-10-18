@@ -3,159 +3,182 @@
     <span class="tb-kicker">Сцена</span> <b>{{sceneName}}</b>
     <label class="tb-awacs-date" title="Дата кампании: игровая дата для личных дел, разбора полёта, итогов боя и Славы. Пусто: сегодняшняя.">Дата <input type="text" data-campaign-date value="{{campaignDate}}" placeholder="{{today}}" maxlength="40"></label>
     {{#if round}}<span class="tb-awacs-round">Раунд {{round}}{{#if queued}} · ракет в воздухе: {{queued}}{{/if}}</span>{{/if}}
-    <span class="tb-awacs-btns">
-      <button type="button" data-sortie-all><i class="fas fa-plane-departure"></i> Все к вылету</button>
-      <button type="button" data-all-fight title="Добавить в трекер боя всех пилотов и NPC на сцене (здания и объекты не добавляются, скрытые остаются скрытыми)"><i class="fas fa-jet-fighter"></i> Все в бой</button>
-      <button type="button" data-results><i class="fas fa-clipboard-check"></i> Итоги вылета</button>
-      <button type="button" data-radio title="Реплика AWACS вверху экрана у всех игроков, по желанию с баннером CAUTION или WARNING"><i class="fas fa-tower-broadcast"></i> Радио</button>
-      <button type="button" data-chatter title="Фразы NPC в эфире: союзники, противник, гражданские по типам техники и событиям"><i class="fas fa-comments"></i> Реплики NPC</button>
-      <button type="button" data-briefing title="Брифинг миссии: тактическая карта, этапы и субтитры у всех на экране"><i class="fas fa-map"></i> Брифинг</button>
-      <button type="button" data-aces title="Представить эскадрилью асов: эмблема, название, подразделение и девиз у всех на экране"><i class="fas fa-jet-fighter"></i> Асы</button>
-      <button type="button" data-mission title="Баннер посреди экрана у всех: миссия выполнена, завершена, отменена или провалена, и реплика AWACS"><i class="fas fa-flag-checkered"></i> Итог миссии</button>
-      <button type="button" data-shtab title="Код всех пилотов для «Личного дела» Штаба и загрузка дел из Штаба"><i class="fas fa-id-card"></i> Дела и Штаб</button>
-    </span>
   </header>
+  <nav class="tb-tabs tb-awacs-tabs" data-group="awacs">
+    <a class="item" data-tab="fight"><i class="fas fa-crosshairs"></i> Бой{{#if badge.fight}} <span class="tb-tab-badge" title="Ударов по площади и ракет в воздухе">{{badge.fight}}</span>{{/if}}</a>
+    <a class="item" data-tab="enemy"><i class="fas fa-skull"></i> Противник</a>
+    <a class="item" data-tab="air"><i class="fas fa-tower-broadcast"></i> Эфир</a>
+    <a class="item" data-tab="mission"><i class="fas fa-map"></i> Миссия</a>
+    <a class="item" data-tab="campaign"><i class="fas fa-flag"></i> Кампания{{#if badge.campaign}} <span class="tb-tab-badge" title="Заполненных шкал угроз">{{badge.campaign}}</span>{{/if}}</a>
+  </nav>
   <section class="tb-awacs-body">
-    <h3>Пилоты</h3>
-    {{#if pilots.length}}
-    <table class="tb-awacs-table">
-      <tr><th></th><th>Пилот</th><th>HP</th><th>Strain</th><th>Speed</th><th>Высота</th><th>Def</th><th>Метки</th><th>Захват</th><th title="сбито в воздухе / на земле за вылет">Счёт</th></tr>
-      {{#each pilots as |p|}}
-      <tr class="{{#unless p.onScene}}off{{/unless}}">
-        <td><img src="{{p.img}}" alt=""></td>
-        <td><a data-open="{{p.id}}"><b>{{p.name}}</b></a><br><small>{{p.plane}}{{#if p.twist}} · после Поворота{{/if}}</small></td>
-        <td class="tb-num {{#if p.hpLow}}low{{/if}}"><a data-pool="hp" data-id="{{p.id}}" data-delta="-1">−</a> {{p.hp.value}}/{{p.hp.max}} <a data-pool="hp" data-id="{{p.id}}" data-delta="1">+</a></td>
-        <td class="tb-num"><a data-pool="strain" data-id="{{p.id}}" data-delta="-1">−</a> {{p.strain.value}}/{{p.strain.max}} <a data-pool="strain" data-id="{{p.id}}" data-delta="1">+</a></td>
-        <td class="tb-num {{#if p.stall}}low{{/if}}">{{p.speed}}/{{p.maxSpeed}}</td>
-        <td>{{p.alt}} {{p.weather}}</td>
-        <td class="tb-num">{{p.defense}}{{#if p.breakEv}} <small>Break</small>{{/if}}</td>
-        <td>{{#each p.markers as |m|}}<span class="tb-mk {{m.cls}}">{{m.label}}</span>{{else}}<span class="tb-muted">—</span>{{/each}}</td>
-        <td>{{#if p.lock}}{{p.lock}}{{else}}<span class="tb-muted">—</span>{{/if}}</td>
-        <td class="tb-num">{{p.kills}}</td>
-      </tr>
-      {{/each}}
-    </table>
-    {{else}}<p class="tb-empty">Пилотов пока нет.</p>{{/if}}
-
-    {{#each groups as |g|}}
-    <h3 class="tb-side-{{g.cls}}">{{g.title}}</h3>
-    <table class="tb-awacs-table tb-side-{{g.cls}}">
-      <tr><th>{{#if g.goal}}Цель{{else}}Машина{{/if}}</th>{{#if g.goal}}<th>Задача</th>{{/if}}<th>Тип</th><th>HP</th><th>Def</th><th>Высота</th><th>Метки</th></tr>
-      {{#each g.rows as |t|}}
-      <tr class="{{#if t.down}}down{{/if}} {{#if t.hidden}}off{{/if}}">
-        <td><span class="tb-side-dot {{t.side}}"></span><a data-target="{{t.id}}" title="Показать на сцене"><b>{{t.name}}</b></a> <a data-target="{{t.id}}" data-sheet="1" title="Лист"><i class="fas fa-id-card"></i></a></td>
-        {{#if g.goal}}<td><select data-task="{{t.id}}">{{#each t.taskOptions as |o|}}<option value="{{o.k}}" {{#if o.sel}}selected{{/if}}>{{o.v}}</option>{{/each}}</select></td>{{/if}}
-        <td><small>{{t.kind}}{{#if t.tier}} · {{t.tier}}{{/if}}</small></td>
-        <td class="tb-num">{{t.hp.value}}/{{t.hp.max}}</td>
-        <td class="tb-num">{{t.defense}}</td>
-        <td>{{t.alt}}</td>
-        <td>{{#each t.markers as |m|}}<span class="tb-mk {{m.cls}}">{{m.label}}</span>{{/each}}{{#if t.down}}<span class="tb-mk doom">сбит</span>{{/if}}</td>
-      </tr>
-      {{/each}}
-    </table>
-    {{else}}<h3>Цели и машины на сцене</h3><p class="tb-empty">На сцене нет NPC.</p>{{/each}}
-
-    <h3>Эскадрильи дуэлянтов <button type="button" class="tb-inline-btn" data-squad-form title="Выделите на сцене токены NPC"><i class="fas fa-users"></i> Собрать из выделенных</button></h3>
-    <label class="tb-ops-done" title="Хоумрул 9: раскладка эскадрильи дуэлянтов — 4 очка + 1 за каждую пройденную операцию кампании. Крупные корабли-дуэлянты растут так же.">Пройдено операций <input type="number" min="0" data-ops-done value="{{opsDone}}"> <small class="tb-muted">→ раскладка на {{squadBudgetText}}</small></label>
-    {{#if squads.length}}
-    <table class="tb-awacs-table tb-squads">
-      <tr><th>Эскадрилья</th>{{#each skillHeads as |h|}}<th title="{{h.label}}">{{h.en}}</th>{{/each}}<th>Очки</th><th></th></tr>
-      {{#each squads as |q|}}
-      <tr>
-        <td><b>{{q.name}}</b>{{#if q.tag}} · {{q.tag}}{{/if}}<br><small>{{q.members}}</small></td>
-        {{#each q.skills as |sk|}}<td class="tb-num"><input type="number" min="0" data-squad="{{q.name}}" data-squad-key="{{sk.key}}" value="{{sk.value}}"></td>{{/each}}
-        <td class="tb-num {{#if q.over}}low{{/if}}">{{q.used}}/{{@root.squadBudget}}</td>
-        <td><a data-squad-num="{{q.name}}" title="Обозначение и номера машин"><i class="fas fa-list-ol"></i></a> <a data-squad-talk="{{q.name}}" title="Реплики эскадрильи в эфире"><i class="fas fa-comments"></i></a> <a data-squad-del="{{q.name}}" title="Распустить"><i class="fas fa-trash"></i></a></td>
-      </tr>
-      {{/each}}
-    </table>
-    {{else}}<p class="tb-empty">На этой сцене эскадрилий нет. Выделите токены NPC и нажмите «Собрать из выделенных»: у них будет одна раскладка навыков на {{squadBudgetText}}.</p>{{/if}}
-    {{#if squadsElsewhere}}<p class="tb-small tb-muted">На других сценах: {{squadsElsewhere}}.</p>{{/if}}
-
-    <h3>Шкалы боя <button type="button" class="tb-inline-btn" data-boss-add title="Шкала со своим названием и делениями: шаблоны «Аркбёрд», SOLG, ракетная шахта, рейлган, Тревога стелс-миссии. AWACS говорит заготовленные реплики на 50 %, 75 %, 90 % и при заполнении"><i class="fas fa-hourglass-half"></i> Шкала боя</button></h3>
-    {{#if bossClocks.length}}
-    <div class="tb-threats tb-boss-clocks">
-      {{#each bossClocks as |t|}}
-      <div class="tb-threat {{#if t.full}}full{{/if}}" title="{{t.note}}">
-        <span class="tb-threat-name">{{t.name}}{{#if t.tick}} <i class="fas fa-rotate" title="+1 в конце каждого раунда"></i>{{/if}}{{#if t.alarm}} <i class="fas fa-bell" title="Тревога стелс-миссии: радарное поле на карте, проверки в конце хода пилота, внезапность +2"></i>{{/if}}{{#if t.open}} <i class="fas fa-eye" title="Видна игрокам на листе"></i>{{/if}}</span>
-        <span class="tb-clock">{{#each t.pips as |p|}}<i class="{{#if p.on}}on{{/if}}"></i>{{/each}}</span>
-        <span class="tb-num">{{t.value}}/{{t.size}} <small>{{t.pct}} %</small></span>
-        <a data-threat-step="{{t.id}}" data-delta="-1" title="Снять деление">−</a> <a data-threat-step="{{t.id}}" data-delta="1" title="Добавить деление">+</a>
-        <a data-boss-edit="{{t.id}}" title="Название, деления и реплики AWACS"><i class="fas fa-pen"></i></a>
-        <a data-threat-del="{{t.id}}" title="Убрать шкалу"><i class="fas fa-trash"></i></a>
-        {{#if t.marks}}<small class="tb-muted tb-boss-marks">Реплики: {{t.marks}}{{#if t.lines.full}}, при заполнении{{/if}}</small>{{/if}}
+    <div class="tab" data-group="awacs" data-tab="fight">
+      <div class="tb-awacs-tools">
+        <button type="button" data-sortie-all><i class="fas fa-plane-departure"></i> Все к вылету</button>
+        <button type="button" data-all-fight title="Добавить в трекер боя всех пилотов и NPC на сцене (здания и объекты не добавляются, скрытые остаются скрытыми)"><i class="fas fa-jet-fighter"></i> Все в бой</button>
       </div>
-      {{/each}}
-    </div>
-    {{else}}<p class="tb-small tb-muted">Шкал боя нет. «Шкала боя» заводит сброс «Аркбёрда», падение SOLG, пуск из шахты, заряд рейлгана, Тревогу стелс-миссии или свою шкалу, с репликами AWACS на отметках.</p>{{/if}}
-
-    <h3>Удары по площади <button type="button" class="tb-inline-btn" data-strike-add title="Супероружие и навесной огонь: в начале раунда отметить зоны и высоту на карте, в конце раунда урон всем, кто не ушёл"><i class="fas fa-crosshairs"></i> Отметить удар</button></h3>
-    {{#if strikes.length}}
-    <div class="tb-strikes">
-      {{#each strikes as |s|}}
-      <div class="tb-strike">
-        <span class="tb-strike-name"><b>{{s.label}}</b> <small>{{s.where}} · {{s.when}}</small></span>
-        <a data-strike-edit="{{s.id}}" title="Поправить зоны: снять сбитую ракету или перенести"><i class="fas fa-border-all"></i></a>
-        <a data-strike-del="{{s.id}}" title="Отменить удар"><i class="fas fa-trash"></i></a>
+      <h3>Пилоты</h3>
+      {{#if pilots.length}}
+      <table class="tb-awacs-table">
+        <tr><th></th><th>Пилот</th><th>HP</th><th>Strain</th><th>Speed</th><th>Высота</th><th>Def</th><th>Метки</th><th>Захват</th><th title="сбито в воздухе / на земле за вылет">Счёт</th></tr>
+        {{#each pilots as |p|}}
+        <tr class="{{#unless p.onScene}}off{{/unless}}">
+          <td><img src="{{p.img}}" alt=""></td>
+          <td><a data-open="{{p.id}}"><b>{{p.name}}</b></a><br><small>{{p.plane}}{{#if p.twist}} · после Поворота{{/if}}</small></td>
+          <td class="tb-num {{#if p.hpLow}}low{{/if}}"><a data-pool="hp" data-id="{{p.id}}" data-delta="-1">−</a> {{p.hp.value}}/{{p.hp.max}} <a data-pool="hp" data-id="{{p.id}}" data-delta="1">+</a></td>
+          <td class="tb-num"><a data-pool="strain" data-id="{{p.id}}" data-delta="-1">−</a> {{p.strain.value}}/{{p.strain.max}} <a data-pool="strain" data-id="{{p.id}}" data-delta="1">+</a></td>
+          <td class="tb-num {{#if p.stall}}low{{/if}}">{{p.speed}}/{{p.maxSpeed}}</td>
+          <td>{{p.alt}} {{p.weather}}</td>
+          <td class="tb-num">{{p.defense}}{{#if p.breakEv}} <small>Break</small>{{/if}}</td>
+          <td>{{#each p.markers as |m|}}<span class="tb-mk {{m.cls}}">{{m.label}}</span>{{else}}<span class="tb-muted">—</span>{{/each}}</td>
+          <td>{{#if p.lock}}{{p.lock}}{{else}}<span class="tb-muted">—</span>{{/if}}</td>
+          <td class="tb-num">{{p.kills}}</td>
+        </tr>
+        {{/each}}
+      </table>
+      {{else}}<p class="tb-empty">Пилотов пока нет.</p>{{/if}}
+      {{#each groups as |g|}}
+      <div class="tb-fold {{#if g.folded}}folded{{/if}}">
+      <h3 class="tb-side-{{g.cls}} tb-fold-head" data-fold="{{g.cls}}" title="Свернуть или развернуть"><i class="fas fa-caret-down"></i> {{g.title}} <small>{{g.rows.length}}</small></h3>
+      <table class="tb-awacs-table tb-side-{{g.cls}}">
+        <tr><th>{{#if g.goal}}Цель{{else}}Машина{{/if}}</th>{{#if g.goal}}<th>Задача</th>{{/if}}<th>Тип</th><th>HP</th><th>Def</th><th>Высота</th><th>Метки</th></tr>
+        {{#each g.rows as |t|}}
+        <tr class="{{#if t.down}}down{{/if}} {{#if t.hidden}}off{{/if}}">
+          <td><span class="tb-side-dot {{t.side}}"></span><a data-target="{{t.id}}" title="Показать на сцене"><b>{{t.name}}</b></a> <a data-target="{{t.id}}" data-sheet="1" title="Лист"><i class="fas fa-id-card"></i></a></td>
+          {{#if g.goal}}<td><select data-task="{{t.id}}">{{#each t.taskOptions as |o|}}<option value="{{o.k}}" {{#if o.sel}}selected{{/if}}>{{o.v}}</option>{{/each}}</select></td>{{/if}}
+          <td><small>{{t.kind}}{{#if t.tier}} · {{t.tier}}{{/if}}</small></td>
+          <td class="tb-num">{{t.hp.value}}/{{t.hp.max}}</td>
+          <td class="tb-num">{{t.defense}}</td>
+          <td>{{t.alt}}</td>
+          <td>{{#each t.markers as |m|}}<span class="tb-mk {{m.cls}}">{{m.label}}</span>{{/each}}{{#if t.down}}<span class="tb-mk doom">сбит</span>{{/if}}</td>
+        </tr>
+        {{/each}}
+      </table>
       </div>
-      {{/each}}
-    </div>
-    {{else}}<p class="tb-small tb-muted">Ударов нет. «Отметить удар»: рельсотроны Арсиона, рельсотронный залп, шрапнельные ракеты, лазер «Аркбёрда», SOLG, навесной огонь, взрыв реактора или свой удар. Зоны видны всем на карте, урон в конце раунда сам.</p>{{/if}}
-
-    {{#if tunnel.length}}
-    <h3>Туннель</h3>
-    <div class="tb-tunnel-states">
-      {{#each tunnel as |s|}}
-      <label title="{{#if s.gate}}Закрытые Ворота не пролететь, пока их не разобьют (заслонка с HP и Occlusion 4){{else}}Пока Препятствие на месте, пролёт через него +2 к сложности{{/if}}">Т{{s.n}} {{s.name}}
-        <select data-tun-state="{{s.key}}">{{#each s.states as |o|}}<option value="{{o.k}}" {{#if o.sel}}selected{{/if}}>{{o.v}}</option>{{/each}}</select></label>
-      {{/each}}
-    </div>
-    {{/if}}
-
-    <h3>Слава эскадрильи <button type="button" class="tb-inline-btn" data-glory-add title="Начислить Славу по сводке последнего боя на сцене: задачи, рядовые, дуэлянты, асы, Немезида, корабли, супероружие"><i class="fas fa-star"></i> Начислить</button></h3>
-    <div class="tb-glory">
-      <span class="tb-glory-level lv-{{glory.key}}">{{glory.name}}</span>
-      <span class="tb-num"><a data-glory-step="-1" title="Снять 1 Славу">−</a> <b>{{glory.points}}</b> <a data-glory-step="1" title="Добавить 1 Славу">+</a></span>
-      <span class="tb-glory-bar" title="{{#if glory.next}}До уровня «{{glory.next}}»: {{glory.toNext}}{{else}}Высший уровень{{/if}}"><i style="width:{{glory.pct}}%"></i></span>
-      <small class="tb-muted">{{#if glory.next}}до «{{glory.next}}» {{glory.toNext}}{{else}}высший уровень{{/if}} · рядовых в копилке {{glory.conscripts}} из 10</small>
-      <label class="tb-glory-nick">Прозвище от врага <input type="text" data-glory-nick value="{{glory.nickname}}" placeholder="{{#if glory.nickOpen}}впишите прозвище{{else}}появится на уровне «На слуху»{{/if}}"></label>
-      {{#if glory.recent.length}}<small class="tb-muted tb-glory-log">{{#each glory.recent as |r|}}{{r}}{{#unless @last}}; {{/unless}}{{/each}}</small>{{/if}}
-    </div>
-
-    <h3>Даунтайм <button type="button" class="tb-inline-btn" data-base-event title="Бросить d10 по таблице событий на базе: событие и вопрос-крючок для общей сцены"><i class="fas fa-dice-d10"></i> Событие на базе</button>
-      <button type="button" class="tb-inline-btn" data-threat-add><i class="fas fa-plus"></i> Шкала угрозы</button></h3>
-    {{#if threats.length}}
-    <div class="tb-threats">
-      {{#each threats as |t|}}
-      <div class="tb-threat {{#if t.full}}full{{/if}}" title="{{t.note}}">
-        <span class="tb-threat-name">{{t.name}}</span>
-        <span class="tb-clock">{{#each t.pips as |p|}}<i class="{{#if p.on}}on{{/if}}"></i>{{/each}}</span>
-        <span class="tb-num">{{t.value}}/{{t.size}}</span>
-        <a data-threat-step="{{t.id}}" data-delta="-1" title="Снять деление">−</a> <a data-threat-step="{{t.id}}" data-delta="1" title="Добавить деление">+</a>
-        <a data-threat-del="{{t.id}}" title="Убрать шкалу"><i class="fas fa-trash"></i></a>
+      {{else}}<h3>Цели и машины на сцене</h3><p class="tb-empty">На сцене нет NPC.</p>{{/each}}
+      <h3>Удары по площади <button type="button" class="tb-inline-btn" data-strike-add title="Супероружие и навесной огонь: в начале раунда отметить зоны и высоту на карте, в конце раунда урон всем, кто не ушёл"><i class="fas fa-crosshairs"></i> Отметить удар</button></h3>
+      {{#if strikes.length}}
+      <div class="tb-strikes">
+        {{#each strikes as |s|}}
+        <div class="tb-strike">
+          <span class="tb-strike-name"><b>{{s.label}}</b> <small>{{s.where}} · {{s.when}}</small></span>
+          <a data-strike-edit="{{s.id}}" title="Поправить зоны: снять сбитую ракету или перенести"><i class="fas fa-border-all"></i></a>
+          <a data-strike-del="{{s.id}}" title="Отменить удар"><i class="fas fa-trash"></i></a>
+        </div>
+        {{/each}}
       </div>
-      {{/each}}
+      {{else}}<p class="tb-small tb-muted">Ударов нет. «Отметить удар»: рельсотроны Арсиона, рельсотронный залп, шрапнельные ракеты, лазер «Аркбёрда», SOLG, навесной огонь, взрыв реактора или свой удар. Зоны видны всем на карте, урон в конце раунда сам.</p>{{/if}}
+      <h3>Шкалы боя <button type="button" class="tb-inline-btn" data-boss-add title="Шкала со своим названием и делениями: шаблоны «Аркбёрд», SOLG, ракетная шахта, рейлган, Тревога стелс-миссии. AWACS говорит заготовленные реплики на 50 %, 75 %, 90 % и при заполнении"><i class="fas fa-hourglass-half"></i> Шкала боя</button></h3>
+      {{#if bossClocks.length}}
+      <div class="tb-threats tb-boss-clocks">
+        {{#each bossClocks as |t|}}
+        <div class="tb-threat {{#if t.full}}full{{/if}}" title="{{t.note}}">
+          <span class="tb-threat-name">{{t.name}}{{#if t.tick}} <i class="fas fa-rotate" title="+1 в конце каждого раунда"></i>{{/if}}{{#if t.alarm}} <i class="fas fa-bell" title="Тревога стелс-миссии: радарное поле на карте, проверки в конце хода пилота, внезапность +2"></i>{{/if}}{{#if t.open}} <i class="fas fa-eye" title="Видна игрокам на листе"></i>{{/if}}</span>
+          <span class="tb-clock">{{#each t.pips as |p|}}<i class="{{#if p.on}}on{{/if}}"></i>{{/each}}</span>
+          <span class="tb-num">{{t.value}}/{{t.size}} <small>{{t.pct}} %</small></span>
+          <a data-threat-step="{{t.id}}" data-delta="-1" title="Снять деление">−</a> <a data-threat-step="{{t.id}}" data-delta="1" title="Добавить деление">+</a>
+          <a data-boss-edit="{{t.id}}" title="Название, деления и реплики AWACS"><i class="fas fa-pen"></i></a>
+          <a data-threat-del="{{t.id}}" title="Убрать шкалу"><i class="fas fa-trash"></i></a>
+          {{#if t.marks}}<small class="tb-muted tb-boss-marks">Реплики: {{t.marks}}{{#if t.lines.full}}, при заполнении{{/if}}</small>{{/if}}
+        </div>
+        {{/each}}
+      </div>
+      {{else}}<p class="tb-small tb-muted">Шкал боя нет. «Шкала боя» заводит сброс «Аркбёрда», падение SOLG, пуск из шахты, заряд рейлгана, Тревогу стелс-миссии или свою шкалу, с репликами AWACS на отметках.</p>{{/if}}
+      {{#if tunnel.length}}
+      <h3>Туннель</h3>
+      <div class="tb-tunnel-states">
+        {{#each tunnel as |s|}}
+        <label title="{{#if s.gate}}Закрытые Ворота не пролететь, пока их не разобьют (заслонка с HP и Occlusion 4){{else}}Пока Препятствие на месте, пролёт через него +2 к сложности{{/if}}">Т{{s.n}} {{s.name}}
+          <select data-tun-state="{{s.key}}">{{#each s.states as |o|}}<option value="{{o.k}}" {{#if o.sel}}selected{{/if}}>{{o.v}}</option>{{/each}}</select></label>
+        {{/each}}
+      </div>
+      {{/if}}
     </div>
-    {{else}}<p class="tb-small tb-muted">Шкал угроз нет. Цена «Эскалация» на карточке проверки на земле добавляет деление на шкалу; её же можно завести здесь. Шкалы видят все пилоты на вкладке «Даунтайм».</p>{{/if}}
-    {{#if ground.length}}
-    <table class="tb-awacs-table tb-ground-table">
-      <tr><th>Пилот</th><th title="Нервы 0–5">Нервы</th><th title="Решимость 0–2">Реш.</th><th title="Действий в этом даунтайме">Дейст.</th><th>Заделы и последствия на вылет</th><th>Связи</th></tr>
-      {{#each ground as |p|}}
-      <tr><td><a data-open="{{p.id}}"><b>{{p.name}}</b></a></td>
-        <td class="tb-num tb-nerves-{{p.nervesCls}}">{{p.nerves}}{{#if p.edgeFly}} <small>на пределе</small>{{/if}}</td>
-        <td class="tb-num">{{p.resolve}}</td><td class="tb-num">{{p.actions}}</td>
-        <td><small>{{#if p.edges}}{{p.edges}}{{else}}—{{/if}}</small></td><td><small>{{#if p.bonds}}{{p.bonds}}{{else}}—{{/if}}</small></td></tr>
-      {{/each}}
-    </table>
-    {{/if}}
-
-    <h3>Погода над всей сценой {{#if cells}}<small>ещё в {{cells}} клетках из импорта миссии</small>{{/if}}</h3>
-    <p class="tb-small"><a class="tb-btn" data-map-update title="Вставить JSON миссии из Планшета: карта и погода на этой сцене перерисуются, токены останутся"><i class="fas fa-cloud-bolt"></i> Карта и погода из Планшета</a></p>
-    <div class="tb-awacs-weather">
-      {{#each weather as |w|}}
-      <label class="tb-fx-toggle {{#if w.on}}on{{/if}}" title="{{w.txt}}"><input type="checkbox" data-weather="{{w.id}}" {{checked w.on}}> {{w.ico}} {{w.name}}</label>
-      {{/each}}
+    <div class="tab" data-group="awacs" data-tab="enemy">
+      <div class="tb-awacs-tools">
+        <button type="button" data-aces title="Представить эскадрилью асов: эмблема, название, подразделение и девиз у всех на экране"><i class="fas fa-jet-fighter"></i> Асы</button>
+      </div>
+      <p class="tb-small tb-muted">«Асы»: представить эскадрилью асов у всех на экране, эмблема, название и девиз.</p>
+      <h3>Эскадрильи дуэлянтов <button type="button" class="tb-inline-btn" data-squad-form title="Выделите на сцене токены NPC"><i class="fas fa-users"></i> Собрать из выделенных</button></h3>
+      <label class="tb-ops-done" title="Раскладка эскадрильи дуэлянтов — 4 очка + 1 за каждую пройденную операцию кампании. Крупные корабли-дуэлянты растут так же.">Пройдено операций <input type="number" min="0" data-ops-done value="{{opsDone}}"> <small class="tb-muted">→ раскладка на {{squadBudgetText}}</small></label>
+      {{#if squads.length}}
+      <table class="tb-awacs-table tb-squads">
+        <tr><th>Эскадрилья</th>{{#each skillHeads as |h|}}<th title="{{h.label}}">{{h.en}}</th>{{/each}}<th>Очки</th><th></th></tr>
+        {{#each squads as |q|}}
+        <tr>
+          <td><b>{{q.name}}</b>{{#if q.tag}} · {{q.tag}}{{/if}}<br><small>{{q.members}}</small></td>
+          {{#each q.skills as |sk|}}<td class="tb-num"><input type="number" min="0" data-squad="{{q.name}}" data-squad-key="{{sk.key}}" value="{{sk.value}}"></td>{{/each}}
+          <td class="tb-num {{#if q.over}}low{{/if}}">{{q.used}}/{{@root.squadBudget}}</td>
+          <td><a data-squad-num="{{q.name}}" title="Обозначение и номера машин"><i class="fas fa-list-ol"></i></a> <a data-squad-talk="{{q.name}}" title="Реплики эскадрильи в эфире"><i class="fas fa-comments"></i></a> <a data-squad-del="{{q.name}}" title="Распустить"><i class="fas fa-trash"></i></a></td>
+        </tr>
+        {{/each}}
+      </table>
+      {{else}}<p class="tb-empty">На этой сцене эскадрилий нет. Выделите токены NPC и нажмите «Собрать из выделенных»: у них будет одна раскладка навыков на {{squadBudgetText}}.</p>{{/if}}
+      {{#if squadsElsewhere}}<p class="tb-small tb-muted">На других сценах: {{squadsElsewhere}}.</p>{{/if}}
     </div>
-    <p class="tb-small tb-muted">Погода сама попадает в защиту, A-A и A-G без броска, Push и пороги Complication. Молния и торнадо показываются подсказкой: их последствия объявляет AWACS.</p>
+    <div class="tab" data-group="awacs" data-tab="air">
+      <div class="tb-awacs-tools">
+        <button type="button" data-radio title="Реплика AWACS вверху экрана у всех игроков, по желанию с баннером CAUTION или WARNING"><i class="fas fa-tower-broadcast"></i> Радио</button>
+        <button type="button" data-chatter title="Фразы NPC в эфире: союзники, противник, гражданские по типам техники и событиям"><i class="fas fa-comments"></i> Реплики NPC</button>
+        <button type="button" data-mission title="Баннер посреди экрана у всех: миссия выполнена, завершена, отменена или провалена, и реплика AWACS"><i class="fas fa-flag-checkered"></i> Итог миссии</button>
+      </div>
+      <p class="tb-small tb-muted">«Радио»: реплика AWACS вверху экрана у всех, по желанию с баннером CAUTION или WARNING. «Реплики NPC»: фразы союзников, противника и гражданских в эфире. «Итог миссии»: баннер посреди экрана у всех и реплика AWACS. Журнал и гражданское радио в разделе «Радио» на панели слева.</p>
+    </div>
+    <div class="tab" data-group="awacs" data-tab="mission">
+      <div class="tb-awacs-tools">
+        <button type="button" data-briefing title="Брифинг миссии: тактическая карта, этапы и субтитры у всех на экране"><i class="fas fa-map"></i> Брифинг</button>
+        <button type="button" data-results><i class="fas fa-clipboard-check"></i> Итоги вылета</button>
+        <button type="button" data-map-update title="Вставить JSON миссии из Планшета: карта и погода на этой сцене перерисуются, токены останутся"><i class="fas fa-cloud-bolt"></i> Карта и погода из Планшета</button>
+      </div>
+      <p class="tb-small tb-muted">«Брифинг»: тактическая карта, этапы и субтитры у всех на экране. «Итоги вылета»: метки, счёт, расход спецоружия и разбор полёта в журнал. «Карта и погода из Планшета»: JSON миссии перерисует карту и погоду сцены, токены останутся.</p>
+      <h3>Погода над всей сценой {{#if cells}}<small>ещё в {{cells}} клетках из импорта миссии</small>{{/if}}</h3>
+      <div class="tb-awacs-weather">
+        {{#each weather as |w|}}
+        <label class="tb-fx-toggle {{#if w.on}}on{{/if}}" title="{{w.txt}}"><input type="checkbox" data-weather="{{w.id}}" {{checked w.on}}> {{w.ico}} {{w.name}}</label>
+        {{/each}}
+      </div>
+      <p class="tb-small tb-muted">Погода сама попадает в защиту, A-A и A-G без броска, Push и пороги Complication. Молния и торнадо показываются подсказкой: их последствия объявляет AWACS.</p>
+    </div>
+    <div class="tab" data-group="awacs" data-tab="campaign">
+      <div class="tb-awacs-tools">
+        <button type="button" data-shtab title="Код всех пилотов для «Личного дела» Штаба и загрузка дел из Штаба"><i class="fas fa-id-card"></i> Дела и Штаб</button>
+      </div>
+      <p class="tb-small tb-muted">«Дела и Штаб»: код всех пилотов для «Личного дела» Штаба и загрузка дел из Штаба.</p>
+      <h3>Слава эскадрильи <button type="button" class="tb-inline-btn" data-glory-add title="Начислить Славу по сводке последнего боя на сцене: задачи, рядовые, дуэлянты, асы, Немезида, корабли, супероружие"><i class="fas fa-star"></i> Начислить</button></h3>
+      <div class="tb-glory">
+        <span class="tb-glory-level lv-{{glory.key}}">{{glory.name}}</span>
+        <span class="tb-num"><a data-glory-step="-1" title="Снять 1 Славу">−</a> <b>{{glory.points}}</b> <a data-glory-step="1" title="Добавить 1 Славу">+</a></span>
+        <span class="tb-glory-bar" title="{{#if glory.next}}До уровня «{{glory.next}}»: {{glory.toNext}}{{else}}Высший уровень{{/if}}"><i style="width:{{glory.pct}}%"></i></span>
+        <small class="tb-muted">{{#if glory.next}}до «{{glory.next}}» {{glory.toNext}}{{else}}высший уровень{{/if}} · рядовых в копилке {{glory.conscripts}} из 10</small>
+        <label class="tb-glory-nick">Прозвище от врага <input type="text" data-glory-nick value="{{glory.nickname}}" placeholder="{{#if glory.nickOpen}}впишите прозвище{{else}}появится на уровне «На слуху»{{/if}}"></label>
+        {{#if glory.recent.length}}<small class="tb-muted tb-glory-log">{{#each glory.recent as |r|}}{{r}}{{#unless @last}}; {{/unless}}{{/each}}</small>{{/if}}
+      </div>
+      <h3>Даунтайм <button type="button" class="tb-inline-btn" data-base-event title="Бросить d10 по таблице событий на базе: событие и вопрос-крючок для общей сцены"><i class="fas fa-dice-d10"></i> Событие на базе</button>
+        <button type="button" class="tb-inline-btn" data-threat-add><i class="fas fa-plus"></i> Шкала угрозы</button></h3>
+      {{#if threats.length}}
+      <div class="tb-threats">
+        {{#each threats as |t|}}
+        <div class="tb-threat {{#if t.full}}full{{/if}}" title="{{t.note}}">
+          <span class="tb-threat-name">{{t.name}}</span>
+          <span class="tb-clock">{{#each t.pips as |p|}}<i class="{{#if p.on}}on{{/if}}"></i>{{/each}}</span>
+          <span class="tb-num">{{t.value}}/{{t.size}}</span>
+          <a data-threat-step="{{t.id}}" data-delta="-1" title="Снять деление">−</a> <a data-threat-step="{{t.id}}" data-delta="1" title="Добавить деление">+</a>
+          <a data-threat-del="{{t.id}}" title="Убрать шкалу"><i class="fas fa-trash"></i></a>
+        </div>
+        {{/each}}
+      </div>
+      {{else}}<p class="tb-small tb-muted">Шкал угроз нет. Цена «Эскалация» на карточке проверки на земле добавляет деление на шкалу; её же можно завести здесь. Шкалы видят все пилоты на вкладке «Даунтайм».</p>{{/if}}
+      {{#if ground.length}}
+      <table class="tb-awacs-table tb-ground-table">
+        <tr><th>Пилот</th><th title="Нервы 0–5">Нервы</th><th title="Решимость 0–2">Реш.</th><th title="Действий в этом даунтайме">Дейст.</th><th>Заделы и последствия на вылет</th><th>Связи</th></tr>
+        {{#each ground as |p|}}
+        <tr><td><a data-open="{{p.id}}"><b>{{p.name}}</b></a></td>
+          <td class="tb-num tb-nerves-{{p.nervesCls}}">{{p.nerves}}{{#if p.edgeFly}} <small>на пределе</small>{{/if}}</td>
+          <td class="tb-num">{{p.resolve}}</td><td class="tb-num">{{p.actions}}</td>
+          <td><small>{{#if p.edges}}{{p.edges}}{{else}}—{{/if}}</small></td><td><small>{{#if p.bonds}}{{p.bonds}}{{else}}—{{/if}}</small></td></tr>
+        {{/each}}
+      </table>
+      {{/if}}
+    </div>
   </section>
 </div>

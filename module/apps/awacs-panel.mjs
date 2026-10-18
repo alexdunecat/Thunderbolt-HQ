@@ -21,6 +21,8 @@ import { markStrike, cancelStrike, strikesOfCombat, strikeWhere } from "../strik
 
 let panel = null;
 let timer = null;
+const TABS = ["fight", "enemy", "air", "mission", "campaign"];
+const TAB_KEY = `${SYSTEM_ID}.awacsTab`;
 
 export function openAwacs() {
   if (!game.user.isGM) return ui.notifications.warn("Панель AWACS доступна ведущему.");
@@ -29,6 +31,9 @@ export function openAwacs() {
 }
 
 /** Перерисовать открытую панель (с небольшой задержкой, чтобы пачка обновлений дала одну перерисовку). */
+/** Начался бой: открытая панель сама переходит на вкладку «Бой». */
+Hooks.on("combatStart", () => { if (panel?.rendered) panel.activateTab("fight", { group: "awacs" }); });
+
 export function refreshAwacs() {
   if (!panel?.rendered) return;
   clearTimeout(timer);
@@ -47,8 +52,24 @@ export class AwacsPanel extends Application {
   static get defaultOptions() {
     return foundry.utils.mergeObject(super.defaultOptions, {
       id: "tb-awacs-panel", title: "Панель AWACS", template: SYS_PATH + "templates/apps/awacs-panel.hbs",
-      classes: ["thunderbolt", "tb-awacs"], width: 860, height: 640, resizable: true, scrollY: [".tb-awacs-body"]
+      classes: ["thunderbolt", "tb-awacs"], width: 860, height: 640, resizable: true, scrollY: [".tb-awacs-body"],
+      tabs: [{ navSelector: ".tb-awacs-tabs", contentSelector: ".tb-awacs-body", initial: "fight", group: "awacs" }]
     });
+  }
+
+  constructor(options) {
+    super(options);
+    // панель помнит последнюю вкладку в этом браузере
+    let last = null;
+    try { last = localStorage.getItem(TAB_KEY); } catch (err) { /* хранилище недоступно */ }
+    if (last && TABS.includes(last)) this._tabs[0].active = last;
+    /** Свёрнутые таблицы сторон (goal, enemy, ally, neutral). */
+    this.folded = new Set();
+  }
+
+  _onChangeTab(event, tabs, active) {
+    super._onChangeTab?.(event, tabs, active);
+    try { localStorage.setItem(TAB_KEY, active); } catch (err) { /* хранилище недоступно */ }
   }
 
   getData() {
@@ -79,6 +100,7 @@ export class AwacsPanel extends Application {
     const groups = [{ title: "Цели", cls: "goal", goal: true, rows: targets.filter(t => t.priority) },
       ...Object.entries(SIDE_TITLE).map(([k, title]) => ({ title, cls: k, rows: targets.filter(t => !t.priority && t.side === k) }))]
       .filter(g => g.rows.length);
+    for (const g of groups) g.folded = this.folded.has(g.cls);
     for (const t of targets) t.taskOptions = Object.entries(TB.tasks).map(([k, v]) => ({ k, v, sel: k === t.task }));
     const sceneWeather = new Set(scene?.getFlag(SYSTEM_ID, "weather") ?? []);
     const cells = Object.keys(scene?.getFlag(SYSTEM_ID, "weatherCells") ?? {}).length;
@@ -97,7 +119,10 @@ export class AwacsPanel extends Application {
     });
     // в панели только эскадрильи, чьи машины стоят на этой сцене; остальные одной строкой
     const elsewhere = squads.filter(q => !q.members).map(q => q.name).join(", ");
+    const strikeList = strikesOfCombat(combat), allThreats = threats();
+    const badge = { fight: strikeList.length + queued, campaign: allThreats.filter(t => t.kind !== "boss" && t.value >= t.size).length };
     return {
+      badge,
       sceneName: scene?.name ?? "сцена не выбрана", pilots, targets, groups, cells, squads: squads.filter(q => q.members), squadsElsewhere: elsewhere, squadBudget: budget, squadBudgetText: pointsText(budget), opsDone: operationsDone(),
       skillHeads: Object.values(TB.skills).map(v => ({ label: v.label, en: v.en })),
       weather: Object.entries(TB.weather).map(([id, d]) => ({ id, ...d, on: sceneWeather.has(id) })),
@@ -105,9 +130,9 @@ export class AwacsPanel extends Application {
       glory: (() => { const g = gloryView(); return { ...g, pct: g.nextAt !== null ? Math.round(100 * g.points / g.nextAt) : 100,
         recent: (g.log ?? []).slice(-3).reverse().map(x => `${x.date} · ${x.op}: ${x.total >= 0 ? "+" : "−"}${Math.abs(x.total)}`) }; })(),
       tunnel: specialSections(scene),
-      strikes: strikesOfCombat(combat).map(s => ({ ...s, where: strikeWhere(s), when: s.round === combat.round ? "в конце раунда" : `в конце раунда ${s.round}` })),
-      threats: threats().filter(t => t.kind !== "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size })),
-      bossClocks: threats().filter(t => t.kind === "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size,
+      strikes: strikeList.map(s => ({ ...s, where: strikeWhere(s), when: s.round === combat.round ? "в конце раунда" : `в конце раунда ${s.round}` })),
+      threats: allThreats.filter(t => t.kind !== "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size })),
+      bossClocks: allThreats.filter(t => t.kind === "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size,
         pct: Math.round(100 * t.value / t.size),
         marks: DT.bossMarks.filter(([k]) => k !== "full" && (t.lines?.[k] ?? "").trim()).map(([k, label]) => `${label} на ${bossMarkAt(k, t.size)}`).join(", ") })),
       ground: game.actors.filter(a => a.type === "pilot").sort((a, b) => a.name.localeCompare(b.name, "ru")).map(a => {
@@ -123,6 +148,10 @@ export class AwacsPanel extends Application {
     const el = html[0];
     const on = (sel, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); fn(n.dataset, n); }));
     on("[data-open]", d => game.actors.get(d.open)?.sheet.render(true));
+    on("[data-fold]", (d, n) => {
+      if (this.folded.has(d.fold)) this.folded.delete(d.fold); else this.folded.add(d.fold);
+      n.closest(".tb-fold")?.classList.toggle("folded", this.folded.has(d.fold));
+    });
     on("[data-pool]", async d => {
       const a = game.actors.get(d.id);
       if (!a) return;
