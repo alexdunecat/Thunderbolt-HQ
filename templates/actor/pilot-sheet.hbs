@@ -213,7 +213,7 @@
             <label class="tb-check" title="Использован в этом вылете"><input type="checkbox" data-item-toggle="{{t.id}}" {{checked t.used}}> исп.</label>
             {{#if t.nem}}<a class="tb-btn tb-nem-trig {{t.nemState}}" data-nem-use="{{t.id}}" title="{{t.nemHint}}"><i class="fas fa-skull-crossbones"></i> {{#if t.active}}действует{{else}}Задействовать{{/if}}</a>{{/if}}
             {{#if t.ct}}{{#if t.ct.chip}}<span class="tb-chip tb-ct-chip">{{t.ct.chip}}</span>{{/if}}{{#if t.ct.use}}<a class="tb-btn tb-ct-trig {{t.ct.state}}" data-ct-use="{{t.id}}" title="{{t.ct.hint}}"><i class="fas fa-bolt"></i> {{#if t.ct.on}}действует{{else}}{{t.ct.use}}{{/if}}</a>{{else}}<span class="tb-ct-auto {{t.ct.state}}" title="{{t.ct.hint}}"><i class="fas fa-gears"></i> {{#if t.ct.waiting}}ждёт Поворота{{else}}само{{/if}}</span>{{/if}}{{/if}}
-            {{#if t.radio}}<a class="tb-icon" data-civil-radio title="Гражданское радио: музыка у всех"><i class="fas fa-radio"></i></a>{{/if}}
+            {{#if t.radio}}<a class="tb-radio-btn" data-civil-radio title="Гражданское радио: музыка у всех за столом"><span class="tb-radio-lamp"></span><i class="fas fa-radio"></i> Радио</a>{{/if}}
             <a class="tb-icon" data-item-edit="{{t.id}}"><i class="fas fa-pen"></i></a>
             <a class="tb-icon" data-item-delete="{{t.id}}"><i class="fas fa-trash"></i></a>
           </div>
