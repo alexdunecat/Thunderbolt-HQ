@@ -371,7 +371,8 @@
         {{/each}}
       </table>
       {{else}}<p class="tb-muted tb-small">Пока ни одной операции.</p>{{/if}}
-      <label class="tb-q">Награды <textarea name="system.service.awards" rows="2">{{system.service.awards}}</textarea></label>
+      {{#if medals.length}}<div class="tb-medal-rack">{{#each medals as |m|}}<span title="{{m.title}}">{{{m.svg}}}</span>{{/each}}</div>{{/if}}
+      <label class="tb-q">Награды {{#if @root.isGM}}<a class="tb-btn tb-medal-open" data-medals title="Панель «Награды»: вручить по условиям"><i class="fas fa-medal"></i> Вручить</a>{{/if}}<textarea name="system.service.awards" rows="2">{{system.service.awards}}</textarea></label>
     </div>
 
     {{!-- ================= ЗАМЕТКИ ================= --}}

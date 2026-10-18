@@ -46,6 +46,7 @@ import { registerSideColor } from "./sidecolor.mjs";
 import { registerLosses } from "./losses.mjs";
 import { registerAltitude, stepAltitude } from "./altitude.mjs";
 import { registerPopout, mirrorPopouts } from "./popout.mjs";
+import { registerMedals, openMedals, award as awardMedal } from "./medals.mjs";
 import { registerNemesis, appear as nemesisAppear, startMonologue, endMonologue } from "./nemesis.mjs";
 
 // триггер выключен или машина сменилась: Max Speed мог упасть
@@ -157,12 +158,13 @@ Hooks.once("init", () => {
   registerSideColor();
   registerLosses();
   registerNemesis();
+  registerMedals();
   registerCombat();
   registerActions();
 
   game.thunderbolt = { gloryDialog, importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
     squadFromSelection, act: actFromMacro, fillHotbars, stepAltitude, rolls: R, TB, sound: cue, radio: { send: sendRadio, say, caution, log: openRadioLog, replies: openChatterEditor, mission: openMissionDialog, aces: openAceIntro, announceAces }, dossier: { open: openDossierExchange, importDossier, exportDossier },
-    refreshAwacs, nemesis: { appear: nemesisAppear, monologue: startMonologue, endMonologue }, boot: { open: openBootDialog, start: startBoot, play: playBoot, stop: stopBoot },
+    refreshAwacs, nemesis: { appear: nemesisAppear, monologue: startMonologue, endMonologue }, medals: { open: openMedals, award: awardMedal }, boot: { open: openBootDialog, start: startBoot, play: playBoot, stop: stopBoot },
     briefing: { open: openBriefing, start: startBriefing, stop: stopBriefing, afterBoot: bootThenBriefing }, downtime: { ground: Downtime.rollGround, baseEvent: Downtime.baseEvent, threats: Downtime.threats, addThreat: Downtime.addThreat, stepThreat: Downtime.stepThreat } };
 });
 

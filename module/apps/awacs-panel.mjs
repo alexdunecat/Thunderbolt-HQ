@@ -17,6 +17,7 @@ import { campaignDate, campaignDateRaw, setCampaignDate, todayDate } from "../ca
 import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMarkAt, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
 import { DT } from "../config.mjs";
 import { squadBudget, pointsText, operationsDone, setOperationsDone, allSquads, squadPoints, squadMembers, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
+import { openMedals } from "../medals.mjs";
 import { markStrike, cancelStrike, strikesOfCombat, strikeWhere } from "../strikes.mjs";
 
 let panel = null;
@@ -188,6 +189,7 @@ export class AwacsPanel extends Application {
     on("[data-aces]", () => openAceIntro());
     on("[data-mission]", () => openMissionDialog({ op: game.scenes.viewed?.getFlag(SYSTEM_ID, "mission") || game.scenes.viewed?.name || "" }));
     on("[data-shtab]", () => openDossierExchange());
+    on("[data-medals]", () => openMedals());
     on("[data-base-event]", () => baseEvent());
     on("[data-threat-add]", () => addThreat());
     on("[data-boss-add]", () => bossClockDialog());

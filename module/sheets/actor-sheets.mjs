@@ -13,6 +13,7 @@ import { rollGround, chooseEdge, edgeLabel, dropBond, useBond, useEdge, threats,
 import { gloryView } from "../glory.mjs";
 import { openChatterEditor, nameOf, setCallsign } from "../chatter.mjs";
 import { openCivilRadio, RADIO_TRIGGER } from "../civil-radio.mjs";
+import { rack, openMedals } from "../medals.mjs";
 import { NEM, STATE_TEXT, nemTriggers, trigState, metOf, useTrigger, appear, monologue, startMonologue, endMonologue, fxOf, clearFx } from "../nemesis.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
@@ -166,6 +167,7 @@ class TBActorSheet extends ActorSheet {
     });
     on("[data-chat-item]", d => this.#itemToChat(this.actor.items.get(d.chatItem)));
     on("[data-nem-use]", d => useTrigger(this.actor, this.actor.items.get(d.nemUse)));
+    on("[data-medals]", () => openMedals(this.actor));
     on("[data-end-turn]", () => endTurn(this.actor));
     // прицел: подсветка дальности по этому спецоружию (повторный щелчок — снова стандартная ракета)
     on("[data-aim]", d => {
@@ -449,6 +451,7 @@ export class PilotSheet extends TBActorSheet {
     ctx.dossier = s.dossier.map((d, i) => ({ ...d, i }));
     ctx.alertSpeed = s.speed <= 0;
     ctx.dt = downtimeView(a);
+    ctx.medals = rack(a);
     ctx.glory = gloryView();
     // открытые шкалы боя (Тревога стелс-миссии): игроки видят их на боевой карточке
     ctx.openClocks = threats().filter(t => t.kind === "boss" && t.open).map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size }));

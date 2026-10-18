@@ -1352,3 +1352,39 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 #tb-monologue button:hover { background: #ff4a3a; color: #1a0604; }
 #tb-monologue button:disabled { opacity: .5; cursor: default; }
 #tb-monologue .tb-mono-head button { padding: 1px 8px; font-size: 10px; }
+
+/* ---------- награды ---------- */
+.tb-ribbon { display: inline-block; vertical-align: middle; flex: none; box-shadow: 0 1px 1px rgba(0, 0, 0, .35); }
+.thunderbolt .tb-medal-rack { display: grid; grid-template-columns: repeat(4, max-content); gap: 2px; margin: 6px 0 4px; }
+.thunderbolt .tb-medal-rack .tb-ribbon { width: 42px; height: 13px; }
+.thunderbolt .tb-medal-open { float: right; padding: 0 8px; font-size: 11px; }
+.tb-card-medal { border-left: 3px solid #c9a227; }
+.tb-card-medal .tb-medal-line { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.tb-card-medal .tb-medal-line small { display: block; font-size: 11px; opacity: .8; }
+.tb-medals-app .window-content { padding: 0; }
+.tb-medals { display: flex; flex-direction: column; height: 100%; }
+.tb-medals .tb-medal-head { display: flex; flex-wrap: wrap; gap: 6px 10px; padding: 8px 10px; border-bottom: 1px solid var(--tb-line); }
+.tb-medals .tb-medal-head label { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+.tb-medals .tb-medal-head label.wide { flex: 1 1 100%; }
+.tb-medals .tb-medal-head label.wide input { flex: 1; }
+.tb-medals .tb-medal-head input[data-medal-date] { width: 110px; }
+.tb-medals .tb-medal-mine { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 6px 10px; border-bottom: 1px solid var(--tb-line); font-size: 12px; }
+.tb-medals .tb-medal-mine > small { flex: 0 0 100%; color: var(--tb-muted); text-transform: uppercase; letter-spacing: .08em; font-size: 10px; }
+.tb-medals .tb-medal-has { display: inline-flex; align-items: center; gap: 4px; }
+.tb-medals .tb-medal-has a { color: var(--tb-bad); cursor: pointer; }
+.tb-medals .tb-medal-list { flex: 1; overflow-y: auto; margin: 0; padding: 4px 10px; list-style: none; }
+.tb-medals .tb-medal-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--tb-line); }
+.tb-medals .tb-medal-row > .tb-ribbon { width: 54px; height: 16px; }
+.tb-medals .tb-medal-text { flex: 1; min-width: 0; }
+.tb-medals .tb-medal-text small { display: block; font-size: 11px; color: var(--tb-muted); }
+.tb-medals .tb-medal-prog.ok { color: var(--tb-olive); font-weight: 700; }
+.tb-medals .tb-medal-row.ready { background: color-mix(in srgb, #c9a227 12%, transparent); }
+.tb-medals .tb-medal-row.done .tb-medal-text b { opacity: .6; }
+.tb-medals .tb-medal-row button:disabled { opacity: .35; cursor: default; }
+.tb-medals .tb-medal-row button { flex: 0 0 auto; width: auto; padding: 0 10px; line-height: 24px; font-size: 12px; }
+.tb-medals .tb-medal-row.edit { align-items: flex-start; }
+.tb-medals .tb-medal-edit { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
+.tb-medals .tb-medal-need { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.tb-medals .tb-medal-need input { width: 46px; }
+.tb-medals footer { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--tb-line); }
+.tb-medals footer button { flex: 1; }
