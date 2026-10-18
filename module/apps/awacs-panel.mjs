@@ -17,7 +17,7 @@ import { campaignDate, campaignDateRaw, setCampaignDate, todayDate } from "../ca
 import { lessonDone, lessonReset } from "../career-triggers.mjs";
 import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMarkAt, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
 import { DT } from "../config.mjs";
-import { squadBudget, pointsText, operationsDone, setOperationsDone, allSquads, squadPoints, squadMembers, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
+import { squadBudget, pointsText, operationsDone, setOperationsDone, allSquads, squadPoints, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
 import { openMedals } from "../medals.mjs";
 import { markStrike, cancelStrike, strikesOfCombat, strikeWhere } from "../strikes.mjs";
 

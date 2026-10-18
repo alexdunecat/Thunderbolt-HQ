@@ -11,15 +11,15 @@ const ROLLED = new Set(["guns", "break", "recover", "skill"]);
 
 export const ACTIONS = {
   lock: "Lock On!", missile: "Fox Two!", guns: "Guns, Guns, Guns!", break: "Break!",
-  recover: "Вернуть Strain", stall: "Сваливание", lead: "Leadership", formup: "Вплотную"
+  recover: "Вернуть Strain", lead: "Leadership", formup: "Вплотную"
 };
 
 /** Выполнить действие листа за актёра. В бою сделанное действие попадает в счётчик хода. */
 export async function runAction(actor, act, { skill } = {}) {
   // проверка хода уже была, но «Отточенное мастерство» её не тратит: окно откроется, обычный бросок оно не пустит
-  if (act !== "stall" && !allowAction(actor, act, { rolled: ROLLED.has(act) && !practicedReady(actor) })) return;
+  if (!allowAction(actor, act, { rolled: ROLLED.has(act) && !practicedReady(actor) })) return;
   const res = await doAction(actor, act, { skill });
-  if (act === "stall" || !res) return res;
+  if (!res) return res;
   // действие состоялось: карточка в чате (отмена диалога и предупреждения возвращают не её) или строй собран
   const card = res.documentName === "ChatMessage" ? res.getFlag(SYSTEM_ID, "card") : null;
   if (res.documentName !== "ChatMessage" && res !== true) return res;
@@ -35,7 +35,6 @@ function doAction(actor, act, { skill } = {}) {
     case "guns": return actor.fireGuns();
     case "break": return actor.rollBreak();
     case "recover": return actor.rollRecover();
-    case "stall": return actor.rollStall();
     case "lead": return leadership(actor);
     case "formup": return formUp(actor);
   }
@@ -97,7 +96,8 @@ export function registerMacros() {
     let on = true;
     try { on = game.settings.get(SYSTEM_ID, "actionBar"); } catch {}
     if (!on) return;
-    if (game.user.isGM) fillHotbars().catch(err => console.warn(`${SYSTEM_ID} | панель макросов`, err));
+    // макросы заводит только главный ведущий: два ведущих разом создали бы их дважды
+    if (game.user.isGM) { if (game.users.activeGM?.isSelf ?? true) fillHotbars().catch(err => console.warn(`${SYSTEM_ID} | панель макросов`, err)); }
     else fillHotbar(game.user).catch(err => console.warn(`${SYSTEM_ID} | панель макросов`, err));
   });
 }

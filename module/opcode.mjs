@@ -55,7 +55,10 @@ function draw() {
   if (!box) return;
   const on = document.body.classList.contains("tb-brief-ui");
   box.hidden = !on;
-  if (on) box.innerHTML = opHtml(opLines(state()));
+  if (!on) return;
+  // раз в секунду меняются только часы: строку переписываю, только когда разметка другая
+  const html = opHtml(opLines(state()));
+  if (html !== box.tbHtml) box.innerHTML = box.tbHtml = html;
 }
 
 export function registerOpCode() {

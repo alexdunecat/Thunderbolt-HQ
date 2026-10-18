@@ -86,7 +86,7 @@ function weatherCall(scene, change) {
 /* Подкрепления: ведущий объявляет вражеского аса, эскадрилью или супероружие, появившиеся на сцене во время боя. */
 let pending = [], pendTimer = null;
 function reinforcements(doc, userId) {
-  if (userId !== game.user.id || !game.user.isGM || !game.combat?.started || doc.parent?.id !== game.combat.scene?.id) return;
+  if (userId !== game.user.id || !game.user.isGM || !game.combat?.started || doc.parent?.id !== (game.combat.scene ?? canvas?.scene)?.id) return;
   const a = doc.actor;
   if (a?.type !== "npc" || (a.system.side ?? "enemy") !== "enemy") return;
   // Немезиду представляет nemesis.mjs: заставкой асов и с отметкой у её пилотов

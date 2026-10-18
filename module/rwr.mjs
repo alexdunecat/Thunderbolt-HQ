@@ -21,7 +21,15 @@ function refreshSoon() {
   timer = setTimeout(refreshAll, 60);
 }
 function refreshAll() {
-  if (canvas?.ready) for (const t of canvas.tokens.placeables) drawBadge(t);
+  if (!canvas?.ready) return;
+  // один проход: кто кого держит и «Общая частота» — один раз на всю сцену, а не на каждый токен
+  const by = new Map();
+  for (const t of canvas.tokens.placeables) {
+    const u = t.actor?.system?.lockUuid;
+    if (u) { if (!by.has(u)) by.set(u, []); by.get(u).push(t); }
+  }
+  const ctx = { by, freq: !game.user.isGM && sharedFreq() };
+  for (const t of canvas.tokens.placeables) drawBadge(t, ctx);
 }
 
 /** Токены, которые держат этот токен на захвате. */
@@ -31,20 +39,25 @@ export function lockersOf(token) {
   return canvas.tokens.placeables.filter(t => t !== token && t.actor?.system?.lockUuid === uuid);
 }
 
-function drawBadge(token) {
+function drawBadge(token, ctx = null) {
   // «Общая частота»: пилот игрока видит захваты на всех союзниках
-  const freq = !game.user.isGM && ["player", "ally"].includes(sideOf(token.actor)) && sharedFreq();
-  const seen = lockersOf(token).filter(l => game.user.isGM || token.actor?.isOwner || l.actor?.isOwner || freq);
+  const freq = !game.user.isGM && ["player", "ally"].includes(sideOf(token.actor)) && (ctx ? ctx.freq : sharedFreq());
+  const lockers = ctx ? (ctx.by.get(token.actor?.uuid) ?? []).filter(t => t !== token) : lockersOf(token);
+  const seen = lockers.filter(l => game.user.isGM || token.actor?.isOwner || l.actor?.isOwner || freq);
   let g = token.tbLockBadge;
   if (!seen.length) {
     if (g && !g.destroyed) g.destroy({ children: true });
     token.tbLockBadge = null;
     return;
   }
+  // значок уже такой же (тот же размер и число захватов): не перерисовывать
+  const sig = `${seen.length}|${token.w}|${token.h}`;
+  if (g && !g.destroyed && g.tbSig === sig) return;
   if (!g || g.destroyed) {
     g = token.tbLockBadge = token.addChild(new PIXI.Graphics());
     g.eventMode = "none";
   }
+  g.tbSig = sig;
   // красное кольцо с перекрестием в левом верхнем углу токена, рядом число захватов
   const r = Math.max(7, Math.min(token.w, token.h) * 0.16);
   g.clear();

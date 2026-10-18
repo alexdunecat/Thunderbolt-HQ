@@ -137,6 +137,8 @@ async function run(op, d) {
   if (op === "end-limiter") return limiterCheck(a);
   // «Голос в эфире»: враг переходит к эскадрилье насовсем (не до конца боя, как «Свои среди чужих»)
   if (op === "defect" && a) return a.update({ "system.side": "ally" });
+  // «Всё, чему я научился»: игрок без права создавать актёров просит ведущего
+  if (op === "student" && a && d.name) { const { createStudent } = await import("./career-triggers.mjs"); return createStudent(a, d.name); }
   return null;
 }
 

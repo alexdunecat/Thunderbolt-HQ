@@ -5,7 +5,6 @@ import { SYSTEM_ID, TB } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
 import { tokenOf, altOf, zoneDistance, flyingBoss, hasRule, isBeam } from "./scene.mjs";
 import { combatantOf, spentOf, declaredOf, allowAction, spendAction } from "./actions.mjs";
-import { runAction } from "./macros.mjs";
 import { strikesOf, strikeOfSys, STRIKES } from "./strikes.mjs";
 import { SCALES, scalesOf, scaleValue, scaleFull, setScale, sysCount, unitFlag } from "./scales.mjs";
 import { roleOf, ENGINE } from "./aim.mjs";
@@ -310,8 +309,9 @@ export async function onUnitClick(t, actor) {
 
 /** Ведущий двигает воздушный или сухопутный корабль по карте в бою: смещение засчитывается само. */
 export function registerUnitHud() {
-  Hooks.on("updateToken", (doc, ch) => {
-    if (!game.user.isGM || !game.combat?.started || !("x" in ch || "y" in ch)) return;
+  // пишет только тот, кто двигал: у второго ведущего та же запись повторилась бы
+  Hooks.on("updateToken", (doc, ch, options, userId) => {
+    if (!game.user.isGM || userId !== game.user.id || !game.combat?.started || !("x" in ch || "y" in ch)) return;
     const a = doc.actor;
     if (a && (hasRule(a, "aerialship") || hasRule(a, "landship")) && unitFlag(a, "launch", {})?.shift !== game.combat.round)
       a.update({ [`flags.${SYSTEM_ID}.unit.launch.shift`]: game.combat.round });

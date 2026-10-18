@@ -2,6 +2,7 @@
    клавиши PageUp / PageDown и приглушение всего, что летит на другой высоте. */
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { altOf, tokenOf, isFlying, flyingBoss, ceilingOf, capAlt } from "./scene.mjs";
+import { layoutChanged } from "./utils.mjs";
 
 const ORDER = ["low", "med", "high", "strat"];
 const LETTER = { low: "Н", med: "С", high: "В", strat: "Ст" };
@@ -21,7 +22,8 @@ export function registerAltitude() {
   game.keybindings.register(SYSTEM_ID, "altDown", {
     name: "Высота: на уровень ниже", editable: [{ key: "PageDown" }], onDown: () => stepSelected(-1)
   });
-  Hooks.on("refreshToken", t => decorate(t));
+  // на кадрах движения (refreshPosition) тень только едет за токеном; полная отрисовка — когда изменился вид
+  Hooks.on("refreshToken", (t, flags) => { if (layoutChanged(flags)) decorate(t); else followShadow(t); });
   Hooks.on("destroyToken", t => { if (t.tbShadow && !t.tbShadow.destroyed) t.tbShadow.destroy(); t.tbShadow = null; });
   for (const ev of ["controlToken", "updateToken", "updateActor", "createToken", "deleteToken", "canvasReady"]) Hooks.on(ev, refreshSoon);
   Hooks.on("renderTokenHUD", addHudButtons);
@@ -55,7 +57,9 @@ function refreshSoon() {
   timer = setTimeout(refreshAll, 50);
 }
 function refreshAll() {
-  if (canvas?.ready) for (const t of canvas.tokens.placeables) decorate(t);
+  if (!canvas?.ready) return;
+  const viewer = viewerToken();
+  for (const t of canvas.tokens.placeables) decorate(t, viewer);
 }
 
 /* ---------- чья высота считается своей ---------- */
@@ -78,8 +82,8 @@ export function dimmed(token, viewer = viewerToken()) {
 
 /* ---------- отрисовка ---------- */
 
-function decorate(t) {
-  const dim = dimmed(t);
+function decorate(t, viewer = viewerToken()) {
+  const dim = dimmed(t, viewer);
   applyDim(t, dim);
   const air = isAir(t.actor);
   const alt = air ? altOf(t) : null;
@@ -95,7 +99,16 @@ function applyDim(t, dim) {
   m._tbSet = m.alpha = dim ? base * DIM : base;
 }
 
-const SpriteClass = () => foundry.canvas?.primary?.PrimarySpriteMesh ?? globalThis.PrimarySpriteMesh;
+// в v12 PrimarySpriteMesh объявлен в общем скрипте через class: виден по имени, но не как globalThis.PrimarySpriteMesh
+const SpriteClass = () => foundry.canvas?.primary?.PrimarySpriteMesh ?? (typeof PrimarySpriteMesh === "function" ? PrimarySpriteMesh : null);
+
+/** Кадр движения: тень на том же смещении от токена. */
+function followShadow(t) {
+  const s = t.tbShadow, m = t.mesh;
+  if (!s || s.destroyed || !m) return;
+  s.position.set(m.x + (s._tbOff ?? 0), m.y + (s._tbOff ?? 0));
+  s.rotation = m.rotation;
+}
 
 /** Тень: силуэт токена чёрным на высоте 0 (под всеми летящими), смещён вправо вниз по высоте. */
 function drawShadow(t, alt, dim) {
@@ -120,6 +133,7 @@ function drawShadow(t, alt, dim) {
   s.sortLayer = m.sortLayer;
   s.sort = -1e6;
   const k = SHADOW[alt], off = Math.min(t.w, t.h) * k.off;
+  s._tbOff = off;
   s.position.set(m.x + off, m.y + off);
   s.alpha = k.alpha * (dim ? DIM : 1);
   s.visible = t.visible && m.visible !== false;

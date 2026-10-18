@@ -410,7 +410,8 @@ export async function resolveStrikes(combat, round) {
     for (const h of hits.filter(x => x.hit && !x.ship && x.dmg > 0)) {
       const target = resolveActor(h.uuid);
       if (!target) continue;
-      const hit = { uuid: h.uuid, name: h.name, dmg: h.dmg, source: s.source || S.label, sourceUuid: s.sourceUuid };
+      // раунд удара едет с уроном: игроку он приходит уже в следующем раунде
+      const hit = { uuid: h.uuid, name: h.name, dmg: h.dmg, source: s.source || S.label, sourceUuid: s.sourceUuid, roundKey: key };
       const by = damageUser(target);
       if (by === game.user.id) await hitTarget(hit, key);
       else if (by) game.socket.emit(`system.${SYSTEM_ID}`, { type: "hit", to: by, hit });
@@ -428,7 +429,7 @@ export async function strikeShip(message, uuid) {
   // кнопка одна на корабль: после нажатия на карточке остаётся отметка
   const btn = new RegExp(`<button[^>]*data-uuid="${uuid.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"[^>]*>[\\s\\S]*?</button>`);
   await message.update({ content: message.content.replace(btn, `<span class="tb-small">${esc(row.name)}: отмечено</span>`) });
-  await ship.applyDamage(row.dmg, { source: card.label });
+  await ship.applyDamage(row.dmg, { source: card.label, one: row.dmg >= 99 });
 }
 
 export function registerStrikes() {

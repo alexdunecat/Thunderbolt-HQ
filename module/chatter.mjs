@@ -64,7 +64,7 @@ export function registerChatter() {
 const isLead = () => !!game.user?.isGM && !!game.users?.activeGM?.isSelf;
 const enabled = () => { try { return game.settings.get(SYSTEM_ID, "npcChatter"); } catch { return true; } };
 const chance = () => { try { return game.settings.get(SYSTEM_ID, "chatterChance"); } catch { return 60; } };
-const inCombat = doc => !!game.combat?.started && doc.parent?.id === game.combat.scene?.id;
+const inCombat = doc => !!game.combat?.started && doc.parent?.id === (game.combat.scene ?? canvas?.scene)?.id;
 
 /** Событие из любого клиента (урон, сбитый): на клиенте ведущего в очередь, у игрока — ведущему по сокету. */
 export function chatter(ev) {

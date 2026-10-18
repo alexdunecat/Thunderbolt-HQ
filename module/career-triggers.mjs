@@ -19,7 +19,8 @@ export function registerCareerTriggers() {
     if (actor.type !== "pilot" || foundry.utils.getProperty(change, "system.service.status") !== "kia" || !isLead()) return;
     onDeath(actor).catch(err => console.error(`${SYSTEM_ID} | триггеры гибели`, err));
   });
-  Hooks.on("combatStart", combat => { if (isLead()) voiceReminder(combat).catch(err => console.warn(`${SYSTEM_ID} | Голос в эфире`, err)); });
+  // combatStart приходит только тому, кто начал бой (может быть и не главный ведущий)
+  Hooks.on("combatStart", combat => { if (game.user.isGM) voiceReminder(combat).catch(err => console.warn(`${SYSTEM_ID} | Голос в эфире`, err)); });
   Hooks.on("renderChatMessage", (message, html) => bindCard(message, html?.[0] ?? html));
 }
 
@@ -125,10 +126,23 @@ async function makeStudent(dead) {
     <div class="tb-ck-fire"><button type="button" class="tb-ck-big" data-pick="ok"><b>СОЗДАТЬ ПИЛОТА</b><small>9 очков навыков, + триггер к Core</small></button></div>`, { width: 420 });
   const name = data?.name?.trim();
   if (!name) return null;
+  // у игрока по умолчанию нет права создавать актёров: пилота создаёт ведущий
+  if (!game.user.isGM && !game.user.can?.("ACTOR_CREATE")) {
+    const { gm } = await import("./combat-triggers.mjs");
+    gm("student", { uuid: dead.uuid, name });
+    return ui.notifications.info(`Ведущий создаёт пилота ${name}: он появится в списке актёров.`);
+  }
+  return createStudent(dead, name, true);
+}
+
+/** Создать ученика погибшего пилота (у ведущего или у игрока с правом создавать актёров). */
+export async function createStudent(dead, name, open = false) {
+  const t = notUsed(dead, "everything");
+  if (!t) return null;
   const ownership = foundry.utils.deepClone(dead.ownership ?? {});
   const a = await Actor.create({ name, type: "pilot", ownership, system: { callsign: name } });
   await t.update({ "system.used": true });
-  a?.sheet?.render(true);
+  if (open) a?.sheet?.render(true);
   return say(`${esc(callsign(dead))} успел научить ${esc(name)} всему. Новый пилот создан: распределите 9 очков навыков и выберите дополнительный триггер к Core.`, dead, t.name);
 }
 
@@ -175,6 +189,9 @@ function bindCard(message, root) {
         else if (op === "projlegacy") await projLegacy(who);
         else if (op === "legacy") await takeLegacy(who, dead);
         else if (op === "voice-retreat" || op === "voice-side") await voicePick(b.dataset.dead, op === "voice-side");
+      } catch (err) {
+        console.error(`${SYSTEM_ID} | триггеры гибели`, err);
+        ui.notifications.error(`Не вышло: ${err.message ?? err}`);
       } finally { b.disabled = false; }
     });
   }

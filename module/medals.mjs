@@ -174,7 +174,6 @@ export function startEdit() {
   ed = { draft, sel: 0, stripe: 0, sym: isSymmetric(draft[0]?.ribbon), dirty: false };
   return ed;
 }
-export const editState = () => ed;
 export function stopEdit() { ed = null; }
 
 /** Правки колодки выбранной награды (симметрия отражает полосу на другую сторону). */

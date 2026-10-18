@@ -1,13 +1,6 @@
-@import url("https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;800&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;500&family=PT+Mono&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=Russo+One&display=swap");
-
-/* ---------- цвета: «Штаб» — запасные, пока на body не встал «Брифинг» (он один с 0.5.31) ---------- */
+/* «Брифинг» (как в Штабе и Планшете AWACS), единственное оформление с 0.5.31: тёмная бирюза, мятные линии,
+   Jura и JetBrains Mono из assets/fonts (без загрузки шрифтов из интернета) */
 body {
-  --tb-bg: #e9ece7; --tb-surface: #f7f8f5; --tb-surface-2: #dfe4dc; --tb-ink: #1b221d; --tb-muted: #59645c; --tb-line: #c3cbc1;
-  --tb-accent: #a8281f; --tb-accent-ink: #ffffff; --tb-bad: #a8281f; --tb-olive: #4c6a37; --tb-olive-soft: #cfdcc4; --tb-warn: #9a6400;
-  --tb-display: "Russo One", "Arial Black", system-ui, sans-serif; --tb-body: "IBM Plex Sans", system-ui, sans-serif; --tb-data: "IBM Plex Mono", ui-monospace, monospace;
-}
-/* «Брифинг» (как в Штабе и Планшете AWACS): тёмная бирюза, мятные линии, Jura и JetBrains Mono */
-body[data-tb-skin="brief"] {
   --tb-bg: #07141a; --tb-surface: #0b1d24; --tb-surface-2: #10272f; --tb-ink: #d7eee6; --tb-muted: #7fa79d; --tb-line: #2c5a52;
   --tb-accent: #9be3bf; --tb-accent-ink: #08161b; --tb-bad: #ff6b4a; --tb-olive: #9be3bf; --tb-olive-soft: #12342c; --tb-warn: #f2c14e;
   --tb-hostile: #ff6b4a; --tb-friend: #6cc4ff; --tb-player: #f2c14e;
@@ -906,7 +899,7 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 /* ---------- HUD пилота: широкая низкая полоса над панелью макросов ---------- */
 #tb-pilot-hud { position: fixed; left: 50%; z-index: 70; width: min(1080px, calc(100vw - 420px)); min-width: 560px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); resize: both; overflow: auto; container-type: inline-size;
   background: color-mix(in srgb, var(--tb-bg) 90%, transparent); border: 1px solid var(--tb-line); box-shadow: inset 0 0 0 1px rgba(155, 227, 191, .08), 0 4px 18px rgba(0, 0, 0, .45);
-  color: var(--tb-ink); font-family: var(--tb-data); font-size: 12px; pointer-events: auto; backdrop-filter: blur(2px); }
+  color: var(--tb-ink); font-family: var(--tb-data); font-size: 12px; pointer-events: auto; }
 #tb-pilot-hud header { display: flex; align-items: center; gap: 8px; padding: 2px 10px; border-bottom: 1px solid var(--tb-line); cursor: pointer; user-select: none; }
 #tb-pilot-hud.folded header { border-bottom: none; }
 #tb-pilot-hud header b { font-family: var(--tb-display); letter-spacing: .08em; text-transform: uppercase; }

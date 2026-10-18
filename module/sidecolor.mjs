@@ -19,7 +19,7 @@ function refreshSoon() {
   timer = setTimeout(() => { if (canvas?.ready) for (const t of canvas.tokens.placeables) paint(t); }, 60);
 }
 
-export function sideOf(actor) {
+function sideOf(actor) {
   if (!actor) return null;
   return actor.type === "pilot" ? "player" : actor.system?.side ?? "enemy";
 }

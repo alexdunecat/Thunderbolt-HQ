@@ -42,8 +42,11 @@ export function registerRange() {
   });
   Hooks.on("controlToken", refreshSoon);
   // чужие правки во время боя приходят часто: перерисовывать, только когда что-то выделено
-  for (const ev of ["updateToken", "deleteToken", "updateScene", "createItem", "updateItem", "deleteItem", "targetToken", "updateActor", "updateActorDelta", "updateCombat", "updateCombatant", "deleteCombat"])
+  for (const ev of ["deleteToken", "updateScene", "createItem", "updateItem", "deleteItem", "targetToken", "updateActor", "updateActorDelta", "updateCombat", "updateCombatant", "deleteCombat"])
     Hooks.on(ev, () => { if (canvas?.tokens?.controlled?.length) refreshSoon(); });
+  // токен: только когда он сдвинулся, сменил высоту, скрылся или поменялись данные его машины (не имя, картинка, полоски)
+  const TOKEN_KEYS = ["x", "y", "elevation", "hidden", "delta", "width", "height"];
+  Hooks.on("updateToken", (doc, change) => { if (canvas?.tokens?.controlled?.length && TOKEN_KEYS.some(k => k in change)) refreshSoon(); });
   Hooks.on("canvasReady", () => refreshSoon());
   Hooks.on("canvasTearDown", () => { labels = null; marks = null; hideTip(); });
   globalThis.window?.addEventListener("pointermove", onPointer, { passive: true });
@@ -173,11 +176,19 @@ function layerOf(name) {
   return c;
 }
 
+/* Стили подписей одни на все клетки: новый PIXI.TextStyle на каждую цифру при каждой перерисовке не нужен. */
+const styles = new Map();
+function textStyle(fill, fontSize, align, gs) {
+  const k = `${fill}|${fontSize}|${align}|${gs}`;
+  if (!styles.has(k)) styles.set(k, new PIXI.TextStyle({
+    fontFamily: "Jura, sans-serif", fontSize, fontWeight: "700", fill, stroke: 0x02080a, strokeThickness: 3, wordWrap: true, wordWrapWidth: gs - 8, align
+  }));
+  return styles.get(k);
+}
+
 function text(box, str, x, y, { fill = 0xd9f2ff, size, align = "left" } = {}) {
   const gs = canvas.grid.size;
-  const t = box.addChild(new PreciseText(str, new PIXI.TextStyle({
-    fontFamily: "Jura, sans-serif", fontSize: size ?? Math.max(12, Math.round(gs / 8)), fontWeight: "700", fill, stroke: 0x02080a, strokeThickness: 3, wordWrap: true, wordWrapWidth: gs - 8, align
-  })));
+  const t = box.addChild(new PreciseText(str, textStyle(fill, size ?? Math.max(12, Math.round(gs / 8)), align, gs)));
   t.position.set(x, y);
   return t;
 }

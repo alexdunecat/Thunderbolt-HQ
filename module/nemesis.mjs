@@ -504,12 +504,13 @@ export function registerNemesis() {
     renderMonologue();
   });
   // появление: токен Немезиды вышел на сцену боя, ведущий его открыл или бой начался при ней на сцене
-  const inCombat = doc => !!game.combat?.started && doc.parent?.id === game.combat.scene?.id;
+  const inCombat = doc => !!game.combat?.started && doc.parent?.id === (game.combat.scene ?? canvas?.scene)?.id;
   Hooks.on("createToken", doc => { if (isLead() && inCombat(doc) && !doc.hidden && isNemesis(doc.actor)) appear(doc.actor, { auto: true }); });
   Hooks.on("updateToken", (doc, change) => { if (isLead() && change.hidden === false && inCombat(doc) && isNemesis(doc.actor)) appear(doc.actor, { auto: true }); });
+  // combatStart приходит только тому, кто начал бой
   Hooks.on("combatStart", async combat => {
-    if (!isLead()) return;
-    for (const t of combat.scene?.tokens ?? []) if (!t.hidden && isNemesis(t.actor) && !dead(t.actor)) await appear(t.actor, { auto: true });
+    if (!game.user.isGM) return;
+    for (const t of (combat.scene ?? canvas?.scene)?.tokens ?? []) if (!t.hidden && isNemesis(t.actor) && !dead(t.actor)) await appear(t.actor, { auto: true });
   });
   Hooks.on("deleteCombat", () => { if (isLead()) endMonologue(); });
   Hooks.on("createChatMessage", message => { if (isLead()) trackAttack(message).catch(err => console.warn(`${SYSTEM_ID} | Немезида`, err)); });

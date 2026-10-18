@@ -85,7 +85,11 @@ export function registerSounds() {
     game.socket.on(CHANNEL, msg => { if (msg?.type === "sound" && COCKPIT_SOUNDS[msg.key]?.all) cueAll(msg.key); });
     // заранее в кэш: первый сигнал не ждёт загрузки файла
     const pre = foundry.audio?.AudioHelper?.preloadSound;
-    if (pre) for (const k of Object.keys(COCKPIT_SOUNDS).flatMap(k => COCKPIT_SOUNDS[k].files ?? [k])) Promise.resolve().then(() => pre.call(foundry.audio.AudioHelper, SRC(k))).catch(() => null);
+    // выключенные у себя звуки и нулевую громкость не грузим; остальное — когда браузер свободен
+    if (!pre || Number(setting("soundVolume", 70)) <= 0) return;
+    const keys = Object.keys(COCKPIT_SOUNDS).filter(k => !muted(k)).flatMap(k => COCKPIT_SOUNDS[k].files ?? [k]);
+    const idle = globalThis.requestIdleCallback ?? (f => setTimeout(f, 1500));
+    idle(() => { for (const k of keys) Promise.resolve().then(() => pre.call(foundry.audio.AudioHelper, SRC(k))).catch(() => null); });
   });
   Hooks.on("createActiveEffect", effect => { if (effect.statuses?.has("stall")) cue("stall", effect.parent); });
   // малая высота — только в бою, чтобы не пищало при расстановке токенов
@@ -215,6 +219,8 @@ export function setSiren(on) {
   return game.settings.set(SYSTEM_ID, "siren", !!on);
 }
 export const sirenOn = () => !!setting("siren", false);
+// номер запуска: сирена, включённая и выключенная быстрее, чем загрузился звук, не остаётся играть второй копией
+let sirenGen = 0;
 function syncSiren() {
   if (sirenOn()) {
     if (siren) return;
@@ -222,9 +228,12 @@ function syncSiren() {
     const volume = Number(setting("soundVolume", 70)) / 100;
     const AH = foundry.audio?.AudioHelper;
     if (volume <= 0 || muted("siren") || !AH) { siren = null; return; }
+    const my = ++sirenGen;
     Promise.resolve().then(() => AH.play({ src: SRC("siren"), volume, autoplay: true, loop: true, channel: "interface" }, false))
-      .then(s => { if (!sirenOn()) s?.stop?.(); else siren = s; }).catch(() => { siren = null; });
+      .then(s => { if (my !== sirenGen || !sirenOn()) s?.stop?.(); else siren = s; })
+      .catch(() => { if (my === sirenGen) siren = null; });
   } else {
+    sirenGen++;
     try { siren?.stop?.(); } catch {}
     siren = null;
   }

@@ -27,7 +27,6 @@ export function applyCanvasStyle(enable) {
   return true;
 }
 
-export const canvasStyleOn = () => on;
 
 /** Прицел Foundry (клавиша T): цвет и обводка «Брифинга», когда стиль включён. */
 export function patchTargetReticle(TokenClass = CONFIG.Token?.objectClass) {

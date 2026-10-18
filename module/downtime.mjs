@@ -2,7 +2,7 @@
    Решимость, Нервы и «На пределе» со срывом, шкалы угроз и события на базе. Правила: «Даунтайм» (09.10.2026). */
 import { SYSTEM_ID, TB, DT } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
-import { formDialog, postCard, renderCard, computeCard } from "./dice/rolls.mjs";
+import { formDialog, postCard, computeCard } from "./dice/rolls.mjs";
 import { giveNext } from "./squad.mjs";
 
 const CHANNEL = `system.${SYSTEM_ID}`;
@@ -49,6 +49,20 @@ async function saveThreats(list) {
   return game.settings.set(SYSTEM_ID, "threats", list);
 }
 
+/* Изменения шкал по очереди: шаг игрока по сокету, тик конца раунда и щелчок ведущего, пришедшие разом,
+   иначе читают один и тот же старый список, и одно изменение теряется. fn получает свежую копию списка
+   и возвращает { list, result } (list: null — не сохранять). */
+let threatQueue = Promise.resolve();
+function changeThreats(fn) {
+  const run = threatQueue.then(async () => {
+    const { list, result } = await fn(foundry.utils.deepClone(threats()));
+    if (list) await saveThreats(list);
+    return result;
+  });
+  threatQueue = run.catch(err => console.error(`${SYSTEM_ID} | шкалы угроз`, err));
+  return run;
+}
+
 /** Новая шкала угрозы: название и размер 4, 6 или 8. */
 export async function addThreat() {
   const data = await formDialog("Новая шкала угрозы", `
@@ -57,20 +71,21 @@ export async function addThreat() {
     <div class="form-group"><label>Когда заполнится</label><input type="text" name="note" placeholder="допрос, обыск в казарме или отстранение от вылета"></div>`, { ok: "Завести" });
   if (!data?.name) return null;
   const t = { id: randomID(), name: data.name, size: Number(data.size) || 6, value: 0, note: data.note ?? "" };
-  await saveThreats([...threats(), t]);
-  return t;
+  return changeThreats(list => ({ list: [...list, t], result: t }));
 }
 
 /** Сдвинуть шкалу на delta делений; заполненная шкала объявляется в чате. */
 export async function stepThreat(id, delta) {
   if (!game.user.isGM) return game.socket.emit(CHANNEL, { type: "threatStep", id, delta });
-  const list = foundry.utils.deepClone(threats());
-  const t = list.find(x => x.id === id);
-  if (!t) return null;
-  const was = t.value;
-  t.value = Math.max(0, Math.min(t.size, t.value + delta));
-  if (t.value === was) return t;
-  await saveThreats(list);
+  let was = 0;
+  const t = await changeThreats(list => {
+    const t = list.find(x => x.id === id);
+    if (!t) return { list: null, result: null };
+    was = t.value;
+    t.value = Math.max(0, Math.min(t.size, t.value + delta));
+    return { list: t.value === was ? null : list, result: t };
+  });
+  if (!t || t.value === was) return t;
   const said = t.kind === "boss" && delta > 0 ? await bossLine(t, was) : null;
   if (t.value >= t.size && was < t.size && said !== "full") await ChatMessage.create({
     speaker: { alias: "AWACS" },
@@ -127,16 +142,15 @@ export async function bossClockDialog(existing = null) {
     lines: Object.fromEntries(DT.bossMarks.map(([k]) => [k, data[`line_${k}`] ?? ""])) };
   if (existing) { await editThreat(existing.id, { ...patch, value: Math.min(existing.value, patch.size) }); return { ...existing, ...patch }; }
   const t = { id: randomID(), value: 0, created: Date.now(), ...patch };
-  await saveThreats([...threats(), t]);
-  return t;
+  return changeThreats(list => ({ list: [...list, t], result: t }));
 }
 
 export async function deleteThreat(id) {
-  return saveThreats(threats().filter(t => t.id !== id));
+  return changeThreats(list => ({ list: list.filter(t => t.id !== id) }));
 }
 
 export async function editThreat(id, patch) {
-  return saveThreats(threats().map(t => t.id === id ? { ...t, ...patch } : t));
+  return changeThreats(list => ({ list: list.map(t => t.id === id ? { ...t, ...patch } : t) }));
 }
 
 /** Шкала делениями: ■■□□ */
@@ -764,7 +778,7 @@ export function afterSortieUpdate(actor, nervesUp) {
   const plane = s.plane;
   if (plane && actor.items?.some?.(i => i.type === "trigger" && i.system.key === "tester") && s.edges.some(e => e.kind === "rare" || e.kind === "tune")
     && plane.getFlag?.(SYSTEM_ID, "proto") === undefined) {
-    plane.setFlag(SYSTEM_ID, "proto", true);
+    plane.setFlag(SYSTEM_ID, "proto", true).catch(err => console.warn(`${SYSTEM_ID} | опытная машина`, err));
     notes.push(`${plane.name} теперь опытная машина`);
   }
   return { upd, notes };

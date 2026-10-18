@@ -246,8 +246,8 @@ export function renderCard(card) {
   if (c.followOf) rows.push(`<div class="tb-note">«За мной!»: бросок ${esc(c.followOf)}.</div>`);
   const queued = c.delayed && c.combatKey && !c.resolved && !c.dmgApplied;
   if (queued) rows.push(`<div class="tb-note tb-queued"><i class="fas fa-hourglass-half"></i> ${c.atTurn ? "Ждёт начала хода цели." : "В очереди залпа конца раунда."}</div>`);
-  if (c.resolved) rows.push(`<div class="tb-note">${c.atTurn ? "Учтена в начале хода цели." : "Учтена в залпе конца раунда."}</div>`);
-  if (c.dmg && c.targetUuid && !queued && !c.resolved && (c.success || c.dc === null || c.dc === undefined) && !c.dmgApplied)
+  if (c.resolved) rows.push(`<div class="tb-note">${c.shipOpen && !c.dmgApplied ? "Долетела в конце раунда: урон по системе корабля — кнопкой." : c.atTurn ? "Учтена в начале хода цели." : "Учтена в залпе конца раунда."}</div>`);
+  if (c.dmg && c.targetUuid && !queued && (!c.resolved || c.shipOpen) && (c.success || c.dc === null || c.dc === undefined) && !c.dmgApplied)
     btn.push(`<button type="button" data-tb-action="damage" class="tb-target-owner"><i class="fas fa-burst"></i> ${c.delayed ? "В конце раунда: " : ""}${c.dmg} урона по «${esc(c.targetName)}»</button>`);
   if (c.dmgApplied) rows.push(`<div class="tb-note">${c.autoDmg ? `Попадание: ${c.dmg} урона по «${esc(c.targetName)}» нанесено сразу.` : "Урон нанесён."}</div>`);
 
@@ -433,31 +433,27 @@ function renderDoomFate(c) {
   </div>`;
 }
 
-/** Бросок на катапультирование: Push против 7, Strain можно; d4 того же броска решает исход провала. */
-export async function rollEject(actor) {
-  const dice = await rollDice(actor, false, { turnRoll: false });
-  if (!dice) return;
-  const card = {
-    type: "eject", label: "Бросок на катапультирование: Push против 7", rolled: true, d10: dice.d10, d4: dice.d4,
-    parts: [...skillParts(actor, "push", "Форсаж"), ...await takeNext(actor)], strain: 0, dc: 7, strainable: true,
-    skill: "push", perkOn: 4, compOn: 1
-  };
-  return postCard(actor, card, dice.rolls);
+/** Карточка Doom пилота отмечается выбором «катапульта»; false — выбор уже сделан. */
+async function markDoomEject(actor) {
+  const doom = game.messages.contents.slice(-200).reverse().find(m => { const c = m.getFlag(SYSTEM_ID, "card"); return c?.type === "doomfate" && c.actorUuid === actor.uuid; });
+  const doomCard = doom ? foundry.utils.deepClone(doom.getFlag(SYSTEM_ID, "card")) : null;
+  if (doomCard?.chosen) { ui.notifications.warn(doomCard.chosen === "eject" ? `${actor.name}: катапульта уже сработала.` : `${actor.name}: выбрана героическая гибель.`); return false; }
+  if (doom && doom.canUserModify(game.user, "update")) {
+    doomCard.chosen = "eject";
+    await doom.update({ content: renderCard(doomCard), [`flags.${SYSTEM_ID}.card`]: doomCard });
+  }
+  return true;
 }
 
 /**
  * Катапульта одной кнопкой (HUD при метке Doom): без окон. Карточка Doom отмечается выбором «катапульта»,
  * бросок Push против 7, при провале сам тратится Strain, если его хватает дотянуть до 7, исход сразу пишется в личное дело.
  */
-export async function ejectNow(actor) {
+export async function ejectNow(actor, { marked = false } = {}) {
   if (!actor?.isOwner || actor.type !== "pilot") return null;
-  if (!actor.system.markers.doom) return ui.notifications.warn(`${actor.name}: катапульта только при метке Doom.`);
-  const doom = game.messages.contents.slice(-200).reverse().find(m => { const c = m.getFlag(SYSTEM_ID, "card"); return c?.type === "doomfate" && c.actorUuid === actor.uuid; });
-  const doomCard = doom ? foundry.utils.deepClone(doom.getFlag(SYSTEM_ID, "card")) : null;
-  if (doomCard?.chosen) return ui.notifications.warn(doomCard.chosen === "eject" ? `${actor.name}: катапульта уже сработала.` : `${actor.name}: выбрана героическая гибель.`);
-  if (doom && doom.canUserModify(game.user, "update")) {
-    doomCard.chosen = "eject";
-    await doom.update({ content: renderCard(doomCard), [`flags.${SYSTEM_ID}.card`]: doomCard });
+  if (!marked) {
+    if (!actor.system.markers.doom) return ui.notifications.warn(`${actor.name}: катапульта только при метке Doom.`);
+    if (!(await markDoomEject(actor))) return null;
   }
   const dice = await rollDice(actor, false, { turnRoll: false });
   if (!dice) return null;
@@ -1072,7 +1068,7 @@ async function autoHit(message) {
 
 /** Урон, который другой клиент поручил этому. */
 export function initHitSocket() {
-  game.socket.on(CHANNEL, msg => { if (msg?.type === "hit" && msg.to === game.user.id) hitTarget(msg.hit).catch(err => damageFailed(msg.hit, err)); });
+  game.socket.on(CHANNEL, msg => { if (msg?.type === "hit" && msg.to === game.user.id) hitTarget(msg.hit, msg.hit.roundKey).catch(err => damageFailed(msg.hit, err)); });
 }
 
 /** Пуск ЗРК или ракета корабельной системы: G-A, Speed 0, без броска. */
@@ -1106,7 +1102,9 @@ export async function fireSam(actor, sysIndex) {
   const parts = [[air ? "G-A" : "G-G", ga ?? 0]];
   const key = combatKey(), tBroken = t?.actor.system.broken === "ma";
   const card = {
-    type: "attack", attack: true, label, rolled: false, parts, strain: 0, dc: t ? t.defense + wallBonus(t.token, t.actor) + nemesisDefense(actor, t.actor) + triggerDefense(actor, t.actor) : null, vsLabel: "защиты",
+    type: "attack", attack: true, label, rolled: false, parts, strain: 0,
+    // по кораблю и летающему супероружию — против Occlusion системы, а не защиты (у кораблей её нет)
+    ...shipDc(t, null, t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) + nemesisDefense(actor, t.actor) + triggerDefense(actor, t.actor) : null),
     dmg: TB.missileDamage, delayed: true, atTurn: tBroken && !!key, combatKey: key, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", maws: mawsOn(t),
     notes: [tBroken ? (key ? "Ракета ударит в начале хода цели (у неё сломан MAWS): посчитается сама." : "Попадает в начале хода цели: у неё сломан MAWS.")
       : key ? "Ракета долетит в конце раунда: залп посчитается сам." : "Ракета долетает в конце раунда."]
@@ -1157,7 +1155,7 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
   }
   if (!groups.size) return null;
   const targets = [];
-  const done = [];
+  const done = [], shipOpen = new Set();
   for (const [, list] of groups) {
     list.sort((a, b) => b.c.total - a.c.total);
     const best = list[0].c;
@@ -1167,7 +1165,13 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
     if (!actor) { targets.push({ uuid, name: best.targetName, missing: true }); continue; }
     const info = describeTarget(actor, best.targetName);
     const y = sys !== undefined ? actor.system.systems?.[sys] : null;
-    if (info.kind === "ship" && !y) { targets.push({ uuid, name: info.name, ship: true, count: list.length, best: best.total }); continue; }
+    // корабль без выбранной системы: урон ведущий наносит кнопкой на карточке пуска (она остаётся и после залпа)
+    if (info.kind === "ship" && !y) {
+      targets.push({ uuid, name: info.name, ship: true, count: list.length, best: best.total });
+      for (const x of list) shipOpen.add(x.m.id);
+      done.push(...list);
+      continue;
+    }
     const extra = list.slice(1).map(x => x.c).sort((a, b) => (b.dmg ?? 0) - (a.dmg ?? 0));
     // корабль: против Occlusion системы на момент залпа; в туннеле стены сбивают ракеты
     const shooter = resolveActor(best.actorUuid);
@@ -1189,11 +1193,14 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
     });
     done.push(...list);
   }
-  for (const { m } of done) {
+  // карточки пусков отмечаются одним запросом
+  const marked = done.map(({ m }) => {
     const c = foundry.utils.deepClone(m.getFlag(SYSTEM_ID, "card"));
     c.resolved = true;
-    await m.update({ content: renderCard(c), [`flags.${SYSTEM_ID}.card`]: c });
-  }
+    if (shipOpen.has(m.id)) c.shipOpen = true;
+    return { _id: m.id, content: renderCard(c), [`flags.${SYSTEM_ID}.card`]: c };
+  });
+  if (marked.length) await ChatMessage.updateDocuments(marked);
   // урон по попавшим наносится сам: ракета уже посчитана с защитой цели на этот момент (Break!, Speed, погода)
   const auto = targets.some(r => r.hit);
   const card = { type: "volley", round, roundKey: key, atTurnOf, targets, applied: auto, auto };
@@ -1270,7 +1277,8 @@ export async function onCardAction(message, action, button) {
       card.chosen = action === "doom-eject" ? "eject" : "hero";
       await save();
       if (card.chosen === "hero") return actor.update({ "system.service.status": "kia" });
-      return rollEject(actor);
+      // та же катапульта, что в HUD: Strain дотягивает сам, исход сразу в личном деле
+      return ejectNow(actor, { marked: true });
     }
     case "eject-apply": {
       if (!actor?.isOwner || card.applied) return;

@@ -53,13 +53,6 @@ export const TB = {
   npcKinds: { air: "Воздушная цель", ground: "Наземная цель", ship: "Корабль или особая цель" },
   weaponTargets: { air: "по воздуху", ground: "по земле и морю", gun: "пушечный", util: "РЭБ", line: "по линии" },
   weaponKinds: { book: "из книги", hb: "из Ace Combat 5", op: "опытное" },
-  triggerTypes: {
-    Core: "Core", General: "General", Twist: "Twist", Nemesis: "Nemesis", Death: "Death", Passive: "Passive"
-  },
-  triggerTypeHints: {
-    General: "раз за вылет в любой момент", Twist: "раз за вылет после Поворота", Nemesis: "раз за вылет, когда появилась Немезида",
-    Death: "после гибели", Passive: "действует всегда", Core: "стартовый триггер архетипа"
-  },
   archetypes: {
     oldguard: { label: "Ветеран (Old Guard)", core: "practiced" },
     rookie: { label: "Новичок (Rookie)", core: "mentor" },

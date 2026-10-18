@@ -13,19 +13,29 @@ const ONE = [1, 1];
 export function registerTokenSettings() {
   Hooks.on("preCreateToken", onPreCreate);
   Hooks.on("preUpdateToken", onPreUpdate);
-  Hooks.once("ready", () => { if (game.users?.activeGM?.isSelf ?? game.user?.isGM) growTokens().catch(err => console.warn("thunderbolt-shtab | размер токенов", err)); });
+  // раз на версию системы: размеры больших целей меняются только с обновлением
+  game.settings.register("thunderbolt-shtab", "grownFor", { scope: "world", config: false, type: String, default: "" });
+  Hooks.once("ready", async () => {
+    if (!(game.users?.activeGM?.isSelf ?? game.user?.isGM)) return;
+    const v = game.system?.version ?? "";
+    if (game.settings.get("thunderbolt-shtab", "grownFor") === v) return;
+    try { await growTokens(); await game.settings.set("thunderbolt-shtab", "grownFor", v); }
+    catch (err) { console.warn("thunderbolt-shtab | размер токенов", err); }
+  });
 }
 
 /** Ведущий при запуске: токены, которые стоят в одно место, хотя цель теперь больше (новый размер в версии системы), растут до своего блока. */
 export async function growTokens() {
   for (const scene of game.scenes ?? []) {
     if (!squareScene(scene)) continue;
-    const gs = scene.grid.size, one = cellLook(ONE), updates = [];
+    const gs = scene.grid.size, one = cellLook(ONE), updates = [], chosen = new Set();
     for (const t of scene.tokens) {
       const real = ours(t) ? footprintOf(t.actor?.system) : null;
       if (!real || !looksRight(t.width, t.height, t.texture?.scaleX, one)) continue;
       const look = cellLook(real), c = center(t, gs);
-      const s = freeBlock(scene, c, c, real, takenOnScene(scene, t.id)) ?? freeBlock(scene, c, c, real, new Set());
+      // места, отданные выросшим раньше в этом же проходе, тоже заняты
+      const s = freeBlock(scene, c, c, real, new Set([...takenOnScene(scene, t.id), ...chosen])) ?? freeBlock(scene, c, c, real, new Set());
+      for (const k of cellKeys(s)) chosen.add(k);
       const want = lookUpdate(t, real, look);
       const u = { _id: t.id, width: look.width, height: look.height, ...topLeft(s, look, gs), "texture.scaleX": look.scale, "texture.scaleY": look.scale, "texture.fit": "contain" };
       if (want.texture.src) u["texture.src"] = want.texture.src;

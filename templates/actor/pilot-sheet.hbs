@@ -69,7 +69,7 @@
             <div class="tb-dial">
               <span class="tb-dial-label">Defense</span>
               <div class="tb-dial-big" {{#if defenseWeather}}title="с погодой"{{/if}}>{{defenseNow}}</div>
-              <span class="tb-dial-sub">Evasion {{system.evasion}}{{#if system.breakEv}} · Break {{system.breakEv}} <a data-act="unbreak" title="Сбросить Break!">×</a>{{/if}} + Speed</span>
+              <span class="tb-dial-sub">Evasion {{system.evasion}}{{#if (ne system.breakEv null)}} · Break {{system.breakEv}} <a data-act="unbreak" title="Сбросить Break!">×</a>{{/if}} + Speed</span>
             </div>
             <div class="tb-dial">
               <span class="tb-dial-label">HP</span>

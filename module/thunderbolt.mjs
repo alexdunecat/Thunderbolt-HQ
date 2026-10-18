@@ -26,7 +26,7 @@ import { registerRadio, sendRadio, say, caution, openRadioDialog } from "./radio
 import { registerRange } from "./range.mjs";
 import * as Downtime from "./downtime.mjs";
 import { openRadioLog } from "./radio-log.mjs";
-import { registerStrikes, markStrike } from "./strikes.mjs";
+import { registerStrikes } from "./strikes.mjs";
 import { registerCivilRadio, openCivilRadio, canControl as canRadio } from "./civil-radio.mjs";
 import { registerChatter, openChatterEditor } from "./chatter.mjs";
 import { registerMission, openMissionDialog } from "./mission.mjs";
@@ -202,9 +202,15 @@ Hooks.on("createChatMessage", message => R.onVolleyCreated(message));
 
 /* Высота: поле листа и высота токена (1 = Низкая, 2 = Средняя, 3 = Высокая) держатся вместе. */
 let moveTimer = null, locking = false, lockAgain = false;
+const sheetTimers = new Map();
 Hooks.on("updateToken", (token, change, options, userId) => {
   const moved = "x" in change || "y" in change || "elevation" in change;
-  if (moved && token.actor?.sheet?.rendered) token.actor.sheet.render(false);   // погода и защита в новой клетке
+  // погода и защита в новой клетке; группу токенов одного актёра перерисовываю один раз
+  if (moved && token.actor?.sheet?.rendered) {
+    const a = token.actor;
+    clearTimeout(sheetTimers.get(a.uuid));
+    sheetTimers.set(a.uuid, setTimeout(() => { sheetTimers.delete(a.uuid); if (a.sheet?.rendered) a.sheet.render(false); }, 120));
+  }
   if (moved && game.users.activeGM?.isSelf) {
     // группу токенов двигают одним действием: проверяем один раз после всех перемещений
     clearTimeout(moveTimer);
@@ -353,8 +359,11 @@ Hooks.on("updateActor", (actor, change) => {
   }
 });
 
-for (const ev of ["updateActor", "updateActorDelta", "createItem", "updateItem", "deleteItem", "createToken", "updateToken", "deleteToken",
-  "updateScene", "canvasReady", "updateCombat", "deleteCombat", "createChatMessage", "updateChatMessage", `${SYSTEM_ID}.squadrons`]) Hooks.on(ev, () => refreshAwacs());
+for (const ev of ["updateActor", "updateActorDelta", "createItem", "updateItem", "deleteItem", "createToken", "deleteToken",
+  "updateScene", "canvasReady", "updateCombat", "deleteCombat", `${SYSTEM_ID}.squadrons`]) Hooks.on(ev, () => refreshAwacs());
+// панели AWACS нужны только карточки системы и сдвиг, видимость или данные токена, а не каждая реплика и полоска
+for (const ev of ["createChatMessage", "updateChatMessage"]) Hooks.on(ev, m => { if (m.getFlag?.(SYSTEM_ID, "card")) refreshAwacs(); });
+Hooks.on("updateToken", (doc, change) => { if (["x", "y", "elevation", "hidden", "delta", "name"].some(k => k in change)) refreshAwacs(); });
 
 /* Прежний архетип нужен после обновления, чтобы убрать его Core-триггер. */
 Hooks.on("preUpdateActor", (actor, change, options) => {

@@ -759,7 +759,6 @@ export function stopBriefing() {
   Hooks.callAll("thunderboltBriefingStep", -1);
 }
 
-export const briefingLive = () => live;
 
 function onMessage(msg) {
   if (msg?.type === "briefHello") {
@@ -815,7 +814,8 @@ function editorClass() {
       this.scene = scene;
       this.cur = 0;
       this.load();
-      this.save = foundry.utils.debounce(() => this.scene.update({ [`flags.${SYSTEM_ID}.briefing.steps`]: cleanSteps(this.steps) }), 500);
+      this.saveNow = () => this.scene.update({ [`flags.${SYSTEM_ID}.briefing.steps`]: cleanSteps(this.steps) });
+      this.save = foundry.utils.debounce(this.saveNow, 500);
     }
     get title() { return `Брифинг · ${this.scene?.name ?? ""}`; }
     load() { const b = briefingOf(this.scene); this.pm = b.mission; this.steps = b.steps; }
@@ -902,7 +902,8 @@ function editorClass() {
     async act(a, root) {
       if (a === "pv-prev") return this.preview(this.cur - 1);
       if (a === "pv-next") return this.preview(this.cur + 1);
-      if (a === "start") return startBriefing(this.scene, { from: this.cur });
+      // правка, отложенная на полсекунды, должна попасть в брифинг до запуска
+      if (a === "start") { await this.saveNow(); return startBriefing(this.scene, { from: this.cur }); }
       if (a === "boot") return bootThenBriefing(this.scene);
       if (a === "add") {
         const at = Math.min(this.cur + 1, this.steps.findIndex(s => s.final) >= 0 ? this.steps.findIndex(s => s.final) : this.steps.length);

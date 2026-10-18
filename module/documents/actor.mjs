@@ -148,14 +148,14 @@ export class TBActor extends Actor {
     return p;
   }
 
-  async #applyDamage(amount, { source, sourceUuid, roundKey, system, guard = false } = {}) {
+  async #applyDamage(amount, { source, sourceUuid, roundKey, system, guard = false, one = false } = {}) {
     amount = Number(amount) || 0;
     if (amount <= 0 || !["pilot", "npc"].includes(this.type)) return;
     const s = this.system;
     // по уже сбитой машине урон не идёт: иначе второй сбитый засчитался бы дважды
     if (this.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) || s.markers?.doom)
       return this.#say(`<b>${esc(this.name)}</b> уже ${this.type === "pilot" ? "катапультировался" : "сбит"}: урон не нужен.`);
-    const opts = { sourceUuid, roundKey, system };
+    const opts = { sourceUuid, roundKey, system, one };
     // «Рядом с тобой»: товарищ в той же зоне может принять удар на себя
     if (this.type === "pilot" && !guard && await offerGuard(this, amount, { source, sourceUuid, roundKey })) return;
     this.#alarm();
@@ -309,7 +309,7 @@ export class TBActor extends Actor {
    * Урон по кораблю: по системе, на которую навёлся стрелок (system — её номер), иначе выбор в окне.
    * Система уничтожена, а урон остался — лишнее идёт на другую систему на выбор (книга: «Sea Targets»).
    */
-  async #damageShip(amount, { sourceUuid, system } = {}) {
+  async #damageShip(amount, { sourceUuid, system, one = false } = {}) {
     const systems = foundry.utils.deepClone(this.system.systems);
     const lines = [];
     let left = amount, i = Number.isInteger(system) && systems[system] ? system : null;
@@ -325,6 +325,8 @@ export class TBActor extends Actor {
       y.value -= take; left -= take;
       lines.push(`«${esc(y.name)}» −${take} HP${y.value ? `, осталось ${y.value}` : ", система уничтожена"}`);
       i = null;
+      // удар по площади «снимает одну систему»: без перехода лишнего урона на другие
+      if (one) { left = 0; break; }
     }
     if (!lines.length || systems.every((y, k) => y.value === this.system.systems[k].value)) {
       if (!systems.some(y => y.value > 0)) return this.#say(`${esc(this.name)}: все системы уже уничтожены.`);

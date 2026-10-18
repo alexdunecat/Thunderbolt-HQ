@@ -9,7 +9,7 @@ const NEXT = "next", ADJ = "adjacent";
 
 export function initSocket() {
   game.socket.on(CHANNEL, async msg => {
-    if (!game.users.activeGM?.isSelf) return;
+    if ((msg?.type !== "next" && msg?.type !== "adjacent") || !game.users.activeGM?.isSelf) return;
     const actor = resolveActor(msg.uuid);
     if (!actor) return;
     if (msg.type === "next") await addNextLocal(actor, msg.mod);

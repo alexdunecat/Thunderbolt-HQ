@@ -28,8 +28,13 @@ export function registerHud() {
     name: "HUD пилота", hint: "Полоса внизу экрана в бою: HP, Strain, Speed, высота, действия хода, захват, спецоружие и предупреждения, кнопки действий.",
     scope: "client", config: true, type: Boolean, default: true, onChange: () => refreshHud()
   });
-  for (const ev of ["canvasReady", "controlToken", "updateActor", "updateActorDelta", "updateToken", "createToken", "deleteToken", "updateItem",
-    "createCombat", "updateCombat", "deleteCombat", "updateCombatant", "createChatMessage", "updateChatMessage"]) Hooks.on(ev, () => refreshHud());
+  for (const ev of ["canvasReady", "controlToken", "updateActor", "updateActorDelta", "createToken", "deleteToken", "updateItem",
+    "createCombat", "updateCombat", "deleteCombat", "updateCombatant"]) Hooks.on(ev, () => refreshHud());
+  // чат: только карточки системы (пуски, захваты, Doom), не обычные реплики
+  for (const ev of ["createChatMessage", "updateChatMessage"]) Hooks.on(ev, m => { if (m.getFlag?.(SYSTEM_ID, "card") || m.getFlag?.(SYSTEM_ID, "rwr")) refreshHud(); });
+  // токен: место, высота, видимость, данные машины и картинка (силуэт); не имя и не полоски
+  const TOKEN_KEYS = ["x", "y", "elevation", "hidden", "delta", "texture", "actorLink"];
+  Hooks.on("updateToken", (doc, change) => { if (TOKEN_KEYS.some(k => k in change)) refreshHud(); });
   Hooks.on(`${SYSTEM_ID}.hlMode`, () => refreshHud());
   Hooks.on(`${SYSTEM_ID}.monologue`, () => refreshHud());
   globalThis.window?.addEventListener("resize", () => place());
@@ -273,7 +278,7 @@ export const hudHtml = (actor, folded = false) => html(actor, hudData(actor), fo
 
 function render() {
   const actor = game.settings.get(SYSTEM_ID, "pilotHud") && game.combat?.started && (!game.combat.scene || game.combat.scene.id === canvas?.scene?.id) ? hudActor() : null;
-  if (!actor || !tokenOf(actor)) { el?.remove(); el = null; shown = null; return; }
+  if (!actor || !tokenOf(actor)) { el?.remove(); el = null; shown = null; lastHtml = ""; return; }
   shown = actor;
   let folded = false;
   try { folded = localStorage.getItem(FOLD_KEY) === "1"; } catch (err) { /* хранилище недоступно */ }
@@ -304,15 +309,24 @@ function render() {
   el.classList.toggle("folded", folded);
   el.classList.toggle("pinned", readPos().x !== undefined);
   el.classList.toggle("tb-unit-hud", !hudFits(actor));
-  el.innerHTML = hudFits(actor) ? html(actor, hudData(actor), folded) : unitHtml(actor, folded);
+  const markup = hudFits(actor) ? html(actor, hudData(actor), folded) : unitHtml(actor, folded);
+  // та же разметка: не трогать DOM и не пересчитывать раскладку
+  if (markup === lastHtml) return;
+  lastHtml = markup;
+  el.innerHTML = markup;
   place();
 }
+let lastHtml = "";
 
 /** Где игрок оставил панель в этом браузере: { x, y, w, h } (пусто — по центру над панелью макросов). */
+let posCache = null;
 function readPos() {
-  try { return JSON.parse(localStorage.getItem(POS_KEY) ?? "{}") ?? {}; } catch (err) { return {}; }
+  if (posCache) return { ...posCache };
+  try { posCache = JSON.parse(localStorage.getItem(POS_KEY) ?? "{}") ?? {}; } catch (err) { posCache = {}; }
+  return { ...posCache };
 }
 function writePos(pos) {
+  posCache = { ...pos };
   try { localStorage.setItem(POS_KEY, JSON.stringify(pos)); } catch (err) { /* хранилище недоступно */ }
 }
 
@@ -359,6 +373,7 @@ function startDrag(ev) {
 
 /** Вернуть панель на место по умолчанию и к исходному размеру. */
 function dock() {
+  posCache = {};
   try { localStorage.removeItem(POS_KEY); } catch (err) { /* хранилище недоступно */ }
   if (!el) return;
   el.style.width = el.style.height = "";

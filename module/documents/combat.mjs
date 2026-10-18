@@ -150,24 +150,30 @@ function pendingStall(actor) {
 
 /** Конец раунда round: залп, потом конец Break! и его Speed, потом сброс заявок. */
 async function endRound(combat, round) {
+  // раунд, к которому вернулись кнопкой «назад» и прошли снова: шкалы и гибель целей второй раз не считаются
+  // (залп, удары и Break! и так не повторяются: их карточки уже отмечены)
+  const again = (flag(combat, "ended") ?? 0) >= round;
+  if (!again) await combat.setFlag(SYSTEM_ID, "ended", round);
   const volley = await resolveVolley(combat, { round });
   // удары по площади: после всех ходов, по тем, кто так и не ушёл из отмеченных зон
   try { await resolveStrikes(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | удары по площади`, err); }
   // шкалы крупных целей: «Падение», «Сброс», «Над целью», перегрев, отсчёт до пуска
-  try { await advanceScales(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | шкалы`, err); }
+  if (!again) try { await advanceScales(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | шкалы`, err); }
   // гибель крупных целей по их правилам: опрокинулся, упал, взорвался (boss-fate.mjs)
-  try { const { resolveFates } = await import("../boss-fate.mjs"); await resolveFates(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | гибель целей`, err); }
+  if (!again) try { const { resolveFates } = await import("../boss-fate.mjs"); await resolveFates(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | гибель целей`, err); }
   const key = `${combat.id}:${round}`;
   // Break!: Speed падает, когда атаки раунда разрешены
-  const drops = new Map();
+  const drops = new Map(), marked = [];
   for (const m of game.messages.contents) {
     const c = m.getFlag(SYSTEM_ID, "card");
     if (c?.type !== "break" || c.combatKey !== key || c.speedApplied) continue;
     drops.set(c.actorUuid, Math.max(drops.get(c.actorUuid) ?? 0, c.speedDrop ?? 2));
     const card = foundry.utils.deepClone(c);
     card.speedApplied = true;
-    await m.update({ [`flags.${SYSTEM_ID}.card`]: card, content: renderCard(card) });
+    marked.push({ _id: m.id, [`flags.${SYSTEM_ID}.card`]: card, content: renderCard(card) });
   }
+  // одним запросом: каждая правка карточки иначе гоняет перерисовку чата и панелей у всех
+  if (marked.length) await ChatMessage.updateDocuments(marked);
   const lines = [];
   for (const c of combat.combatants) {
     const a = c.actor;
@@ -181,7 +187,8 @@ async function endRound(combat, round) {
   // сбитые до этого раунда и отступившие уходят с поля (ракеты залпа, посчитанного сейчас, — в конце следующего)
   const gone = await clearLosses(combat, round);
   if (gone.length) lines.push(`С поля убраны: ${gone.map(lossLine).join(", ")}.`);
-  await combat.updateEmbeddedDocuments("Combatant", combat.combatants.map(c => ({ _id: c.id, initiative: null })));
+  const reset = combat.combatants.filter(c => c.initiative !== null).map(c => ({ _id: c.id, initiative: null }));
+  if (reset.length) await combat.updateEmbeddedDocuments("Combatant", reset);
   const tail = lines.length ? `<br>${lines.join("<br>")}` : "";
   await ChatMessage.create({
     speaker: { alias: "AWACS" },
@@ -224,6 +231,8 @@ export function registerCombat() {
     }
     if (!leadGM()) return;
     if ("round" in change) {
+      // назад на раунд: заявки следующего раунда забыты, чтобы при новом шаге вперёд они начались заново
+      if (options.direction === -1) for (const k of ["ready", "npcDone"]) if ((flag(combat, k) ?? 0) > combat.round) await combat.unsetFlag(SYSTEM_ID, k);
       if (options.direction === 1 && change.round >= 2) await endRound(combat, change.round - 1);
       if (options.direction !== -1 && combat.started) await beginRound(combat);
       return;

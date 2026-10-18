@@ -2,7 +2,7 @@
 import { SYSTEM_ID, SYS_PATH, TB, DT } from "../config.mjs";
 import { esc } from "../utils.mjs";
 import { weatherAt, defenseWithWeather, tokenOf, zoneDistance, rangeLabel, gunVs, ceilingOf, ALT_ORDER } from "../scene.mjs";
-import { leadership, formUp, nextMods, dropNext, adjacentOf, breakAdjacent } from "../squad.mjs";
+import { nextMods, dropNext, adjacentOf, breakAdjacent } from "../squad.mjs";
 import { resolveActor } from "../utils.mjs";
 import { squadBudget, pointsText, allSquads, squadLayout, setSquadLayout, squadMembers } from "../squadrons.mjs";
 import { runAction, ACTIONS, startActionDrag } from "../macros.mjs";

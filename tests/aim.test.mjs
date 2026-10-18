@@ -16,7 +16,7 @@ Object.assign(globalThis, {
   Hooks: { on() {}, once() {}, callAll() {} }, CONFIG: { sounds: {}, specialStatusEffects: { DEFEATED: "dead" } },
   game: { user: { id: "gm", isGM: true }, users: [], macros: [], folders: [], messages: { contents: msgs }, combat: null, settings: { get: () => null }, actors: [] },
   ui: { notifications: { warn: m => log.push("warn " + m), info() {} } },
-  ChatMessage: { create: async d => { msgs.push({ ...d, getFlag: (s, k) => d.flags?.[s]?.[k], async update(u) { for (const [k, v] of Object.entries(u)) if (k.startsWith("flags.")) setp(d, k, v); } }); log.push("CHAT " + d.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 200)); return msgs.at(-1); }, getSpeaker: () => ({}) },
+  ChatMessage: { updateDocuments: async list => { for (const { _id, ...u } of list) await msgs.find(m => m.id === _id)?.update(u); }, create: async d => { msgs.push({ ...d, id: "m" + msgs.length, getFlag: (s, k) => d.flags?.[s]?.[k], async update(u) { for (const [k, v] of Object.entries(u)) if (k.startsWith("flags.")) setp(d, k, v); } }); log.push("CHAT " + d.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 200)); return msgs.at(-1); }, getSpeaker: () => ({}) },
   // окно выбора системы: отвечает следующим номером из очереди
   Dialog: class { constructor(o) { this.o = o; } close() { this.o.close?.(); } render() { if (!this.o.buttons.ok) { dialogs.push(this.o); setTimeout(() => this.close(), 0); return this; }
     const i = pickQueue.shift(); log.push(`DIALOG ${this.o.title} → ${i}`);

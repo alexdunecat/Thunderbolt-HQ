@@ -45,7 +45,7 @@ Object.assign(globalThis, {
     log.push("DIALOG " + this.o.title + " for " + names.join(","));
     setTimeout(() => this.o.buttons.ok.callback([{ querySelector: () => form }]), 0); return this; } },
   Hooks: { on: (n, f) => (hooks[n] ??= []).push(f), once() {}, callAll() {} },
-  ChatMessage: { create: async d => { const m = { ...d, getFlag: (s, k) => d.flags?.[s]?.[k], async update(u) { for (const [k, v] of Object.entries(u)) if (k.startsWith("flags.")) setp(d, k, v); } }; msgs.push(m); log.push("CHAT " + (d.content.match(/tb-card-what">([^<]*)/)?.[1] ?? "") + " | " + d.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160)); return m; }, getSpeaker: () => ({}) },
+  ChatMessage: { updateDocuments: async list => { for (const { _id, ...u } of list) await msgs.find(m => m.id === _id)?.update(u); }, create: async d => { const m = { ...d, id: "m" + msgs.length, getFlag: (s, k) => d.flags?.[s]?.[k], async update(u) { for (const [k, v] of Object.entries(u)) if (k.startsWith("flags.")) setp(d, k, v); } }; msgs.push(m); log.push("CHAT " + (d.content.match(/tb-card-what">([^<]*)/)?.[1] ?? "") + " | " + d.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160)); return m; }, getSpeaker: () => ({}) },
   game: { scenes: { viewed: null }, user: users[0], users, messages: { get contents() { return msgs; } }, settings: { get: () => null }, combat: null },
   ui: { notifications: { info: m => log.push("info " + m), warn: m => log.push("warn " + m) } },
   CONFIG: { sounds: {}, specialStatusEffects: { DEFEATED: "dead" } },

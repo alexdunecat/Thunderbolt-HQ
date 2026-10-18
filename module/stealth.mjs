@@ -37,7 +37,7 @@ export function registerStealth() {
     if (!combat) return;
     const list = (combat.getFlag(SYSTEM_ID, "radarDown") ?? []).filter(x => x.uuid !== actor.uuid);
     list.push({ uuid: actor.uuid, name: actor.token?.name ?? actor.name, round: volleyRound ?? down.round });
-    combat.setFlag(SYSTEM_ID, "radarDown", list);
+    combat.setFlag(SYSTEM_ID, "radarDown", list).catch(err => console.warn(`${SYSTEM_ID} | молчащие РЛС`, err));
   });
 }
 
