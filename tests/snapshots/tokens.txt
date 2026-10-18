@@ -1,0 +1,4 @@
+Тарпан: [1,3]
+МиГ-29: null
+Скинфакси: [1,3]
+{"type":"Token","u":[{"_id":"tarp","width":0.5,"height":1,"x":1175,"y":0,"texture.scaleX":1,"texture.scaleY":1,"texture.fit":"contain","texture.src":"systems/thunderbolt-shtab/assets/targets/landship-top.svg"}],"o":{"tbKeep":true,"animate":false}}

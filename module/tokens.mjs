@@ -1,6 +1,6 @@
 /* Токены в зоне: одна клетка сетки сцены — это зона, а зона делится на 3×3 места.
    Обычный самолёт или цель занимает одно место, большие цели — несколько мест, но всегда в пределах одной зоны
-   (стратегические бомбардировщики и крупные самолёты 2×2, Аркбёрд 2×3, летающие крейсеры 3×2 («Анура» и «Арсион» 2×2), подводные авианосцы 1×3,
+   (стратегические бомбардировщики и крупные самолёты 2×2, Аркбёрд 2×3, летающие крейсеры 3×2 («Анура» и «Арсион» 2×2), подводные авианосцы и «Тарпан» 1×3,
    корабли крупнее катера 1×2). Новый или передвинутый токен сам встаёт на свободные места своей зоны.
    Foundry v12 даёт токену размер только с шагом в полклетки, поэтому документ токена чуть больше,
    а картинка уменьшается до нужного числа мест и встаёт в центр своего блока. */
@@ -13,6 +13,26 @@ const ONE = [1, 1];
 export function registerTokenSettings() {
   Hooks.on("preCreateToken", onPreCreate);
   Hooks.on("preUpdateToken", onPreUpdate);
+  Hooks.once("ready", () => { if (game.users?.activeGM?.isSelf ?? game.user?.isGM) growTokens().catch(err => console.warn("thunderbolt-shtab | размер токенов", err)); });
+}
+
+/** Ведущий при запуске: токены, которые стоят в одно место, хотя цель теперь больше (новый размер в версии системы), растут до своего блока. */
+export async function growTokens() {
+  for (const scene of game.scenes ?? []) {
+    if (!squareScene(scene)) continue;
+    const gs = scene.grid.size, one = cellLook(ONE), updates = [];
+    for (const t of scene.tokens) {
+      const real = ours(t) ? footprintOf(t.actor?.system) : null;
+      if (!real || !looksRight(t.width, t.height, t.texture?.scaleX, one)) continue;
+      const look = cellLook(real), c = center(t, gs);
+      const s = freeBlock(scene, c, c, real, takenOnScene(scene, t.id)) ?? freeBlock(scene, c, c, real, new Set());
+      const want = lookUpdate(t, real, look);
+      const u = { _id: t.id, width: look.width, height: look.height, ...topLeft(s, look, gs), "texture.scaleX": look.scale, "texture.scaleY": look.scale, "texture.fit": "contain" };
+      if (want.texture.src) u["texture.src"] = want.texture.src;
+      updates.push(u);
+    }
+    if (updates.length) await scene.updateEmbeddedDocuments("Token", updates, { tbKeep: true, animate: false });
+  }
 }
 
 /** Шаг размера токена: в v12 полклетки, в v13 ограничения нет. */
