@@ -13,7 +13,7 @@ import { lockersOf } from "./rwr.mjs";
 import { vmaxOf, kmhOf } from "./plane-speed.mjs";
 import { ejectNow } from "./dice/rolls.mjs";
 
-const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, WIDTH_KEY = `${SYSTEM_ID}.hudWidthWide`;
+const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, POS_KEY = `${SYSTEM_ID}.hudPos`;
 const BIG = new Set(["missile", "lock", "doom"]);
 const BIG_HINT = { missile: "ракета в воздухе: Break! или смена высоты", lock: "вас держат на захвате", doom: "машина обречена: катапульта или героическая гибель" };
 const BUTTONS = { lock: "Lock On", break: "Break", lead: "Lead", formup: "Вплотную", recover: "Strain", end: "Конец хода" };
@@ -174,10 +174,11 @@ function html(actor, d, folded) {
     return `<button type="button" data-hud-act="${act}" class="${act === "end" ? "end" : ""}">${n ? `<b>${n}</b> ` : ""}${label}</button>`;
   };
   const moves = Object.entries(BUTTONS).filter(([act]) => act !== "end").map(([act, label]) => button(act, label)).join("");
-  return `<header data-hud-fold title="Свернуть или развернуть HUD">
+  return `<header data-hud-fold title="Тащите шапку, чтобы передвинуть панель; щелчок сворачивает. Размер — за правый нижний угол">
       <b>${esc(d.name)}</b> <small>${esc(d.plane)}</small>
       ${d.warn.filter(w => !BIG.has(w.key)).map(w => `<span class="tb-hud-warn ${w.key}">${w.text}</span>`).join("")}
       ${d.acts?.turn ? `<span class="tb-hud-turn">ВАШ ХОД</span>` : ""}
+      <a class="tb-hud-dock" data-hud-dock title="Вернуть панель на место над панелью макросов и к обычному размеру"><i class="fas fa-thumbtack"></i></a>
       <i class="fas fa-chevron-${folded ? "up" : "down"}"></i>
     </header>
     ${d.warn.filter(w => BIG.has(w.key)).map(w => `<div class="tb-hud-alert ${w.key}"><span>${w.key === "missile" ? "▲ " : ""}${w.text}${w.key === "missile" ? " ▲" : ""}</span><small>${BIG_HINT[w.key]}</small></div>`).join("")}
@@ -224,32 +225,92 @@ function render() {
     el.id = "tb-pilot-hud";
     el.className = "thunderbolt tb-hud";
     el.addEventListener("click", onClick);
-    let w = 0;
-    try { w = Number(localStorage.getItem(WIDTH_KEY)) || 0; } catch (err) { /* хранилище недоступно */ }
-    if (w) el.style.width = `${w}px`;
+    el.addEventListener("pointerdown", startDrag);
+    const pos = readPos();
+    if (pos.w) el.style.width = `${pos.w}px`;
+    if (pos.h) el.style.height = `${pos.h}px`;
     document.body.append(el);
-    // ширину тянут за правый нижний угол: браузер пишет её в style.width, её и запоминаю (окно браузера её не трогает)
+    // размер тянут за правый нижний угол: браузер пишет его в style, его и запоминаю; панель при этом стоит на месте
     let saveTimer = null;
     new ResizeObserver(() => {
       clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => { try { const w = parseInt(el?.style.width); if (w) localStorage.setItem(WIDTH_KEY, String(w)); } catch (err) { /* хранилище недоступно */ } place(); }, 300);
+      saveTimer = setTimeout(() => {
+        if (!el) return;
+        const w = parseInt(el.style.width), h = parseInt(el.style.height);
+        if (!w && !h) return;
+        const r = el.getBoundingClientRect(), pos = readPos();
+        writePos({ x: pos.x ?? Math.round(r.left), y: pos.y ?? Math.round(r.top), w: w || pos.w, h: h || pos.h });
+        place();
+      }, 250);
     }).observe(el);
   }
   el.classList.toggle("folded", folded);
+  el.classList.toggle("pinned", readPos().x !== undefined);
   el.innerHTML = html(actor, hudData(actor), folded);
   place();
 }
 
-/** Над панелью макросов, по её центру, не вылезая за край окна. */
+/** Где игрок оставил панель в этом браузере: { x, y, w, h } (пусто — по центру над панелью макросов). */
+function readPos() {
+  try { return JSON.parse(localStorage.getItem(POS_KEY) ?? "{}") ?? {}; } catch (err) { return {}; }
+}
+function writePos(pos) {
+  try { localStorage.setItem(POS_KEY, JSON.stringify(pos)); } catch (err) { /* хранилище недоступно */ }
+}
+
+/** Свою позицию держит панель, которую двигали или тянули; иначе она по центру над панелью макросов. В окно она влезает всегда. */
 function place() {
   if (!el) return;
+  const pos = readPos(), w = el.offsetWidth, h = el.offsetHeight;
+  if (pos.x !== undefined) {
+    el.style.left = `${Math.max(0, Math.min(window.innerWidth - Math.min(w, 120), pos.x))}px`;
+    el.style.top = `${Math.max(0, Math.min(window.innerHeight - 30, pos.y))}px`;
+    el.style.bottom = "auto";
+    return;
+  }
   const bar = document.getElementById("hotbar")?.getBoundingClientRect();
   const mid = bar && bar.width ? bar.left + bar.width / 2 : window.innerWidth / 2;
-  el.style.left = `${Math.max(8, Math.min(window.innerWidth - el.offsetWidth - 8, Math.round(mid - el.offsetWidth / 2)))}px`;
+  el.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, Math.round(mid - w / 2)))}px`;
+  el.style.top = "auto";
   el.style.bottom = `${bar && bar.height ? Math.max(8, window.innerHeight - bar.top + 8) : 70}px`;
 }
 
+/** Перетаскивание за шапку: короткий щелчок по ней по-прежнему сворачивает панель. */
+let dragged = false;
+function startDrag(ev) {
+  if (ev.button !== 0 || !ev.target.closest("header") || ev.target.closest("[data-hud-dock]")) return;
+  const r = el.getBoundingClientRect(), dx = ev.clientX - r.left, dy = ev.clientY - r.top, x0 = ev.clientX, y0 = ev.clientY;
+  dragged = false;
+  const move = e => {
+    if (!dragged && Math.hypot(e.clientX - x0, e.clientY - y0) < 4) return;
+    dragged = true;
+    el.classList.add("dragging", "pinned");
+    el.style.left = `${Math.max(0, Math.min(window.innerWidth - 60, e.clientX - dx))}px`;
+    el.style.top = `${Math.max(0, Math.min(window.innerHeight - 30, e.clientY - dy))}px`;
+    el.style.bottom = "auto";
+  };
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    el?.classList.remove("dragging");
+    if (dragged && el) writePos({ ...readPos(), x: parseInt(el.style.left), y: parseInt(el.style.top) });
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+}
+
+/** Вернуть панель на место по умолчанию и к исходному размеру. */
+function dock() {
+  try { localStorage.removeItem(POS_KEY); } catch (err) { /* хранилище недоступно */ }
+  if (!el) return;
+  el.style.width = el.style.height = "";
+  el.classList.remove("pinned");
+  place();
+}
+
 async function onClick(ev) {
+  if (ev.target.closest("[data-hud-dock]")) { ev.preventDefault(); ev.stopPropagation(); return dock(); }
+  if (dragged && ev.target.closest("header")) { dragged = false; return; }
   const t = ev.target.closest("[data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold]");
   if (!t || !shown) return;
   ev.preventDefault();
