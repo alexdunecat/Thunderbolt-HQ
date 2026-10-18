@@ -18,8 +18,27 @@ Object.assign(globalThis, {
   Dialog: class { constructor(o) { this.o = o; } render() { const names = [...this.o.content.matchAll(/name="([^"]+)"/g)].map(m => m[1]);
     const opts = [...this.o.content.matchAll(/<option value="(\d+)"[^>]*>([^<]*)/g)].map(m => m[2]);
     log.push("DIALOG " + this.o.title + " fields=" + names.join(",") + (opts.length ? " options=" + opts.join(" | ") : "") + " hint=" + (this.o.content.match(/tb-hint">([^\n]*?)<\/p>/)?.[1] ?? "").replace(/<[^>]+>/g, ""));
+    if (!this.o.buttons.ok) return this.cockpit();
     const form = { elements: names.map(n => ({ name: n, type: n === "mod" ? "number" : "select", value: String(answers[n] ?? (n === "mod" ? 0 : "")) })) };
-    setTimeout(() => this.o.buttons.ok.callback([{ querySelector: () => form }]), 0); return this; } },
+    setTimeout(() => this.o.buttons.ok.callback([{ querySelector: () => form }]), 0); return this; }
+    // пульт в стиле HUD: плитки-радио, кнопка с data-pick
+    cockpit() {
+      const c = this.o.content;
+      const tiles = [...c.matchAll(/st-name">([^<]*)<\/span>\s*<span class="st-cnt">([^<]*)/g)].map(m => `${m[1]} [${m[2]}]`);
+      log.push("PANEL " + this.o.title + " · " + tiles.join(" | ") + " · " + (c.match(/data-pick="(\w+)"><b>(\w+)/)?.[2] ?? ""));
+      const elements = [...c.matchAll(/<input ([^>]*)>/g)].map(m => {
+        const at = k => m[1].match(new RegExp(`${k}="([^"]*)"`))?.[1];
+        const name = at("name"), value = at("value") ?? "on";
+        return { name, type: at("type"), value, checked: answers[name] !== undefined ? answers[name] === value : /\bchecked\b/.test(m[1]) };
+      });
+      const form = { elements, querySelector: () => null, querySelectorAll: () => [], addEventListener() {} };
+      let fire;
+      const btn = { dataset: { pick: (c.match(/data-pick="(\w+)"/) ?? [])[1] }, disabled: false, addEventListener: (e, f) => { fire = f; } };
+      this.o.render({ querySelector: q => (q === "form" ? form : null), querySelectorAll: q => (q === "[data-pick]" ? [btn] : []) });
+      setTimeout(() => fire({ preventDefault() {} }), 0);
+      return this;
+    }
+    close() {} },
   Hooks: { on: (n, f) => (hooks[n] ??= []).push(f), once() {}, callAll() {} },
   Roll: class { constructor(f) { this.f = f; } async evaluate() { this.total = this.f === "1d10" ? globalThis.D10 : 2; return this; } },
   ChatMessage: { create: async d => { const m = { ...d, id: "m" + msgs.length, getFlag: (s, k) => d.flags?.[s]?.[k], canUserModify: () => true, async update(u) { for (const [k, v] of Object.entries(u)) if (k.startsWith("flags.")) setp(d, k, v); else d[k] = v; } }; msgs.push(m); return m; }, getSpeaker: () => ({}) },

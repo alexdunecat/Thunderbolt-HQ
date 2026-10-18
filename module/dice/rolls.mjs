@@ -753,6 +753,68 @@ export function foxPanel(actor, t, tk) {
 /** «Форсированный выстрел», если он ещё не использован в этом вылете. */
 const practicedOvercharge = actor => actor.items.find(i => i.type === "trigger" && i.system.key === "overcharge" && !i.system.used) ?? null;
 
+/**
+ * Пульт пушки в стиле HUD: цели в зоне досягаемости плитками (DEF и шанс попасть), станции «бортовая пушка / контейнеры»,
+ * схема корабля и кнопка GUNS. Окна нет, если выбирать нечего: одна цель, без контейнеров, корабля и «Отточенного мастерства».
+ * Ураган берётся из погоды, «За мной!» — если предложено. Возвращает { target, pod, sys_i, practiced, follow, storm, mod } или null.
+ */
+function gunPanel(actor, { list, pre, podItems, sys }) {
+  const s = actor.system, wx = weatherAt(actor);
+  const fo = followOffer(actor, "strafe"), pr = !!practicedReady(actor);
+  const targets = list ?? (pre ? [pre] : []);
+  const auto = { target: list ? String(Math.max(0, list.indexOf(pre))) : "p", pod: "", storm: !!wx.comp2, follow: !!fo, practiced: false, mod: 0 };
+  if (targets.length <= 1 && !podItems.length && !targets.some(x => x.kind === "ship") && !pr) return Promise.resolve(auto);
+  const speed = actor.type === "npc" && s.kind !== "air" ? 0 : (s.speed ?? 0);
+  const own = actor.type === "npc" && s.kind === "ground" ? s.ground.strafe : actor.type === "npc" && s.kind === "ship" && sys ? sysStrafe(actor, sys) : null;
+  const base = (own ?? skillSum(actor, "strafe")) - speed;
+  const gun0 = actor.type === "npc" && s.kind === "ground" ? s.ground.gun ?? 0 : sys ? sys.gun ?? 0 : s.gun ?? 0;
+  // станции: бортовая пушка и подвесные контейнеры (MGP +1 и +3 урона, PLSL +1 и урон 6, НУР — урон залпа)
+  const stations = [{ id: "", code: "GUN", cnt: "∞", add: 0, dmg: gun0 },
+    ...podItems.map(w => ({ id: w.id, code: w.name.split(" · ")[0], cnt: w.system.unlimited ? "∞" : String(w.system.ammo.value ?? 0).padStart(2, "0"),
+      add: ["MGP", "PLSL"].includes(w.system.key) ? 1 : 0, dmg: w.system.key === "MGP" ? gun0 + 3 : w.system.key === "PLSL" ? 6 : w.system.key === "RCL" ? Number(w.system.dmg) || 5 : gun0 }))];
+  const tg = targets.map((x, i) => ({ x, key: list ? String(i) : "p",
+    def: x.defense === null || x.defense === undefined ? null : x.defense + nemesisDefense(actor, x.actor) + triggerDefense(actor, x.actor),
+    add: sum(triggerAttack(actor, x.actor, { rolled: true, skill: "strafe", guns: true }).parts) + sum(nemesisAttack(actor, x.actor, { rolled: true, skill: "strafe" }).parts) + sum([surprise(actor, x)]) }));
+  const first = tg.find(g => g.x === pre) ?? tg[0];
+  const chance = (need, b) => `${Math.max(0, Math.min(10, 11 - (need - b))) * 10}%`;
+  const tile = g => `<label class="st tg ${g === first ? "aimed" : ""}" title="${esc(g.x.name)}${g.x.dist ? " · соседняя зона" : ""}">
+      <input type="radio" name="target" value="${g.key}" ${g === first ? "checked" : ""}><i class="st-led"></i><span class="st-name">${g.x.priority ? "★ " : ""}${esc(g.x.name)}</span>
+      <span class="st-cnt">${g.def !== null ? `DEF ${g.def}` : "OCC"}${g.x.dist ? " · ADJ" : ""}</span>${g.def !== null ? `<b class="st-key" data-ck-pk="${g.key}"></b>` : ""}</label>`;
+  const station = st => `<label class="st ${st.id === "" ? "aimed" : ""}" title="урон ${st.dmg}">
+      <input type="radio" name="pod" value="${st.id}" ${st.id === "" ? "checked" : ""}><i class="st-led"></i><span class="st-name">${esc(st.code)}</span><span class="st-cnt">${esc(st.cnt)}</span><b class="st-key">DMG ${st.dmg}</b></label>`;
+  const schemes = tg.filter(g => g.x.kind === "ship").map(g => schematicHtml(g.x, { name: `sys_${g.key}`, key: g.key, hidden: g !== first })).join("");
+  const toggles = [
+    fo ? `<label title="d10 = ${fo.d10}, d4 = ${fo.d4}"><input type="checkbox" name="follow" checked><span>ЗА МНОЙ · ${esc(fo.name)}</span></label>` : "",
+    pr ? `<label title="Раз за вылет: d10 = 10 и d4 = 4 без броска, проверка хода не тратится"><input type="checkbox" name="practiced"><span>МАСТЕРСТВО</span></label>` : "",
+    wx.list.length ? `<label title="${wx.list.map(d => esc(d.name)).join(", ")}"><input type="checkbox" name="storm" ${wx.comp2 ? "checked" : ""}><span>УРАГАН 1–2</span></label>` : ""].join("");
+  const content = `
+    <div class="tb-ck-stores"><small>ЦЕЛЬ</small><div class="tb-ck-st">${tg.length ? tg.map(tile).join("") : `<span class="tb-ck-def muted">цель не выбрана: итог без сравнения</span>`}</div></div>
+    ${schemes}
+    ${stations.length > 1 ? `<div class="tb-ck-stores"><small>STORES</small><div class="tb-ck-st">${stations.map(station).join("")}</div></div>` : ""}
+    ${toggles ? `<div class="tb-ck-seg">${toggles}</div>` : ""}
+    <div class="tb-ck-fire one">
+      <button type="button" class="tb-ck-big fox" data-pick="fire"><b>GUNS</b><small>d10 <span data-ck-imp>${sign(base + (first?.add ?? 0))}</span> · DMG <span data-ck-dmg>${gun0}</span></small></button>
+    </div>`;
+  const render = root => {
+    const form = root.querySelector("form");
+    const val = n => form.querySelector(`[name="${n}"]:checked`)?.value ?? "";
+    const upd = () => {
+      const st = stations.find(x => x.id === val("pod")) ?? stations[0];
+      const g = tg.find(x => x.key === val("target")) ?? first;
+      for (const t of tg) { const n = form.querySelector(`[data-ck-pk="${t.key}"]`); if (n && t.def !== null) n.textContent = chance(t.def, base + st.add + t.add); }
+      const set = (sel, v) => { const n = form.querySelector(sel); if (n) n.textContent = v; };
+      set("[data-ck-imp]", sign(base + st.add + (g?.add ?? 0))); set("[data-ck-dmg]", st.dmg);
+      form.querySelectorAll(".tb-ck-st .st").forEach(n => n.classList.toggle("aimed", !!n.querySelector("input:checked")));
+      root.querySelectorAll(".tb-aim").forEach(n => { n.hidden = n.dataset.aimKey !== g?.key; });
+    };
+    bindSchematic(root);
+    form.addEventListener("change", upd);
+    upd();
+  };
+  return cockpitDialog(`Guns, Guns, Guns! · ${actor.token?.name ?? actor.name}`, content, { render, width: schemes ? 560 : 460 })
+    .then(d => d ? { ...auto, ...d, storm: !!d.storm, follow: !!d.follow, practiced: !!d.practiced, target: d.target ?? auto.target, pod: d.pod ?? "" } : null);
+}
+
 /** Fox Two!: ракета или спецоружие. Без броска: AA/AG + мод оружия − Speed. Improved: d10 + Aim/Deploy + мод − Speed. */
 export async function fireMissile(actor) {
   const s = actor.system;
@@ -906,31 +968,13 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
   if (s.broken === "gu") return ui.notifications.warn("Пушка сломана (метка Structure).");
   if (blocked(actor, "strafe")) return;
   const podItems = s.broken === "sw" ? [] : actor.items.filter(i => i.type === "weapon" && isGunPod(i) && weaponReady(i));
-  const pods = weaponOptions(actor, false);
-  // цель: противник в своей зоне; если их несколько, выбор в окне
+  // цель: противник в зоне досягаемости; если их несколько или есть что выбрать, выбор на пульте
   const sys = s.kind === "ship" && sysIndex !== undefined ? s.systems[sysIndex] : null;
   const { list, why, reach } = gunTargets(actor, podItems, sys);
   if (list && !list.length) return ui.notifications.warn(`Guns, Guns, Guns!: ${reach ? "в своей и соседних зонах" : "в своей зоне"} нет противника.${why.length ? ` Рядом: ${why.join("; ")}.` : ""}`, { permanent: why.length > 0 });
   const picked = currentTarget();
   const pre = list ? (list.find(x => x.uuid === picked?.uuid && x.token === picked?.token) ?? list[0]) : picked ?? lockedTarget(actor);
-  const targetField = list
-    ? (list.length === 1
-      ? `<p class="tb-hint">Цель: <b>${pre.priority ? "★ " : ""}${esc(pre.name)}</b>${pre.defense !== null ? `, защита ${pre.defense}` : ""}. Захват не нужен.</p>`
-      : `<div class="form-group"><label>Цель</label><select name="target">${list.map((x, i) => `<option value="${i}" ${x === pre ? "selected" : ""}>${x.priority ? "★ " : ""}${esc(x.name)}${x.defense !== null ? ` · защита ${x.defense}` : " · по Occlusion системы"}${x.dist ? " · соседняя зона" : ""}</option>`).join("")}</select></div>`)
-    : `<p class="tb-hint">${pre ? `Цель: <b>${esc(pre.name)}</b>${pre.defense !== null ? `, защита ${pre.defense}` : ""}` : "Цель не выбрана: итог покажу без сравнения."} Только в своей зоне.</p>`;
-  // по кораблю — схема систем; при нескольких целях видна схема выбранной
-  const ships = list ? list.map((x, i) => [x, i]).filter(([x]) => x.kind === "ship") : pre?.kind === "ship" ? [[pre, "p"]] : [];
-  const firstIdx = list ? list.indexOf(pre) : "p";
-  const schemes = ships.map(([x, i]) => schematicHtml(x, { name: `sys_${i}`, key: String(i), hidden: String(i) !== String(firstIdx) })).join("");
-  const data = await formDialog("Guns, Guns, Guns!", `
-    ${targetField}
-    ${schemes}
-    ${pods.length ? `<div class="form-group"><label>Контейнер</label><select name="pod"><option value="">Бортовая пушка</option>${pods.join("")}</select></div>` : ""}
-    ${commonFields(actor, "strafe")}`, { ok: "Огонь", width: schemes ? 540 : 380, cockpit: !!schemes, render: schemes ? root => {
-    bindSchematic(root);
-    const sel = root.querySelector('select[name="target"]');
-    sel?.addEventListener("change", () => root.querySelectorAll(".tb-aim").forEach(n => { n.hidden = n.dataset.aimKey !== sel.value; }));
-  } : undefined });
+  const data = await gunPanel(actor, { list, pre, podItems, sys });
   if (!data) return;
   const podItem = data.pod ? actor.items.get(data.pod) : null;
   const tIdx = list ? (list.length > 1 ? Number(data.target) || 0 : list.indexOf(pre)) : "p";
