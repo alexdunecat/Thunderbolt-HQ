@@ -54,7 +54,8 @@ export function registerSounds() {
     scope: "client", config: true, type: Boolean, default: false
   });
   game.settings.register(SYSTEM_ID, "soundMute", { scope: "client", config: false, type: Object, default: {} });
-  if (globalThis.FormApplication) game.settings.registerMenu(SYSTEM_ID, "soundMenu", {
+  // FormApplication в Foundry объявлен в общем скрипте через class: виден по имени, но не как globalThis.FormApplication
+  if (typeof FormApplication === "function") game.settings.registerMenu(SYSTEM_ID, "soundMenu", {
     name: "Звуки по отдельности", label: "Выбрать звуки", hint: "Включить или выключить каждый звук у себя: сигналы кабины, взрывы, AWACS, сирену, кнопки.",
     icon: "fas fa-volume-high", type: soundMenu(), restricted: false
   });
@@ -137,7 +138,7 @@ function failed(key, src, err) {
   console.warn(`${SYSTEM_ID} | звук ${key} (${src})`, err);
   if (warned) return;
   warned = true;
-  globalThis.ui?.notifications?.warn(`Звук «${COCKPIT_SOUNDS[key]?.label ?? key}» не сыграл: ${err?.message ?? err}. Подробности в консоли (F12).`);
+  try { ui.notifications.warn(`Звук «${COCKPIT_SOUNDS[key]?.label ?? key}» не сыграл: ${err?.message ?? err}. Подробности в консоли (F12).`); } catch {}
 }
 
 /** Приоритетная цель своих: NPC с отметкой «Приоритетная цель» на стороне союзников, нейтральный или гражданский. */
