@@ -33,6 +33,6 @@ createChatMessage: railgun.ogg @0.7
 createChatMessage: laser.ogg @0.7
 createChatMessage: bomb.ogg @0.7
 createChatMessage: laser.ogg @0.7
-createChatMessage: railgun.ogg @0.7
+createChatMessage: laser.ogg @0.7
 createChatMessage: тишина
 кнопки: click toggle tab null

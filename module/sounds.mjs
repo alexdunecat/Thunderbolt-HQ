@@ -158,8 +158,8 @@ export function playLocal(key) {
   return play(key, `${key}:${Date.now()}`, { throttle: 0 });
 }
 
-// лучи «Рузвельта» (HPBC, энергетические орудия) звучат как рейлган, турель «Аркбёрда» и прочие лазеры — как лазер
-const LASER = /лазер|laser|^Луч:/i, RAIL = /рельс|рейлган|railgun|HPBC|энергетическ/i;
+// лучи (турель «Аркбёрда», энергетические орудия «Рузвельта») звучат как лазер
+const LASER = /лазер|laser|^Луч:/i, RAIL = /рельс|рейлган|railgun/i;
 /** Взрывы и выстрелы супероружия по карточкам в чате: у всех клиентов, раз на карточку. */
 export function battleSounds(card) {
   if (!card) return null;
