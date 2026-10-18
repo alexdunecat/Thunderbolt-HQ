@@ -108,6 +108,7 @@ body[data-tb-skin="brief"] .thunderbolt .tb-portrait-screen {
 
 /* кнопки */
 .thunderbolt .tb-actions-bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.thunderbolt .tb-actions-bar + .tb-actions-bar { margin-top: -4px; }   /* второй ряд кнопок (поддержка) вплотную к первому (атака) */
 .thunderbolt .tb-lock-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 6px; padding: 4px 8px; border: 1px dashed var(--tb-line, #888); border-radius: 3px; font-size: 13px; }
 .thunderbolt .tb-lock-strip.on { border: 1px solid #ff3b2f; background: rgba(255, 59, 47, 0.08); }
 .thunderbolt .tb-lock-strip.on > .fa-crosshairs { color: #ff3b2f; }
@@ -119,6 +120,7 @@ body[data-tb-skin="brief"] .thunderbolt .tb-portrait-screen {
 }
 .thunderbolt .tb-actions-bar button:hover, .thunderbolt button.tb-wide:hover { background: var(--tb-accent); border-color: var(--tb-accent); color: var(--tb-accent-ink); box-shadow: none; }
 .thunderbolt button.tb-wide { width: 100%; margin-top: 8px; }
+.thunderbolt .tb-actions-bar button { flex-basis: 0; min-width: max-content; padding: 0 12px; }   /* ряд делится поровну, длинная надпись не сжимается */
 .thunderbolt .tb-btn { display: inline-flex; gap: 4px; align-items: center; padding: 2px 8px; border: 1px solid var(--tb-line); border-radius: 3px; background: var(--tb-surface-2); margin: 4px 4px 0 0; }
 
 /* метки */
