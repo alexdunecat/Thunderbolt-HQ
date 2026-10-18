@@ -150,13 +150,24 @@ function fighter(d) {
     </div>`;
 }
 
-/** Кнопки оружия: пушка, стандартная ракета и каждое спецоружие с остатком. Сломанная система перечёркивает свои. */
+/** Пульт вооружения: станция на каждое оружие — лампа готовности, трафаретное имя, табло остатка, номер на панели макросов.
+    Лампа зелёная — готово, жёлтая — выбрано прицелом, красная — система сломана, тёмная — пусто. Нажатие — пуск, как раньше. */
 function weaponButtons(d) {
   const broken = d.systems.find(x => x.broken)?.key;
   const n = act => PILOT_BAR.indexOf(act) + 1;
-  return `<button type="button" data-hud-act="guns" class="wpn ${broken === "gu" ? "dead" : ""}" title="Guns, Guns, Guns!"><b>${n("guns")}</b> GUNS</button>
-    <button type="button" data-hud-act="missile" class="wpn ${d.aimed ? "" : "aimed"} ${broken === "ms" ? "dead" : ""}" title="Fox Two! стандартной ракетой"><b>${n("missile")}</b> FOX 2</button>
-    ${d.weapons.map(w => `<button type="button" data-hud-spw="${w.id}" class="wpn spw ${w.aimed ? "aimed" : ""} ${w.empty ? "empty" : ""} ${broken === "sw" ? "dead" : ""}" title="${esc(w.name)}: выбрать и пустить">${esc(w.name)} <em>${w.ammo}</em></button>`).join("")}`;
+  const pad = v => /^\d+$/.test(v) ? v.padStart(2, "0") : v;
+  const station = ({ attrs, cls, code, cnt, key, title }) =>
+    `<button type="button" ${attrs} class="wpn st ${cls}" title="${esc(title)}"><i class="st-led"></i><span class="st-name">${esc(code)}</span><span class="st-cnt">${esc(cnt)}</span>${key ? `<b class="st-key">${key}</b>` : ""}</button>`;
+  const dead = sys => broken === sys;
+  return [
+    station({ attrs: `data-hud-act="guns"`, cls: dead("gu") ? "dead" : "", code: "GUN", cnt: dead("gu") ? "FAIL" : "RDY", key: n("guns"), title: "Guns, Guns, Guns!" }),
+    station({ attrs: `data-hud-act="missile"`, cls: `${d.aimed ? "" : "aimed"} ${dead("ms") ? "dead" : ""}`, code: "FOX 2", cnt: dead("ms") ? "FAIL" : "RDY", key: n("missile"), title: "Fox Two! стандартной ракетой" }),
+    ...d.weapons.map(w => {
+      const [ammo] = String(w.ammo).split("/");
+      return station({ attrs: `data-hud-spw="${w.id}"`, cls: `spw ${w.aimed ? "aimed" : ""} ${w.empty ? "empty" : ""} ${dead("sw") ? "dead" : ""}`,
+        code: w.name.split(" · ")[0], cnt: dead("sw") ? "FAIL" : pad(ammo), title: `${w.name} ${w.ammo}: выбрать и пустить` });
+    })
+  ].join("");
 }
 
 /** Системы машины: целые зелёным, сломанная (Structure) красным с подсказкой, что она отключает. */
@@ -204,7 +215,7 @@ function html(actor, d, folded) {
       </div>
       <div class="tb-hud-col tb-hud-arm">${fighter(d)}</div>
       <div class="tb-hud-col tb-hud-ctl">
-        <div class="tb-hud-btns tb-hud-wpns"><small>ОРУЖИЕ</small>${weaponButtons(d)}</div>
+        <div class="tb-hud-btns tb-hud-wpns"><small title="Пульт вооружения">STORES</small>${weaponButtons(d)}</div>
         <div class="tb-hud-btns"><small>МАНЁВР</small>${moves}</div>
         <div class="tb-hud-btns tb-hud-acts" title="Действия хода${d.acts?.rolled ? " · бросок уже был" : ""}"><small>ХОД</small>${actBoxes}${d.acts?.rolled ? `<i class="fas fa-dice-d10" title="Бросок за ход уже был"></i>` : ""}${button("end", BUTTONS.end)}</div>
       </div>
