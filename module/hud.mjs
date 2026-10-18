@@ -5,7 +5,7 @@
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
 import { tokenOf, weatherAt, defenseWithWeather, altOf, zoneDistance, isFlying, ceilingOf, flyingBoss, hasRule, ALT_ORDER } from "./scene.mjs";
-import { aimedWeapon, toggleAim } from "./range.mjs";
+import { aimedWeapon, toggleAim, hlSwitch, setHlMode } from "./range.mjs";
 import { stepAltitude } from "./altitude.mjs";
 import { combatantOf, spentOf, declaredOf, endTurn } from "./actions.mjs";
 import { runAction, PILOT_BAR } from "./macros.mjs";
@@ -27,6 +27,7 @@ export function registerHud() {
   });
   for (const ev of ["canvasReady", "controlToken", "updateActor", "updateActorDelta", "updateToken", "createToken", "deleteToken", "updateItem",
     "createCombat", "updateCombat", "deleteCombat", "updateCombatant", "createChatMessage", "updateChatMessage"]) Hooks.on(ev, () => refreshHud());
+  Hooks.on(`${SYSTEM_ID}.hlMode`, () => refreshHud());
   globalThis.window?.addEventListener("resize", () => place());
   registerUnitHud();
 }
@@ -194,6 +195,7 @@ function html(actor, d, folded) {
       <b>${esc(d.name)}</b> <small>${esc(d.plane)}</small>
       ${d.warn.filter(w => !BIG.has(w.key)).map(w => `<span class="tb-hud-warn ${w.key}">${w.text}</span>`).join("")}
       ${d.acts?.turn ? `<span class="tb-hud-turn">ВАШ ХОД</span>` : ""}
+      ${hlSwitch()}
       <a class="tb-hud-dock" data-hud-dock title="Вернуть панель на место над панелью макросов и к обычному размеру"><i class="fas fa-thumbtack"></i></a>
       <i class="fas fa-chevron-${folded ? "up" : "down"}"></i>
     </header>
@@ -294,7 +296,7 @@ function place() {
 /** Перетаскивание за шапку: короткий щелчок по ней по-прежнему сворачивает панель. */
 let dragged = false;
 function startDrag(ev) {
-  if (ev.button !== 0 || !ev.target.closest("header") || ev.target.closest("[data-hud-dock]")) return;
+  if (ev.button !== 0 || !ev.target.closest("header") || ev.target.closest("[data-hud-dock], [data-hud-hl]")) return;
   const r = el.getBoundingClientRect(), dx = ev.clientX - r.left, dy = ev.clientY - r.top, x0 = ev.clientX, y0 = ev.clientY;
   dragged = false;
   const move = e => {
@@ -326,6 +328,8 @@ function dock() {
 
 async function onClick(ev) {
   if (ev.target.closest("[data-hud-dock]")) { ev.preventDefault(); ev.stopPropagation(); return dock(); }
+  const hl = ev.target.closest("[data-hud-hl]");
+  if (hl) { ev.preventDefault(); ev.stopPropagation(); return setHlMode(hl.dataset.hudHl); }
   if (dragged && ev.target.closest("header")) { dragged = false; return; }
   const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold]");
   if (!t || !shown) return;

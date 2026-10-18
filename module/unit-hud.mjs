@@ -9,6 +9,7 @@ import { runAction } from "./macros.mjs";
 import { strikesOf, STRIKES } from "./strikes.mjs";
 import { SCALES, scalesOf, scaleValue, scaleFull, setScale, sysCount, unitFlag } from "./scales.mjs";
 import { roleOf, ENGINE } from "./aim.mjs";
+import { hlSwitch } from "./range.mjs";
 
 const SUPER_RULES = ["boss", "aerialship", "landship", "superdive", "solgfall", "strato"];
 
@@ -215,6 +216,7 @@ export function unitHtml(actor, folded = false) {
   return `<header data-hud-fold title="Тащите шапку, чтобы передвинуть панель; щелчок сворачивает. Размер — за правый нижний угол">
       <span class="tb-unit-kind ${d.kind}">${esc(d.kindLabel)}</span><b>${esc(d.name)}</b> <small>${esc(d.cls)}</small>
       ${d.acts?.turn ? `<span class="tb-hud-turn">ХОД</span>` : ""}
+      ${hlSwitch()}
       <a class="tb-hud-dock" data-hud-dock title="Вернуть панель на место над панелью макросов и к обычному размеру"><i class="fas fa-thumbtack"></i></a>
       <i class="fas fa-chevron-${folded ? "up" : "down"}"></i>
     </header>

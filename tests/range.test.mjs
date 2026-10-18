@@ -8,6 +8,9 @@ const hooks = {}, timers = [];
 globalThis.setTimeout = f => timers.push(f); globalThis.clearTimeout = () => {};
 globalThis.Hooks = { on: (n, f) => (hooks[n] ??= []).push(f) };
 globalThis.CONST = { GRID_TYPES: { GRIDLESS: 0 } };
+Object.assign(globalThis, { Combat: class {}, Actor: class {}, Item: class {}, Application: class {}, FormApplication: class {}, ActorSheet: class {}, Dialog: class {}, CONFIG: { specialStatusEffects: { DEFEATED: "dead" } },
+  window: { addEventListener() {} }, PIXI: { Container: class { removeChildren() { return []; } addChild(c) { return c; } } }, PreciseText: class {} });
+globalThis.foundry = { data: { fields: {} }, abstract: { TypeDataModel: class {} }, utils: {} };
 const cells = [];
 const gs = 100;
 const tok = (o) => ({ center: { x: o.x + 50, y: o.y + 50 }, document: { x: o.x, y: o.y, width: o.w ?? 1, height: o.h ?? 1, hidden: false, parent: null }, actor: o.actor });
@@ -17,7 +20,7 @@ const pilot = { uuid: "Actor.p", type: "pilot", system: { alt: "med", lockUuid: 
 globalThis.game = { settings: { register(){}, get: () => true }, user: { isGM: false, targets: { first: () => globalThis.tgt } }, scenes: { viewed: { getFlag: () => [] } } };
 globalThis.canvas = { ready: true, dimensions: { width: 1000, height: 800 },
   grid: { type: 1, size: gs, isHexagonal: false, getOffset: p => ({ i: Math.floor(p.y / gs), j: Math.floor(p.x / gs) }), getTopLeftPoint: o => ({ x: o.j * gs, y: o.i * gs }) },
-  interface: { grid: { addHighlightLayer: () => ({}), clearHighlightLayer: () => { cells.length = 0; }, highlightPosition: (n, o) => cells.push(o) } },
+  interface: { addChild: c => c, grid: { addHighlightLayer: () => ({}), clearHighlightLayer: () => { cells.length = 0; }, highlightPosition: (n, o) => cells.push(o) } },
   tokens: { controlled: [] } };
 const { TB } = await import(`${root}/module/config.mjs`);
 const { registerRange, toggleAim } = await import(`${root}/module/range.mjs`);

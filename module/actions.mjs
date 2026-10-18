@@ -169,13 +169,17 @@ export function registerActions() {
     if (!combatantOf(doc.actor, doc)) return console.log(`${SYSTEM_ID} | ${doc.name}: токена нет в текущем бою, перемещение не считается`);
     const gmFree = game.user.isGM && !!game.keyboard?.isModifierActive?.(KeyboardManager.MODIFIER_KEYS.SHIFT);
     const problems = [], acts = [];
+    // «Полный газ» (Punch It, раз за вылет): одним Move до 3 зон
+    const punch = doc.actor.items?.find?.(i => i.type === "trigger" && i.system.key === "punch" && !i.system.used) ?? null;
+    let punchUsed = null;
     if ("x" in change || "y" in change) {
       const d = zoneStep(doc, change);
       if (d > 0) {
         acts.push("move");
         const p = actionProblem(doc.actor, "move", { token: doc }) ?? tunnelMoveProblem(doc, change);
         if (p) problems.push(p);
-        else if (d > 1) problems.push(`${doc.name}: Move только в соседнюю зону, а здесь ${d}.`);
+        else if (d > 1 && d <= 3 && punch) punchUsed = punch;
+        else if (d > 1) problems.push(`${doc.name}: Move только в соседнюю зону, а здесь ${d}.${punch ? " «Полный газ» — до 3 зон." : ""}`);
       }
     }
     // токен без высоты (0, брошен на сцену вручную) стоит на высоте листа
@@ -192,6 +196,8 @@ export function registerActions() {
     if (gmFree && problems.length) return;   // ведущий с Shift: в обход правил и без счёта
     console.log(`${SYSTEM_ID} | ${doc.name}: ${acts.join(", ") || "в своей зоне"}${problems.length ? ` (в обход: ${problems[0]})` : ""}`);
     if (acts.length) countMove(doc.actor, acts, doc)?.catch?.(err => console.error(`${SYSTEM_ID} | счёт действий`, err));
+    if (punchUsed) punchUsed.update({ "system.used": true }).then(() => ui.notifications.info(`${doc.name}: «Полный газ» — Move через несколько зон, триггер отмечен использованным в этом вылете.`))
+      .catch(err => console.error(`${SYSTEM_ID} | Полный газ`, err));
   });
   // Change Speed: кнопки ±, поле листа и полоска токена. Сброс после Break!, сваливание и т. п. идут с options.tbFree.
   Hooks.on("preUpdateActor", (actor, change, options) => {
