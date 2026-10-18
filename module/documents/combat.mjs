@@ -155,6 +155,8 @@ async function endRound(combat, round) {
   try { await resolveStrikes(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | удары по площади`, err); }
   // шкалы крупных целей: «Падение», «Сброс», «Над целью», перегрев, отсчёт до пуска
   try { await advanceScales(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | шкалы`, err); }
+  // гибель крупных целей по их правилам: опрокинулся, упал, взорвался (boss-fate.mjs)
+  try { const { resolveFates } = await import("../boss-fate.mjs"); await resolveFates(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | гибель целей`, err); }
   const key = `${combat.id}:${round}`;
   // Break!: Speed падает, когда атаки раунда разрешены
   const drops = new Map();

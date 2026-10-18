@@ -51,6 +51,7 @@ import { registerNemesis, appear as nemesisAppear, startMonologue, endMonologue 
 import { registerCombatTriggers } from "./combat-triggers.mjs";
 import { registerNpcAdvice } from "./npc-advice.mjs";
 import { registerCareerTriggers } from "./career-triggers.mjs";
+import { registerBossFate } from "./boss-fate.mjs";
 
 // триггер выключен или машина сменилась: Max Speed мог упасть
 for (const ev of ["updateItem", "createItem", "deleteItem"])
@@ -164,6 +165,7 @@ Hooks.once("init", () => {
   registerCombatTriggers();
   registerNpcAdvice();
   registerCareerTriggers();
+  registerBossFate();
   registerMedals();
   registerCombat();
   registerActions();

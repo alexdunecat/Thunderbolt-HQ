@@ -32,6 +32,8 @@ export const STRIKES = {
     hint: "Участок в своей зоне или через одну. Каждая наземная цель: d10 + G-G против Occlusion. По самолётам не стреляет." },
   reactor: { label: "Взрыв реактора", rule: "pwreactor", zones: 1, alts: ALT_ORDER, dmg: 6, ring: 3,
     hint: "Отметьте зону корабля: самолёты в ней получают 6 урона, в соседних зонах 3." },
+  fall: { label: "Падение корабля", rule: null, zones: 1, alts: ["ground"], dmg: 10, ships: "system",
+    hint: "Воздушный корабль без двигателей рушится: всё на земле под ним получает 10 урона, сам он уничтожен." },
   railline: { label: "Выстрел рейлгана", rule: null, zones: 4, alts: ["ground", "low", "med"], dmg: 10, ships: "system",
     hint: "Шкала «Рейлган» заполнена: до 4 зон по линии, спасает уход на Высокую. Урон по книге не задан, поставьте свой." },
   custom: { label: "Свой удар", rule: null, zones: 9, alts: "pick", dmg: 5, ships: "system",
@@ -239,6 +241,25 @@ async function strikeDialog({ sources }, preset = null) {
   }).then(d => d && { ...d, alts: ALL.filter(a => d[`alt_${a}`]) });
 }
 
+/**
+ * Удар по зоне самого корабля без окна (взрыв реактора, падение): ставится, когда сработало правило гибели (boss-fate.mjs).
+ * destroy — корабль, который уничтожается вместе с ударом. Возвращает id удара.
+ */
+export async function scheduleStrike(combat, actor, kind, round) {
+  const S = STRIKES[kind], scene = combat.scene ?? canvas.scene;
+  const doc = scene?.tokens.find(d => d.actor === actor || d.actor?.uuid === actor.uuid);
+  const zone = doc && zoneOfDoc(doc);
+  if (!zone) return null;
+  const name = doc.name ?? actor.name;
+  const strike = {
+    id: foundry.utils.randomID(), kind, label: `${S.label} · ${name}`, source: name, sourceUuid: actor.uuid, destroy: actor.uuid,
+    zones: [zone], alts: Array.isArray(S.alts) ? S.alts : ALL, dmg: S.dmg, attack: null, round, marked: combat.round,
+    start: Object.fromEntries(unitsOn(scene).map(u => [u.uuid, `${u.zone}|${u.alt}`]))
+  };
+  await saveStrikes(combat, [...strikesOfCombat(combat), strike]);
+  return strike.id;
+}
+
 /** Ведущий отменяет удар (ракету сбили, корабль уничтожен). */
 export async function cancelStrike(id, why = "отменён") {
   const combat = game.combat;
@@ -352,7 +373,9 @@ export async function resolveStrikes(combat, round) {
     const S = STRIKES[s.kind] ?? STRIKES.custom;
     const rolls = {};
     if (s.attack !== null && s.attack !== undefined) for (const u of units) rolls[u.uuid] = (await new Roll("1d10").evaluate()).total;
-    const here = units.map(u => ({ ...u, start: s.start?.[u.uuid] ?? null }));
+    // сам взрывающийся или падающий корабль в своей зоне урона не получает: он уничтожен целиком
+    const self = s.destroy ?? (s.kind === "reactor" ? s.sourceUuid : null);
+    const here = units.filter(u => u.uuid !== self).map(u => ({ ...u, start: s.start?.[u.uuid] ?? null }));
     const hits = strikeHits(s, here, rolls);
     const key = `${combat.id}:${round}`;
     const rows = hits.map(h => {
@@ -369,6 +392,8 @@ export async function resolveStrikes(combat, round) {
       content: `<div class="tb-card tb-card-volley"><header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">Конец раунда ${round}: ${esc(s.label)}</span></header>
         <div class="tb-note">${zonesText(s.zones)}, ${altsText(s.alts)}.</div>${rows || `<div class="tb-note">В отмеченных зонах никого не осталось.</div>`}${btn}</div>`
     });
+    // корабль, чей это взрыв или падение, уничтожен (сам он в зоне удара урона не получает)
+    try { const { strikeDone } = await import("./boss-fate.mjs"); await strikeDone(s); } catch (err) { console.warn(`${SYSTEM_ID} | гибель цели`, err); }
     for (const h of hits.filter(x => x.hit && !x.ship && x.dmg > 0)) {
       const target = resolveActor(h.uuid);
       if (!target) continue;

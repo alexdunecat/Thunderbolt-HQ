@@ -50,6 +50,8 @@ export async function advanceScales(combat, round) {
       if (scaleFull(key, was)) continue;
       const v = Math.max(0, Math.min(S.max, was + S.step));
       await setScale(a, key, v);
+      // «Перегрев» дошёл до конца: экипаж гибнет, главный калибр взрывается — линкор уничтожен
+      if (key === "overheat" && scaleFull(key, v)) import("./boss-fate.mjs").then(m => m.bossDown(a, "реактор перегрелся: экипаж погиб, главный калибр взорвался")).catch(err => console.warn(`${SYSTEM_ID} | перегрев`, err));
       lines.push(scaleFull(key, v) ? `<b>${esc(c.name)}: шкала «${S.label}» дошла до конца — ${S.full}.</b>`
         : `${esc(c.name)}: «${S.label}» ${v}${S.step > 0 ? ` из ${S.max}` : ""}.`);
     }
