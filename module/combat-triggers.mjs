@@ -46,7 +46,7 @@ export const CT = {
   shotfirst: { use: "Выстрелить первым", once: true, twist: true, fx: "лишний ход перед первым раундом после Поворота" },
   gotsix: { use: "Прикрыть союзника", once: true, fx: "союзник берёт ваш навык вместо своего, пока вы в одной зоне" },
   turncoat: { use: "Переманить", once: true, twist: true, fx: "вражеский конскрипт или дуэлянт переходит на вашу сторону до конца вылета" },
-  noborders: { use: "Без границ", action: true, fx: "действием Lead против 7 (дуэлянт против 9): враг выходит из боя" },
+  noborders: { use: "Без границ", action: true, fx: "действием Lead против 7 (дуэлянт против 9): вражеский лётчик выходит из боя" },
   code: { use: "Нарушил кодекс", fx: "Поединок считается сам: +1 к атакам по нему и к Evasion против него" },
   gauntlet: { use: "Бросить перчатку", once: true, twist: true, fx: "Поединок +2 до конца вылета, кодекс не действует" },
   wreath: { use: "Первый бой с ней", once: true, fx: "Поединок +2 против Немезиды в первом бою с ней" },
@@ -608,7 +608,12 @@ export async function useCombatTrigger(pilot, item) {
     case "noborders": {
       const tok = await pickToken(pilot, name, a => {
         if (a.type === "npc" && a.system.tier === "ace") return "аса так не уговорить: нужен другой триггер.";
-        return enemyFlier(pilot, ["conscript", "duelist"])(a);
+        // уговорить можно только вражеского лётчика (самолёт, вертолёт): не наземную цель, не корабль, не цель задания и не супероружие
+        const why = enemyFlier(pilot, ["conscript", "duelist"])(a);
+        if (why) return why === "нужен вражеский самолёт." ? "уговорить можно только вражеского лётчика: самолёт или вертолёт." : why;
+        if (a.system.priority) return "цель задания так не уговорить.";
+        if (a.system.grp === "boss" || (a.system.systems?.length ?? 0) > 0) return "это не лётчик, а супероружие или летающий корабль.";
+        return "";
       });
       if (!tok) return null;
       const dc = tok.actor.system.tier === "duelist" ? 9 : 7;
