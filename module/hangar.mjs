@@ -1,7 +1,7 @@
 /* Ангар перед вылетом. AWACS (ведущий) на вкладке «Миссия» отмечает, какие машины и какое спецоружие сейчас выдаются,
    и открывает ангар игрокам. Игрок выбирает из этого допуска машину и спецоружие на каждый узел подвески;
    выбор ставится на лист (машина как при перетаскивании из компендиума, спецоружие с полным боезапасом) и уходит карточкой в чат.
-   Пилоту, который сейчас в начатом бою, ангар закрыт. Ведущий видит весь каталог, вне допуска помечено, и ставит что угодно.
+   Пилоту, который сейчас в начатом бою, ангар закрыт. Ведущий видит то же, что игроки; галочка «Весь каталог» показывает остальное (с пометкой «вне допуска»), и ставит он что угодно.
    Спецоружие не из каталога (своё, от ведущего) ангар не трогает: оно остаётся на листе и занимает узлы. */
 import { SYSTEM_ID, SYS_PATH, TB } from "./config.mjs";
 import { esc } from "./utils.mjs";
@@ -205,8 +205,8 @@ export function quickPick(cat, st, q, tier = 0) {
 }
 
 /** Ангар пилота: список машин слева, выбранная машина и узлы подвески справа. */
-export function pilotHtml(cat, { actor, pilots = [], planeKey, slots = [], user = game.user } = {}) {
-  const st = hangarState(), gm = user.isGM;
+export function pilotHtml(cat, { actor, pilots = [], planeKey, slots = [], user = game.user, full = false } = {}) {
+  const st = hangarState(), gm = user.isGM && full;   // gm: ведущий смотрит весь каталог
   const lock = lockReason(actor, user);
   const P = allPlanes(cat).filter(p => gm || st.planes.includes(p.key));
   const cur = actor?.system.plane?.system.key ?? "";
@@ -217,7 +217,7 @@ export function pilotHtml(cat, { actor, pilots = [], planeKey, slots = [], user 
     const row = byTier(cat, t).filter(x => P.includes(x));
     return row.length ? `<h4>${esc(tierLabel(cat, t))}</h4>${row.map(x => `<a class="tb-hg-row${x.key === planeKey ? " on" : ""}${gm && !st.planes.includes(x.key) ? " off" : ""}" data-hg-pick="${esc(x.key)}">
       <img src="${esc(x.img)}" alt=""><span><b>${esc(x.name)}</b><small>${esc(x.cls)}${x.key === cur ? " · на листе" : ""}${gm && !st.planes.includes(x.key) ? " · вне допуска" : ""}</small></span></a>`).join("")}` : "";
-  }).join("") : `<p class="tb-muted">AWACS пока не выдал ни одной машины.</p>`;
+  }).join("") : `<p class="tb-muted">AWACS пока не выдал ни одной машины.${user.isGM ? " Отметьте машины в допуске или включите «Весь каталог»." : ""}</p>`;
   const W = (cat.weapons ?? []).filter(w => gm || st.weapons.includes(w.key));
   const own = actor ? ownWeapons(actor, cat) : [];
   const bay = !p ? `<p class="tb-hg-empty">Выберите машину слева.</p>` : `
@@ -237,7 +237,8 @@ export function pilotHtml(cat, { actor, pilots = [], planeKey, slots = [], user 
     <button type="button" class="tb-hg-go" data-hg-apply ${lock ? "disabled" : ""}><i class="fas fa-plane-departure"></i> Принять машину и подвеску</button>`;
   return `<div class="tb-hangar tb-hangar-pilot">
     <header class="tb-hg-head"><span>Пилот: ${pick}</span><span class="tb-hg-state ${state[0]}"><span class="tb-hg-lamp"></span> АНГАР ${state[1]}</span>
-      ${lock ? `<span class="tb-hg-why">${esc(lock)}</span>` : gm && !st.open ? `<span class="tb-hg-why">Игрокам закрыт; ведущий ставит что угодно.</span>` : ""}</header>
+      ${lock ? `<span class="tb-hg-why">${esc(lock)}</span>` : user.isGM && !st.open ? `<span class="tb-hg-why">Игрокам закрыт; ведущий ставит что угодно.</span>` : ""}
+      ${user.isGM ? `<label class="tb-hg-full" title="Показать и то, что AWACS сейчас не выдаёт"><input type="checkbox" data-hg-full ${full ? "checked" : ""}> Весь каталог</label>` : ""}</header>
     <div class="tb-hg-body"><aside class="tb-hg-list">${list}</aside><main class="tb-hg-bay">${bay}</main></div>
   </div>`;
 }
@@ -260,6 +261,7 @@ class HangarApp extends Application {
     this.actorId = (actor ?? own ?? list[0])?.id ?? null;
     this.planeKey = null;
     this.slots = [];
+    this.full = false;   // ведущий: показывать весь каталог, а не только допуск
   }
   static get defaultOptions() {
     return foundry.utils.mergeObject(super.defaultOptions, { id: "tb-hangar", title: "Ангар", classes: ["thunderbolt", "tb-hangar-app"], width: 860, height: 640, resizable: true });
@@ -271,7 +273,7 @@ class HangarApp extends Application {
     const a = this.actor, st = hangarState();
     this.planeKey = key;
     const p = planeOf(cat, key);
-    this.slots = a && p ? defaultLoadout(a, p, cat, game.user.isGM ? null : st.weapons) : [];
+    this.slots = a && p ? defaultLoadout(a, p, cat, game.user.isGM && this.full ? null : st.weapons) : [];
   }
 
   async _renderInner() {
@@ -282,7 +284,7 @@ class HangarApp extends Application {
       const first = cur && (game.user.isGM || st.planes.includes(cur)) ? cur : (game.user.isGM ? cur : st.planes.find(k => planeOf(cat, k)));
       if (first) this.pick(first, cat);
     }
-    return $(pilotHtml(cat, { actor: a, pilots: pilotsOf(), planeKey: this.planeKey, slots: this.slots }));
+    return $(pilotHtml(cat, { actor: a, pilots: pilotsOf(), planeKey: this.planeKey, slots: this.slots, full: this.full }));
   }
 
   render(force, options) { apps.add(this); return super.render(force, options); }
@@ -292,6 +294,7 @@ class HangarApp extends Application {
     super.activateListeners(html);
     const el = html[0];
     el.querySelector("[data-hg-actor]")?.addEventListener("change", ev => { this.actorId = ev.target.value; this.planeKey = null; this.render(false); });
+    el.querySelector("[data-hg-full]")?.addEventListener("change", ev => { this.full = ev.target.checked; this.render(false); });
     el.querySelectorAll("[data-hg-pick]").forEach(n => n.addEventListener("click", async ev => {
       ev.preventDefault();
       this.pick(n.dataset.hgPick, await hangarCatalog());

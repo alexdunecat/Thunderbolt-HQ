@@ -1515,6 +1515,8 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-hangar .tb-hg-head button { width: auto; flex: 0 0 auto; }
 .tb-hangar .tb-hg-count { margin-left: auto; font-family: var(--tb-data); font-size: 11px; color: var(--tb-muted); font-variant-numeric: tabular-nums; }
 .tb-hangar .tb-hg-why { font-size: 12px; color: var(--tb-warn); }
+.tb-hangar .tb-hg-full { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--tb-muted); cursor: pointer; }
+.tb-hangar .tb-hg-full input { margin: 0; }
 .tb-hangar .tb-hg-lamp { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #23413a; border: 1px solid var(--tb-line); vertical-align: middle; }
 .tb-hangar .on > .tb-hg-lamp, .tb-hangar .tb-hg-state.open .tb-hg-lamp, .tb-hangar .tb-hg-slot.on .tb-hg-lamp { background: var(--tb-accent); box-shadow: 0 0 6px var(--tb-accent); }
 .tb-hangar .tb-hg-state { font-family: var(--tb-data); font-size: 12px; letter-spacing: .14em; }
