@@ -12,7 +12,7 @@ export function registerRwr() {
   Hooks.on("canvasReady", () => refreshAll());
   // у NPC без связи с актёром захват живёт в дельте токена: её обновление приходит отдельным хуком
   for (const ev of ["updateActor", "updateActorDelta", "updateToken", "createToken", "deleteToken", "targetToken"]) Hooks.on(ev, refreshSoon);
-  Hooks.on("createChatMessage", alertOwner);
+  Hooks.on("createChatMessage", (message, options) => { if (!options?.tbUndo) alertOwner(message); });
 }
 
 let timer = null;

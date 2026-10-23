@@ -18,9 +18,9 @@ export function registerRadio() {
     name: "Радиообмен субтитрами", hint: "Реплики AWACS (захват, пуск по вам, итоги залпа, подкрепления) и переговоры NPC вверху экрана. Всё остаётся в радиожурнале.",
     scope: "client", config: true, type: Boolean, default: true
   });
-  Hooks.on("createChatMessage", message => { try { fromMessage(message); } catch (err) { console.warn(`${SYSTEM_ID} | радио`, err); } });
+  Hooks.on("createChatMessage", (message, options) => { if (options?.tbUndo) return; try { fromMessage(message); } catch (err) { console.warn(`${SYSTEM_ID} | радио`, err); } });
   Hooks.on("updateScene", (scene, change) => weatherCall(scene, change));
-  Hooks.on("createToken", (doc, options, userId) => reinforcements(doc, userId));
+  Hooks.on("createToken", (doc, options, userId) => { if (!options?.tbUndo) reinforcements(doc, userId); });
 }
 
 /* ---------- откуда берутся реплики ---------- */

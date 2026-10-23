@@ -1,0 +1,17 @@
+обратное: {"system.hp.value":3,"system.markers.grit":false,"system.markers.-=gritSkill":null,"flags.tb.lock":"x","flags.tb.-=aimed":null}
+клавиши: {"undo":{"key":"KeyZ","modifiers":["Alt"]},"redo":{"key":"KeyZ","modifiers":["Alt","Shift"]}}
+журнал: [["Гроза: Fox Two!",3],["Гроза: Speed",1]]
+после отмены: 3 {"thunderbolt-shtab":{}} 4 карточек 1
+после возврата: {"thunderbolt-shtab":{"lock":"a2"}} 0 карточка 1
+две отмены: 2 4 · отменено 2
+новое действие стирает «Отменено»: 0 · сделано ["Гроза: HP"]
+CHAT карточка
+INFO Отменено: Гроза: Fox Two!
+CHAT Отменено: Гроза: Fox Two!
+INFO Возвращено: Гроза: Fox Two!
+CHAT Возвращено: Гроза: Fox Two!
+INFO Отменено: Гроза: Fox Two!
+CHAT Отменено: Гроза: Fox Two!
+INFO Отменено: Гроза: Speed
+CHAT Отменено: Гроза: Speed
+журнал html: data-undo ✔, data-redo ✔, data-undo-to ✔, Alt+Z ✔

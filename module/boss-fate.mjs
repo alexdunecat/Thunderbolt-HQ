@@ -106,8 +106,8 @@ export function registerBossFate() {
     busy.add(actor.uuid);
     checkFate(actor).catch(err => console.warn(`${SYSTEM_ID} | гибель цели`, err)).finally(() => busy.delete(actor.uuid));
   };
-  Hooks.on("updateActor", (a, ch) => { if (foundry.utils.hasProperty(ch, "system.systems")) run(a); });
+  Hooks.on("updateActor", (a, ch, options) => { if (!options?.tbUndo && foundry.utils.hasProperty(ch, "system.systems")) run(a); });
   // несвязанный токен: системы меняются в его delta
-  Hooks.on("updateToken", (doc, ch) => { if (foundry.utils.hasProperty(ch, "delta.system.systems")) run(doc.actor); });
+  Hooks.on("updateToken", (doc, ch, options) => { if (!options?.tbUndo && foundry.utils.hasProperty(ch, "delta.system.systems")) run(doc.actor); });
 }
 

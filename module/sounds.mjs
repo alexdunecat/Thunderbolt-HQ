@@ -70,12 +70,14 @@ export function registerSounds() {
     const a = combat.combatant?.actor;
     if (a?.type === "pilot") cue("turn", a);
   });
-  Hooks.on("createChatMessage", message => {
+  Hooks.on("createChatMessage", (message, options) => {
+    if (options?.tbUndo) return;
     const card = message.getFlag(SYSTEM_ID, "card");
     try { battleSounds(card); } catch (err) { console.warn(`${SYSTEM_ID} | звук`, err); }
   });
   globalThis.document?.addEventListener?.("click", uiClick, true);
-  Hooks.on("createChatMessage", message => {
+  Hooks.on("createChatMessage", (message, options) => {
+    if (options?.tbUndo) return;
     const rwr = message.getFlag(SYSTEM_ID, "rwr"), card = message.getFlag(SYSTEM_ID, "card");
     if (rwr) { cue("lock", resolveActor(rwr.fromUuid)); cue("locked", resolveActor(rwr.target)); }
     if (card?.maws && card.targetUuid) cue("missile", resolveActor(card.targetUuid));

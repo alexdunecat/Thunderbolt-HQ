@@ -17,7 +17,7 @@ export function registerDowntime() {
   });
   // ведущий отражает Связи на листе товарища и раздаёт Память после гибели
   Hooks.on("updateActor", (actor, change, options) => {
-    if (!leadGM() || actor.type !== "pilot") return;
+    if (!leadGM() || actor.type !== "pilot" || options?.tbUndo) return;
     if (options?.tbBondDrop) dropMirror(actor, options.tbBondDrop);
     else if (foundry.utils.hasProperty(change, "system.bonds")) mirrorBonds(actor);
     if (foundry.utils.getProperty(change, "system.service.status") === "kia") fallen(actor);

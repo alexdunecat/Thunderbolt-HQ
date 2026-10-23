@@ -311,7 +311,7 @@ export async function onUnitClick(t, actor) {
 export function registerUnitHud() {
   // пишет только тот, кто двигал: у второго ведущего та же запись повторилась бы
   Hooks.on("updateToken", (doc, ch, options, userId) => {
-    if (!game.user.isGM || userId !== game.user.id || !game.combat?.started || !("x" in ch || "y" in ch)) return;
+    if (options?.tbUndo || !game.user.isGM || userId !== game.user.id || !game.combat?.started || !("x" in ch || "y" in ch)) return;
     const a = doc.actor;
     if (a && (hasRule(a, "aerialship") || hasRule(a, "landship")) && unitFlag(a, "launch", {})?.shift !== game.combat.round)
       a.update({ [`flags.${SYSTEM_ID}.unit.launch.shift`]: game.combat.round });

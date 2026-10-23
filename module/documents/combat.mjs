@@ -225,6 +225,7 @@ export function registerCombat() {
 
   Hooks.on("updateCombat", async (combat, change, options) => {
     // игрокам: ведущий заявил NPC, теперь ваша заявка
+    if (options?.tbUndo) return;
     if (!game.user.isGM && foundry.utils.getProperty(change, `flags.${SYSTEM_ID}.npcDone`) === combat.round) {
       const mine = acting(combat).filter(c => c.isOwner && !declared(c));
       if (mine.length) combat.rollInitiative(mine.map(c => c.id), { updateTurn: false }).catch(err => console.error(`${SYSTEM_ID} | заявка`, err));
@@ -240,8 +241,8 @@ export function registerCombat() {
     if ("turn" in change) await turnStart(combat);
   });
 
-  Hooks.on("updateCombatant", (c, change) => {
-    if (!leadGM() || !("initiative" in change) || !c.parent?.started) return;
+  Hooks.on("updateCombatant", (c, change, options) => {
+    if (options?.tbUndo || !leadGM() || !("initiative" in change) || !c.parent?.started) return;
     // пилот отложил ход: очередь у следующего, и у него может начаться ход под ракетами
     if (delayedBy(change.initiative)) setTimeout(() => turnStart(c.parent), 150);
     clearTimeout(declareTimer);

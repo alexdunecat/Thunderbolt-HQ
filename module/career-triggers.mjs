@@ -15,8 +15,8 @@ const notUsed = (a, key) => { const t = trig(a, key); return t && !t.system.used
 
 export function registerCareerTriggers() {
   game.settings.register(SYSTEM_ID, VOICE, { scope: "world", config: false, type: Array, default: [] });
-  Hooks.on("updateActor", (actor, change) => {
-    if (actor.type !== "pilot" || foundry.utils.getProperty(change, "system.service.status") !== "kia" || !isLead()) return;
+  Hooks.on("updateActor", (actor, change, options) => {
+    if (options?.tbUndo || actor.type !== "pilot" || foundry.utils.getProperty(change, "system.service.status") !== "kia" || !isLead()) return;
     onDeath(actor).catch(err => console.error(`${SYSTEM_ID} | триггеры гибели`, err));
   });
   // combatStart приходит только тому, кто начал бой (может быть и не главный ведущий)

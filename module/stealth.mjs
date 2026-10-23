@@ -30,9 +30,9 @@ export function registerStealth() {
       radarSilence(combat, change.round - 1).catch(err => console.error(`${SYSTEM_ID} | Тревога: РЛС`, err));
   });
   // РЛС врага уничтожена во время стелс-части: запомнить раунд (токен потом уходит с поля)
-  Hooks.on("updateActor", (actor, change) => {
+  Hooks.on("updateActor", (actor, change, options) => {
     const down = foundry.utils.getProperty(change, `flags.${SYSTEM_ID}.down`);
-    if (!down?.combat || !game.users.activeGM?.isSelf || actor.type !== "npc" || !isStation(actor) || sideOf(actor) !== "enemy" || !alarmActive()) return;
+    if (options?.tbUndo || !down?.combat || !game.users.activeGM?.isSelf || actor.type !== "npc" || !isStation(actor) || sideOf(actor) !== "enemy" || !alarmActive()) return;
     const combat = game.combats?.get(down.combat);
     if (!combat) return;
     const list = (combat.getFlag(SYSTEM_ID, "radarDown") ?? []).filter(x => x.uuid !== actor.uuid);

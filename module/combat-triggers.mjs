@@ -821,11 +821,12 @@ export function registerCombatTriggers() {
       if (isLead()) run(msg.op, msg.data ?? {}).catch(err => console.error(`${SYSTEM_ID} | триггеры`, err));
     });
   });
-  Hooks.on("createChatMessage", message => {
+  Hooks.on("createChatMessage", (message, options) => {
+    if (options?.tbUndo) return;
     if (isLead()) trackAttack(message).catch(err => console.warn(`${SYSTEM_ID} | триггеры`, err));
     gunsStreak(message, true).catch(err => console.warn(`${SYSTEM_ID} | серия Strafe`, err));
   });
-  Hooks.on("updateChatMessage", message => gunsStreak(message, false).catch(err => console.warn(`${SYSTEM_ID} | серия Strafe`, err)));
+  Hooks.on("updateChatMessage", (message, change, options) => options?.tbUndo || gunsStreak(message, false).catch(err => console.warn(`${SYSTEM_ID} | серия Strafe`, err)));
   Hooks.on("preUpdateActor", (actor, change) => markDive(actor, change));
   Hooks.on("updateCombat", async (combat, change, options) => {
     const { endedTurn } = await import("./turns.mjs");

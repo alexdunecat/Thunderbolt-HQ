@@ -48,13 +48,13 @@ export function registerChatter() {
     if (msg?.type === "chatter") hear(msg.line);
     else if (msg?.type === "chatterEvent" && isLead()) queue(msg.ev);
   }));
-  Hooks.on("createChatMessage", message => {
-    if (!isLead()) return;
+  Hooks.on("createChatMessage", (message, options) => {
+    if (!isLead() || options?.tbUndo) return;
     try { fromMessage(message); } catch (err) { console.warn(`${SYSTEM_ID} | переговоры`, err); }
   });
   // подкрепление или засада: NPC появился на сцене боя или ведущий его открыл
-  Hooks.on("createToken", doc => { if (isLead() && inCombat(doc) && !doc.hidden) queue({ event: "arrive", speaker: doc.actor?.uuid }); });
-  Hooks.on("updateToken", (doc, change) => { if (isLead() && change.hidden === false && inCombat(doc)) queue({ event: "arrive", speaker: doc.actor?.uuid }); });
+  Hooks.on("createToken", (doc, options) => { if (isLead() && !options?.tbUndo && inCombat(doc) && !doc.hidden) queue({ event: "arrive", speaker: doc.actor?.uuid }); });
+  Hooks.on("updateToken", (doc, change, options) => { if (isLead() && !options?.tbUndo && change.hidden === false && inCombat(doc)) queue({ event: "arrive", speaker: doc.actor?.uuid }); });
   // окно показывает фразы открытой сцены
   Hooks.on("canvasReady", () => { if (editor?.rendered) editor.render(false); });
 }

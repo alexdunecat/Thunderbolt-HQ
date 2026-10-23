@@ -14,6 +14,7 @@ import { gloryView } from "../glory.mjs";
 import { openChatterEditor, nameOf, setCallsign } from "../chatter.mjs";
 import { openCivilRadio, RADIO_TRIGGER } from "../civil-radio.mjs";
 import { rack, openMedals } from "../medals.mjs";
+import { openHangar, hangarState } from "../hangar.mjs";
 import { CT, ctView, useCombatTrigger } from "../combat-triggers.mjs";
 import { NEM, STATE_TEXT, nemTriggers, trigState, metOf, useTrigger, appear, monologue, startMonologue, endMonologue, fxOf, clearFx } from "../nemesis.mjs";
 
@@ -427,6 +428,7 @@ export class PilotSheet extends TBActorSheet {
     const ctx = await super.getData(options);
     const a = this.actor, s = a.system;
     const plane = s.plane;
+    ctx.hangarOpen = hangarState().open;
     ctx.plane = plane ? {
       id: plane.id, name: plane.name, img: plane.img, ...plane.system,
       statRows: Object.entries(TB.planeStats).map(([k, [en, ru]]) => ({ key: k, en, ru, value: plane.system.stats[k] })),
@@ -477,6 +479,7 @@ export class PilotSheet extends TBActorSheet {
     super.activateListeners(html);
     if (!this.isEditable) return;
     const el = html[0];
+    el.querySelector("[data-hangar]")?.addEventListener("click", ev => { ev.preventDefault(); openHangar(this.actor); });
     // досье: строки можно зачёркивать, но не стирать
     el.querySelectorAll("[data-dossier]").forEach(n => n.addEventListener("change", () => this.#saveDossier(el)));
     el.querySelectorAll("[data-oplog-date]").forEach(n => n.addEventListener("change", ev => {

@@ -1477,3 +1477,78 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 /* пульт высоты удара: пять кнопок в ряд */
 .tb-ck > .tb-ck-fire.alts { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
 #tb-pilot-hud .tb-sys-top a.wpn.used { color: #6f7b74; background: #1a1f1d; border-color: #000; }
+
+/* ---------- Журнал действий (отмена и возврат) ---------- */
+.tb-awacs .tb-awacs-undo { display: inline-flex; gap: 2px; margin-left: auto; }
+.tb-awacs .tb-awacs-undo a { padding: 2px 6px; border: 1px solid var(--tb-line); color: var(--tb-accent); }
+.tb-awacs .tb-awacs-undo a:hover { background: var(--tb-olive-soft); }
+.tb-undo-app .window-content { padding: 0; }
+.tb-undo { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; font-family: var(--tb-body); }
+.tb-undo .tb-undo-bar { display: flex; gap: 6px; }
+.tb-undo .tb-undo-bar button { flex: 1; }
+.tb-undo kbd { font-family: var(--tb-data); font-size: 10px; opacity: .7; margin-left: 4px; }
+.tb-undo h4 { margin: 6px 0 2px; font-family: var(--tb-data); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--tb-muted); border-bottom: 1px solid var(--tb-line); }
+.tb-undo .tb-undo-list { list-style: none; margin: 0; padding: 0; }
+.tb-undo .tb-undo-list li { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: baseline; padding: 3px 2px; border-bottom: 1px dashed rgba(127, 167, 157, .25); }
+.tb-undo .tb-undo-list li.undone { opacity: .6; text-decoration: line-through; }
+.tb-undo .tb-undo-t { font-family: var(--tb-data); font-size: 11px; color: var(--tb-muted); font-variant-numeric: tabular-nums; }
+.tb-undo .tb-undo-l { min-width: 0; overflow-wrap: anywhere; }
+.tb-undo .tb-undo-list small { color: var(--tb-muted); font-size: 10px; }
+.tb-undo .tb-undo-list a { color: var(--tb-accent); }
+.tb-undo-note { margin: 0; font-size: 12px; color: var(--tb-muted); }
+
+/* ---------- Ангар ---------- */
+.thunderbolt .tb-hangar-btn { margin-left: 8px; font-size: 11px; padding: 1px 6px; }
+.thunderbolt .tb-hangar-btn.on { color: var(--tb-accent-ink); background: var(--tb-accent); }
+.tb-hangar-app .window-content { padding: 0; background: var(--tb-bg); color: var(--tb-ink); }
+.tb-hangar { display: flex; flex-direction: column; height: 100%; font-family: var(--tb-body); }
+.tb-hangar .tb-hg-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 12px; background: var(--tb-surface); border-bottom: 1px solid var(--tb-line); box-shadow: inset 0 -3px 0 rgba(155, 227, 191, .25); }
+.tb-hangar .tb-hg-head select { width: auto; min-width: 160px; }
+.tb-hangar .tb-hg-head button { width: auto; flex: 0 0 auto; }
+.tb-hangar .tb-hg-count { margin-left: auto; font-family: var(--tb-data); font-size: 11px; color: var(--tb-muted); font-variant-numeric: tabular-nums; }
+.tb-hangar .tb-hg-why { font-size: 12px; color: var(--tb-warn); }
+.tb-hangar .tb-hg-lamp { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #23413a; border: 1px solid var(--tb-line); vertical-align: middle; }
+.tb-hangar .on > .tb-hg-lamp, .tb-hangar .tb-hg-state.open .tb-hg-lamp, .tb-hangar .tb-hg-slot.on .tb-hg-lamp { background: var(--tb-accent); box-shadow: 0 0 6px var(--tb-accent); }
+.tb-hangar .tb-hg-state { font-family: var(--tb-data); font-size: 12px; letter-spacing: .14em; }
+.tb-hangar .tb-hg-state.closed { color: var(--tb-bad); }
+.tb-hangar .tb-hg-state.closed .tb-hg-lamp { background: var(--tb-bad); }
+.tb-hangar .tb-hg-switch { display: inline-flex; align-items: center; gap: 6px; font-family: var(--tb-data); font-size: 12px; letter-spacing: .08em; cursor: pointer; }
+.tb-hangar .tb-hg-switch input { display: none; }
+.tb-hangar .tb-hg-switch:not(.on) .tb-hg-lamp { background: var(--tb-bad); }
+.tb-hangar .tb-hg-scroll { flex: 1; overflow-y: auto; padding: 6px 12px 12px; }
+.tb-hangar h3 { margin: 10px 0 4px; font-family: var(--tb-data); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--tb-accent); border-bottom: 1px solid var(--tb-line); }
+.tb-hangar h3 small { color: var(--tb-muted); letter-spacing: .04em; text-transform: none; margin-left: 6px; }
+.tb-hangar h4 { margin: 8px 0 4px; font-size: 11px; font-family: var(--tb-data); letter-spacing: .1em; color: var(--tb-muted); text-transform: uppercase; }
+.tb-hangar .tb-hg-quick { display: flex; flex-wrap: wrap; gap: 4px; }
+.tb-hangar .tb-hg-quick button { width: auto; flex: 0 0 auto; font-size: 11px; line-height: 20px; padding: 0 8px; }
+.tb-hangar .tb-hg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 4px; }
+.tb-hangar .tb-hg-card, .tb-hangar .tb-hg-weap, .tb-hangar .tb-hg-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border: 1px solid var(--tb-line); background: var(--tb-surface); cursor: pointer; color: var(--tb-ink); }
+.tb-hangar .tb-hg-card.on, .tb-hangar .tb-hg-weap.on, .tb-hangar .tb-hg-row.on { background: var(--tb-olive-soft); border-color: var(--tb-accent); }
+.tb-hangar .tb-hg-card input, .tb-hangar .tb-hg-weap input { margin: 0; flex: 0 0 auto; }
+.tb-hangar .tb-hg-card img, .tb-hangar .tb-hg-row img { width: 36px; height: 36px; object-fit: contain; border: 0; flex: 0 0 auto; }
+.tb-hangar .tb-hg-card span, .tb-hangar .tb-hg-row span { display: flex; flex-direction: column; min-width: 0; }
+.tb-hangar small { color: var(--tb-muted); font-size: 11px; }
+.tb-hangar .tb-hg-wlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px; }
+.tb-hangar .tb-hg-weap b { font-family: var(--tb-data); min-width: 44px; }
+.tb-hangar .tb-hg-weap span { flex: 1; min-width: 0; }
+.tb-hangar .tb-hg-body { flex: 1; display: grid; grid-template-columns: minmax(200px, 260px) 1fr; min-height: 0; }
+.tb-hangar .tb-hg-list { overflow-y: auto; padding: 6px 8px; border-right: 1px solid var(--tb-line); display: flex; flex-direction: column; gap: 3px; }
+.tb-hangar .tb-hg-row.off { opacity: .55; }
+.tb-hangar .tb-hg-bay { overflow-y: auto; padding: 8px 14px; display: flex; flex-direction: column; gap: 6px; }
+.tb-hangar .tb-hg-empty { margin: auto; color: var(--tb-muted); }
+.tb-hangar .tb-hg-plane { display: flex; gap: 12px; align-items: center; }
+.tb-hangar .tb-hg-plane img { width: 110px; height: 110px; object-fit: contain; border: 1px solid var(--tb-line); background: radial-gradient(circle, var(--tb-surface-2), var(--tb-bg)); }
+.tb-hangar .tb-hg-plane h2 { margin: 0; border: 0; font-family: var(--tb-display); color: var(--tb-ink); }
+.tb-hangar .tb-hg-plane h2 small { font-size: 12px; color: var(--tb-muted); }
+.tb-hangar .tb-hg-plane p { margin: 2px 0 6px; }
+.tb-hangar .tb-hg-stats { display: flex; flex-wrap: wrap; gap: 4px; }
+.tb-hangar .tb-hg-stats span { display: flex; flex-direction: column; align-items: center; min-width: 52px; padding: 2px 4px; border: 1px solid var(--tb-line); font-family: var(--tb-data); font-size: 14px; color: var(--tb-accent); font-variant-numeric: tabular-nums; }
+.tb-hangar .tb-hg-stats i { font-style: normal; font-size: 9px; letter-spacing: .08em; color: var(--tb-muted); }
+.tb-hangar .tb-hg-props { margin: 0; padding-left: 16px; font-size: 12px; }
+.tb-hangar .tb-hg-slots { display: flex; flex-direction: column; gap: 4px; }
+.tb-hangar .tb-hg-slot { display: grid; grid-template-columns: auto auto 1fr; grid-template-rows: auto auto; gap: 2px 8px; align-items: center; padding: 4px 8px; border: 1px solid var(--tb-line); background: var(--tb-surface); }
+.tb-hangar .tb-hg-slot i { font-style: normal; font-family: var(--tb-data); font-size: 11px; letter-spacing: .12em; color: var(--tb-muted); }
+.tb-hangar .tb-hg-slot small { grid-column: 2 / -1; }
+.tb-hangar .tb-hg-go { margin-top: 6px; font-family: var(--tb-data); letter-spacing: .12em; background: var(--tb-accent); color: var(--tb-accent-ink); border: 0; line-height: 32px; }
+.tb-hangar .tb-hg-go:disabled { background: var(--tb-surface-2); color: var(--tb-muted); }
+@media (max-width: 640px) { .tb-hangar .tb-hg-body { grid-template-columns: 1fr; } .tb-hangar .tb-hg-list { max-height: 220px; border-right: 0; border-bottom: 1px solid var(--tb-line); } }

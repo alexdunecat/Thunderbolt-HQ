@@ -16,7 +16,8 @@
         </label>
       </div>
       <div class="tb-head-plane">
-        {{#if plane}}<b>{{plane.name}}</b> · {{plane.cls}}{{#if plane.carrier}} · палубный{{/if}}{{else}}<span class="tb-muted">Самолёт не назначен: перетащите машину из компендиума «Ангар: самолёты».</span>{{/if}}
+        {{#if plane}}<b>{{plane.name}}</b> · {{plane.cls}}{{#if plane.carrier}} · палубный{{/if}}{{else}}<span class="tb-muted">Самолёт не назначен: выберите в ангаре или перетащите машину из компендиума «Ангар: самолёты».</span>{{/if}}
+        <a class="tb-btn tb-hangar-btn{{#if hangarOpen}} on{{/if}}" data-hangar title="{{#if hangarOpen}}Ангар открыт: выбрать машину и спецоружие из того, что выдаёт AWACS{{else}}Ангар: машины и спецоружие, которые выдаёт AWACS{{/if}}"><i class="fas fa-warehouse"></i> Ангар</a>
       </div>
     </div>
   </header>
@@ -169,7 +170,7 @@
             </li>
             {{/each}}
           </ul>
-          {{else}}<p class="tb-muted">Перетащите спецоружие из компендиума. Узлов подвески: {{system.hardpoints}}.</p>{{/if}}
+          {{else}}<p class="tb-muted">Выберите спецоружие в ангаре (кнопка в шапке) или перетащите из компендиума. Узлов подвески: {{system.hardpoints}}.</p>{{/if}}
           {{#if plane.sigNames}}<p class="tb-small tb-muted">Штатное для этой машины: {{plane.sigNames}}.</p>{{/if}}
         </fieldset>
       </div>

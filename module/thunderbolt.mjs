@@ -47,6 +47,8 @@ import { registerLosses } from "./losses.mjs";
 import { registerAltitude, stepAltitude } from "./altitude.mjs";
 import { registerPopout, mirrorPopouts } from "./popout.mjs";
 import { registerMedals, openMedals, award as awardMedal } from "./medals.mjs";
+import { registerUndo, undo, redo, openUndoLog } from "./undo.mjs";
+import { registerHangar, openHangar, openHangarAdmin } from "./hangar.mjs";
 import { registerNemesis, appear as nemesisAppear, startMonologue, endMonologue } from "./nemesis.mjs";
 import { registerCombatTriggers } from "./combat-triggers.mjs";
 import { registerNpcAdvice } from "./npc-advice.mjs";
@@ -167,12 +169,14 @@ Hooks.once("init", () => {
   registerCareerTriggers();
   registerBossFate();
   registerMedals();
+  registerUndo();
+  registerHangar();
   registerCombat();
   registerActions();
 
   game.thunderbolt = { gloryDialog, importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
     squadFromSelection, act: actFromMacro, fillHotbars, stepAltitude, rolls: R, TB, sound: cue, radio: { send: sendRadio, say, caution, log: openRadioLog, replies: openChatterEditor, mission: openMissionDialog, aces: openAceIntro, announceAces }, dossier: { open: openDossierExchange, importDossier, exportDossier },
-    refreshAwacs, nemesis: { appear: nemesisAppear, monologue: startMonologue, endMonologue }, medals: { open: openMedals, award: awardMedal }, boot: { open: openBootDialog, start: startBoot, play: playBoot, stop: stopBoot },
+    refreshAwacs, nemesis: { appear: nemesisAppear, monologue: startMonologue, endMonologue }, medals: { open: openMedals, award: awardMedal }, undo: { undo, redo, log: openUndoLog }, hangar: { open: openHangar, admin: openHangarAdmin }, boot: { open: openBootDialog, start: startBoot, play: playBoot, stop: stopBoot },
     briefing: { open: openBriefing, start: startBriefing, stop: stopBriefing, afterBoot: bootThenBriefing }, downtime: { ground: Downtime.rollGround, baseEvent: Downtime.baseEvent, threats: Downtime.threats, addThreat: Downtime.addThreat, stepThreat: Downtime.stepThreat } };
 });
 
@@ -198,12 +202,13 @@ for (const ev of ["createItem", "updateItem", "deleteItem"]) Hooks.on(ev, (item,
 
 Hooks.on("renderChatMessage", (message, html) => R.decorateCard(message, html));
 // залп попал в самолёт игрока: урон наносит его клиент (выбор метки открывается у него)
-Hooks.on("createChatMessage", message => R.onVolleyCreated(message));
+Hooks.on("createChatMessage", (message, options) => { if (!options?.tbUndo) R.onVolleyCreated(message); });
 
 /* Высота: поле листа и высота токена (1 = Низкая, 2 = Средняя, 3 = Высокая) держатся вместе. */
 let moveTimer = null, locking = false, lockAgain = false;
 const sheetTimers = new Map();
 Hooks.on("updateToken", (token, change, options, userId) => {
+  if (options?.tbUndo) return;
   const moved = "x" in change || "y" in change || "elevation" in change;
   // погода и защита в новой клетке; группу токенов одного актёра перерисовываю один раз
   if (moved && token.actor?.sheet?.rendered) {
@@ -282,7 +287,8 @@ Hooks.on("getSceneControlButtons", controls => {
   tokens?.tools.push(tool("tb-awacs", "Панель AWACS", "fas fa-satellite-dish", () => openAwacs()));
   const brief = [
     tool("tb-boot", "Заставка АСУ «Тайга» перед брифингом: у всех на экране", "fas fa-terminal", () => openBootDialog()),
-    tool("tb-briefing", "Брифинг миссии: карта, этапы и субтитры у всех на экране", "fas fa-map", () => openBriefing())
+    tool("tb-briefing", "Брифинг миссии: карта, этапы и субтитры у всех на экране", "fas fa-map", () => openBriefing()),
+    tool("tb-undo", "Журнал действий: отменить и вернуть (Alt+Z, Alt+Shift+Z)", "fas fa-clock-rotate-left", () => openUndoLog())
   ];
   if (hasLayer("tbbrief")) controls.push({ name: "tb-brief", title: "Брифинг", icon: "fas fa-chalkboard-user", layer: "tbbrief", activeTool: "", tools: brief });
   else tokens?.tools.push(...brief);
@@ -389,6 +395,8 @@ Hooks.on("updateActor", (actor, change, options, userId) => {
 });
 
 async function onActorUpdate(actor, change, options, userId) {
+  // отмена ведущего возвращает значения как были: без сваливания, синхронизации и прочих последствий
+  if (options?.tbUndo) return;
   const has = p => foundry.utils.hasProperty(change, p);
   // сваливание: Speed ≤ 0 у летящей машины (сразу при падении Speed и в начале каждого хода). Бросает тот, кого назвал конец раунда (владелец пилота), иначе кто менял
   if ((has("system.speed") || options.tbStallTurn) && actor.system.speed <= 0 && (options.tbStallBy ?? userId) === game.user.id) {

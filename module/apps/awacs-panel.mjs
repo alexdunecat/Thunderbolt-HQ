@@ -19,6 +19,8 @@ import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMark
 import { DT } from "../config.mjs";
 import { squadBudget, pointsText, operationsDone, setOperationsDone, allSquads, squadPoints, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
 import { openMedals } from "../medals.mjs";
+import { openHangarAdmin } from "../hangar.mjs";
+import { undo, redo, openUndoLog } from "../undo.mjs";
 import { markStrike, cancelStrike, strikesOfCombat, strikeWhere } from "../strikes.mjs";
 
 let panel = null;
@@ -184,6 +186,10 @@ export class AwacsPanel extends Application {
       for (const a of pilots) await a.prepareSortie();
     });
     on("[data-results]", () => sortieResults());
+    on("[data-hangar]", () => openHangarAdmin());
+    on("[data-undo-step]", () => undo());
+    on("[data-redo-step]", () => redo());
+    on("[data-undo-log]", () => openUndoLog());
     on("[data-radio]", () => openRadioDialog());
     on("[data-chatter]", () => openChatterEditor());
     on("[data-briefing]", () => openBriefing());
