@@ -43,12 +43,25 @@ export function registerAltitude() {
     foundry.utils.setProperty(change, "system.alt", cap);
     ui.notifications?.info(`${actor.name}: потолок машины — ${TB.altitudes[cap]}, выше не поднимается.`);
   });
-  // воздушный босс встаёт на свою высоту: Аркбёрд, SOLG и баллистическая ракета в стратосфере, летающий крейсер на Средней или Высокой
+  // всё летающее встаёт на свою высоту сразу, иначе у нового токена elevation 0 и цифры высоты нет;
+  // воздушный босс — на свою: Аркбёрд, SOLG и баллистическая ракета в стратосфере, летающий крейсер на Средней или Высокой
   Hooks.on("preCreateToken", doc => {
-    if (!flyingBoss(doc.actor)) return;
+    if (!isFlying(doc.actor)) return;
     const elevation = TB.altElevation[altOf({ document: doc }, doc.actor)];
-    if (doc.elevation !== elevation) doc.updateSource({ elevation });
+    if (elevation && doc.elevation !== elevation) doc.updateSource({ elevation });
   });
+  // токены, поставленные до этого, ведущий выставляет на высоту листа при загрузке сцены
+  Hooks.on("canvasReady", () => { if (game.users?.activeGM?.isSelf) fixElevations().catch(err => console.error(`${SYSTEM_ID} | высота токенов`, err)); });
+  // цифра высоты над летающим токеном видна всегда, а не только при наведении; у наземки и кораблей её нет (elevation 0)
+  Hooks.on("refreshToken", t => { if (t.tooltip && isFlying(t.actor)) t.tooltip.visible = t.visible && !t.document.isSecret; });
+}
+
+/** Летающие токены сцены без высоты (elevation не 1–4) встают на высоту по листу. */
+async function fixElevations(scene = canvas?.scene) {
+  const ok = new Set(Object.values(TB.altElevation));
+  const upd = (scene?.tokens.contents ?? []).filter(d => isFlying(d.actor) && !ok.has(d.elevation))
+    .map(d => ({ _id: d.id, elevation: TB.altElevation[altOf({ document: d }, d.actor)] })).filter(u => u.elevation);
+  if (upd.length) await scene.updateEmbeddedDocuments("Token", upd, { tbSync: true });
 }
 
 let timer = null;
