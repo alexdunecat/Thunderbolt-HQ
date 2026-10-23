@@ -51,7 +51,7 @@
           <td class="tb-num">{{t.hp.value}}/{{t.hp.max}}</td>
           <td class="tb-num">{{t.defense}}</td>
           <td>{{t.alt}}</td>
-          <td>{{#each t.markers as |m|}}<span class="tb-mk {{m.cls}}">{{m.label}}</span>{{/each}}{{#if t.down}}<span class="tb-mk doom">сбит</span>{{/if}}</td>
+          <td>{{#each t.markers as |m|}}<span class="tb-mk {{m.cls}}">{{m.label}}</span>{{/each}}{{#if t.down}}<span class="tb-mk doom">сбит</span>{{/if}}{{#if t.line}}<span class="tb-mk tb-mk-ret" title="Линия возврата">{{t.line}}</span>{{/if}}</td>
         </tr>
         {{/each}}
       </table>
@@ -140,6 +140,30 @@
         {{/each}}
       </div>
       <p class="tb-small tb-muted">Погода сама попадает в защиту, A-A и A-G без броска, Push и пороги Complication. Молния и торнадо показываются подсказкой: их последствия объявляет AWACS.</p>
+      <h3>Погода по клеткам</h3>
+      <div class="tb-awacs-tools">
+        <select data-brush-wx-id>{{#each brushWx as |w|}}<option value="{{w.id}}">{{w.name}}</option>{{/each}}</select>
+        <button type="button" data-brush-wx title="Щёлкайте или ведите по клеткам сцены: эффект ставится или снимается. Esc или правая кнопка — готово."><i class="fas fa-paintbrush"></i> Кисть погоды</button>
+      </div>
+      <p class="tb-small tb-muted">Кисть ставит выбранную погоду в отдельные клетки и снимает её, если клетка уже с ней. Погода над всей сценой сюда не попадает: её включают выше.</p>
+      <h3>Линия возврата {{#if retLine}}<small>{{retLine.count}} клеток за линией</small>{{/if}}</h3>
+      <div class="tb-awacs-tools">
+        <button type="button" data-brush-ret title="Щёлкайте или ведите по клеткам, которые за линией. Esc или правая кнопка — готово."><i class="fas fa-paintbrush"></i> Кисть линии</button>
+        {{#if retLine}}
+        <select data-ret-mode title="Что значит пересечь линию">{{#each retLine.modes as |o|}}<option value="{{o.k}}" {{#if o.sel}}selected{{/if}}>{{o.v}}</option>{{/each}}</select>
+        <button type="button" data-ret-clear><i class="fas fa-eraser"></i> Стереть</button>
+        {{/if}}
+      </div>
+      <p class="tb-small tb-muted">Клетки за линией штрихуются, граница идёт пунктиром. Враг, перешедший линию во время боя, уходит с поля (рубеж: задание провалено). Пилот за линией выбирает в чате: выйти из боя или перевооружиться и вернуться через раунд без восстановления Strain. Линию можно нарисовать и в Планшете.</p>
+      {{#if escaped.length}}
+      <table class="tb-awacs-table tb-ret-escaped">
+        <tr><th>Ушли за линию</th><th>Раунд</th><th></th></tr>
+        {{#each escaped as |e|}}
+        <tr><td><b>{{e.name}}</b>{{#if e.priority}} <small>цель</small>{{/if}}</td><td class="tb-num">{{e.round}}</td>
+          <td><button type="button" class="tb-inline-btn" data-ret-back="{{e.id}}" title="Вернуть на место за линией и в бой"><i class="fas fa-rotate-left"></i> Вернуть</button> <a data-ret-forget="{{e.id}}" title="Не вернётся"><i class="fas fa-trash"></i></a></td></tr>
+        {{/each}}
+      </table>
+      {{/if}}
     </div>
     <div class="tab" data-group="awacs" data-tab="campaign">
       <div class="tb-awacs-tools">

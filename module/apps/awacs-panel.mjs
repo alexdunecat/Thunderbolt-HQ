@@ -22,6 +22,8 @@ import { openMedals } from "../medals.mjs";
 import { openHangarAdmin } from "../hangar.mjs";
 import { undo, redo, openUndoLog } from "../undo.mjs";
 import { markStrike, cancelStrike, strikesOfCombat, strikeWhere } from "../strikes.mjs";
+import { lineOf, lineHint, RET_MODES, escapedOf, bringBack, forgetEscaped, setLineMode } from "../return-line.mjs";
+import { openBrush, clearReturnLine } from "../cell-brush.mjs";
 
 let panel = null;
 let timer = null;
@@ -95,7 +97,7 @@ export class AwacsPanel extends Application {
       return {
         id: t.id, name: t.name, kind: TB.npcKinds[s.kind] ?? s.kind, tier: TB.tiers[s.tier] ?? "",
         hp: s.hp, defense: s.kind === "ship" ? "Occ" : defenseWithWeather(a, w), alt: TB.altitudes[obj ? altOf(obj, a) : s.alt] ?? "",
-        markers: markerList(s), down: a.statuses?.has(dead) || s.markers.doom, hidden: t.hidden,
+        markers: markerList(s), down: a.statuses?.has(dead) || s.markers.doom, hidden: t.hidden, line: lineHint(a, t),
         side: sideOf(a), priority: !!s.priority, task: s.task ?? ""
       };
     });
@@ -124,6 +126,7 @@ export class AwacsPanel extends Application {
     // в панели только эскадрильи, чьи машины стоят на этой сцене; остальные одной строкой
     const elsewhere = squads.filter(q => !q.members).map(q => q.name).join(", ");
     const strikeList = strikesOfCombat(combat), allThreats = threats();
+    const line = lineOf(scene);
     const badge = { fight: strikeList.length + queued, campaign: allThreats.filter(t => t.kind !== "boss" && t.value >= t.size).length };
     return {
       badge,
@@ -134,6 +137,9 @@ export class AwacsPanel extends Application {
       glory: (() => { const g = gloryView(); return { ...g, pct: g.nextAt !== null ? Math.round(100 * g.points / g.nextAt) : 100,
         recent: (g.log ?? []).slice(-3).reverse().map(x => `${x.date} · ${x.op}: ${x.total >= 0 ? "+" : "−"}${Math.abs(x.total)}`) }; })(),
       tunnel: specialSections(scene),
+      retLine: line ? { count: line.cells.length, modes: Object.entries(RET_MODES).map(([k, v]) => ({ k, v, sel: k === line.mode })) } : null,
+      escaped: escapedOf(scene).map(e => ({ id: e.id, name: e.name, round: e.round, priority: e.priority })),
+      brushWx: Object.entries(TB.weather).filter(([id]) => !sceneWeather.has(id)).map(([id, d]) => ({ id, name: `${d.ico} ${d.name}` })),
       strikes: strikeList.map(s => ({ ...s, where: strikeWhere(s), when: s.round === combat.round ? "в конце раунда" : `в конце раунда ${s.round}` })),
       threats: allThreats.filter(t => t.kind !== "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size })),
       bossClocks: allThreats.filter(t => t.kind === "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size,
@@ -180,6 +186,12 @@ export class AwacsPanel extends Application {
       for (const a of game.actors) if (a.sheet?.rendered) a.sheet.render(false);
     }));
     on("[data-map-update]", () => openMapUpdateDialog());
+    on("[data-brush-ret]", () => openBrush({ kind: "ret" }));
+    on("[data-brush-wx]", () => { const id = el.querySelector("[data-brush-wx-id]")?.value; if (id) openBrush({ kind: "wx", id }); });
+    on("[data-ret-clear]", async () => { if (await Dialog.confirm({ title: "Линия возврата", content: "<p>Стереть линию возврата с этой сцены?</p>" })) await clearReturnLine(game.scenes.viewed); });
+    on("[data-ret-back]", d => bringBack(d.retBack));
+    on("[data-ret-forget]", d => forgetEscaped(d.retForget));
+    el.querySelector("[data-ret-mode]")?.addEventListener("change", ev => setLineMode(game.scenes.viewed, ev.currentTarget.value));
     on("[data-sortie-all]", async () => {
       const pilots = game.actors.filter(a => a.type === "pilot");
       if (!(await Dialog.confirm({ title: "Все к вылету", content: `<p>Подготовить к вылету всех пилотов (${pilots.length}): HP и Strain до максимума, Speed 1, метки сняты, спецоружие пополнено?</p>` }))) return;

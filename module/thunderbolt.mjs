@@ -27,6 +27,7 @@ import { registerRange } from "./range.mjs";
 import * as Downtime from "./downtime.mjs";
 import { openRadioLog } from "./radio-log.mjs";
 import { registerStrikes } from "./strikes.mjs";
+import { registerReturnLine } from "./return-line.mjs";
 import { registerCivilRadio, openCivilRadio, canControl as canRadio } from "./civil-radio.mjs";
 import { registerChatter, openChatterEditor } from "./chatter.mjs";
 import { registerMission, openMissionDialog } from "./mission.mjs";
@@ -144,6 +145,7 @@ Hooks.once("init", () => {
   registerSounds();
   registerHud();
   registerStrikes();
+  registerReturnLine();
   registerCivilRadio();
   registerAces();
   registerPause();

@@ -4,7 +4,7 @@ import { squadLayout, setSquadLayout } from "../squadrons.mjs";
 import { npcActor } from "../data/catalog-docs.mjs";
 import { esc } from "../utils.mjs";
 import { zonePacker } from "../tokens.mjs";
-import { publicMission, buildSteps, briefingOf, saveBriefing } from "../briefing.mjs";
+import { publicMission, buildSteps, briefingOf, saveBriefing, retOf, retEdges, retLabelEdge } from "../briefing.mjs";
 
 const COL_LETTERS = "АБВГДЕЖИКЛМНОПРСТУФХЦЧШЭЮЯ";
 const cellName = (c, r) => (COL_LETTERS[c] ?? "?") + (r + 1);
@@ -34,6 +34,70 @@ function mark(x, y, w, h, text, { size = 15, color = "#9be3bf", font = "JetBrain
 const tile = (src, x, y, w, h, sort, alpha = 1, rotation = 0) => ({
   texture: { src }, x, y, width: w, height: h, sort, alpha, rotation, locked: true, elevation: 0, flags: { [SYSTEM_ID]: { map: true } }
 });
+
+/**
+ * Линия возврата на карте: штриховка клеток за линией, пунктир по её границе и подпись RETURN LINE (у рубежа — DEFENSE LINE).
+ * Плитки и подпись помечены ret, чтобы кисть могла перерисовать только линию.
+ */
+export function returnArt(ret, cols, rows) {
+  const tiles = [], drawings = [];
+  if (!ret?.cells?.length) return { tiles, drawings };
+  const flag = d => { d.flags[SYSTEM_ID].ret = true; return d; };
+  for (const k of ret.cells) { const [c, r] = k.split(",").map(Number); tiles.push(flag(tile(`${MAP}return/zone.svg`, c * S, r * S, S, S, 3, 1))); }
+  const edges = retEdges(ret.cells, cols, rows);
+  for (const [a, b, c2] of edges) tiles.push(flag(a === c2
+    ? tile(`${MAP}return/edge.svg`, a * S - S / 2, b * S + S / 2 - 12, S, 24, 40, 1, 90)
+    : tile(`${MAP}return/edge.svg`, a * S, b * S - 12, S, 24, 40)));
+  if (edges.length) {
+    const [a, b, c2, d] = retLabelEdge(edges), x = (a + c2) / 2 * S, y = (b + d) / 2 * S, W = 190, H = 24;
+    const lab = mark(x - W / 2, y - H - 8, W, H, ret.mode === "border" ? "DEFENSE LINE" : "RETURN LINE", { size: 16, color: "#f2c14e" });
+    if (a === c2) Object.assign(lab, { x: x - W / 2 - H / 2 - 8, y: y - H / 2, rotation: 270 });
+    drawings.push(flag(lab));
+  }
+  return { tiles, drawings };
+}
+
+/** Рисунки погоды клетки: штриховка эффекта и значок в правом верхнем углу. */
+export function weatherArt(c, r, ids) {
+  const x = c * S, y = r * S, B = 30, out = [];
+  ids.forEach((fid, i) => {
+    out.push(tile(`${MAP}weather/${fid}.svg`, x, y, S, S, 10 + i, 0.9));
+    out.push(tile(`${MAP}weather/${fid}-badge.svg`, x + S - 4 - (i + 1) * (B + 3), y + 4, B, B, 50));
+  });
+  return out;
+}
+
+/** Перерисовать погоду одной клетки по флагу weatherCells (кисть погоды). */
+export async function redrawWeatherCell(scene, c, r) {
+  const old = scene.tiles.filter(t => /\/map\/weather\//.test(t.texture?.src ?? "") && Math.floor(t.x / S) === c && Math.floor(t.y / S) === r).map(t => t.id);
+  if (old.length) await scene.deleteEmbeddedDocuments("Tile", old);
+  const ids = (scene.getFlag(SYSTEM_ID, "weatherCells")?.[`${c},${r}`] ?? []).filter(id => TB.weather[id]);
+  if (ids.length) await scene.createEmbeddedDocuments("Tile", weatherArt(c, r, ids));
+}
+
+/** Размер карты сцены в клетках. */
+export const sceneCells = scene => ({ cols: Math.max(1, Math.floor((scene.width ?? S) / S)), rows: Math.max(1, Math.floor((scene.height ?? S) / S)) });
+
+/** Перерисовать линию возврата по флагу returnLine (кисть, смена режима). */
+export async function redrawReturnLine(scene) {
+  const ret = coll => coll.filter(d => d.getFlag(SYSTEM_ID, "ret")).map(d => d.id);
+  const oldT = ret(scene.tiles), oldD = ret(scene.drawings);
+  if (oldT.length) await scene.deleteEmbeddedDocuments("Tile", oldT);
+  if (oldD.length) await scene.deleteEmbeddedDocuments("Drawing", oldD);
+  const { cols, rows } = sceneCells(scene), l = scene.getFlag(SYSTEM_ID, "returnLine");
+  const art = returnArt(l?.cells?.length ? l : null, cols, rows);
+  if (art.tiles.length) await scene.createEmbeddedDocuments("Tile", art.tiles);
+  if (art.drawings.length) await scene.createEmbeddedDocuments("Drawing", art.drawings);
+}
+
+/** Сцену можно рисовать клетками по S px от угла (импорт миссии, кисть): иначе причина. */
+export function mapProblems(scene) {
+  const off = [];
+  if (scene.grid?.type !== CONST.GRID_TYPES.SQUARE) off.push("сетка не квадратная");
+  if ((scene.grid?.size ?? S) !== S) off.push(`клетка ${scene.grid?.size} px, а нужно ${S}`);
+  if (scene.padding) off.push("у сцены есть отступ (Padding)");
+  return off;
+}
 
 /* ---------- местность у воды поворачивается к соседней воде ---------- */
 const WET = ["sea", "lake", "port"];
@@ -136,7 +200,6 @@ export async function drawMap(scene, m) {
   const tunnelCells = {};    // секции туннеля: правила туннеля (scene.mjs, tunnel.mjs)
   const tunGet = (c, r) => (c < 0 || r < 0 || c >= m.cols || r >= m.rows ? null : m.hexes?.[`${c},${r}`]?.tun ?? null);
   const tunArt = new Set(Object.keys(cat.tunnelArt ?? {}));
-  const B = 30;   // значок погоды
   const terOf = (c, r) => c < 0 || r < 0 || c >= m.cols || r >= m.rows ? null : ((m.hexes?.[`${c},${r}`]?.t && terrain.get(m.hexes[`${c},${r}`].t)) || base)?.id ?? null;
   for (let r = 0; r < m.rows; r++) for (let c = 0; c < m.cols; c++) {
     const h = m.hexes?.[`${c},${r}`] ?? {};
@@ -157,25 +220,26 @@ export async function drawMap(scene, m) {
     }
     // погода над всей картой идёт погодой Foundry, в клетке только своя
     const fx = (h.fx ?? []).filter(fid => effects.has(fid) && !everywhere.includes(fid));
-    fx.forEach((fid, i) => {
-      tiles.push(tile(`${MAP}weather/${fid}.svg`, x, y, S, S, 10 + i, 0.9));
-      tiles.push(tile(`${MAP}weather/${fid}-badge.svg`, x + S - 4 - (i + 1) * (B + 3), y + 4, B, B, 50));
-    });
+    tiles.push(...weatherArt(c, r, fx));
     // на карте только координата и подпись из Планшета; местность и погода — подсказкой при наведении (mapinfo.mjs)
     drawings.push(mark(x + 4, y + 4, 34, 20, cellName(c, r), { size: 13 }));
     if (h.label) { cellLabels[`${c},${r}`] = h.label; drawings.push(mark(x + 4, y + 24, S - 8, 22, h.label, { size: 15, color: "#d7eee6", font: "Jura" })); }
   }
+  const ret = retOf(m, m.cols, m.rows);
+  const ra = returnArt(ret, m.cols, m.rows);
+  tiles.push(...ra.tiles); drawings.push(...ra.drawings);
   if (tiles.length) await scene.createEmbeddedDocuments("Tile", tiles);
   if (drawings.length) await scene.createEmbeddedDocuments("Drawing", drawings);
   // клеточные флаги сначала снимаем целиком: объекты флагов при update сливаются, и клетки прежней карты остались бы
   await scene.update({ backgroundColor: "#07141a", weather: coreWeatherFor(everywhere),
     "grid.color": "#9be3bf", "grid.alpha": 0.25, [`flags.${SYSTEM_ID}.weather`]: everywhere,
     [`flags.${SYSTEM_ID}.-=weatherCells`]: null, [`flags.${SYSTEM_ID}.-=terrainCells`]: null,
-    [`flags.${SYSTEM_ID}.-=cellLabels`]: null, [`flags.${SYSTEM_ID}.-=tunnelCells`]: null });
+    [`flags.${SYSTEM_ID}.-=cellLabels`]: null, [`flags.${SYSTEM_ID}.-=tunnelCells`]: null, [`flags.${SYSTEM_ID}.-=returnLine`]: null });
   await scene.update({ [`flags.${SYSTEM_ID}.weatherCells`]: cells, [`flags.${SYSTEM_ID}.terrainCells`]: terrainCells,
-    [`flags.${SYSTEM_ID}.cellLabels`]: cellLabels, ...(Object.keys(tunnelCells).length ? { [`flags.${SYSTEM_ID}.tunnelCells`]: tunnelCells } : {}) });
+    [`flags.${SYSTEM_ID}.cellLabels`]: cellLabels, ...(Object.keys(tunnelCells).length ? { [`flags.${SYSTEM_ID}.tunnelCells`]: tunnelCells } : {}),
+    ...(ret ? { [`flags.${SYSTEM_ID}.returnLine`]: ret } : {}) });
   for (const a of game.actors) if (a.sheet?.rendered) a.sheet.render(false);
-  return { cells: Object.keys(cells).length, everywhere };
+  return { cells: Object.keys(cells).length, everywhere, ret };
 }
 
 /** Легенда карты: местность и погода, которые есть на этой карте, с рисунками и действием погоды. */
@@ -197,10 +261,7 @@ export function openMapUpdateDialog() {
   const scene = game.scenes.viewed;
   if (!scene) return ui.notifications.warn("Нет открытой сцены.");
   // карта рисуется клетками по S px от угла сцены: на сцене с отступом или другой сеткой клетки разъедутся с правилами
-  const off = [];
-  if (scene.grid?.type !== CONST.GRID_TYPES.SQUARE) off.push("сетка не квадратная");
-  if ((scene.grid?.size ?? S) !== S) off.push(`клетка ${scene.grid?.size} px, а нужно ${S}`);
-  if (scene.padding) off.push("у сцены есть отступ (Padding)");
+  const off = mapProblems(scene);
   if (off.length) return ui.notifications.warn(`Эту сцену не перерисовать: ${off.join(", ")}. Создайте сцену импортом миссии или поправьте настройки сцены.`, { permanent: true });
   new Dialog({
     title: "Карта и погода из Планшета AWACS",

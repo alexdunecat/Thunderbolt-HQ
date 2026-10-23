@@ -32,6 +32,9 @@
 .tb-br-screen .place { fill: #8fb8ac; font: italic 600 11px var(--f-disp); letter-spacing: .08em; paint-order: stroke; stroke: var(--land); stroke-width: 3px; }
 .tb-br-screen .wx { stroke: var(--neutral); stroke-width: 1; stroke-dasharray: 4 4; opacity: .55; }
 .tb-br-screen .wxlab { fill: var(--neutral); font: 600 9px var(--f-scr); letter-spacing: .14em; opacity: .85; }
+.tb-br-screen .retz { opacity: .5; }
+.tb-br-screen .retl { stroke: var(--neutral); stroke-width: 3; stroke-dasharray: 10 6; stroke-linecap: round; }
+.tb-br-screen .retlab { fill: var(--neutral); font: 600 10px var(--f-scr); letter-spacing: .2em; paint-order: stroke; stroke: var(--land); stroke-width: 3px; }
 
 /* силы */
 .tb-br-screen .u { transition: opacity .6s; }

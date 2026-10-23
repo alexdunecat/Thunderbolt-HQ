@@ -21,9 +21,10 @@ const delayedBy = v => (v > PASS ? v - PASS : 0);
 /** Здание или объект: в заявке не участвует. */
 export const passive = actor => actor?.type === "npc" && actor.system.grp === "obj";
 const npcSide = c => !c.actor?.hasPlayerOwner;
-/** Выбыл: сбит (знак X), отступил или помечен побеждённым в трекере. Заявки не делает, ход пропускается. */
+/** Выбыл: сбит (знак X), отступил, перевооружается за линией возврата или помечен побеждённым в трекере. Заявки не делает, ход пропускается. */
 export const isOut = c => !!c?.defeated || !!c?.actor?.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)
-  || !!c?.actor?.statuses?.has("retreat") || c?.actor?.getFlag?.(SYSTEM_ID, "down")?.combat === c?.parent?.id;
+  || !!c?.actor?.statuses?.has("retreat") || c?.actor?.getFlag?.(SYSTEM_ID, "down")?.combat === c?.parent?.id
+  || c?.actor?.getFlag?.(SYSTEM_ID, "rearm")?.combat === c?.parent?.id;
 const acting = combat => combat.combatants.filter(c => !passive(c.actor) && !isOut(c));
 const declared = c => Number.isNumeric(c.initiative);
 const leadGM = () => (game.users.activeGM ?? game.users.find(u => u.isGM && u.active))?.id === game.user.id;
@@ -235,6 +236,8 @@ export function registerCombat() {
       // назад на раунд: заявки следующего раунда забыты, чтобы при новом шаге вперёд они начались заново
       if (options.direction === -1) for (const k of ["ready", "npcDone"]) if ((flag(combat, k) ?? 0) > combat.round) await combat.unsetFlag(SYSTEM_ID, k);
       if (options.direction === 1 && change.round >= 2) await endRound(combat, change.round - 1);
+      // пилоты с перевооружения за линией возврата возвращаются до заявок
+      if (options.direction === 1) try { const { returnRound } = await import("../return-line.mjs"); await returnRound(combat); } catch (err) { console.error(`${SYSTEM_ID} | линия возврата`, err); }
       if (options.direction !== -1 && combat.started) await beginRound(combat);
       return;
     }

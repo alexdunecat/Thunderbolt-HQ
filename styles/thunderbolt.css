@@ -400,6 +400,7 @@ body[data-tb-skin="brief"] .thunderbolt .tb-portrait-screen {
 .tb-mk { display: inline-block; font-family: var(--tb-data); font-size: 10.5px; padding: 0 5px; margin: 1px 2px 1px 0; border-radius: 3px; background: var(--tb-surface-2); border: 1px solid var(--tb-line); }
 .tb-mk.doom { background: var(--tb-bad); color: var(--tb-accent-ink); border-color: var(--tb-bad); }
 .tb-mk.structure { border-color: var(--tb-warn); color: var(--tb-warn); }
+.tb-mk.tb-mk-ret { border-style: dashed; border-color: var(--tb-warn); color: var(--tb-warn); }
 .tb-awacs-weather { display: flex; flex-wrap: wrap; gap: 6px; }
 .tb-awacs-weather input { display: none; }
 .thunderbolt .tb-weather { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--tb-olive); font-family: var(--tb-data); margin-top: 4px; }

@@ -10,6 +10,7 @@ import { triggerAttack } from "./combat-triggers.mjs";
 import { isNemesis, pilotsOf } from "./nemesis.mjs";
 import { presetPick, selectTarget } from "./pick.mjs";
 import { combatantOf, declaredOf, spentOf, allowAction, spendAction } from "./actions.mjs";
+import { lineHint } from "./return-line.mjs";
 
 const DEAD = () => CONFIG.specialStatusEffects?.DEFEATED ?? "dead";
 const out = a => !a || a.statuses?.has?.(DEAD()) || a.statuses?.has?.("retreat") || !!a.system?.markers?.doom;
@@ -140,6 +141,9 @@ export function adviseNpc(actor, token = tokenOf(actor)) {
     }
   }
   if (banned.length) notes.push(...banned.slice(0, 2));
+  // линия возврата: цель может уйти за неё, враг — прорвать рубеж
+  const line = lineHint(actor, token.document);
+  if (line) notes.push(`${line.charAt(0).toUpperCase()}${line.slice(1)}.`);
   const others = list.filter(x => x !== c && !x.ban.length).slice(0, 3).map(x => `${x.token.name} (${x.dist === null ? "?" : zones(x.dist)})`);
   const declare = Math.max(1, Math.min(3, steps.length));
   return {

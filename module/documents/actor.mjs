@@ -412,6 +412,23 @@ export class TBActor extends Actor {
   }
 
   /* ---------- вылет ---------- */
+  /** Вернулся с перевооружения за линией возврата: HP, Structure, системы и боезапас как перед вылетом, Speed 1.
+      Strain, Grit, триггеры и связи не трогаются. */
+  async refitReturn() {
+    const m = this.system.markers ?? {};
+    await this.withoutPoolSync(async () => {
+      await this.update({ "system.speed": 1, "system.breakEv": null, "system.lock": "", "system.lockUuid": "",
+        "system.markers": { grit: !!m.grit, gritSkill: m.gritSkill ?? "", structure: false, sys: "", doom: false, lastRound: m.lastRound ?? "" } },
+        { tbFree: true, tbDoom: true });
+      await this.update({ "system.hp.value": this.system.hp.max, [`flags.${SYSTEM_ID}.pools`]: this.poolsFlag() }, { tbFree: true });
+    });
+    const items = this.items.filter(i => i.type === "weapon" && i.system.ammo.max !== null)
+      .map(i => ({ _id: i.id, "system.ammo.value": i.system.ammo.max + (this.system.ammoBonus?.[i.id] ?? 0) }));
+    if (items.length) await this.updateEmbeddedDocuments("Item", items);
+    for (const w of this.items.filter(i => i.type === "weapon" && i.getFlag(SYSTEM_ID, "off"))) await w.unsetFlag(SYSTEM_ID, "off");
+  }
+
+
   /** Перед вылетом: Strain и HP до максимума, Speed 1, метки и Поворот сняты, ситуативные триггеры выключены, боезапас полный. */
   async prepareSortie() {
     const notes = [];
@@ -419,7 +436,7 @@ export class TBActor extends Actor {
       await this.update({
         "system.speed": 1, "system.breakEv": null, "system.lock": "", "system.lockUuid": "", "system.twist": false,
         "system.markers": { grit: false, gritSkill: "", structure: false, sys: "", doom: false, lastRound: "" },
-        [`flags.${SYSTEM_ID}.-=down`]: null
+        [`flags.${SYSTEM_ID}.-=down`]: null, [`flags.${SYSTEM_ID}.-=escaped`]: null, [`flags.${SYSTEM_ID}.-=rearm`]: null
       }, { tbFree: true, tbDoom: true });
       // после снятия меток и Поворота максимумы пересчитаны; Strain с учётом Нервов и «Свежей головы»
       const upd = { "system.hp.value": this.system.hp.max, "system.strain.value": this.system.strain.max, [`flags.${SYSTEM_ID}.pools`]: this.poolsFlag() };

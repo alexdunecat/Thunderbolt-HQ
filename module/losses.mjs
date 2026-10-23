@@ -79,7 +79,9 @@ function lossOf(t, how) {
     // для Славы эскадрильи: уровень, эскадрилья дуэлянтов, супероружие или летающая крепость
     tier: a.type === "npc" ? a.system.tier ?? "" : "", squad: a.type === "npc" ? a.system.squad ?? "" : "", grp: a.system.grp ?? "",
     key: a.system.key ?? "", cls: a.system.cls ?? "", missile: hasRule(a, "ballistic") || a.system.key === "icbm",
-    boss: hasRule(a, "boss") || hasRule(a, "aerialship"), nemesis: a.type === "npc" && !!a.system.nemesis };
+    boss: hasRule(a, "boss") || hasRule(a, "aerialship"), nemesis: a.type === "npc" && !!a.system.nemesis,
+    // ушёл за линию возврата (return-line.mjs): fail, later (вернётся) или leave (пилот вышел из боя)
+    ret: how === "retreat" ? a.getFlag(SYSTEM_ID, "escaped")?.mode ?? "" : "" };
 }
 
 /** Токены сцены боя, которым пора уйти: сбитые в этом бою не позже раунда upTo и отступившие. */
@@ -105,6 +107,7 @@ export async function clearLosses(combat, upTo = Infinity, { keepLog = false } =
   // у связанных актёров (пилоты) статус и отметка живут на листе: снять, чтобы не уйти с поля в следующем бою
   for (const { t } of list) if (t.actorLink) {
     if (t.actor.statuses?.has(RETREAT)) await t.actor.toggleStatusEffect(RETREAT, { active: false });
+    if (t.actor.getFlag(SYSTEM_ID, "escaped")) await t.actor.unsetFlag(SYSTEM_ID, "escaped");
   }
   const ids = new Set(list.map(x => x.t.id));
   const cids = combat.combatants?.filter(c => ids.has(c.tokenId)).map(c => c.id) ?? [];
@@ -120,7 +123,7 @@ export async function clearLosses(combat, upTo = Infinity, { keepLog = false } =
 }
 
 /** Строка о потере для карточки конца раунда. */
-export const lossLine = r => `${esc(r.name)}: ${r.how === "retreat" ? "отступил" : r.pilot ? "сбит, катапульта" : r.kind === "ship" ? "потоплен" : r.kind === "ground" ? "уничтожен" : "сбит"}${r.by ? ` (${esc(r.by)})` : ""}`;
+export const lossLine = r => `${esc(r.name)}: ${r.how === "retreat" ? (r.ret === "later" ? "ушёл за линию, вернётся" : r.ret ? "ушёл за линию возврата" : "отступил") : r.pilot ? "сбит, катапульта" : r.kind === "ship" ? "потоплен" : r.kind === "ground" ? "уничтожен" : "сбит"}${r.by ? ` (${esc(r.by)})` : ""}`;
 
 /* Задачи по приоритетным целям: «Уничтожить», «Перехватить», «Вывести из строя» выполнены, если цель сбита;
    «Защитить» и «Сопроводить» — если цела (ушла с поля тоже цела). Остальное засчитывает ведущий, отметки нет. */
@@ -128,7 +131,7 @@ const KILL = ["destroy", "intercept", "disable"], KEEP = ["protect", "escort"];
 export function targetGoals(scene, losses = []) {
   return goalRows(scene, losses).map(g => {
     const verb = TB.tasks[g.task] || "Цель";
-    const state = g.how === "retreat" ? "ушла с поля" : g.lost ? "сбита" : "цела";
+    const state = g.back ? "ушла за линию, вернётся" : g.how === "retreat" ? "ушла с поля" : g.lost ? "сбита" : "цела";
     return `${g.done === true ? "✔ " : g.done === false ? "✘ " : ""}${esc(verb)}: ${esc(g.name)} (${state})`;
   });
 }
@@ -136,14 +139,15 @@ export function targetGoals(scene, losses = []) {
 /** Приоритетные цели: { name, task, lost, how, done (true/false/null — не судим), keep (задача «сохранить») }. */
 export function goalRows(scene, losses = []) {
   const rows = new Map();
-  for (const r of losses) if (r.task !== null && r.task !== undefined) rows.set(r.name, { name: r.name, task: r.task, lost: r.how === "down", how: r.how });
+  for (const r of losses) if (r.task !== null && r.task !== undefined) rows.set(r.name, { name: r.name, task: r.task, lost: r.how === "down", how: r.how, back: r.ret === "later" });
   for (const t of scene?.tokens ?? []) {
     const a = t.actor;
     if (a?.type !== "npc" || !a.system.priority || rows.has(t.name)) continue;
     const down = a.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) || a.system.markers?.doom;
     rows.set(t.name, { name: t.name, task: a.system.task, lost: !!down, how: down ? "down" : "" });
   }
-  return [...rows.values()].map(g => ({ ...g, keep: KEEP.includes(g.task), done: KILL.includes(g.task) ? g.lost : KEEP.includes(g.task) ? !g.lost : null }));
+  // ушла за линию возврата и вернётся (режим later): задача ещё не решена
+  return [...rows.values()].map(g => ({ ...g, keep: KEEP.includes(g.task), done: g.back ? null : KILL.includes(g.task) ? g.lost : KEEP.includes(g.task) ? !g.lost : null }));
 }
 
 /** Отчёт после End combat: поражённые, отступившие и уцелевшие цели, потери своих, сбитые по пилотам. */
@@ -170,6 +174,8 @@ async function battleReport(combat) {
   }
   const pilots = [...score].sort(([a], [b]) => a.localeCompare(b, "ru")).map(([n, k]) => `${esc(n)}: в воздухе ${k.air}, на земле и на море ${k.ground}`);
   const goals = targetGoals(scene, losses);
+  const { breachOf } = await import("./return-line.mjs");
+  const breach = breachOf(scene, combat);
   const block = (title, rows, empty = "—") => `<h4>${title}</h4>${rows.length ? `<ul>${rows.map(x => `<li>${x}</li>`).join("")}</ul>` : `<p class="tb-muted">${empty}</p>`}`;
   const date = campaignDate();
   const html = `<div class="tb-card tb-card-battle">
@@ -181,6 +187,7 @@ async function battleReport(combat) {
     ${block("Потери авиакрыла и союзников", ours.map(lossLine), "Потерь нет.")}
     ${block("Счёт пилотов за бой", pilots, "Пилоты никого не сбили.")}
     ${goals.length ? block("Цели", goals) : ""}
+    ${breach.length ? block("Рубеж обороны прорван", breach.map(n => `${esc(n)} за рубежом: задание провалено`)) : ""}
     ${objectives.length ? block("Задачи операции", objectives.map(esc)) : ""}
     <div class="tb-actions"><button type="button" data-tb-action="battle-results" class="tb-gm"><i class="fas fa-file-signature"></i> Итоги в личные дела</button></div>
   </div>`;
@@ -193,7 +200,7 @@ async function battleReport(combat) {
   if (ask) {
     const pilots = new Set(combat.combatants.filter(c => c.actor?.type === "pilot").map(c => c.actor.id)).size;
     const m = await import("./mission.mjs");
-    m.openMissionDialog({ op, suggest: m.suggestResult({ pilots, losses, goals: goalRows(scene, losses) }) });
+    m.openMissionDialog({ op, suggest: m.suggestResult({ pilots, losses, goals: goalRows(scene, losses), breach: breach.length > 0 }) });
   }
   return msg;
 }

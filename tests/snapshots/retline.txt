@@ -1,0 +1,65 @@
+ART tiles 15 (зона 10, пунктир 5, поворот 90) · подпись RETURN LINE @885,488 rot 270
+ART border DEFENSE LINE
+FLAG Залив returnLine={"cells":["5,0","6,0","5,1","6,1","5,2","6,2","5,3","6,3","5,4","6,4"],"mode":"fail"}
+DIST МиГ 2, Танкер 1 · hint до линии возврата 1: уйдёт — задача провалена | (не цель)
+— fail: цель уходит за линию
+FLAG Танкер escaped={"combat":"C","round":3,"mode":"fail"}
+STATUS Танкер retreat on
+CHAT AWACS: «Цель Танкер ушла за линию возврата! Мы её упустили.»
+статусы Танкер: retreat
+— ведущий вернул МиГ назад тем же ходом
+FLAG МиГ-29 escaped={"combat":"C","round":3,"mode":"fail"}
+STATUS МиГ-29 retreat on
+CHAT AWACS: «МиГ-29 уходит за линию возврата.»
+UNFLAG МиГ-29 escaped
+STATUS МиГ-29 retreat off
+INFO МиГ-29 снова перед линией: отступление отменено.
+статусы МиГ: 
+— внутри зоны за линией: второй раз не считается
+— союзник не уходит
+— later: МиГ уходит и ждёт в списке
+FLAG Залив returnLine={"cells":["5,0","6,0","5,1","6,1","5,2","6,2","5,3","6,3","5,4","6,4"],"mode":"later"}
+CREATE Tile return/zone.svg, return/zone.svg, return/zone.svg, return/zone.svg, return/zone.svg, return/zone.svg, return/zone.svg, return/zone.svg, return/zone.svg, return/zone.svg, return/edge.svg, return/edge.svg, return/edge.svg, return/edge.svg, return/edge.svg
+CREATE Drawing RETURN LINE
+FLAG Залив escapedUnits=[{"id":"r2","name":"МиГ-29","round":3,"token":"МиГ-29","priority":false,"data":{"name":"Ми
+FLAG МиГ-29 escaped={"combat":"C","round":3,"mode":"later"}
+STATUS МиГ-29 retreat on
+CHAT AWACS: «МиГ-29 уходит за линию возврата. Он ещё вернётся, и не один.»
+ушли: МиГ-29 раунд 3
+CREATE Token МиГ-29
+FLAG Залив escapedUnits=[]
+COMBATANT + new0
+CHAT -- CAUTION -- Противник возвращается AWACS: «Внимание, МиГ-29 возвращается из-за линии с подкреплением!»
+после «Вернуть»: 0 в списке
+— пилот за линией: перевооружение
+CHAT AWACS Гроза за линией возврата Раунд 3. Выйти из боя или перевооружиться: тогда пилот пропускает следующий раунд и в начале раунда 5 возвращается с полным HP и боезапасом, исправными системами и снятой Structure. Strain и Grit не восстанавливаются. Выйти из боя Перевооружиться Остаться
+карточка пилота: true
+карточек пилота: 1
+FLAG Гроза rearm={"combat":"C","back":5}
+TOKEN Гроза {"hidden":true}
+CHAT AWACS: «Гроза, принято, уходите на перевооружение. Ждём вас обратно.»
+CARD → AWACS Гроза за линией возврата Гроза уходит на перевооружение. Вернётся в начале раунда 5.
+rearm {"combat":"C","back":5}, скрыт true
+раунд 4: ещё на перевооружении
+REFIT Гроза: HP 4, Strain остаётся 2
+UNFLAG Гроза rearm
+TOKEN Гроза {"hidden":false}
+CHAT AWACS: «Гроза снова в строю: боезапас полон, машина в порядке.»
+раунд 5: вернулся, скрыт false
+— рубеж: прорыв врага, пилот без карточки
+FLAG Залив returnLine={"cells":["5,0","6,0","5,1","6,1","5,2","6,2","5,3","6,3","5,4","6,4"],"mode":"border"}
+CREATE Tile return/zone.svg, return/zone.svg, return/zone.svg, return/zone.svg, return/zone.svg, return/zone.svg, return/zone.svg, return/zone.svg, return/zone.svg, return/zone.svg, return/edge.svg, return/edge.svg, return/edge.svg, return/edge.svg, return/edge.svg
+CREATE Drawing DEFENSE LINE
+FLAG Залив retBreach={"combat":"C","names":["Су-34"]}
+CHAT -- WARNING -- Рубеж прорван AWACS: «Су-34 прорвался за рубеж обороны! Задание провалено.»
+CHAT AWACS Рубеж прорван Су-34 за рубежом обороны, раунд 5. По условиям миссии задание провалено. Бой можно продолжать: решает AWACS. Итог миссии
+прорвали: Су-34
+карточек пилота: 1
+LOSS Танкер: ушёл за линию возврата; МиГ: ушёл за линию, вернётся; Гроза: ушёл за линию возврата; Ан: отступил
+GOALS Танкер:null Баржа:false
+SUGGEST {"result":"failed","reason":"Противник прорвал рубеж"}
+BRIEF fail: {"cells":["3,0","3,1"],"mode":"fail"} · ЛИНИЯ ВОЗВРАТА: За пунктиром — линия возврата. Не дайте целям уйти за неё: ушедшая цель — проваленная задача. Сами за ней можете выйти из боя или перевооружиться и вернуться.
+BRIEF later: {"cells":["3,0","3,1"],"mode":"later"} · ЛИНИЯ ВОЗВРАТА: За пунктиром — линия возврата. Кто из противника уйдёт за неё, вернётся с подкреплением. Сами за ней можете выйти из боя или перевооружиться и вернуться.
+BRIEF border: {"cells":["3,0","3,1"],"mode":"border"} · РУБЕЖ ОБОРОНЫ: За пунктиром — рубеж обороны. Если противник прорвётся за него, задание провалено.
+BRIEF junk: {"cells":["3,0","3,1"],"mode":"fail"} · ЛИНИЯ ВОЗВРАТА: За пунктиром — линия возврата. Не дайте целям уйти за неё: ушедшая цель — проваленная задача. Сами за ней можете выйти из боя или перевооружиться и вернуться.
+BRIEF clean true · edges [[3,0,3,1],[3,2,4,2],[3,1,3,2]]

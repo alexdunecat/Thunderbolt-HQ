@@ -14,6 +14,27 @@ export const CELL = 100, ASP = 16 / 9;
 export const COL_LETTERS = "АБВГДЕЖИКЛМНОПРСТУФХЦЧШЭЮЯ";
 export const cellName = (c, r) => (COL_LETTERS[c] ?? "?") + (r + 1);
 const ctr = (c, r) => [c * CELL + CELL / 2, r * CELL + CELL / 2];
+/** Линия возврата: отрезки границы между клетками «за линией» и остальной картой, в клетках [c1, r1, c2, r2]. */
+export function retEdges(cells, cols, rows) {
+  const set = new Set(cells), out = [];
+  for (const k of set) {
+    const [c, r] = k.split(",").map(Number);
+    if (!(c >= 0 && r >= 0 && c < cols && r < rows)) continue;
+    if (r > 0 && !set.has(`${c},${r - 1}`)) out.push([c, r, c + 1, r]);
+    if (r < rows - 1 && !set.has(`${c},${r + 1}`)) out.push([c, r + 1, c + 1, r + 1]);
+    if (c > 0 && !set.has(`${c - 1},${r}`)) out.push([c, r, c, r + 1]);
+    if (c < cols - 1 && !set.has(`${c + 1},${r}`)) out.push([c + 1, r, c + 1, r + 1]);
+  }
+  return out;
+}
+/** Отрезок для подписи RETURN LINE: средний по положению. */
+export const retLabelEdge = edges => edges.slice().sort((p, q) => (p[1] + p[3]) - (q[1] + q[3]) || (p[0] + p[2]) - (q[0] + q[2]))[Math.floor(edges.length / 2)];
+/** Линия возврата миссии: клетки за линией и что значит уход врага (fail — задача провалена, later — вернётся позже). */
+export function retOf(m, cols, rows) {
+  const inside = (c, r) => Number.isInteger(c) && Number.isInteger(r) && c >= 0 && r >= 0 && c < cols && r < rows;
+  const cells = [...new Set((Array.isArray(m?.ret?.cells) ? m.ret.cells : []).map(String))].filter(k => { const [c, r] = k.split(",").map(Number); return inside(c, r); });
+  return cells.length ? { cells, mode: ["later", "border"].includes(m.ret.mode) ? m.ret.mode : "fail" } : null;
+}
 
 /* ---------- открытая часть миссии ---------- */
 const MARKER_KIND = { entry: "flight", goal: "goal", protect: "convoy", reinf: "hidden", note: "hidden" };
@@ -72,7 +93,8 @@ export function publicMission(m, cat = {}) {
   });
   return {
     name: String(m?.name ?? ""), type: String(m?.type ?? ""), cols, rows, base: String(m?.base ?? "steppe"), hexes, wx, units,
-    objectives: (m?.objectives ?? []).map(o => String(o).trim()).filter(Boolean), briefing: String(m?.briefing ?? "")
+    objectives: (m?.objectives ?? []).map(o => String(o).trim()).filter(Boolean), briefing: String(m?.briefing ?? ""),
+    ...(retOf(m, cols, rows) ? { ret: retOf(m, cols, rows) } : {})
   };
 }
 
@@ -141,6 +163,12 @@ export function buildSteps(pm) {
     steps.push({ title: "ПОГОДА И МЕСТНОСТЬ", focus: { c0: Math.min(...cs.map(x => x[0])), c1: Math.max(...cs.map(x => x[0])), r0: Math.min(...cs.map(x => x[1])), r1: Math.max(...cs.map(x => x[1])) },
       show: [], wx: true, text: lines.join(" ") || `Погода в районе: ${Object.values(pm.wx ?? {}).join(", ").toLowerCase() || "сложная"}.` });
   }
+  if (pm.ret?.cells?.length) {
+    const cs = pm.ret.cells.map(k => k.split(",").map(Number));
+    steps.push({ title: pm.ret.mode === "border" ? "РУБЕЖ ОБОРОНЫ" : "ЛИНИЯ ВОЗВРАТА", focus: { c0: Math.min(...cs.map(x => x[0])), c1: Math.max(...cs.map(x => x[0])), r0: Math.min(...cs.map(x => x[1])), r1: Math.max(...cs.map(x => x[1])) },
+      show: [], ret: true, text: pm.ret.mode === "border" ? "За пунктиром — рубеж обороны. Если противник прорвётся за него, задание провалено."
+        : `За пунктиром — линия возврата. ${pm.ret.mode === "later" ? "Кто из противника уйдёт за неё, вернётся с подкреплением." : "Не дайте целям уйти за неё: ушедшая цель — проваленная задача."} Сами за ней можете выйти из боя или перевооружиться и вернуться.` });
+  }
   const path = route.length > 1 ? route : null;
   if (entry) steps.push({ title: "МАРШРУТ", focus: "all", show: ids(us), blink: [entry.id], route: path,
     text: [take(/./), `${entry.name}, вход ${fromSide(entry, pm)}. Вылет по готовности. Конец связи.`].filter(Boolean).join(" ") });
@@ -167,6 +195,7 @@ export function cleanSteps(list) {
     // кольца ПВО: true — все, список — только у этих сил
     if (Array.isArray(s.threat)) { if (s.threat.length) x.threat = strs(s.threat); } else if (s.threat) x.threat = true;
     if (s.wx) x.wx = true;
+    if (s.ret) x.ret = true;
     if (Array.isArray(s.route) && s.route.length > 1) x.route = s.route.map(p => [num(p?.[0]), num(p?.[1])]);
     // пометки этапа: подсвеченные клетки и стрелки, заготовленные в конструкторе
     const marks = (Array.isArray(s.marks) ? s.marks : []).map(String).filter(k => /^\d+,\d+$/.test(k));
@@ -223,7 +252,8 @@ export function cleanMission(pm) {
   });
   return { name: String(pm.name ?? ""), type: String(pm.type ?? ""), cols, rows, base: String(pm.base ?? "steppe"), hexes,
     wx: Object.fromEntries(Object.entries(pm.wx ?? {}).map(([k, v]) => [k, String(v)])), units,
-    objectives: (Array.isArray(pm.objectives) ? pm.objectives : []).map(String), briefing: String(pm.briefing ?? "") };
+    objectives: (Array.isArray(pm.objectives) ? pm.objectives : []).map(String), briefing: String(pm.briefing ?? ""),
+    ...(retOf(pm, cols, rows) ? { ret: retOf(pm, cols, rows) } : {}) };
 }
 
 /**
@@ -418,6 +448,17 @@ export class BriefScreen {
       el("rect", { x: c * CELL + 4, y: r * CELL + 4, width: CELL - 8, height: CELL - 8, class: "wx", fill: `url(#tb-br-hatch-${uid})` }, this.wx);
       el("text", { x: c * CELL + 10, y: r * CELL + CELL - 10, class: "wxlab" }, this.wx).textContent = `≋ ${String(pm.wx?.[h.fx[0]] ?? h.fx[0]).toUpperCase()}`;
     }
+    // линия возврата: штриховка клеток за линией и пунктир по границе, ярко на этапе с ret
+    this.retG = el("g", { opacity: .4 });
+    if (pm.ret?.cells?.length) {
+      for (const k of pm.ret.cells) { const [c, r] = k.split(",").map(Number); el("rect", { x: c * CELL, y: r * CELL, width: CELL, height: CELL, class: "retz", fill: `url(#tb-br-hatch-${uid})` }, this.retG); }
+      const edges = retEdges(pm.ret.cells, pm.cols, pm.rows);
+      for (const [a, b, c2, d] of edges) el("line", { x1: a * CELL, y1: b * CELL, x2: c2 * CELL, y2: d * CELL, class: "retl" }, this.retG);
+      if (edges.length) {
+        const [a, b, c2, d] = retLabelEdge(edges), x = (a + c2) / 2 * CELL, y = (b + d) / 2 * CELL;
+        el("text", { x, y, dy: -6, "text-anchor": "middle", class: "retlab", ...(a === c2 ? { transform: `rotate(-90 ${x} ${y})` } : {}) }, this.retG).textContent = pm.ret.mode === "border" ? "DEFENSE LINE" : "RETURN LINE";
+      }
+    }
     for (const [k, h] of Object.entries(pm.hexes)) {
       if (!h.label) continue;
       const [c, r] = k.split(",").map(Number), [x, y] = ctr(c, r);
@@ -535,6 +576,7 @@ export class BriefScreen {
     ph.classList.remove("in");
     if (s.img) { ph.querySelector("img").src = s.img.src; ph.querySelector("figcaption").textContent = s.img.cap ?? ""; if (!quiet) { void ph.offsetWidth; ph.classList.add("in"); } }
     this.wx.setAttribute("opacity", s.wx ? 1 : .35);
+    this.retG?.setAttribute("opacity", s.ret ? 1 : .4);
     this.drawRoute(s.route, !s.final && !quiet);
     if (!quiet) {
       if (s.final) { this.audio.tone(800, .4, .03); this.audio.tone(800, .4, .03, .55); }
