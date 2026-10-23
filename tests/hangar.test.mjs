@@ -74,3 +74,17 @@ console.log("ангар ведущего: как у игрока —", gmView(fa
 await H.setHangarState({ open: false });
 game.user.isGM = false;
 console.log("закрыли:", H.lockReason(pilot), "·", H.pilotHtml(cat, { actor: pilot, pilots: [pilot], planeKey: "su25", slots: ["UGB"] }).includes("АНГАР ЗАКРЫТ") ? "лампа ЗАКРЫТ" : "");
+
+// игрок в обход ангара: перетаскивание из компендиума и правки в бою
+foundry.utils.flattenObject = (o, p = "") => Object.entries(o).reduce((a, [k, v]) => (v && typeof v === "object" && !Array.isArray(v) ? Object.assign(a, foundry.utils.flattenObject(v, p + k + ".")) : (a[p + k] = v, a)), {});
+pilot.type = "pilot";
+const wItem = { type: "weapon", parent: pilot }, tItem = { type: "trigger", parent: pilot };
+const show = r => r ?? "можно";
+console.log("на земле:", ["create", "create:tbHangar", "create:tbDossier", "delete"].map(a => { const [act, opt] = a.split(":"); return `${a} — ${show(H.loadoutBlock(wItem, act, opt ? { [opt]: true } : {}))}`; }).join(" | "), "· триггер:", show(H.loadoutBlock(tItem, "create")));
+game.combats = { contents: [{ started: true, combatants: [{ actorId: "p1" }] }] };
+console.log("в бою:", ["create:tbHangar", "delete", "ammo", "key"].map(a => {
+  const r = a === "ammo" ? H.loadoutBlock(wItem, "update", {}, { system: { ammo: { value: 2 } } }) : a === "key" ? H.loadoutBlock(wItem, "update", {}, { system: { key: "QAAM" } })
+    : H.loadoutBlock(wItem, a.split(":")[0], a.includes(":") ? { tbHangar: true } : {});
+  return `${a} — ${show(r)}`; }).join(" | "));
+game.user.isGM = true;
+console.log("ведущий в бою:", show(H.loadoutBlock(wItem, "delete")));

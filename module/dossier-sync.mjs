@@ -87,9 +87,9 @@ export async function importDossier(raw, actor = null) {
     if (!actor) return null;
   } else {
     const old = actor.items.filter(i => ["plane", "weapon", "trigger"].includes(i.type)).map(i => i.id);
-    if (old.length) await actor.deleteEmbeddedDocuments("Item", old);
+    if (old.length) await actor.deleteEmbeddedDocuments("Item", old, { tbDossier: true });
   }
-  const created = await actor.createEmbeddedDocuments("Item", items);
+  const created = await actor.createEmbeddedDocuments("Item", items, { tbDossier: true });
   // узел подвески из Штаба становится ссылкой на предмет спецоружия; боезапас «полный» считается с бонусом триггеров
   const weaponIds = [];
   created.forEach(it => { const s = it.getFlag(SYSTEM_ID, "slot"); if (it.type === "weapon" && s !== undefined && s !== null) weaponIds[s] = it.id; });

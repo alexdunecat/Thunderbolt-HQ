@@ -2,7 +2,9 @@
    и открывает ангар игрокам. Игрок выбирает из этого допуска машину и спецоружие на каждый узел подвески;
    выбор ставится на лист (машина как при перетаскивании из компендиума, спецоружие с полным боезапасом) и уходит карточкой в чат.
    Пилоту, который сейчас в начатом бою, ангар закрыт. Ведущий видит то же, что игроки; галочка «Весь каталог» показывает остальное (с пометкой «вне допуска»), и ставит он что угодно.
-   Спецоружие не из каталога (своё, от ведущего) ангар не трогает: оно остаётся на листе и занимает узлы. */
+   Спецоружие не из каталога (своё, от ведущего) ангар не трогает: оно остаётся на листе и занимает узлы.
+   Игрок не ставит машину и спецоружие на лист в обход ангара (перетаскиванием из компендиума), а в начатом бою
+   не может ни снять, ни добавить, ни переделать их (боезапас и флаги меняются как обычно). Ведущего это не касается. */
 import { SYSTEM_ID, SYS_PATH, TB } from "./config.mjs";
 import { esc } from "./utils.mjs";
 import { planeItem, weaponItem } from "./data/catalog-docs.mjs";
@@ -22,10 +24,35 @@ export function setHangarCatalog(cat) { CAT = cat; }
 
 export function registerHangar() {
   game.settings.register(SYSTEM_ID, "hangar", { scope: "world", config: false, type: Object, default: EMPTY, onChange: () => refresh() });
+  Hooks.on("preCreateItem", (item, data, options) => guardLoadout(item, "create", options));
+  Hooks.on("preDeleteItem", (item, options) => guardLoadout(item, "delete", options));
+  Hooks.on("preUpdateItem", (item, change, options) => guardLoadout(item, "update", options, change));
   Hooks.on("renderChatMessage", (message, html) => {
     const root = html?.[0] ?? html;
     root?.querySelectorAll?.("[data-tb-hangar-open]").forEach(b => b.addEventListener("click", ev => { ev.preventDefault(); openHangar(); }));
   });
+}
+
+const LOADOUT = new Set(["plane", "weapon"]);
+/** Пилот в начатом бою. */
+export const inBattle = actor => !!actor && (game.combats?.contents ?? []).some(c => c.started && c.combatants.some(x => x.actorId === actor.id));
+/** Почему игроку нельзя так менять машину или спецоружие на листе (null — можно). */
+export function loadoutBlock(item, action, options = {}, change = {}, user = game.user) {
+  const actor = item?.parent;
+  if (user.isGM || actor?.type !== "pilot" || !LOADOUT.has(item.type)) return null;
+  if (inBattle(actor)) {
+    if (action !== "update") return "Идёт бой: машину и спецоружие меняют на земле.";
+    const keys = Object.keys(foundry.utils.flattenObject(change)).filter(k => k !== "_id" && k !== "system.ammo.value" && !k.startsWith("flags.") && !k.startsWith("_stats"));
+    if (keys.length) return "Идёт бой: спецоружие не переделывают в воздухе.";
+  }
+  if (action === "create" && !options.tbHangar && !options.tbDossier) return "Машину и спецоружие выдаёт ангар: кнопка «Ангар» в шапке листа.";
+  return null;
+}
+function guardLoadout(item, action, options, change) {
+  const why = loadoutBlock(item, action, options, change);
+  if (!why) return;
+  ui.notifications?.warn?.(why);
+  return false;
 }
 
 /** Допуск AWACS: { open, planes: [ключи], weapons: [ключи] }. */
@@ -101,7 +128,7 @@ export async function applyLoadout(actor, planeKey, weapons, { cat = null, user 
   const err = lockReason(actor, user) ?? checkChoice(actor, planeKey, weapons, cat, user);
   if (err) { ui.notifications?.warn?.(err); return false; }
   const p = planeOf(cat, planeKey);
-  if (actor.system.plane?.system.key !== p.key) await actor.swapPlane(planeItem(p));
+  if (actor.system.plane?.system.key !== p.key) await actor.swapPlane(planeItem(p), () => actor.createEmbeddedDocuments("Item", [planeItem(p)], { tbHangar: true }));
 
   const want = weapons.filter(Boolean);
   const pool = actor.items.filter(i => i.type === "weapon" && weaponOf(cat, i.system.key));
@@ -111,7 +138,7 @@ export async function applyLoadout(actor, planeKey, weapons, { cat = null, user 
     if (j >= 0) pool.splice(j, 1);
     else make.push(k);
   }
-  const created = make.length ? await actor.createEmbeddedDocuments("Item", make.map(k => weaponItem(weaponOf(cat, k)))) : [];
+  const created = make.length ? await actor.createEmbeddedDocuments("Item", make.map(k => weaponItem(weaponOf(cat, k))), { tbHangar: true }) : [];
   const moved = Object.fromEntries(pool.map((w, i) => [w.id, created[i]?.id ?? ""]));
   const trig = actor.items.filter(i => i.type === "trigger" && i.system.weapon && i.system.weapon in moved)
     .map(i => ({ _id: i.id, "system.weapon": moved[i.system.weapon] }));
@@ -119,7 +146,7 @@ export async function applyLoadout(actor, planeKey, weapons, { cat = null, user 
   const edges = actor.system.edges ?? [];
   if (edges.some(e => e.weapon && e.weapon in moved))
     await actor.update({ "system.edges": edges.map(e => (e.weapon && e.weapon in moved ? { ...e, weapon: moved[e.weapon] } : e)) });
-  if (pool.length) await actor.deleteEmbeddedDocuments("Item", pool.map(w => w.id));
+  if (pool.length) await actor.deleteEmbeddedDocuments("Item", pool.map(w => w.id), { tbHangar: true });
   const s = actor.system;
   const ammo = actor.items.filter(i => i.type === "weapon" && i.system.ammo.max !== null && weaponOf(cat, i.system.key))
     .map(i => ({ _id: i.id, "system.ammo.value": i.system.ammo.max + (s.ammoBonus?.[i.id] ?? 0) }));

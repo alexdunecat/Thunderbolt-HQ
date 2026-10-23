@@ -14,7 +14,7 @@ import { gloryView } from "../glory.mjs";
 import { openChatterEditor, nameOf, setCallsign } from "../chatter.mjs";
 import { openCivilRadio, RADIO_TRIGGER } from "../civil-radio.mjs";
 import { rack, openMedals } from "../medals.mjs";
-import { openHangar, hangarState } from "../hangar.mjs";
+import { openHangar, hangarState, inBattle } from "../hangar.mjs";
 import { CT, ctView, useCombatTrigger } from "../combat-triggers.mjs";
 import { NEM, STATE_TEXT, nemTriggers, trigState, metOf, useTrigger, appear, monologue, startMonologue, endMonologue, fxOf, clearFx } from "../nemesis.mjs";
 
@@ -553,7 +553,13 @@ export class PilotSheet extends TBActorSheet {
 
   /** Самолёт на листе один: новый заменяет старый, HP и Strain выравниваются по новой машине. */
   async _onDropItemCreate(itemData) {
-    const items = Array.isArray(itemData) ? itemData : [itemData];
+    let items = Array.isArray(itemData) ? itemData : [itemData];
+    // машину и спецоружие игрок берёт только в ангаре: перетаскивание из компендиума их не ставит
+    if (!game.user.isGM && items.some(i => i.type === "plane" || i.type === "weapon")) {
+      ui.notifications.warn(inBattle(this.actor) ? "Идёт бой: машину и спецоружие меняют на земле." : "Машину и спецоружие выдаёт ангар: кнопка «Ангар» в шапке листа.");
+      items = items.filter(i => i.type !== "plane" && i.type !== "weapon");
+      if (!items.length) return [];
+    }
     const planes = items.filter(i => i.type === "plane");
     if (items.some(i => i.type === "trigger" && this.actor.items.some(t => t.type === "trigger" && t.system.key && t.system.key === i.system?.key)))
       ui.notifications.info("Этот триггер уже есть на листе.");
