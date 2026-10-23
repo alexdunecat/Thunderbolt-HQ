@@ -482,11 +482,13 @@ export class PilotSheet extends TBActorSheet {
     el.querySelector("[data-hangar]")?.addEventListener("click", ev => { ev.preventDefault(); openHangar(this.actor); });
     // досье: строки можно зачёркивать, но не стирать
     el.querySelectorAll("[data-dossier]").forEach(n => n.addEventListener("change", () => this.#saveDossier(el)));
-    el.querySelectorAll("[data-oplog-date]").forEach(n => n.addEventListener("change", ev => {
+    // ведущий правит дату и название операции прямо в таблице
+    for (const [attr, field] of [["oplogDate", "date"], ["oplogOp", "op"]]) el.querySelectorAll(`[data-${attr === "oplogDate" ? "oplog-date" : "oplog-op"}]`).forEach(n => n.addEventListener("change", ev => {
       ev.stopPropagation();
       const log = foundry.utils.deepClone(this.actor.system.service.log ?? []);
-      const x = log[Number(n.dataset.oplogDate)];
-      if (x) { x.date = n.value.trim(); this.actor.update({ "system.service.log": log }); }
+      const x = log[Number(n.dataset[attr])], v = n.value.trim();
+      if (x && (v || field === "date")) { x[field] = v; this.actor.update({ "system.service.log": log }); }
+      else n.value = x?.[field] ?? "";
     }));
     el.querySelectorAll("[data-oplog-del]").forEach(n => n.addEventListener("click", ev => {
       ev.preventDefault();

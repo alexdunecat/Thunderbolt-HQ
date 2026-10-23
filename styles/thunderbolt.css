@@ -455,6 +455,8 @@ body[data-tb-skin="brief"] .thunderbolt .tb-portrait-screen {
 .thunderbolt .tb-oplog td { border-bottom: 1px solid var(--tb-line); padding: 2px 4px; }
 .thunderbolt .tb-oplog input.tb-oplog-date { width: 92px; height: 20px; padding: 0 3px; font-family: var(--tb-data); font-size: 12px; background: transparent; border-color: transparent; }
 .thunderbolt .tb-oplog input.tb-oplog-date:hover, .thunderbolt .tb-oplog input.tb-oplog-date:focus { border-color: var(--tb-line); }
+.thunderbolt .tb-oplog input.tb-oplog-op { width: calc(100% - 24px); height: 20px; padding: 0 3px; font-weight: 700; background: transparent; border-color: transparent; }
+.thunderbolt .tb-oplog input.tb-oplog-op:hover, .thunderbolt .tb-oplog input.tb-oplog-op:focus { border-color: var(--tb-line); }
 
 /* ---------- «Брифинг»: квадратные рамки с уголками, разрядка заголовков, мятные кнопки ---------- */
 body[data-tb-skin="brief"] .thunderbolt.sheet .window-content, body[data-tb-skin="brief"] .tb-awacs .window-content {
