@@ -413,14 +413,14 @@ export class TBActor extends Actor {
 
   /* ---------- вылет ---------- */
   /** Вернулся с перевооружения за линией возврата: HP, Structure, системы и боезапас как перед вылетом, Speed 1.
-      Strain, Grit, триггеры и связи не трогаются. */
-  async refitReturn() {
+      Strain — только если так настроил ведущий (strain); Grit, триггеры и связи не трогаются. */
+  async refitReturn({ strain = false } = {}) {
     const m = this.system.markers ?? {};
     await this.withoutPoolSync(async () => {
       await this.update({ "system.speed": 1, "system.breakEv": null, "system.lock": "", "system.lockUuid": "",
         "system.markers": { grit: !!m.grit, gritSkill: m.gritSkill ?? "", structure: false, sys: "", doom: false, lastRound: m.lastRound ?? "" } },
         { tbFree: true, tbDoom: true });
-      await this.update({ "system.hp.value": this.system.hp.max, [`flags.${SYSTEM_ID}.pools`]: this.poolsFlag() }, { tbFree: true });
+      await this.update({ "system.hp.value": this.system.hp.max, ...(strain ? { "system.strain.value": this.system.strain.max } : {}), [`flags.${SYSTEM_ID}.pools`]: this.poolsFlag() }, { tbFree: true });
     });
     const items = this.items.filter(i => i.type === "weapon" && i.system.ammo.max !== null)
       .map(i => ({ _id: i.id, "system.ammo.value": i.system.ammo.max + (this.system.ammoBonus?.[i.id] ?? 0) }));

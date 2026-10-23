@@ -402,6 +402,10 @@ body[data-tb-skin="brief"] .thunderbolt .tb-portrait-screen {
 .tb-mk.structure { border-color: var(--tb-warn); color: var(--tb-warn); }
 .tb-mk.tb-mk-ret { border-style: dashed; border-color: var(--tb-warn); color: var(--tb-warn); }
 .tb-awacs-weather { display: flex; flex-wrap: wrap; gap: 6px; }
+.tb-ret-set { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 4px 14px; margin: 4px 0; }
+.tb-ret-set label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
+.tb-ret-set select { flex: 0 1 60%; min-width: 0; }
+.tb-ret-set input[type="number"] { width: 4em; flex: none; }
 .tb-awacs-weather input { display: none; }
 .thunderbolt .tb-weather { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--tb-olive); font-family: var(--tb-data); margin-top: 4px; }
 .tb-card .tb-volley-row { padding: 3px 0; border-bottom: 1px dashed var(--tb-line, #c3cbc1); }
@@ -1553,3 +1557,9 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-hangar .tb-hg-go { margin-top: 6px; font-family: var(--tb-data); letter-spacing: .12em; background: var(--tb-accent); color: var(--tb-accent-ink); border: 0; line-height: 32px; }
 .tb-hangar .tb-hg-go:disabled { background: var(--tb-surface-2); color: var(--tb-muted); }
 @media (max-width: 640px) { .tb-hangar .tb-hg-body { grid-template-columns: 1fr; } .tb-hangar .tb-hg-list { max-height: 220px; border-right: 0; border-bottom: 1px solid var(--tb-line); } }
+
+/* «Неактивен»: игрока нет, пилот в строю, но темнеет (inactive.mjs) */
+.tb-inactive .tb-portrait, #combat li.combatant.tb-inactive img.token-image, .tb-awacs-table tr.tb-inactive img { filter: grayscale(1) brightness(.45); }
+#combat li.combatant.tb-inactive .token-name, .tb-awacs-table tr.tb-inactive td { opacity: .55; }
+.tb-inactive-btn { opacity: .45; }
+.tb-inactive-btn.on { opacity: 1; color: var(--tb-warn); }

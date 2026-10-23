@@ -74,21 +74,23 @@ await move(tanker, 1200, 600);
 log.push("— союзник не уходит");
 await move(ally, 1200, 0);
 
+log.push(`счёт: ${JSON.stringify(RL.tallyOf(scene, combat))}`);
+
 log.push("— later: МиГ уходит и ждёт в списке");
-await RL.setLineMode(scene, "later");
+await RL.setLineSettings(scene, { enemy: "later", failPriority: 0 });
+log.push(`настройки: ${JSON.stringify(RL.lineOf(scene))}`);
 await move(mig, 1000, 200);
 log.push(`ушли: ${RL.escapedOf(scene).map(e => `${e.name} раунд ${e.round}`)}`);
 scene.tokens.splice(scene.tokens.indexOf(mig), 1);   // конец раунда убрал с поля
 await RL.bringBack(RL.escapedOf(scene)[0].id);
 log.push(`после «Вернуть»: ${RL.escapedOf(scene).length} в списке`);
 
-log.push("— пилот за линией: перевооружение");
+log.push("— пилот за линией выбирает сам: перевооружение");
 await move(pilot, 1000, 400);
 const card = messages.findLast(m => m.flags?.[S]?.retline?.kind === "pilot");
 log.push(`карточка пилота: ${!!card}`);
 await move(pilot, 1200, 400);
 log.push(`карточек пилота: ${messages.filter(m => m.flags?.[S]?.retline?.kind === "pilot").length}`);
-for (const f of hooks.renderChatMessage) f(card, { querySelectorAll: () => [] });
 // выбор делает ведущий: через карточку (сокет у игрока)
 const btn = { dataset: { tbRet: "rearm" }, remove() {}, addEventListener(ev, f) { this.click = f; } };
 for (const f of hooks.renderChatMessage) f(card, { querySelectorAll: () => [btn] });
@@ -100,27 +102,57 @@ log.push(`раунд 4: ${pilot.actor.flags.rearm ? "ещё на перевоо�
 combat.round = 5; await RL.returnRound(combat);
 log.push(`раунд 5: ${pilot.actor.flags.rearm ? "ещё на перевооружении" : "вернулся"}, скрыт ${pilot.hidden}`);
 
-log.push("— рубеж: прорыв врага, пилот без карточки");
-await RL.setLineMode(scene, "border");
-const su = mkTok("Су-34", 800, 800, mkActor("Су-34", "npc", { side: "enemy" }));
-for (const f of hooks.createToken) f(su);
-await move(su, 1000, 800);
-await move(su, 800, 800); await move(su, 1000, 800);
-log.push(`прорвали: ${RL.breachOf(scene, combat)}`);
+log.push("— ведущий: пилот сам перевооружается, 0 раундов, Strain восстанавливается");
+await RL.setLineSettings(scene, { pilots: "rearm", rearmRounds: 0, rearmStrain: true });
 await move(pilot, 800, 400); await move(pilot, 1000, 400);
-log.push(`карточек пилота: ${messages.filter(m => m.flags?.[S]?.retline?.kind === "pilot").length}`);
+log.push(`rearm ${JSON.stringify(pilot.actor.flags.rearm)}`);
+combat.round = 6; await RL.returnRound(combat);
+
+log.push("— рубеж: провал на втором прорвавшемся, пилот летает свободно");
+combat.id = "C2";
+await RL.setLineSettings(scene, { enemy: "stay", failEnemies: 2, pilots: "stay" });
+const su = mkTok("Су-34", 800, 800, mkActor("Су-34", "npc", { side: "enemy" }));
+const su2 = mkTok("Су-34 №2", 800, 0, mkActor("Су-34 №2", "npc", { side: "enemy" }));
+for (const f of hooks.createToken) { f(su); f(su2); }
+await move(su, 1000, 800);
+log.push(`после первого: ${RL.tallyLine(RL.tallyOf(scene, combat))}, итог «${RL.tallyOf(scene, combat).result}»`);
+await move(su2, 1000, 0);
+const pc = messages.length;
+await move(pilot, 800, 400); await move(pilot, 1000, 400);
+log.push(`сообщений о пилоте: ${messages.length - pc}`);
+
+log.push("— сопровождение: все союзные цели за линией");
+combat.id = "C3";
+await RL.setLineSettings(scene, { enemy: "leave", failEnemies: 0, failPriority: 1, escort: "all", pilots: "choice" });
+const cv1 = mkTok("Конвой-1", 800, 200, mkActor("Конвой-1", "npc", { side: "ally", priority: true, task: "escort" }));
+const cv2 = mkTok("Конвой-2", 800, 400, mkActor("Конвой-2", "npc", { side: "ally", priority: true, task: "escort" }));
+for (const f of hooks.createToken) { f(cv1); f(cv2); }
+log.push(`цели сопровождения: ${RL.escortTargets(scene).map(t => t.name)} · hint ${RL.lineHint(cv1.actor, cv1)}`);
+await move(ally, 800, 0); await move(ally, 1000, 0);
+await move(cv1, 1000, 200);
+log.push(`после первого: ${RL.tallyLine(RL.tallyOf(scene, combat))}, итог «${RL.tallyOf(scene, combat).result}»`);
+await move(cv2, 1000, 400);
+log.push(`итог: ${JSON.stringify(RL.tallyOf(scene, combat))}`);
+
+log.push("— неактивен");
+const IN = await import(R + "/module/inactive.mjs");
+await IN.setInactive(pilot.actor);
+log.push(`неактивен ${IN.isInactive(pilot.actor)}`);
+await IN.setInactive(pilot.actor);
+log.push(`неактивен ${IN.isInactive(pilot.actor)}`);
 
 // итоги: строки потерь, цели, подсказка итога миссии
 const L = await import(R + "/module/losses.mjs");
 const M = await import(R + "/module/mission.mjs");
-log.push("LOSS " + [{ name: "Танкер", how: "retreat", ret: "fail" }, { name: "МиГ", how: "retreat", ret: "later" }, { name: "Гроза", how: "retreat", ret: "leave", pilot: true }, { name: "Ан", how: "retreat" }].map(L.lossLine).join("; "));
+log.push("LOSS " + [{ name: "Танкер", how: "retreat", ret: "leave" }, { name: "Конвой", how: "retreat", ret: "safe" }, { name: "МиГ", how: "retreat", ret: "later" }, { name: "Гроза", how: "retreat", ret: "leave", pilot: true }, { name: "Ан", how: "retreat" }].map(L.lossLine).join("; "));
 log.push("GOALS " + L.goalRows({ tokens: [] }, [{ name: "Танкер", task: "destroy", how: "retreat", ret: "later" }, { name: "Баржа", task: "destroy", how: "retreat", ret: "fail" }]).map(g => `${g.name}:${g.done}`).join(" "));
-log.push("SUGGEST " + JSON.stringify(M.suggestResult({ pilots: 2, losses: [], goals: [], breach: true })));
+log.push("SUGGEST " + JSON.stringify(M.suggestResult({ pilots: 2, losses: [], goals: [], line: { result: "failed", reason: "Цели ушли за линию" } })) + " " + JSON.stringify(M.suggestResult({ pilots: 2, losses: [], goals: [], line: { result: "success", reason: "Сопровождение выполнено" } })));
 const B = await import(R + "/module/briefing.mjs");
-for (const mode of ["fail", "later", "border", "junk"]) {
-  const pm = B.publicMission({ name: "Т", cols: 4, rows: 3, hexes: {}, units: [], ret: { cells: ["3,0", "3,1", "9,9"], mode } });
+for (const ret of [{ mode: "fail" }, { mode: "later" }, { mode: "border" }, { mode: "junk" }, { escort: "one", failPriority: 0, pilots: "rearm", rearmRounds: 2 },
+  { enemy: "stay", failEnemies: 3, failPriority: 2, escort: "all", pilots: "leave", rearmStrain: "да" }]) {
+  const pm = B.publicMission({ name: "Т", cols: 4, rows: 3, hexes: {}, units: [], ret: { cells: ["3,0", "3,1", "9,9"], ...ret } });
   const st = B.buildSteps(pm).find(x => x.ret);
-  log.push(`BRIEF ${mode}: ${JSON.stringify(pm.ret)} · ${st?.title}: ${st?.text}`);
+  log.push(`BRIEF ${JSON.stringify(ret)}: ${JSON.stringify(pm.ret)} · ${st?.title}: ${st?.text}`);
 }
 log.push("BRIEF clean " + JSON.stringify(B.cleanSteps([{ title: "x", text: "y", ret: true }])[0].ret) + " · edges " + JSON.stringify(B.retEdges(["3,0", "3,1"], 4, 3)));
 console.log(log.join("\n"));

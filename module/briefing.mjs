@@ -4,6 +4,7 @@
    а не холстом Foundry. Этапы собираются при импорте миссии из Планшета AWACS и лежат во флаге сцены briefing
    вместе с открытой частью миссии (без поворота, заметок и подкреплений). Ведущий правит их в окне «Брифинг»,
    запускает показ (можно сразу после заставки) и листает; указка (рука, метка клетки, линия-стрелка) у всех синхронно. */
+import { retNorm, retLabel, retTitle, retText } from "./return-rules.mjs";
 import { SYSTEM_ID } from "./config.mjs";
 import { esc } from "./utils.mjs";
 import { bootOptions, startBoot } from "./boot.mjs";
@@ -29,11 +30,11 @@ export function retEdges(cells, cols, rows) {
 }
 /** Отрезок для подписи RETURN LINE: средний по положению. */
 export const retLabelEdge = edges => edges.slice().sort((p, q) => (p[1] + p[3]) - (q[1] + q[3]) || (p[0] + p[2]) - (q[0] + q[2]))[Math.floor(edges.length / 2)];
-/** Линия возврата миссии: клетки за линией и что значит уход врага (fail — задача провалена, later — вернётся позже). */
+/** Линия возврата миссии: клетки за линией и настройки (return-rules.mjs), или null. */
 export function retOf(m, cols, rows) {
   const inside = (c, r) => Number.isInteger(c) && Number.isInteger(r) && c >= 0 && r >= 0 && c < cols && r < rows;
   const cells = [...new Set((Array.isArray(m?.ret?.cells) ? m.ret.cells : []).map(String))].filter(k => { const [c, r] = k.split(",").map(Number); return inside(c, r); });
-  return cells.length ? { cells, mode: ["later", "border"].includes(m.ret.mode) ? m.ret.mode : "fail" } : null;
+  return cells.length ? { cells, ...retNorm(m.ret) } : null;
 }
 
 /* ---------- открытая часть миссии ---------- */
@@ -164,10 +165,9 @@ export function buildSteps(pm) {
       show: [], wx: true, text: lines.join(" ") || `Погода в районе: ${Object.values(pm.wx ?? {}).join(", ").toLowerCase() || "сложная"}.` });
   }
   if (pm.ret?.cells?.length) {
-    const cs = pm.ret.cells.map(k => k.split(",").map(Number));
-    steps.push({ title: pm.ret.mode === "border" ? "РУБЕЖ ОБОРОНЫ" : "ЛИНИЯ ВОЗВРАТА", focus: { c0: Math.min(...cs.map(x => x[0])), c1: Math.max(...cs.map(x => x[0])), r0: Math.min(...cs.map(x => x[1])), r1: Math.max(...cs.map(x => x[1])) },
-      show: [], ret: true, text: pm.ret.mode === "border" ? "За пунктиром — рубеж обороны. Если противник прорвётся за него, задание провалено."
-        : `За пунктиром — линия возврата. ${pm.ret.mode === "later" ? "Кто из противника уйдёт за неё, вернётся с подкреплением." : "Не дайте целям уйти за неё: ушедшая цель — проваленная задача."} Сами за ней можете выйти из боя или перевооружиться и вернуться.` });
+    const cs = pm.ret.cells.map(k => k.split(",").map(Number)), rs = retNorm(pm.ret);
+    steps.push({ title: retTitle(rs), focus: { c0: Math.min(...cs.map(x => x[0])), c1: Math.max(...cs.map(x => x[0])), r0: Math.min(...cs.map(x => x[1])), r1: Math.max(...cs.map(x => x[1])) },
+      show: [], ret: true, text: retText(rs) });
   }
   const path = route.length > 1 ? route : null;
   if (entry) steps.push({ title: "МАРШРУТ", focus: "all", show: ids(us), blink: [entry.id], route: path,
@@ -456,7 +456,7 @@ export class BriefScreen {
       for (const [a, b, c2, d] of edges) el("line", { x1: a * CELL, y1: b * CELL, x2: c2 * CELL, y2: d * CELL, class: "retl" }, this.retG);
       if (edges.length) {
         const [a, b, c2, d] = retLabelEdge(edges), x = (a + c2) / 2 * CELL, y = (b + d) / 2 * CELL;
-        el("text", { x, y, dy: -6, "text-anchor": "middle", class: "retlab", ...(a === c2 ? { transform: `rotate(-90 ${x} ${y})` } : {}) }, this.retG).textContent = pm.ret.mode === "border" ? "DEFENSE LINE" : "RETURN LINE";
+        el("text", { x, y, dy: -6, "text-anchor": "middle", class: "retlab", ...(a === c2 ? { transform: `rotate(-90 ${x} ${y})` } : {}) }, this.retG).textContent = retLabel(retNorm(pm.ret));
       }
     }
     for (const [k, h] of Object.entries(pm.hexes)) {

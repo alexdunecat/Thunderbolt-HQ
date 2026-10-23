@@ -13,7 +13,7 @@ import { combatantOf, declaredOf, spentOf, allowAction, spendAction } from "./ac
 import { lineHint } from "./return-line.mjs";
 
 const DEAD = () => CONFIG.specialStatusEffects?.DEFEATED ?? "dead";
-const out = a => !a || a.statuses?.has?.(DEAD()) || a.statuses?.has?.("retreat") || !!a.system?.markers?.doom;
+const out = a => !a || a.statuses?.has?.(DEAD()) || a.statuses?.has?.("retreat") || a.statuses?.has?.("inactive") || !!a.system?.markers?.doom;
 const same = (a, b) => !!a && !!b && (a === b || a.uuid === b.uuid);
 const words = (n, one, few, many) => (n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many);
 const zones = d => (d === 0 ? "своя зона" : `${d} ${words(d, "зона", "зоны", "зон")}`);

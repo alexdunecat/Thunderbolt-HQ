@@ -5,6 +5,7 @@ import { npcActor } from "../data/catalog-docs.mjs";
 import { esc } from "../utils.mjs";
 import { zonePacker } from "../tokens.mjs";
 import { publicMission, buildSteps, briefingOf, saveBriefing, retOf, retEdges, retLabelEdge } from "../briefing.mjs";
+import { retNorm, retLabel } from "../return-rules.mjs";
 
 const COL_LETTERS = "АБВГДЕЖИКЛМНОПРСТУФХЦЧШЭЮЯ";
 const cellName = (c, r) => (COL_LETTERS[c] ?? "?") + (r + 1);
@@ -50,7 +51,7 @@ export function returnArt(ret, cols, rows) {
     : tile(`${MAP}return/edge.svg`, a * S, b * S - 12, S, 24, 40)));
   if (edges.length) {
     const [a, b, c2, d] = retLabelEdge(edges), x = (a + c2) / 2 * S, y = (b + d) / 2 * S, W = 190, H = 24;
-    const lab = mark(x - W / 2, y - H - 8, W, H, ret.mode === "border" ? "DEFENSE LINE" : "RETURN LINE", { size: 16, color: "#f2c14e" });
+    const lab = mark(x - W / 2, y - H - 8, W, H, retLabel(retNorm(ret)), { size: 16, color: "#f2c14e" });
     if (a === c2) Object.assign(lab, { x: x - W / 2 - H / 2 - 8, y: y - H / 2, rotation: 270 });
     drawings.push(flag(lab));
   }

@@ -4,6 +4,7 @@
 import { SYSTEM_ID, TB } from "./config.mjs";
 import { redrawWeatherCell, redrawReturnLine, sceneCells, mapProblems } from "./apps/mission-import.mjs";
 import { lineOf } from "./return-line.mjs";
+import { retNorm } from "./return-rules.mjs";
 
 let active = null;
 
@@ -90,8 +91,10 @@ async function commit(scene, brush, { add, cells }) {
   if (brush.kind === "ret") {
     const l = lineOf(scene), set = new Set(l?.cells ?? []);
     for (const k of cells) add ? set.add(k) : set.delete(k);
+    // настройки линии остаются; у новой линии — умолчания (retNorm)
+    const { cells: _, ...opts } = l ?? {};
     await scene.update(set.size
-      ? { [`flags.${SYSTEM_ID}.returnLine`]: { cells: [...set], mode: l?.mode ?? "fail" } }
+      ? { [`flags.${SYSTEM_ID}.returnLine`]: { cells: [...set], ...retNorm(opts) } }
       : { [`flags.${SYSTEM_ID}.-=returnLine`]: null });
     return redrawReturnLine(scene);
   }

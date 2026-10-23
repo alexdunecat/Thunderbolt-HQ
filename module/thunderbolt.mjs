@@ -28,6 +28,7 @@ import * as Downtime from "./downtime.mjs";
 import { openRadioLog } from "./radio-log.mjs";
 import { registerStrikes } from "./strikes.mjs";
 import { registerReturnLine } from "./return-line.mjs";
+import { registerInactive, setInactive } from "./inactive.mjs";
 import { registerCivilRadio, openCivilRadio, canControl as canRadio } from "./civil-radio.mjs";
 import { registerChatter, openChatterEditor } from "./chatter.mjs";
 import { registerMission, openMissionDialog } from "./mission.mjs";
@@ -146,6 +147,7 @@ Hooks.once("init", () => {
   registerHud();
   registerStrikes();
   registerReturnLine();
+  registerInactive();
   registerCivilRadio();
   registerAces();
   registerPause();
@@ -178,7 +180,7 @@ Hooks.once("init", () => {
 
   game.thunderbolt = { gloryDialog, importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
     squadFromSelection, act: actFromMacro, fillHotbars, stepAltitude, rolls: R, TB, sound: cue, radio: { send: sendRadio, say, caution, log: openRadioLog, replies: openChatterEditor, mission: openMissionDialog, aces: openAceIntro, announceAces }, dossier: { open: openDossierExchange, importDossier, exportDossier },
-    refreshAwacs, nemesis: { appear: nemesisAppear, monologue: startMonologue, endMonologue }, medals: { open: openMedals, award: awardMedal }, undo: { undo, redo, log: openUndoLog }, hangar: { open: openHangar, admin: openHangarAdmin }, boot: { open: openBootDialog, start: startBoot, play: playBoot, stop: stopBoot },
+    refreshAwacs, nemesis: { appear: nemesisAppear, monologue: startMonologue, endMonologue }, medals: { open: openMedals, award: awardMedal }, undo: { undo, redo, log: openUndoLog }, hangar: { open: openHangar, admin: openHangarAdmin }, inactive: setInactive, boot: { open: openBootDialog, start: startBoot, play: playBoot, stop: stopBoot },
     briefing: { open: openBriefing, start: startBriefing, stop: stopBriefing, afterBoot: bootThenBriefing }, downtime: { ground: Downtime.rollGround, baseEvent: Downtime.baseEvent, threats: Downtime.threats, addThreat: Downtime.addThreat, stepThreat: Downtime.stepThreat } };
 });
 

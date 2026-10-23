@@ -23,9 +23,9 @@
       <table class="tb-awacs-table">
         <tr><th></th><th>Пилот</th><th>HP</th><th>Strain</th><th>Speed</th><th>Высота</th><th>Def</th><th>Метки</th><th>Захват</th><th title="сбито в воздухе / на земле за вылет">Счёт</th></tr>
         {{#each pilots as |p|}}
-        <tr class="{{#unless p.onScene}}off{{/unless}}">
+        <tr class="{{#unless p.onScene}}off{{/unless}} {{#if p.inactive}}tb-inactive{{/if}}">
           <td><img src="{{p.img}}" alt=""></td>
-          <td><a data-open="{{p.id}}"><b>{{p.name}}</b></a><br><small>{{p.plane}}{{#if p.twist}} · после Поворота{{/if}}</small></td>
+          <td><a data-open="{{p.id}}"><b>{{p.name}}</b></a> <a data-inactive="{{p.id}}" class="tb-inactive-btn {{#if p.inactive}}on{{/if}}" title="{{#if p.inactive}}Неактивен: игрока нет. Щёлкните, чтобы вернуть в строй{{else}}Сделать неактивным: игрока сейчас нет (не ходит, не сбит, остаётся на сцене){{/if}}"><i class="fas fa-{{#if p.inactive}}pause{{else}}user-clock{{/if}}"></i></a><br><small>{{#if p.inactive}}неактивен · {{/if}}{{p.plane}}{{#if p.twist}} · после Поворота{{/if}}</small></td>
           <td class="tb-num {{#if p.hpLow}}low{{/if}}"><a data-pool="hp" data-id="{{p.id}}" data-delta="-1">−</a> {{p.hp.value}}/{{p.hp.max}} <a data-pool="hp" data-id="{{p.id}}" data-delta="1">+</a></td>
           <td class="tb-num"><a data-pool="strain" data-id="{{p.id}}" data-delta="-1">−</a> {{p.strain.value}}/{{p.strain.max}} <a data-pool="strain" data-id="{{p.id}}" data-delta="1">+</a></td>
           <td class="tb-num {{#if p.stall}}low{{/if}}">{{p.speed}}/{{p.maxSpeed}}</td>
@@ -149,12 +149,22 @@
       <h3>Линия возврата {{#if retLine}}<small>{{retLine.count}} клеток за линией</small>{{/if}}</h3>
       <div class="tb-awacs-tools">
         <button type="button" data-brush-ret title="Щёлкайте или ведите по клеткам, которые за линией. Esc или правая кнопка — готово."><i class="fas fa-paintbrush"></i> Кисть линии</button>
-        {{#if retLine}}
-        <select data-ret-mode title="Что значит пересечь линию">{{#each retLine.modes as |o|}}<option value="{{o.k}}" {{#if o.sel}}selected{{/if}}>{{o.v}}</option>{{/each}}</select>
-        <button type="button" data-ret-clear><i class="fas fa-eraser"></i> Стереть</button>
-        {{/if}}
+        {{#if retLine}}<button type="button" data-ret-clear><i class="fas fa-eraser"></i> Стереть</button>{{/if}}
       </div>
-      <p class="tb-small tb-muted">Клетки за линией штрихуются, граница идёт пунктиром. Враг, перешедший линию во время боя, уходит с поля (рубеж: задание провалено). Пилот за линией выбирает в чате: выйти из боя или перевооружиться и вернуться через раунд без восстановления Strain. Линию можно нарисовать и в Планшете.</p>
+      {{#if retLine}}
+      <div class="tb-ret-set">
+        <label>Враг за линией <select data-ret-set="enemy">{{#each retLine.enemyOpts as |o|}}<option value="{{o.k}}" {{#if o.sel}}selected{{/if}}>{{o.v}}</option>{{/each}}</select></label>
+        <label title="0 — не проваливает">Провал, если за линией врагов <input type="number" min="0" max="99" data-ret-set="failEnemies" value="{{retLine.failEnemies}}"></label>
+        <label title="0 — не проваливает">… или приоритетных целей врага <input type="number" min="0" max="99" data-ret-set="failPriority" value="{{retLine.failPriority}}"></label>
+        <label title="Союзные цели — союзные NPC с отметкой «приоритетная цель»; если таких нет, все союзные машины">Сопровождение <select data-ret-set="escort">{{#each retLine.escortOpts as |o|}}<option value="{{o.k}}" {{#if o.sel}}selected{{/if}}>{{o.v}}</option>{{/each}}</select></label>
+        <label>Пилот за линией <select data-ret-set="pilots">{{#each retLine.pilotOpts as |o|}}<option value="{{o.k}}" {{#if o.sel}}selected{{/if}}>{{o.v}}</option>{{/each}}</select></label>
+        <label title="Сколько полных раундов пилот пропускает; 0 — вернётся в начале следующего">Перевооружение, раундов вне боя <input type="number" min="0" max="9" data-ret-set="rearmRounds" value="{{retLine.rearmRounds}}"></label>
+        <label><input type="checkbox" data-ret-set="rearmStrain" {{checked retLine.rearmStrain}}> Strain после перевооружения восстанавливается</label>
+      </div>
+      <p class="tb-small tb-muted">Перевооружение: пилот {{retLine.rearm}}.{{#if retLine.tally}} <b>Этот бой: {{retLine.tally}}.</b>{{/if}}</p>
+      {{else}}
+      <p class="tb-small tb-muted">Линии на сцене нет. Нарисуйте её кистью или в Планшете, потом здесь появятся настройки: что делать врагу, союзникам и пилотам за ней.</p>
+      {{/if}}
       {{#if escaped.length}}
       <table class="tb-awacs-table tb-ret-escaped">
         <tr><th>Ушли за линию</th><th>Раунд</th><th></th></tr>

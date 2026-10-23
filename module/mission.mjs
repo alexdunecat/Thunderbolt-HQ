@@ -21,7 +21,8 @@ export const MISSION_RESULTS = {
 /** Причины провала: подпись под баннером. */
 export const FAIL_REASONS = [
   "Все пилоты сбиты", "Эскадрилья отступила", "Цели миссии не выполнены", "Транспорт конвоя сбит", "Цели ушли из района",
-  "Время вышло", "Баллистическая ракета ушла", "Нас обнаружили", "Защищаемый объект уничтожен", "Противник прорвал рубеж"
+  "Время вышло", "Баллистическая ракета ушла", "Нас обнаружили", "Защищаемый объект уничтожен", "Противник прорвал рубеж",
+  "Цели ушли за линию", "Противник ушёл за линию"
 ];
 
 export function registerMission() {
@@ -35,14 +36,14 @@ export function registerMission() {
  * Подсказка по сводке боя: { result, reason } или null, если решать ведущему.
  * pilots — сколько пилотов игроков было в бою; losses — записи потерь (losses.mjs); goals — { done } по приоритетным целям.
  */
-export function suggestResult({ pilots = 0, losses = [], goals = [], breach = false }) {
+export function suggestResult({ pilots = 0, losses = [], goals = [], line = null }) {
   const lost = losses.filter(r => r.pilot);
   if (pilots && lost.length >= pilots) {
     const down = lost.filter(r => r.how === "down").length;
     return { result: "failed", reason: down >= pilots || down > lost.length - down ? "Все пилоты сбиты" : "Эскадрилья отступила" };
   }
-  // рубеж обороны прорван (линия возврата в режиме «рубеж»)
-  if (breach) return { result: "failed", reason: "Противник прорвал рубеж" };
+  // итог по линии возврата: пороги провала или сопровождение (return-line.mjs)
+  if (line?.result) return { result: line.result, reason: line.result === "failed" ? line.reason : "" };
   const judged = goals.filter(g => g.done !== null);
   if (judged.some(g => !g.done)) {
     const fled = judged.find(g => !g.done && g.how === "retreat");

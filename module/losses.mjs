@@ -21,7 +21,8 @@ export function registerLosses() {
     status(dead, "Сбит", "destroyed"),
     status(RETREAT, "Отступил из боя", "retreat"),
     status(BREAK, "Break!", "break"),
-    status(STALL, "Сваливание", "stall")
+    status(STALL, "Сваливание", "stall"),
+    status("inactive", "Неактивен (игрока нет)", "inactive")
   ];
   Hooks.on("updateActor", (actor, change, options, userId) => {
     if (options?.tbUndo || userId !== game.user.id || !actor.isOwner || !["pilot", "npc"].includes(actor.type)) return;
@@ -123,7 +124,7 @@ export async function clearLosses(combat, upTo = Infinity, { keepLog = false } =
 }
 
 /** Строка о потере для карточки конца раунда. */
-export const lossLine = r => `${esc(r.name)}: ${r.how === "retreat" ? (r.ret === "later" ? "ушёл за линию, вернётся" : r.ret ? "ушёл за линию возврата" : "отступил") : r.pilot ? "сбит, катапульта" : r.kind === "ship" ? "потоплен" : r.kind === "ground" ? "уничтожен" : "сбит"}${r.by ? ` (${esc(r.by)})` : ""}`;
+export const lossLine = r => `${esc(r.name)}: ${r.how === "retreat" ? (r.ret === "later" ? "ушёл за линию, вернётся" : r.ret === "safe" ? "дошёл до линии" : r.ret ? "ушёл за линию возврата" : "отступил") : r.pilot ? "сбит, катапульта" : r.kind === "ship" ? "потоплен" : r.kind === "ground" ? "уничтожен" : "сбит"}${r.by ? ` (${esc(r.by)})` : ""}`;
 
 /* Задачи по приоритетным целям: «Уничтожить», «Перехватить», «Вывести из строя» выполнены, если цель сбита;
    «Защитить» и «Сопроводить» — если цела (ушла с поля тоже цела). Остальное засчитывает ведущий, отметки нет. */
@@ -174,8 +175,8 @@ async function battleReport(combat) {
   }
   const pilots = [...score].sort(([a], [b]) => a.localeCompare(b, "ru")).map(([n, k]) => `${esc(n)}: в воздухе ${k.air}, на земле и на море ${k.ground}`);
   const goals = targetGoals(scene, losses);
-  const { breachOf } = await import("./return-line.mjs");
-  const breach = breachOf(scene, combat);
+  const { tallyOf, tallyLine, lineOf } = await import("./return-line.mjs");
+  const tally = lineOf(scene) ? tallyOf(scene, combat) : null;
   const block = (title, rows, empty = "—") => `<h4>${title}</h4>${rows.length ? `<ul>${rows.map(x => `<li>${x}</li>`).join("")}</ul>` : `<p class="tb-muted">${empty}</p>`}`;
   const date = campaignDate();
   const html = `<div class="tb-card tb-card-battle">
@@ -187,7 +188,7 @@ async function battleReport(combat) {
     ${block("Потери авиакрыла и союзников", ours.map(lossLine), "Потерь нет.")}
     ${block("Счёт пилотов за бой", pilots, "Пилоты никого не сбили.")}
     ${goals.length ? block("Цели", goals) : ""}
-    ${breach.length ? block("Рубеж обороны прорван", breach.map(n => `${esc(n)} за рубежом: задание провалено`)) : ""}
+    ${tally ? block("Линия возврата", [`${esc(tallyLine(tally))}${tally.result ? `. ${tally.result === "success" ? "Задание выполнено" : "Задание провалено"}: ${esc(tally.reason.toLowerCase())}` : ""}`]) : ""}
     ${objectives.length ? block("Задачи операции", objectives.map(esc)) : ""}
     <div class="tb-actions"><button type="button" data-tb-action="battle-results" class="tb-gm"><i class="fas fa-file-signature"></i> Итоги в личные дела</button></div>
   </div>`;
@@ -200,7 +201,7 @@ async function battleReport(combat) {
   if (ask) {
     const pilots = new Set(combat.combatants.filter(c => c.actor?.type === "pilot").map(c => c.actor.id)).size;
     const m = await import("./mission.mjs");
-    m.openMissionDialog({ op, suggest: m.suggestResult({ pilots, losses, goals: goalRows(scene, losses), breach: breach.length > 0 }) });
+    m.openMissionDialog({ op, suggest: m.suggestResult({ pilots, losses, goals: goalRows(scene, losses), line: tally?.result ? tally : null }) });
   }
   return msg;
 }

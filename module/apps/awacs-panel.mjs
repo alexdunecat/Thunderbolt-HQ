@@ -22,8 +22,10 @@ import { openMedals } from "../medals.mjs";
 import { openHangarAdmin } from "../hangar.mjs";
 import { undo, redo, openUndoLog } from "../undo.mjs";
 import { markStrike, cancelStrike, strikesOfCombat, strikeWhere } from "../strikes.mjs";
-import { lineOf, lineHint, RET_MODES, escapedOf, bringBack, forgetEscaped, setLineMode } from "../return-line.mjs";
+import { lineOf, lineHint, escapedOf, bringBack, forgetEscaped, setLineSettings, tallyOf, tallyLine } from "../return-line.mjs";
+import { RET_ENEMY, RET_ESCORT, RET_PILOTS, rearmText } from "../return-rules.mjs";
 import { openBrush, clearReturnLine } from "../cell-brush.mjs";
+import { setInactive } from "../inactive.mjs";
 
 let panel = null;
 let timer = null;
@@ -84,7 +86,7 @@ export class AwacsPanel extends Application {
       const s = a.system, tok = tokenOf(a), w = weatherAt(a, tok);
       const kills = a.getFlag(SYSTEM_ID, "kills") ?? {};
       return {
-        id: a.id, name: a.name, img: a.img, plane: s.plane?.name ?? "без самолёта", onScene: !!tok,
+        id: a.id, name: a.name, img: a.img, plane: s.plane?.name ?? "без самолёта", onScene: !!tok, inactive: a.statuses?.has("inactive"),
         hp: s.hp, strain: s.strain, hpLow: s.hp.value <= 1, speed: s.speed, maxSpeed: s.maxSpeed + w.spd, stall: s.speed <= 0,
         alt: TB.altitudes[tok ? altOf(tok, a) : s.alt] ?? s.alt, defense: defenseWithWeather(a, w), breakEv: s.breakEv,
         lock: s.lock, markers: markerList(s), twist: s.twist, weather: w.list.map(d => d.ico).join(" "),
@@ -137,7 +139,12 @@ export class AwacsPanel extends Application {
       glory: (() => { const g = gloryView(); return { ...g, pct: g.nextAt !== null ? Math.round(100 * g.points / g.nextAt) : 100,
         recent: (g.log ?? []).slice(-3).reverse().map(x => `${x.date} · ${x.op}: ${x.total >= 0 ? "+" : "−"}${Math.abs(x.total)}`) }; })(),
       tunnel: specialSections(scene),
-      retLine: line ? { count: line.cells.length, modes: Object.entries(RET_MODES).map(([k, v]) => ({ k, v, sel: k === line.mode })) } : null,
+      retLine: line ? (() => {
+        const opts = (map, cur) => Object.entries(map).map(([k, v]) => ({ k, v, sel: k === cur }));
+        const t = combat?.started ? tallyOf(scene, combat) : null;
+        return { count: line.cells.length, ...line, enemyOpts: opts(RET_ENEMY, line.enemy), escortOpts: opts(RET_ESCORT, line.escort), pilotOpts: opts(RET_PILOTS, line.pilots),
+          rearm: rearmText(line), tally: t ? `${tallyLine(t)}${t.result ? ` · ${t.result === "success" ? "задание выполнено" : "задание провалено"}` : ""}` : "" };
+      })() : null,
       escaped: escapedOf(scene).map(e => ({ id: e.id, name: e.name, round: e.round, priority: e.priority })),
       brushWx: Object.entries(TB.weather).filter(([id]) => !sceneWeather.has(id)).map(([id, d]) => ({ id, name: `${d.ico} ${d.name}` })),
       strikes: strikeList.map(s => ({ ...s, where: strikeWhere(s), when: s.round === combat.round ? "в конце раунда" : `в конце раунда ${s.round}` })),
@@ -158,6 +165,7 @@ export class AwacsPanel extends Application {
     const el = html[0];
     const on = (sel, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); fn(n.dataset, n); }));
     on("[data-open]", d => game.actors.get(d.open)?.sheet.render(true));
+    on("[data-inactive]", d => setInactive(game.actors.get(d.inactive)));
     on("[data-fold]", (d, n) => {
       if (this.folded.has(d.fold)) this.folded.delete(d.fold); else this.folded.add(d.fold);
       n.closest(".tb-fold")?.classList.toggle("folded", this.folded.has(d.fold));
@@ -191,7 +199,11 @@ export class AwacsPanel extends Application {
     on("[data-ret-clear]", async () => { if (await Dialog.confirm({ title: "Линия возврата", content: "<p>Стереть линию возврата с этой сцены?</p>" })) await clearReturnLine(game.scenes.viewed); });
     on("[data-ret-back]", d => bringBack(d.retBack));
     on("[data-ret-forget]", d => forgetEscaped(d.retForget));
-    el.querySelector("[data-ret-mode]")?.addEventListener("change", ev => setLineMode(game.scenes.viewed, ev.currentTarget.value));
+    // настройки линии: селекты, числа, галочка
+    el.querySelectorAll("[data-ret-set]").forEach(n => n.addEventListener("change", () => {
+      const v = n.type === "checkbox" ? n.checked : n.type === "number" ? Number(n.value) || 0 : n.value;
+      setLineSettings(game.scenes.viewed, { [n.dataset.retSet]: v });
+    }));
     on("[data-sortie-all]", async () => {
       const pilots = game.actors.filter(a => a.type === "pilot");
       if (!(await Dialog.confirm({ title: "Все к вылету", content: `<p>Подготовить к вылету всех пилотов (${pilots.length}): HP и Strain до максимума, Speed 1, метки сняты, спецоружие пополнено?</p>` }))) return;

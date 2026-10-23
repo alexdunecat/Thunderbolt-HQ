@@ -1,4 +1,4 @@
-ICON dead:systems/thunderbolt-shtab/assets/status/destroyed.svg retreat:systems/thunderbolt-shtab/assets/status/retreat.svg break:systems/thunderbolt-shtab/assets/status/break.svg stall:systems/thunderbolt-shtab/assets/status/stall.svg
+ICON dead:systems/thunderbolt-shtab/assets/status/destroyed.svg retreat:systems/thunderbolt-shtab/assets/status/retreat.svg break:systems/thunderbolt-shtab/assets/status/break.svg stall:systems/thunderbolt-shtab/assets/status/stall.svg inactive:systems/thunderbolt-shtab/assets/status/inactive.svg
 DEL-COMBATANTS cМиГ-гун,cТанкер
 DELETE МиГ-гун,Танкер
 END R2: МиГ-гун: сбит (Гроза); Танкер: отступил | left Су-ракета,Ворон,Ангар,Союзный
