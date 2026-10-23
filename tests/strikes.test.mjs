@@ -26,3 +26,10 @@ const flat = o => Object.fromEntries(Object.entries(o).flatMap(([k, v]) => v && 
 globalThis.foundry = { ...(globalThis.foundry ?? {}), utils: { ...(globalThis.foundry?.utils ?? {}), flattenObject: flat } };
 console.log("старт по парам:", S.startOf({ start: [["Scene.S.Token.T.Actor.A", "3,3|ground"]] }).get("Scene.S.Token.T.Actor.A"),
   "· по развёрнутому объекту:", S.startOf({ start: { Actor: { abc: "4,3|ground" } } }).get("Actor.abc"));
+
+// зона — клетка на одной высоте: залп по 3,3 на Средней не трогает Низкую; Низкая берёт и землю
+show("залп: 3,3 Средняя", { kind: "railvolley", zones: ["3,3|med"], alts: ["ground", "low", "med"], dmg: 10 });
+show("залп: 3,3 Низкая (с землёй)", { kind: "railvolley", zones: ["3,3|low"], alts: ["ground", "low", "med"], dmg: 10 });
+show("лазер: 3,3 Высокая и стратосфера", { kind: "arklaser", zones: ["3,3|high", "3,3|strat"], alts: ["ground", "low", "med", "high", "strat"], dmg: 8 });
+console.log("где:", S.strikeWhere({ zones: ["3,3|low", "3,3|med", "4,3|high"], alts: ["ground", "low", "med", "high", "strat"] }), "· старый:", S.strikeWhere({ zones: ["3,3"], alts: ["ground", "low", "med"] }));
+console.log("на карте выбирают:", Object.entries(S.STRIKES).filter(([, x]) => x.perAlt).map(([k, x]) => `${k} ${S.pickAlts(x).join("/")}`).join(", "));

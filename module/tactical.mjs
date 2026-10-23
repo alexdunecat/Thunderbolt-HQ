@@ -6,7 +6,7 @@ import { SYSTEM_ID, TB } from "./config.mjs";
 import { cellOf, altOf, sideOf, canFireAt, flyingBoss, hasRule, landBlocked, tunnelMoveProblem, inNarrowTunnel, AA_GUN, sysGunReach } from "./scene.mjs";
 import { combatantOf, declaredOf, spentOf } from "./actions.mjs";
 import { quietAA } from "./stealth.mjs";
-import { strikesOfCombat, STRIKES } from "./strikes.mjs";
+import { strikesOfCombat, STRIKES, zoneCell, zoneAlt } from "./strikes.mjs";
 
 export const zkey = (col, row) => `${col},${row}`;
 const cheb = (a, b) => Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row));
@@ -132,7 +132,8 @@ export function threatCells(token, { tokens = canvas?.tokens?.placeables ?? [], 
   // удары по площади этого боя: по высоте машины
   for (const st of combat?.started ? strikesOfCombat(combat) : []) {
     if (!(st.alts ?? []).includes(alt)) continue;
-    for (const z of st.zones) { const [c, r] = z.split(",").map(Number); add(c, r, { what: "УДАР", name: STRIKES[st.kind]?.label ?? st.label ?? "удар", quiet: false }); }
+    // зона на одной высоте (клетка|высота) опасна только на ней
+    for (const z of st.zones) { if (zoneAlt(z) && zoneAlt(z) !== alt) continue; const [c, r] = zoneCell(z).split(",").map(Number); add(c, r, { what: "УДАР", name: STRIKES[st.kind]?.label ?? st.label ?? "удар", quiet: false }); }
   }
   // опасная погода в клетках (вся сцена — не отмечается: она везде одинакова)
   const scene = token.document?.parent ?? canvas?.scene;

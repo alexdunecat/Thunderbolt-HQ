@@ -16,16 +16,18 @@ export const ALT_NAMES = { ground: "земля и вода", low: "Низкая"
  * Виды ударов. zones — сколько зон можно отметить; alts — по каким высотам бьёт (one — одну на выбор);
  * attack — бросок d10 + attack против защиты (у наземных — Occlusion); still — бьёт только не сменивших зону и высоту;
  * byAlt — урон по высотам; ring — урон по соседним зонам; ships — что с кораблями; delay — сработает через раунд.
+ * perAlt — зона это клетка на одной высоте (решение ведущего): каждая отмеченная пара клетка+высота считается за зону,
+ * земля и вода идут вместе с Низкой. Такие зоны пишутся «col,row|alt».
  */
 export const STRIKES = {
   pwrail: { label: "Рельсотрон", rule: "pwrail", zones: 1, alts: "one", attack: 3, dmg: 5, still: true, ships: "attack",
     hint: "Зона в пределах 2 зон от корабля и одна высота. d10 + 3 против защиты, урон 5 (усиленный 6). Кто за раунд сменил зону или высоту, увернулся." },
-  railvolley: { label: "Рельсотронный залп", rule: "railvolley", zones: 6, alts: ["ground", "low", "med"], dmg: 10, ships: "system",
-    hint: "По зоне на каждую целую башню главного калибра. Низкая, Средняя и земля: 10 урона, корабль теряет систему." },
-  burst: { label: "Шрапнельные ракеты", rule: "burst", zones: 4, alts: ["ground", "low", "med"], dmg: 10, ships: "system",
-    hint: "До 4 зон. Низкая, Средняя и земля: 10 урона, корабль теряет систему. Сбитую на разгоне ракету снимите: «Зоны» и щелчок по её зоне." },
-  arklaser: { label: "Противоспутниковый лазер", rule: "arklaser", zones: 3, alts: ALL, dmg: 8, ships: "system",
-    hint: "Линия из 3 зон, все высоты: 8 урона. Облака не мешают." },
+  railvolley: { label: "Рельсотронный залп", rule: "railvolley", zones: 6, perAlt: true, alts: ["ground", "low", "med"], dmg: 10, ships: "system",
+    hint: "По зоне на каждую целую башню главного калибра; зона — клетка на одной высоте (Низкая вместе с землёй или Средняя): 10 урона, корабль теряет систему." },
+  burst: { label: "Шрапнельные ракеты", rule: "burst", zones: 4, perAlt: true, alts: ["ground", "low", "med"], dmg: 10, ships: "system",
+    hint: "До 4 зон; зона — клетка на одной высоте (Низкая вместе с землёй или Средняя): 10 урона, корабль теряет систему. Сбитую на разгоне ракету снимите: «Зоны» и щелчок по её зоне." },
+  arklaser: { label: "Противоспутниковый лазер", rule: "arklaser", zones: 3, perAlt: true, alts: ALL, dmg: 8, ships: "system",
+    hint: "Линия из 3 зон, зона — клетка на одной высоте: 8 урона. Облака не мешают." },
   solg: { label: "Удар SOLG с орбиты", rule: "solgrelay", zones: 1, alts: ["ground", "low", "med"], byAlt: { ground: "kill", low: 10, med: 5 }, delay: 1, ships: "system",
     hint: "Падает в конце следующего раунда. Наземные цели уничтожены (укреплённые −10), Низкая 10, Средняя 5." },
   indirect: { label: "Навесной огонь", rule: "indirect", zones: 1, alts: ["ground"], attack: "gg", dmg: TB.missileDamage, ships: "attack",
@@ -34,10 +36,10 @@ export const STRIKES = {
     hint: "Отметьте зону корабля: самолёты в ней получают 6 урона, в соседних зонах 3." },
   fall: { label: "Падение корабля", rule: null, zones: 1, alts: ["ground"], dmg: 10, ships: "system",
     hint: "Воздушный корабль без двигателей рушится: всё на земле под ним получает 10 урона, сам он уничтожен." },
-  railline: { label: "Выстрел рейлгана", rule: null, zones: 4, alts: ["ground", "low", "med"], dmg: 10, ships: "system",
-    hint: "Шкала «Рейлган» заполнена: до 4 зон по линии, спасает уход на Высокую. Урон по книге не задан, поставьте свой." },
-  custom: { label: "Свой удар", rule: null, zones: 9, alts: "pick", dmg: 5, ships: "system",
-    hint: "Любые зоны и высоты, свой урон." }
+  railline: { label: "Выстрел рейлгана", rule: null, zones: 4, perAlt: true, alts: ["ground", "low", "med"], dmg: 10, ships: "system",
+    hint: "Шкала «Рейлган» заполнена: до 4 зон по линии (клетка на Низкой с землёй или на Средней), спасает уход на Высокую. Урон по книге не задан, поставьте свой." },
+  custom: { label: "Свой удар", rule: null, zones: 9, perAlt: true, alts: "pick", dmg: 5, ships: "system",
+    hint: "Любые зоны (клетка на одной высоте), свой урон." }
 };
 
 /** Системы, из которых бьёт удар (кнопка УДАР прямо на плитке системы в панели цели). */
@@ -59,7 +61,15 @@ export function strikesOf(actor) {
 }
 
 const zkey = (col, row) => `${col},${row}`;
-const near = (a, b) => { const [c1, r1] = a.split(",").map(Number), [c2, r2] = b.split(",").map(Number); return Math.max(Math.abs(c1 - c2), Math.abs(r1 - r2)); };
+/** Клетка зоны «col,row» (у зоны на одной высоте — без «|alt»). */
+export const zoneCell = z => z.split("|")[0];
+/** Высота зоны «col,row|alt» или null (старая зона: все высоты удара). */
+export const zoneAlt = z => z.split("|")[1] ?? null;
+const near = (a, b) => { const [c1, r1] = zoneCell(a).split(",").map(Number), [c2, r2] = zoneCell(b).split(",").map(Number); return Math.max(Math.abs(c1 - c2), Math.abs(r1 - r2)); };
+/** Попадает ли высота цели в зону: у зоны на одной высоте земля и вода идут с Низкой. */
+const altIn = (z, alt, alts) => { const za = zoneAlt(z); return za ? alt === za || (za === "low" && alt === "ground" && alts.includes("ground")) : alts.includes(alt); };
+/** Какие высоты ведущий выбирает на карте для удара с perAlt (земля — вместе с Низкой). */
+export const pickAlts = S => (Array.isArray(S.alts) ? S.alts : ALL).filter(a => a !== "ground");
 
 /**
  * Кого задевает удар. units — [{ uuid, name, zone: "col,row", alt, kind, defense, hardened, hp, start }], start — "zone|alt" в момент отметки.
@@ -70,10 +80,11 @@ export function strikeHits(strike, units, rolls = {}) {
   const alts = strike.alts ?? [];
   const out = [];
   for (const u of units) {
-    const d = Math.min(...strike.zones.map(z => near(z, u.zone)));
+    const mine = strike.zones.filter(z => altIn(z, u.alt, alts));
+    if (!mine.length) continue;
+    const d = Math.min(...mine.map(z => near(z, u.zone)));
     const inZone = d === 0, inRing = S.ring && d === 1;
     if (!inZone && !inRing) continue;
-    if (!alts.includes(u.alt)) continue;
     if (S.still && u.start !== `${u.zone}|${u.alt}`) { out.push({ uuid: u.uuid, name: u.name, hit: false, why: "сменил зону или высоту за раунд" }); continue; }
     if (u.kind === "ship") { out.push({ uuid: u.uuid, name: u.name, ship: true, hit: true, dmg: strike.dmg }); continue; }
     let dmg = inRing ? S.ring : strike.dmg;
@@ -133,9 +144,19 @@ export const startOf = s => Array.isArray(s.start) ? new Map(s.start)
 export const strikesOfCombat = combat => combat?.getFlag(SYSTEM_ID, "strikes") ?? [];
 const saveStrikes = (combat, list) => combat.setFlag(SYSTEM_ID, "strikes", list);
 
-const zonesText = zones => zones.map(z => { const [c, r] = z.split(",").map(Number); return cellName(c, r); }).join(", ");
+const SHORT_ALT = { low: "Низкая", med: "Средняя", high: "Высокая", strat: "стратосфера" };
+/** Зоны текстом: у зон на одной высоте — клетка и её высоты («B4 Низкая и Средняя»). */
+const zonesText = zones => {
+  const by = new Map();
+  for (const z of zones) { const c = zoneCell(z), a = zoneAlt(z); if (!by.has(c)) by.set(c, []); if (a) by.get(c).push(a); }
+  return [...by].map(([c, as]) => { const [col, row] = c.split(",").map(Number);
+    return cellName(col, row) + (as.length ? " " + ALT_ORDER.filter(a => as.includes(a)).map(a => SHORT_ALT[a]).join(" и ") : ""); }).join(", ");
+};
+const perAltZones = s => s.zones.some(z => zoneAlt(z));
+/** Где удар одной строкой: зоны, у старых зон ещё и высоты. */
+const whereText = s => perAltZones(s) ? zonesText(s.zones) : `${zonesText(s.zones)}, ${altsText(s.alts)}`;
 /** Для панели AWACS: зоны и высоты одной строкой. */
-export const strikeWhere = s => `${zonesText(s.zones)}, ${altsText(s.alts)}`;
+export const strikeWhere = s => whereText(s);
 const altsText = alts => alts.length >= ALL.length ? "все высоты" : alts.map(a => ALT_NAMES[a]).join(", ");
 
 /** Ведущий: отметить новый удар (или поправить зоны имеющегося). */
@@ -146,7 +167,8 @@ export async function markStrike(edit = null, preset = null) {
   const scene = combat.scene ?? canvas.scene;
   if (!canvas?.ready || canvas.scene !== scene) return ui.notifications.warn("Откройте сцену боя: зоны отмечаются щелчками по карте.");
   if (edit) {
-    const zones = await pickZones(new Set(edit.zones), STRIKES[edit.kind]?.zones ?? 9, edit.label);
+    const ES = STRIKES[edit.kind];
+    const zones = await pickZones(new Set(edit.zones), ES?.zones ?? 9, edit.label, ES?.perAlt && edit.zones.every(z => zoneAlt(z)) ? pickAlts(ES) : null);
     if (!zones) return;
     const list = foundry.utils.deepClone(strikesOfCombat(combat));
     const s = list.find(x => x.id === edit.id);
@@ -154,7 +176,7 @@ export async function markStrike(edit = null, preset = null) {
     if (!zones.length) return cancelStrike(edit.id, "все зоны сняты");
     s.zones = zones;
     await saveStrikes(combat, list);
-    return ChatMessage.create({ speaker: { alias: "AWACS" }, content: `<div class="tb-card tb-card-round"><div class="tb-note">${esc(s.label)}: теперь ${zonesText(zones)}.</div></div>` });
+    return ChatMessage.create({ speaker: { alias: "AWACS" }, content: `<div class="tb-card tb-card-round"><div class="tb-note">${esc(s.label)}: теперь ${whereText(s)}.</div></div>` });
   }
   const opts = strikeDialogData(scene);
   // с панели цели: источник есть всегда, даже если у него нет удара по правилам («Свой удар» системы)
@@ -174,9 +196,9 @@ export async function markStrike(edit = null, preset = null) {
   const S = STRIKES[data.kind];
   const src = opts.sources.find(x => x.uuid === data.source);
   const name = preset?.label && data.kind === preset.kind ? preset.label : S.label;
-  const zones = await pickZones(new Set(), S.zones, name);
+  const zones = await pickZones(new Set(), S.zones, name, S.perAlt ? pickAlts(S) : null);
   if (!zones?.length) return;
-  const alts = S.alts === "one" ? [data.alt] : S.alts === "pick" ? data.alts : S.alts;
+  const alts = S.perAlt ? (Array.isArray(S.alts) ? S.alts : ALL) : S.alts === "one" ? [data.alt] : S.alts === "pick" ? data.alts : S.alts;
   if (!alts.length) return ui.notifications.warn("Не выбрано ни одной высоты.");
   const attack = S.attack === "gg" ? (src?.gg ?? 0) : S.attack ?? null;
   const strike = {
@@ -188,7 +210,7 @@ export async function markStrike(edit = null, preset = null) {
   const when = strike.round === combat.round ? "в конце раунда" : `в конце раунда ${strike.round}`;
   const { sendRadio } = await import("./radio.mjs"); // лениво: radio-log тянет Application
   await sendRadio({ speaker: "AWACS", side: "ally", caution: { level: "warning", title: "WARNING", sub: S.label },
-    text: `${S.label}: удар ${when} по ${zones.length > 1 ? "зонам" : "зоне"} ${zonesText(zones)}, ${altsText(alts)}. ${S.still ? "Смените зону или высоту!" : "Уходите из зоны!"}` });
+    text: `${S.label}: удар ${when} по ${zones.length > 1 ? "зонам" : "зоне"} ${whereText(strike)}. ${S.still ? "Смените зону или высоту!" : "Уходите из зоны!"}` });
   // выстрел рельсотрона или лазера слышен сразу у всех, взрыв в зонах — в конце раунда
   const { shotOf, cueEveryone } = await import("./sounds.mjs");
   const shot = shotOf(name);
@@ -235,7 +257,7 @@ async function strikeDialog({ sources }, preset = null) {
         const S = STRIKES[f("kind").value];
         root.querySelector("[data-hint]").textContent = S.hint;
         root.querySelector("[data-one]").hidden = S.alts !== "one";
-        root.querySelector("[data-pick]").hidden = S.alts !== "pick";
+        root.querySelector("[data-pick]").hidden = S.alts !== "pick" || !!S.perAlt;
         f("dmg").value = S.dmg;
         f("dmg").closest(".form-group").hidden = !!S.byAlt;
       };
@@ -284,19 +306,35 @@ export async function cancelStrike(id, why = "отменён") {
 
 /* ---------- щелчки по карте ---------- */
 
-/** Щёлкать по зонам (повторный щелчок снимает). Enter или правая кнопка — готово, Esc — отмена. */
-function pickZones(chosen, max, title) {
+/**
+ * Щёлкать по зонам (повторный щелчок снимает). Enter или правая кнопка — готово, Esc — отмена.
+ * alts — зона это клетка на одной высоте: высоту выбирают на пульте сверху (или клавишами 1–4), щелчок отмечает клетку на ней.
+ */
+function pickZones(chosen, max, title, alts = null) {
   const view = canvas.app.view;
   return new Promise(resolve => {
     const prev = view.style.cursor;
     view.style.cursor = "crosshair";
-    ui.notifications.info(`${title}: щёлкайте по зонам (до ${max}), повторный щелчок снимает. Enter или правая кнопка — готово, Esc — отмена.`);
-    const show = () => draw(chosen);
+    let alt = alts ? (alts.includes("low") ? "low" : alts[0]) : null;
+    const bar = alts ? document.body.appendChild(Object.assign(document.createElement("div"), { id: "tb-strike-alt", className: "tb-strike-alt" })) : null;
+    const paint = () => {
+      if (!bar) return;
+      const n = a => [...chosen].filter(z => zoneAlt(z) === a).length;
+      bar.innerHTML = `<span class="ttl">${esc(title)}</span><span class="lbl">ВЫСОТА</span>${alts.map((a, i) => `<button type="button" data-alt="${a}" class="${a === alt ? "on" : ""}"><b>${{ low: "LOW", med: "MED", high: "HIGH", strat: "STRAT" }[a]}</b><small>${i + 1} · ${a === "low" ? "Низкая и земля" : ALT_NAMES[a]}${n(a) ? ` · ${n(a)}` : ""}</small></button>`).join("")}
+        <span class="cnt">${chosen.size}/${max}</span><button type="button" data-done class="done">ГОТОВО</button>`;
+      bar.querySelectorAll("[data-alt]").forEach(b => b.addEventListener("click", () => { alt = b.dataset.alt; paint(); }));
+      bar.querySelector("[data-done]").addEventListener("click", () => finish(true));
+    };
+    ui.notifications.info(alts
+      ? `${title}: выберите высоту на пульте сверху (или 1–${alts.length}) и щёлкайте по клеткам; зона — клетка на одной высоте, до ${max}. Enter или правая кнопка — готово, Esc — отмена.`
+      : `${title}: щёлкайте по зонам (до ${max}), повторный щелчок снимает. Enter или правая кнопка — готово, Esc — отмена.`);
+    const show = () => { draw(chosen); paint(); };
     const finish = ok => {
       window.removeEventListener("pointerdown", onDown, true);
       window.removeEventListener("contextmenu", onContext, true);
       window.removeEventListener("keydown", onKey, true);
       view.style.cursor = prev;
+      bar?.remove();
       draw();
       resolve(ok ? [...chosen] : null);
     };
@@ -308,7 +346,7 @@ function pickZones(chosen, max, title) {
       const r = view.getBoundingClientRect();
       const p = canvas.canvasCoordinatesFromClient?.({ x: ev.clientX, y: ev.clientY })
         ?? canvas.stage.worldTransform.applyInverse({ x: ev.clientX - r.left, y: ev.clientY - r.top });
-      const o = canvas.grid.getOffset(p), k = zkey(o.j, o.i);
+      const o = canvas.grid.getOffset(p), k = alt ? `${zkey(o.j, o.i)}|${alt}` : zkey(o.j, o.i);
       if (chosen.has(k)) chosen.delete(k);
       else if (chosen.size >= max) return ui.notifications.warn(`Не больше ${max} зон: снимите лишнюю повторным щелчком.`);
       else chosen.add(k);
@@ -318,6 +356,7 @@ function pickZones(chosen, max, title) {
     const onKey = ev => {
       if (ev.key === "Escape") { ev.stopPropagation(); ev.preventDefault(); finish(false); }
       else if (ev.key === "Enter") { ev.stopPropagation(); ev.preventDefault(); finish(true); }
+      else if (alts && /^[1-9]$/.test(ev.key) && alts[Number(ev.key) - 1]) { ev.stopPropagation(); ev.preventDefault(); alt = alts[Number(ev.key) - 1]; paint(); }
     };
     window.addEventListener("pointerdown", onDown, true);
     window.addEventListener("contextmenu", onContext, true);
@@ -330,6 +369,7 @@ function pickZones(chosen, max, title) {
 
 const STYLE = { color: 0xff3030, border: 0xff3030, alpha: 0.28 };
 const PICK = { color: 0xffb020, border: 0xffb020, alpha: 0.35 };
+const LETTER = { low: "L", med: "M", high: "H", strat: "S" };
 let labels = null;
 
 /** Нарисовать отмеченные зоны текущего боя на открытой сцене (picking — зоны, которые ведущий сейчас выбирает). */
@@ -342,28 +382,38 @@ function draw(picking = null) {
   else labels = canvas.interface.addChild(new PIXI.Container());
   const combat = game.combat;
   const list = combat?.started && (combat.scene ?? canvas.scene) === canvas.scene ? strikesOfCombat(combat) : [];
-  const text = new Map();
-  for (const s of list) for (const z of s.zones) {
-    const t = text.get(z) ?? [];
-    t.push(`${STRIKES[s.kind]?.label ?? s.label}${s.alts.length >= ALL.length ? "" : ` · ${s.alts.map(a => ALT_NAMES[a]).join(", ")}`}${s.round > combat.round ? ` · раунд ${s.round}` : ""}`);
-    text.set(z, t);
+  // подписи по клеткам: у зоны на одной высоте — её высота
+  const text = new Map(), push = (m, c, line) => { if (!m.has(c)) m.set(c, []); if (!m.get(c).includes(line)) m.get(c).push(line); };
+  for (const s of list) {
+    const name = STRIKES[s.kind]?.label ?? s.label, later = s.round > combat.round ? ` · раунд ${s.round}` : "";
+    const byCell = new Map();
+    for (const z of s.zones) { const c = zoneCell(z); if (!byCell.has(c)) byCell.set(c, []); if (zoneAlt(z)) byCell.get(c).push(zoneAlt(z)); }
+    for (const [c, as] of byCell) {
+      const where = as.length ? ALT_ORDER.filter(a => as.includes(a)).map(a => ALT_NAMES[a]).join(", ") : s.alts.length >= ALL.length ? "" : s.alts.map(a => ALT_NAMES[a]).join(", ");
+      push(text, c, `${name}${where ? ` · ${where}` : ""}${later}`);
+    }
   }
+  const pickText = new Map();
+  for (const z of picking ?? []) push(pickText, zoneCell(z), zoneAlt(z) ? LETTER[zoneAlt(z)] : "");
   const mark = (z, style) => {
     const [j, i] = z.split(",").map(Number);
     const p = canvas.grid.getTopLeftPoint({ i, j });
     grid.highlightPosition(LAYER, { x: p.x, y: p.y, ...style });
   };
   for (const z of text.keys()) mark(z, STYLE);
-  for (const z of picking ?? []) mark(z, PICK);
+  for (const z of pickText.keys()) mark(z, PICK);
   const gs = canvas.grid.size;
-  for (const [z, lines] of text) {
+  const label = (z, str, fill, big) => {
     const [j, i] = z.split(",").map(Number);
     const p = canvas.grid.getTopLeftPoint({ i, j });
-    const t = labels.addChild(new PreciseText(lines.join("\n"), new PIXI.TextStyle({
-      fontFamily: "Jura, sans-serif", fontSize: Math.max(12, Math.round(gs / 9)), fill: 0xffd0d0, stroke: 0x200000, strokeThickness: 3, wordWrap: true, wordWrapWidth: gs - 8
+    const t = labels.addChild(new PreciseText(str, new PIXI.TextStyle({
+      fontFamily: "Jura, sans-serif", fontSize: Math.max(12, Math.round(gs / (big ? 4 : 9))), fontWeight: big ? "700" : "400", fill, stroke: 0x200000, strokeThickness: 3, wordWrap: true, wordWrapWidth: gs - 8
     })));
-    t.position.set(p.x + 4, p.y + 4);
-  }
+    if (big) t.position.set(p.x + gs - t.width - 6, p.y + gs - t.height - 4);
+    else t.position.set(p.x + 4, p.y + 4);
+  };
+  for (const [z, lines] of text) label(z, lines.join("\n"), 0xffd0d0, false);
+  for (const [z, ls] of pickText) if (ls.some(Boolean)) label(z, ALT_ORDER.map(a => LETTER[a]).filter(l => ls.includes(l)).join(" "), 0xffe08a, true);
   layer.visible = true;
 }
 
@@ -403,7 +453,7 @@ export async function resolveStrikes(combat, round) {
     await ChatMessage.create({
       speaker: { alias: "AWACS" }, flags: { [SYSTEM_ID]: { card } },
       content: `<div class="tb-card tb-card-volley"><header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">Конец раунда ${round}: ${esc(s.label)}</span></header>
-        <div class="tb-note">${zonesText(s.zones)}, ${altsText(s.alts)}.</div>${rows || `<div class="tb-note">В отмеченных зонах никого не осталось.</div>`}${btn}</div>`
+        <div class="tb-note">${whereText(s)}.</div>${rows || `<div class="tb-note">В отмеченных зонах никого не осталось.</div>`}${btn}</div>`
     });
     // корабль, чей это взрыв или падение, уничтожен (сам он в зоне удара урона не получает)
     try { const { strikeDone } = await import("./boss-fate.mjs"); await strikeDone(s); } catch (err) { console.warn(`${SYSTEM_ID} | гибель цели`, err); }

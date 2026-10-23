@@ -1692,3 +1692,16 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 #combat li.combatant.tb-inactive .token-name, .tb-awacs-table tr.tb-inactive td { opacity: .55; }
 .tb-inactive-btn { opacity: .45; }
 .tb-inactive-btn.on { opacity: 1; color: var(--tb-warn); }
+/* пульт высоты при отметке удара по площади: зона — клетка на одной высоте */
+.tb-strike-alt { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+  font-family: var(--tb-data); color: var(--tb-ink); background: rgba(7, 20, 26, .94); border: 1px solid var(--tb-line); box-shadow: 0 4px 18px rgba(0, 0, 0, .6), inset 0 -3px 0 rgba(255, 107, 74, .35); }
+.tb-strike-alt .ttl { font-family: var(--tb-display); font-weight: 700; letter-spacing: .08em; color: var(--tb-bad); padding-right: 8px; border-right: 1px solid var(--tb-line); }
+.tb-strike-alt .lbl { font-size: 10px; letter-spacing: .2em; color: var(--tb-muted); }
+.tb-strike-alt button { width: auto; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 3px 10px; line-height: 1.1; border-radius: 2px; cursor: pointer;
+  color: #d9e2dc; background: linear-gradient(#2a3330, #161c1a); border: 1px solid #050807; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12); }
+.tb-strike-alt button b { font-family: var(--tb-display); font-size: 14px; letter-spacing: .14em; }
+.tb-strike-alt button small { font-size: 9.5px; color: #9aa59f; }
+.tb-strike-alt button.on { color: #1a0d00; background: linear-gradient(#ffc56a, #e59a2c); border-color: #ffb547; box-shadow: 0 0 10px rgba(255, 181, 71, .55); }
+.tb-strike-alt button.on small { color: #3d2400; }
+.tb-strike-alt .cnt { min-width: 44px; padding: 2px 6px; text-align: center; font-size: 13px; color: #ffb547; background: #0b0703; border: 1px solid #000; text-shadow: 0 0 5px rgba(255, 170, 60, .8); }
+.tb-strike-alt .done { color: var(--tb-accent-ink); background: var(--tb-accent); border-color: var(--tb-accent); font-family: var(--tb-display); font-weight: 700; letter-spacing: .14em; }
