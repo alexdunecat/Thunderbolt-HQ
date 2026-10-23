@@ -30,6 +30,20 @@ export function flyingBoss(actor) {
 
 export const hasRule = (actor, key) => propKeys(actor).includes(key);
 
+/** Баллистическая ракета (МБР или NPC с правилом «Баллистическая ракета»). */
+export const isBallistic = actor => actor?.type === "npc" && (actor.system?.key === "icbm" || hasRule(actor, "ballistic"));
+/**
+ * Где баллистическая ракета в этом бою: climb — раунд пуска, проходит Высокую, сбить нельзя; strat — следующий раунд,
+ * в стратосфере, можно сбить; gone — ушла в космос. Раунд пуска пишет ведущий в конце раунда (ballistic.mjs);
+ * пока его нет, ракета пущена в этом раунде. Без начатого боя — null (ограничений нет).
+ */
+export function ballisticPhase(actor, combat = game.combat) {
+  if (!isBallistic(actor) || !combat?.started) return null;
+  const f = actor.getFlag?.(SYSTEM_ID, "icbm");
+  const launch = f?.combat === combat.id ? f.launch : combat.round;
+  return combat.round <= launch ? "climb" : combat.round === launch + 1 ? "strat" : "gone";
+}
+
 /**
  * По кому бьёт пушка: самолёты — по всем; наземка с «Зенитным огнём» (Шилка, Вулкан, Тунгуска, зенитная батарея) — только по воздуху,
  * остальная наземка (танки, БМП, БТР) — только по земле и морю. У кораблей — по системе: зенитные автоматы, ЗАК и CIWS — по воздуху,
@@ -163,6 +177,9 @@ export function reachProblems(attacker, target, range) {
   if (far)
     problems.push(`Цель в ${dist} ${dist === 1 ? "зоне" : "зонах"} от вас, а дальность: ${rangeLabel(range)}.${dusty ? " Пыльная буря: цели только в своей зоне." : ""}`);
   const altA = altOf(a, attacker), altB = altOf(b, target.actor);
+  const bal = ballisticPhase(target.actor);
+  if (bal === "climb") problems.push("Баллистическая ракета на взлёте: сбить её можно только в стратосфере, в следующем раунде.");
+  else if (bal === "gone") problems.push("Баллистическая ракета ушла в космос.");
   // летающие боссы (Аркбёрд, SOLG, летающие крейсеры) — воздушные цели, хотя их системы бьют как по кораблю
   const air = isAirTarget(target);
   // зенитные ракеты Аркбёрда бьют вниз на все высоты

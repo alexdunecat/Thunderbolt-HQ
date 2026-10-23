@@ -101,7 +101,7 @@ async function announce() {
   const list = pending; pending = [];
   const boss = list.find(x => x.boss), squads = [...new Set(list.map(x => x.squad).filter(Boolean))], aces = list.filter(x => x.ace && !x.boss);
   let caution, text;
-  if (boss?.launch) { caution = { level: "warning", title: "WARNING", sub: "Пуск баллистической ракеты" }; text = "Всем бортам: зафиксирован пуск баллистической ракеты! Сбейте её, пока она не ушла на Высокую!"; }
+  if (boss?.launch) { caution = { level: "warning", title: "WARNING", sub: "Пуск баллистической ракеты" }; text = "Всем бортам: зафиксирован пуск баллистической ракеты! Сейчас она проходит Высокую, в следующем раунде будет в стратосфере: только там её и можно сбить. Готовьтесь к перехвату!"; }
   else if (boss) { caution = { level: "warning", title: "WARNING", sub: `Супероружие: ${boss.base}` }; text = `Всем бортам: в районе ${boss.base}. Повторяю, ${boss.base}!`; }
   else if (squads.length) { caution = { title: "CAUTION", sub: `Вражеская эскадрилья «${squads[0]}»` }; text = `Приближается эскадрилья противника «${squads[0]}». Это не новички, будьте внимательны.`; }
   else if (aces.length) { caution = { title: "CAUTION", sub: `Вражеский ас: ${aces[0].name}` }; text = `Внимание, вражеский ас: ${aces[0].name}. Не дайте ему зайти в хвост.`; }

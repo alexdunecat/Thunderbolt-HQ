@@ -162,6 +162,8 @@ async function endRound(combat, round) {
   if (!again) try { await advanceScales(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | шкалы`, err); }
   // гибель крупных целей по их правилам: опрокинулся, упал, взорвался (boss-fate.mjs)
   if (!again) try { const { resolveFates } = await import("../boss-fate.mjs"); await resolveFates(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | гибель целей`, err); }
+  // баллистическая ракета: из раунда пуска в стратосферу, после раунда в стратосфере — в космос
+  if (!again) try { const { resolveBallistic } = await import("../ballistic.mjs"); await resolveBallistic(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | баллистическая ракета`, err); }
   const key = `${combat.id}:${round}`;
   // Break!: Speed падает, когда атаки раунда разрешены
   const drops = new Map(), marked = [];
