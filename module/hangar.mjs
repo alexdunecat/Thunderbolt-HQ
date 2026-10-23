@@ -6,6 +6,7 @@
 import { SYSTEM_ID, SYS_PATH, TB } from "./config.mjs";
 import { esc } from "./utils.mjs";
 import { planeItem, weaponItem } from "./data/catalog-docs.mjs";
+import { playLocal } from "./sounds.mjs";
 
 const EMPTY = { open: false, planes: [], weapons: [] };
 const KIND = { book: "книга", hb: "Штаб", op: "опытное" };
@@ -150,7 +151,6 @@ export async function announceHangar() {
 
 const tierLabel = (cat, t) => `Уровень ${t} · ${allPlanes(cat).find(p => p.tier === t)?.tierName ?? ""}`;
 const tiers = cat => [...new Set(allPlanes(cat).map(p => p.tier))].sort((a, b) => a - b);
-const statLine = p => Object.keys(TB.planeStats).map(k => `<span title="${esc(TB.planeStats[k][1])}"><i>${esc(TB.planeStats[k][0])}</i>${p.stats[k] ?? "—"}</span>`).join("");
 
 /** Панель допуска у ведущего. */
 export function adminHtml(cat, st = hangarState()) {
@@ -204,8 +204,20 @@ export function quickPick(cat, st, q, tier = 0) {
   return st;
 }
 
-/** Ангар пилота: список машин слева, выбранная машина и узлы подвески справа. */
-export function pilotHtml(cat, { actor, pilots = [], planeKey, slots = [], user = game.user, full = false } = {}) {
+const ROMAN = ["", "I", "II", "III", "IV", "V"];
+const GAUGE = { spd: "SPD", ev: "EVA", aa: "A-A", ag: "A-G", hp: "HP", str: "STR", gun: "GUN", hard: "HRD" };
+/** Наибольшее значение каждой характеристики в авиапарке: шкалы ТТХ в ангаре считаются от него. */
+const statMax = cat => Object.fromEntries(Object.keys(GAUGE).map(k => [k, Math.max(1, ...allPlanes(cat).map(p => p.stats[k] ?? 0))]));
+/** Где на схеме висит узел i из n: первый нечётный — под фюзеляжем, остальные парами под крыльями. */
+function pylonAt(i, n) {
+  if (n % 2 && i === 0) return [50, 76];
+  const j = n % 2 ? i - 1 : i, rank = Math.floor(j / 2), side = j % 2 ? 1 : -1;
+  return [50 + side * (17 + rank * 11), 60 + rank * 5];
+}
+const pad2 = n => String(n).padStart(2, "0");
+
+/** Ангар пилота: стоянка слева, справа бокс с выбранной машиной, ТТХ и пульт подвески. */
+export function pilotHtml(cat, { actor, pilots = [], planeKey, slots = [], user = game.user, full = false, fresh = false } = {}) {
   const st = hangarState(), gm = user.isGM && full;   // gm: ведущий смотрит весь каталог
   const lock = lockReason(actor, user);
   const P = allPlanes(cat).filter(p => gm || st.planes.includes(p.key));
@@ -213,33 +225,59 @@ export function pilotHtml(cat, { actor, pilots = [], planeKey, slots = [], user 
   const p = planeOf(cat, planeKey) ?? null;
   const pick = pilots.length > 1 ? `<select data-hg-actor>${pilots.map(a => `<option value="${a.id}" ${a.id === actor?.id ? "selected" : ""}>${esc(a.name)}</option>`).join("")}</select>` : `<b>${esc(actor?.name ?? "нет пилота")}</b>`;
   const state = !st.open ? ["closed", "ЗАКРЫТ"] : lock ? ["closed", "НЕДОСТУПЕН"] : ["open", "ОТКРЫТ"];
+  const off = x => gm && !st.planes.includes(x.key);
   const list = P.length ? tiers(cat).map(t => {
     const row = byTier(cat, t).filter(x => P.includes(x));
-    return row.length ? `<h4>${esc(tierLabel(cat, t))}</h4>${row.map(x => `<a class="tb-hg-row${x.key === planeKey ? " on" : ""}${gm && !st.planes.includes(x.key) ? " off" : ""}" data-hg-pick="${esc(x.key)}">
-      <img src="${esc(x.img)}" alt=""><span><b>${esc(x.name)}</b><small>${esc(x.cls)}${x.key === cur ? " · на листе" : ""}${gm && !st.planes.includes(x.key) ? " · вне допуска" : ""}</small></span></a>`).join("")}` : "";
+    return row.length ? `<h4><span class="tb-hgx-roman">${ROMAN[t] ?? t}</span>${esc(allPlanes(cat).find(x => x.tier === t)?.tierName ?? "")}<small>${row.length}</small></h4>${row.map(x => `<a class="tb-hg-row${x.key === planeKey ? " on" : ""}${off(x) ? " off" : ""}" data-hg-pick="${esc(x.key)}">
+      <img src="${esc(x.img)}" alt=""><span><b>${esc(x.name)}</b><small>${esc(x.cls)}${x.fleet ? " · из сводок" : ""}${off(x) ? " · вне допуска" : ""}</small></span>${x.key === cur ? `<i class="tb-hgx-mine" title="Сейчас на листе">НА ЛИСТЕ</i>` : ""}</a>`).join("")}` : "";
   }).join("") : `<p class="tb-muted">AWACS пока не выдал ни одной машины.${user.isGM ? " Отметьте машины в допуске или включите «Весь каталог»." : ""}</p>`;
   const W = (cat.weapons ?? []).filter(w => gm || st.weapons.includes(w.key));
   const own = actor ? ownWeapons(actor, cat) : [];
-  const bay = !p ? `<p class="tb-hg-empty">Выберите машину слева.</p>` : `
-    <div class="tb-hg-plane"><img src="${esc(p.img)}" alt=""><div><h2>${esc(p.name)} <small>${esc(p.nato ?? "")}</small></h2>
-      <p class="tb-muted">${esc(p.cls)}${p.tierName ? ` · ${esc(p.tierName)}` : ""}${p.carrier ? " · палубный" : ""}</p>
-      <div class="tb-hg-stats">${statLine(p)}</div></div></div>
-    ${p.props?.length ? `<ul class="tb-hg-props">${p.props.map(x => `<li><b>${esc(x.name)}.</b> ${esc(x.text)}</li>`).join("")}</ul>` : ""}
-    <h3>Подвеска <small>${slots.length} ${slots.length === 1 ? "узел" : slots.length < 5 && slots.length ? "узла" : "узлов"}${bonusHard(actor) ? ` (с триггерами ${bonusHard(actor) > 0 ? "+" : ""}${bonusHard(actor)})` : ""}</small></h3>
+  const max = statMax(cat);
+  const gauge = k => {
+    const v = p.stats[k] ?? 0, seg = 12, lit = Math.round(seg * v / max[k]);
+    return `<div class="tb-hgx-gauge" title="${esc(TB.planeStats[k][0])}: ${esc(TB.planeStats[k][1])}"><i>${GAUGE[k]}</i>
+      <span class="tb-hgx-seg">${Array.from({ length: seg }, (_, i) => `<b class="${i < lit ? "on" : ""}"></b>`).join("")}</span><em>${v}</em></div>`;
+  };
+  const filled = slots.filter(Boolean).length;
+  const bay = !p ? `<div class="tb-hgx-stage tb-hgx-idle"><span class="tb-hgx-floor"></span><p class="tb-hg-empty">Бокс пуст. Выберите машину на стоянке слева.</p></div>` : `
+    <section class="tb-hgx-stage${fresh ? " fresh" : ""}">
+      <span class="tb-hgx-floor"></span><span class="tb-hgx-sweep"></span>
+      <span class="tb-hgx-corner tl"></span><span class="tb-hgx-corner tr"></span><span class="tb-hgx-corner bl"></span><span class="tb-hgx-corner br"></span>
+      <div class="tb-hgx-plate tl">БОКС ${pad2(allPlanes(cat).indexOf(p) + 1)}<small>ВВС ЮКТОБАНИИ · ТЕХЧАСТЬ</small></div>
+      <div class="tb-hgx-plate tr"><span class="tb-hgx-tier">${ROMAN[p.tier] ?? ""} · ${esc(p.tierName ?? "")}</span>${p.carrier ? `<span>⚓ ПАЛУБНЫЙ</span>` : ""}${p.fleet ? `<span>ИЗ СВОДОК</span>` : ""}${p.key === cur ? `<span class="mine">НА ЛИСТЕ</span>` : ""}</div>
+      <div class="tb-hgx-craft"><img src="${esc(p.img)}" alt="">
+        ${slots.map((k, i) => { const [x, y] = pylonAt(i, slots.length);
+          return `<button type="button" class="tb-hgx-pylon${k ? " on" : ""}" style="left:${x}%;top:${y}%" data-hg-focus="${i}" title="Узел ${i + 1}: ${k ? esc(weaponOf(cat, k)?.name ?? k) : "пусто"}"><span>${k ? esc(k) : i + 1}</span></button>`; }).join("")}
+      </div>
+      <div class="tb-hgx-name"><h2>${esc(p.name)}</h2><span>${esc(p.nato ?? "")}</span><small>${esc(p.cls)} · ${esc(p.base ?? "")}${p.seats > 1 ? ` · экипаж ${p.seats}` : ""}</small></div>
+    </section>
+    <section class="tb-hgx-sheet">
+      <div class="tb-hgx-ttx"><h3>ТТХ <small>от лучшей машины авиапарка</small></h3>${Object.keys(GAUGE).map(gauge).join("")}</div>
+      <div class="tb-hgx-form"><h3>Формуляр</h3>
+        ${p.desc ? `<p>${esc(p.desc)}</p>` : ""}${p.service ? `<p class="tb-hgx-quote">${esc(p.service)}</p>` : ""}
+        ${p.props?.length ? `<ul class="tb-hg-props">${p.props.map(x => `<li><b>${esc(x.name)}.</b> ${esc(x.text)}</li>`).join("")}</ul>` : ""}</div>
+    </section>
+    <h3 class="tb-hgx-h">Пульт подвески <small>${slots.length} ${slots.length === 1 ? "узел" : slots.length < 5 && slots.length ? "узла" : "узлов"}${bonusHard(actor) ? ` (с триггерами ${bonusHard(actor) > 0 ? "+" : ""}${bonusHard(actor)})` : ""} · заряжено ${filled}</small></h3>
     <div class="tb-hg-slots">${slots.map((k, i) => {
       const w = weaponOf(cat, k);
-      return `<div class="tb-hg-slot${k ? " on" : ""}"><span class="tb-hg-lamp"></span><i>УЗЕЛ ${i + 1}</i>
+      return `<div class="tb-hg-slot${k ? " on" : ""}${p.sig?.includes(k) ? " sig" : ""}"><span class="tb-hg-lamp"></span><i>УЗЕЛ ${i + 1}</i>
+        <span class="tb-hgx-code">${k ? esc(k) : "— — —"}</span>
         <select data-hg-slot="${i}" ${lock ? "disabled" : ""}><option value="">— пусто —</option>${W.map(x => `<option value="${esc(x.key)}" ${x.key === k ? "selected" : ""}>${esc(x.key)} · ${esc(x.name)}${p.sig?.includes(x.key) ? " ★ штатное" : ""}${gm && !st.weapons.includes(x.key) ? " (вне допуска)" : ""}</option>`).join("")}</select>
-        <small>${w ? `${w.ammo ?? "∞"} шт. · урон ${esc(w.dmg)} · ${esc(w.fx)}` : "&nbsp;"}</small></div>`;
+        <span class="tb-hgx-ammo">${w ? (w.ammo ?? "∞") : "0"}</span>
+        <small>${w ? `${esc(w.name)} · урон ${esc(w.dmg)} · ${esc(w.fx)}` : "Узел свободен."}</small></div>`;
     }).join("") || `<p class="tb-muted">Узлов подвески нет.</p>`}</div>
     ${own.length ? `<p class="tb-small tb-muted">Своё спецоружие на листе остаётся и занимает узлы: ${own.map(w => esc(w.name)).join(", ")}.</p>` : ""}
     ${p.sig?.length ? `<p class="tb-small tb-muted">Штатное для этой машины: ${esc(p.sig.join(", "))}${gm ? "" : p.sig.some(k => !st.weapons.includes(k)) ? " (не всё выдаётся)" : ""}.</p>` : ""}
-    <button type="button" class="tb-hg-go" data-hg-apply ${lock ? "disabled" : ""}><i class="fas fa-plane-departure"></i> Принять машину и подвеску</button>`;
+    <footer class="tb-hgx-go">
+      <span class="tb-hgx-ready"><span class="tb-hg-lamp${p ? " lit" : ""}"></span>МАШИНА<span class="tb-hg-lamp${slots.length && filled === slots.length ? " lit" : filled ? " half" : ""}"></span>ПОДВЕСКА ${filled}/${slots.length}<span class="tb-hg-lamp${lock ? "" : " lit"}"></span>ДОПУСК</span>
+      <button type="button" class="tb-hg-go" data-hg-apply ${lock ? "disabled" : ""}><i class="fas fa-plane-departure"></i> К вылету: принять машину и подвеску</button>
+    </footer>`;
   return `<div class="tb-hangar tb-hangar-pilot">
-    <header class="tb-hg-head"><span>Пилот: ${pick}</span><span class="tb-hg-state ${state[0]}"><span class="tb-hg-lamp"></span> АНГАР ${state[1]}</span>
+    <header class="tb-hg-head"><span class="tb-hgx-brand">АНГАР<small>ВВС ЮКТОБАНИИ</small></span><span class="tb-hgx-who">ПИЛОТ ${pick}</span><span class="tb-hg-state ${state[0]}"><span class="tb-hg-lamp"></span> АНГАР ${state[1]}</span>
       ${lock ? `<span class="tb-hg-why">${esc(lock)}</span>` : user.isGM && !st.open ? `<span class="tb-hg-why">Игрокам закрыт; ведущий ставит что угодно.</span>` : ""}
       ${user.isGM ? `<label class="tb-hg-full" title="Показать и то, что AWACS сейчас не выдаёт"><input type="checkbox" data-hg-full ${full ? "checked" : ""}> Весь каталог</label>` : ""}</header>
-    <div class="tb-hg-body"><aside class="tb-hg-list">${list}</aside><main class="tb-hg-bay">${bay}</main></div>
+    <div class="tb-hg-body"><aside class="tb-hg-list"><div class="tb-hgx-lhead">СТОЯНКА <small>${P.length} ${P.length % 10 === 1 && P.length % 100 !== 11 ? "машина" : P.length % 10 >= 2 && P.length % 10 <= 4 && (P.length % 100 < 10 || P.length % 100 >= 20) ? "машины" : "машин"}</small></div>${list}</aside><main class="tb-hg-bay">${bay}</main></div>
   </div>`;
 }
 
@@ -262,9 +300,10 @@ class HangarApp extends Application {
     this.planeKey = null;
     this.slots = [];
     this.full = false;   // ведущий: показывать весь каталог, а не только допуск
+    this.shown = null;   // машина в боксе на прошлой отрисовке: новая выкатывается с анимацией
   }
   static get defaultOptions() {
-    return foundry.utils.mergeObject(super.defaultOptions, { id: "tb-hangar", title: "Ангар", classes: ["thunderbolt", "tb-hangar-app"], width: 860, height: 640, resizable: true });
+    return foundry.utils.mergeObject(super.defaultOptions, { id: "tb-hangar", title: "Ангар", classes: ["thunderbolt", "tb-hangar-app"], width: 1000, height: 780, resizable: true });
   }
   get actor() { return game.actors.get(this.actorId) ?? null; }
 
@@ -284,7 +323,9 @@ class HangarApp extends Application {
       const first = cur && (game.user.isGM || st.planes.includes(cur)) ? cur : (game.user.isGM ? cur : st.planes.find(k => planeOf(cat, k)));
       if (first) this.pick(first, cat);
     }
-    return $(pilotHtml(cat, { actor: a, pilots: pilotsOf(), planeKey: this.planeKey, slots: this.slots, full: this.full }));
+    const fresh = this.planeKey !== this.shown;
+    this.shown = this.planeKey;
+    return $(pilotHtml(cat, { actor: a, pilots: pilotsOf(), planeKey: this.planeKey, slots: this.slots, full: this.full, fresh }));
   }
 
   render(force, options) { apps.add(this); return super.render(force, options); }
@@ -300,7 +341,14 @@ class HangarApp extends Application {
       this.pick(n.dataset.hgPick, await hangarCatalog());
       this.render(false);
     }));
-    el.querySelectorAll("[data-hg-slot]").forEach(n => n.addEventListener("change", () => { this.slots[Number(n.dataset.hgSlot)] = n.value; this.render(false); }));
+    el.querySelectorAll("[data-hg-slot]").forEach(n => n.addEventListener("change", () => { this.slots[Number(n.dataset.hgSlot)] = n.value; playLocal("toggle"); this.render(false); }));
+    // узел на схеме машины: к его станции на пульте
+    el.querySelectorAll("[data-hg-focus]").forEach(n => n.addEventListener("click", ev => {
+      ev.preventDefault();
+      const sel = el.querySelector(`[data-hg-slot="${n.dataset.hgFocus}"]`);
+      sel?.closest(".tb-hg-slot")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      sel?.focus();
+    }));
     el.querySelector("[data-hg-apply]")?.addEventListener("click", async ev => {
       ev.preventDefault();
       const b = ev.currentTarget;

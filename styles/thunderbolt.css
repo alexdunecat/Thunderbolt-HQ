@@ -1562,6 +1562,130 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-hangar .tb-hg-go { margin-top: 6px; font-family: var(--tb-data); letter-spacing: .12em; background: var(--tb-accent); color: var(--tb-accent-ink); border: 0; line-height: 32px; }
 .tb-hangar .tb-hg-go:disabled { background: var(--tb-surface-2); color: var(--tb-muted); }
 @media (max-width: 640px) { .tb-hangar .tb-hg-body { grid-template-columns: 1fr; } .tb-hangar .tb-hg-list { max-height: 220px; border-right: 0; border-bottom: 1px solid var(--tb-line); } }
+/* ---------- ангар пилота: стоянка, бокс с машиной на чертёжной сетке, ТТХ и пульт подвески ---------- */
+.tb-hangar-pilot { --hgx-grid: rgba(155, 227, 191, .07); --hgx-amber: #ffb547; position: relative; }
+.tb-hangar-pilot::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .16) 0 1px, transparent 1px 3px); mix-blend-mode: multiply; }
+.tb-hangar-pilot .tb-hg-head { gap: 6px 16px; background: linear-gradient(var(--tb-surface-2), var(--tb-surface)); }
+.tb-hangar-pilot .tb-hgx-brand { display: flex; flex-direction: column; line-height: 1; font-family: var(--tb-display); font-weight: 700; font-size: 18px; letter-spacing: .32em; color: var(--tb-accent);
+  text-shadow: 0 0 8px rgba(155, 227, 191, .35); padding-right: 14px; border-right: 1px solid var(--tb-line); }
+.tb-hangar-pilot .tb-hgx-brand small { font-family: var(--tb-data); font-size: 9px; letter-spacing: .24em; color: var(--tb-muted); margin-top: 3px; }
+.tb-hangar-pilot .tb-hgx-who { font-family: var(--tb-data); font-size: 11px; letter-spacing: .14em; color: var(--tb-muted); display: inline-flex; align-items: center; gap: 6px; }
+.tb-hangar-pilot .tb-hgx-who b { font-family: var(--tb-display); font-size: 14px; letter-spacing: .04em; color: var(--tb-ink); }
+.tb-hangar-pilot .tb-hgx-who select { font-family: var(--tb-display); }
+.tb-hangar-pilot .tb-hg-state.open { color: var(--tb-accent); }
+/* стоянка */
+.tb-hangar-pilot .tb-hg-list { background: linear-gradient(90deg, rgba(0, 0, 0, .22), transparent 70%), var(--tb-bg); gap: 2px; }
+.tb-hangar-pilot .tb-hgx-lhead { position: sticky; top: -6px; z-index: 1; margin: -6px -8px 2px; padding: 6px 10px 5px; font-family: var(--tb-data); font-size: 11px; letter-spacing: .3em; color: var(--tb-accent);
+  background: var(--tb-bg); border-bottom: 1px solid var(--tb-line); }
+.tb-hangar-pilot .tb-hgx-lhead small { letter-spacing: .06em; margin-left: 6px; }
+.tb-hangar-pilot .tb-hg-list h4 { display: flex; align-items: baseline; gap: 6px; margin: 10px 0 3px; padding-bottom: 2px; border-bottom: 1px dashed var(--tb-line); color: var(--tb-ink); }
+.tb-hangar-pilot .tb-hg-list h4 small { margin-left: auto; font-size: 10px; }
+.tb-hangar-pilot .tb-hgx-roman { min-width: 24px; padding: 0 4px; text-align: center; font-size: 10px; line-height: 15px; color: var(--tb-accent-ink); background: var(--tb-accent); letter-spacing: .06em; }
+.tb-hangar-pilot .tb-hg-row { position: relative; padding: 3px 8px 3px 10px; border-color: transparent; background: transparent; transition: background .15s, border-color .15s; }
+.tb-hangar-pilot .tb-hg-row::before { content: ""; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; background: transparent; }
+.tb-hangar-pilot .tb-hg-row:hover { background: var(--tb-surface); border-color: var(--tb-line); }
+.tb-hangar-pilot .tb-hg-row.on { background: linear-gradient(90deg, var(--tb-olive-soft), transparent); border-color: var(--tb-line); }
+.tb-hangar-pilot .tb-hg-row.on::before { background: var(--tb-accent); box-shadow: 0 0 8px var(--tb-accent); }
+.tb-hangar-pilot .tb-hg-row img { width: 32px; height: 32px; opacity: .8; }
+.tb-hangar-pilot .tb-hg-row.on img { opacity: 1; filter: drop-shadow(0 0 4px rgba(155, 227, 191, .6)); }
+.tb-hangar-pilot .tb-hg-row b { font-family: var(--tb-display); font-size: 13px; }
+.tb-hangar-pilot .tb-hgx-mine { margin-left: auto; flex: 0 0 auto; font-style: normal; font-family: var(--tb-data); font-size: 8px; letter-spacing: .12em; padding: 0 3px; color: var(--tb-player); border: 1px solid currentColor; }
+/* бокс */
+.tb-hangar-pilot .tb-hg-bay { gap: 8px; padding: 10px 14px 12px; }
+.tb-hangar-pilot .tb-hgx-stage { position: relative; flex: 0 0 auto; height: 300px; overflow: hidden; border: 1px solid var(--tb-line);
+  background: radial-gradient(ellipse 60% 70% at 50% 46%, rgba(155, 227, 191, .1), transparent 70%),
+    linear-gradient(var(--hgx-grid) 1px, transparent 1px) 0 0 / 24px 24px, linear-gradient(90deg, var(--hgx-grid) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(rgba(155, 227, 191, .035) 1px, transparent 1px) 0 0 / 6px 6px, linear-gradient(90deg, rgba(155, 227, 191, .035) 1px, transparent 1px) 0 0 / 6px 6px, var(--tb-bg);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, .65); }
+.tb-hangar-pilot .tb-hgx-stage.tb-hgx-idle { display: flex; height: 200px; }
+/* разметка пола: круг стоянки и осевая */
+.tb-hangar-pilot .tb-hgx-floor { position: absolute; left: 50%; top: 46%; width: 250px; height: 250px; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
+  border: 1px dashed rgba(242, 193, 78, .28); box-shadow: 0 0 0 18px rgba(242, 193, 78, .03); }
+.tb-hangar-pilot .tb-hgx-floor::before { content: ""; position: absolute; left: 50%; top: -30px; bottom: -30px; border-left: 1px dashed rgba(242, 193, 78, .22); }
+.tb-hangar-pilot .tb-hgx-corner { position: absolute; width: 16px; height: 16px; border: 2px solid var(--tb-accent); opacity: .7; }
+.tb-hangar-pilot .tb-hgx-corner.tl { left: 6px; top: 6px; border-right: 0; border-bottom: 0; }
+.tb-hangar-pilot .tb-hgx-corner.tr { right: 6px; top: 6px; border-left: 0; border-bottom: 0; }
+.tb-hangar-pilot .tb-hgx-corner.bl { left: 6px; bottom: 6px; border-right: 0; border-top: 0; }
+.tb-hangar-pilot .tb-hgx-corner.br { right: 6px; bottom: 6px; border-left: 0; border-top: 0; }
+.tb-hangar-pilot .tb-hgx-plate { position: absolute; top: 12px; z-index: 2; display: flex; flex-direction: column; gap: 3px; font-family: var(--tb-data); font-size: 12px; letter-spacing: .22em; color: var(--tb-accent); }
+.tb-hangar-pilot .tb-hgx-plate.tl { left: 28px; font-family: var(--tb-display); font-weight: 700; font-size: 20px; letter-spacing: .26em; }
+.tb-hangar-pilot .tb-hgx-plate.tl small { font-family: var(--tb-data); font-weight: 400; font-size: 9px; letter-spacing: .2em; color: var(--tb-muted); }
+.tb-hangar-pilot .tb-hgx-plate.tr { right: 28px; align-items: flex-end; }
+.tb-hangar-pilot .tb-hgx-plate.tr span { text-transform: uppercase; padding: 0 6px; font-size: 10px; line-height: 16px; border: 1px solid var(--tb-line); background: rgba(0, 0, 0, .35); }
+.tb-hangar-pilot .tb-hgx-plate.tr .tb-hgx-tier { color: var(--tb-accent-ink); background: var(--tb-accent); border-color: var(--tb-accent); }
+.tb-hangar-pilot .tb-hgx-plate.tr .mine { color: var(--tb-player); border-color: var(--tb-player); }
+.tb-hangar-pilot .tb-hgx-craft { position: absolute; left: 50%; top: 46%; width: 230px; height: 230px; transform: translate(-50%, -50%); z-index: 1; }
+.tb-hangar-pilot .tb-hgx-craft img { width: 100%; height: 100%; object-fit: contain; border: 0; filter: drop-shadow(0 0 6px rgba(155, 227, 191, .45)) drop-shadow(0 14px 10px rgba(0, 0, 0, .6)); }
+/* узлы подвески на схеме */
+.tb-hangar-pilot .tb-hgx-pylon { position: absolute; transform: translate(-50%, -50%); width: auto; min-width: 22px; height: 18px; padding: 0 4px; margin: 0; line-height: 16px;
+  font-family: var(--tb-data); font-size: 9px; letter-spacing: .06em; color: var(--tb-muted); background: rgba(7, 20, 26, .85); border: 1px dashed var(--tb-line); border-radius: 0; cursor: pointer; }
+.tb-hangar-pilot .tb-hgx-pylon.on { color: var(--hgx-amber); border: 1px solid var(--hgx-amber); box-shadow: 0 0 6px rgba(255, 181, 71, .45); text-shadow: 0 0 4px rgba(255, 170, 60, .7); }
+.tb-hangar-pilot .tb-hgx-pylon:hover { color: var(--tb-accent-ink); background: var(--tb-accent); border-color: var(--tb-accent); text-shadow: none; }
+.tb-hangar-pilot .tb-hgx-name { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 12px; padding: 18px 28px 10px;
+  background: linear-gradient(transparent, rgba(4, 12, 16, .92) 55%); }
+.tb-hangar-pilot .tb-hgx-name h2 { margin: 0; border: 0; font-family: var(--tb-display); font-size: 30px; font-weight: 700; line-height: 1; letter-spacing: .06em; color: var(--tb-ink); text-transform: uppercase; }
+.tb-hangar-pilot .tb-hgx-name span { font-family: var(--tb-data); font-size: 12px; letter-spacing: .18em; color: var(--tb-accent); text-transform: uppercase; }
+.tb-hangar-pilot .tb-hgx-name small { flex-basis: 100%; letter-spacing: .04em; }
+.tb-hangar-pilot .tb-hgx-sweep { position: absolute; inset: 0; pointer-events: none; z-index: 1; opacity: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(155, 227, 191, .1) 48%, rgba(155, 227, 191, .22) 50%, rgba(155, 227, 191, .1) 52%, transparent 60%); }
+@media (prefers-reduced-motion: no-preference) {
+  .tb-hangar-pilot .tb-hgx-stage.fresh .tb-hgx-craft { animation: tb-hgx-roll .7s cubic-bezier(.2, .8, .25, 1) both; }
+  .tb-hangar-pilot .tb-hgx-stage.fresh .tb-hgx-sweep { animation: tb-hgx-sweep 1.1s ease-out .15s both; }
+  .tb-hangar-pilot .tb-hgx-stage.fresh .tb-hgx-name { animation: tb-hgx-type .5s steps(6) .25s both; }
+  .tb-hangar-pilot .tb-hgx-stage.fresh .tb-hgx-pylon { animation: tb-hgx-pop .25s ease-out .55s both; }
+  .tb-hangar-pilot .tb-hgx-floor { animation: tb-hgx-spin 60s linear infinite; }
+}
+@keyframes tb-hgx-roll { from { opacity: 0; transform: translate(-50%, -12%) scale(.92); filter: brightness(2); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: none; } }
+@keyframes tb-hgx-sweep { from { opacity: 1; transform: translateX(-70%); } to { opacity: 0; transform: translateX(70%); } }
+@keyframes tb-hgx-type { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes tb-hgx-pop { from { opacity: 0; transform: translate(-50%, -50%) scale(.4); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes tb-hgx-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+/* ТТХ и формуляр */
+.tb-hangar-pilot .tb-hgx-sheet { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 1.3fr); gap: 12px; }
+.tb-hangar-pilot .tb-hgx-sheet h3, .tb-hangar-pilot .tb-hgx-h { margin-top: 2px; }
+.tb-hangar-pilot .tb-hgx-gauge { display: grid; grid-template-columns: 34px 1fr 24px; align-items: center; gap: 6px; line-height: 17px; }
+.tb-hangar-pilot .tb-hgx-gauge i { font-style: normal; font-family: var(--tb-data); font-size: 10px; letter-spacing: .1em; color: var(--tb-muted); }
+.tb-hangar-pilot .tb-hgx-gauge em { font-style: normal; font-family: var(--tb-data); font-size: 13px; text-align: right; color: var(--tb-accent); font-variant-numeric: tabular-nums; }
+.tb-hangar-pilot .tb-hgx-seg { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; }
+.tb-hangar-pilot .tb-hgx-seg b { height: 8px; background: #11262a; border: 1px solid #0a171a; transform: skewX(-18deg); }
+.tb-hangar-pilot .tb-hgx-seg b.on { background: var(--tb-accent); box-shadow: 0 0 4px rgba(155, 227, 191, .55); }
+.tb-hangar-pilot .tb-hgx-seg b.on:nth-child(n + 10) { background: var(--tb-warn); box-shadow: 0 0 4px rgba(242, 193, 78, .55); }
+.tb-hangar-pilot .tb-hgx-form p { margin: 0 0 6px; font-size: 12.5px; line-height: 1.45; }
+.tb-hangar-pilot .tb-hgx-quote { padding-left: 8px; border-left: 2px solid var(--tb-line); color: var(--tb-muted); font-style: italic; }
+/* пульт подвески: станции, как в HUD */
+.tb-hangar-pilot .tb-hg-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; }
+.tb-hangar-pilot .tb-hg-slot { grid-template-columns: auto 1fr auto; grid-template-rows: none; gap: 3px 8px; padding: 6px 8px 7px; border: 1px solid #050807; border-radius: 3px; color: #d9e2dc;
+  background: linear-gradient(#2a3330, #161c1a); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), inset 0 -2px 0 rgba(0, 0, 0, .55), 0 1px 0 rgba(155, 227, 191, .12); }
+.tb-hangar-pilot .tb-hg-slot.on { border-color: #050807; }
+.tb-hangar-pilot .tb-hg-slot .tb-hg-lamp { grid-row: 1; width: 8px; height: 8px; background: #2b2f2d; border-color: #000; box-shadow: none; }
+.tb-hangar-pilot .tb-hg-slot.on .tb-hg-lamp { background: #5ef08f; box-shadow: 0 0 6px #5ef08f; }
+.tb-hangar-pilot .tb-hg-slot.sig .tb-hg-lamp { background: #ffc94a; box-shadow: 0 0 6px #ffc94a; }
+.tb-hangar-pilot .tb-hg-slot i { grid-row: 1; grid-column: 2; color: #9aa59f; }
+.tb-hangar-pilot .tb-hgx-ammo { grid-row: 1 / 3; grid-column: 3; align-self: stretch; display: grid; place-items: center; min-width: 38px; padding: 0 5px; font-family: var(--tb-data); font-size: 15px; font-weight: 600;
+  color: var(--hgx-amber); background: #0b0703; border: 1px solid #000; border-radius: 2px; box-shadow: inset 0 0 6px rgba(0, 0, 0, .9); text-shadow: 0 0 5px rgba(255, 170, 60, .8); font-variant-numeric: tabular-nums; }
+.tb-hangar-pilot .tb-hg-slot:not(.on) .tb-hgx-ammo { opacity: .4; text-shadow: none; }
+.tb-hangar-pilot .tb-hgx-code { grid-row: 2; grid-column: 1 / 3; font-family: var(--tb-display); font-size: 20px; font-weight: 700; line-height: 1; letter-spacing: .18em; text-shadow: 0 1px 0 #000; }
+.tb-hangar-pilot .tb-hg-slot:not(.on) .tb-hgx-code { opacity: .35; }
+.tb-hangar-pilot .tb-hg-slot.sig .tb-hgx-code { color: #ffd77a; }
+.tb-hangar-pilot .tb-hg-slot select { grid-row: 3; grid-column: 1 / -1; height: 24px; font-family: var(--tb-data); font-size: 11px; color: var(--tb-ink); background: rgba(0, 0, 0, .45); border: 1px solid #000; border-radius: 2px; }
+.tb-hangar-pilot .tb-hg-slot small { grid-row: 4; grid-column: 1 / -1; font-size: 10.5px; color: #9aa59f; }
+/* готовность и выпуск */
+.tb-hangar-pilot .tb-hgx-go { position: sticky; bottom: -12px; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 4px -14px -12px; padding: 10px 14px;
+  background: linear-gradient(transparent, var(--tb-bg) 30%); border-top: 1px solid var(--tb-line); }
+.tb-hangar-pilot .tb-hgx-ready { display: inline-flex; align-items: center; gap: 5px; font-family: var(--tb-data); font-size: 10px; letter-spacing: .14em; color: var(--tb-muted); }
+.tb-hangar-pilot .tb-hgx-ready .tb-hg-lamp { margin-left: 6px; background: var(--tb-bad); box-shadow: 0 0 5px var(--tb-bad); }
+.tb-hangar-pilot .tb-hgx-ready .tb-hg-lamp.half { background: var(--tb-warn); box-shadow: 0 0 5px var(--tb-warn); }
+.tb-hangar-pilot .tb-hgx-ready .tb-hg-lamp.lit { background: #5ef08f; box-shadow: 0 0 6px #5ef08f; }
+.tb-hangar-pilot .tb-hg-go { flex: 1 1 260px; margin: 0; line-height: 38px; font-size: 13px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; border-radius: 0;
+  background: linear-gradient(var(--tb-accent), #6fc79c); box-shadow: 0 0 14px rgba(155, 227, 191, .3), inset 0 -3px 0 rgba(0, 0, 0, .25);
+  outline: 2px solid transparent; outline-offset: 3px;
+  border-image: repeating-linear-gradient(-45deg, var(--tb-warn) 0 8px, #111 8px 16px) 4; border-style: solid; border-width: 4px 0; }
+.tb-hangar-pilot .tb-hg-go:hover:not(:disabled) { filter: brightness(1.08); box-shadow: 0 0 22px rgba(155, 227, 191, .5), inset 0 -3px 0 rgba(0, 0, 0, .25); }
+.tb-hangar-pilot .tb-hg-go:disabled { border-image: none; border-width: 0; box-shadow: none; }
+@container (max-width: 640px) { .tb-hangar-pilot .tb-hgx-sheet { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .tb-hangar-pilot .tb-hgx-sheet { grid-template-columns: 1fr; } .tb-hangar-pilot .tb-hgx-stage { height: 250px; } }
+
 
 /* «Неактивен»: игрока нет, пилот в строю, но темнеет (inactive.mjs) */
 .tb-inactive .tb-portrait, #combat li.combatant.tb-inactive img.token-image, .tb-awacs-table tr.tb-inactive img { filter: grayscale(1) brightness(.45); }

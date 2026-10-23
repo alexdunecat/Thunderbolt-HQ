@@ -197,14 +197,14 @@ const enemy = uuid => { const a = resolveActor(uuid); return !!a && a.type === "
 /* ---------- кнопки ---------- */
 
 const UI_ROOT = ".thunderbolt, .tb-dialog, .tb-card, #tb-pilot-hud, .tb-hud, #tb-civil-radio-panel";
-const BTN = "button, a.tb-btn, a[data-action], a[data-tb-action], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-u-gun], [data-u-sam], [data-u-strike], .tb-ck-big, .tabs .item, nav.tabs a, [data-tab]";
+const BTN = "button, a.tb-btn, a[data-action], a[data-tb-action], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-u-gun], [data-u-sam], [data-u-strike], .tb-ck-big, .tabs .item, nav.tabs a, [data-tab], [data-hg-pick]";
 /** Какой звук у нажатия: тумблер у станций оружия HUD, вкладки и большие кнопки, остальное — кнопка. */
 export function uiSoundFor(el) {
   if (!el?.closest) return null;
   const b = el.closest(BTN);
   if (!b || !b.closest(UI_ROOT) || b.disabled) return null;
   if (b.closest("#tb-pilot-hud") && (b.closest(".tb-hud-wpns") || b.matches("[data-hud-spw], .tb-hud-pt, .tb-hud-arm [data-hud-act], [data-u-gun], [data-u-sam], [data-u-strike]"))) return "toggle";
-  if (b.matches(".tabs .item, nav.tabs a, [data-tab], .tb-ck-big")) return "tab";
+  if (b.matches(".tabs .item, nav.tabs a, [data-tab], .tb-ck-big, [data-hg-pick]")) return "tab";
   return "click";
 }
 function uiClick(ev) {
