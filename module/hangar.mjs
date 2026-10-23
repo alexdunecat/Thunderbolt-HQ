@@ -39,8 +39,9 @@ export async function setHangarState(patch) {
   return next;
 }
 
-// единый авиапарк: свои машины, машины из сводок NPC (fleet) и шаблоны книги; допуск решает ведущий
-const allPlanes = cat => [...(cat.planes ?? []), ...(cat.book ?? [])];
+// единый авиапарк: свои машины и машины из сводок NPC (fleet); допуск решает ведущий.
+// Шаблонов книги в ангаре нет (решение ведущего): они остаются в компендиуме для старых листов и досье
+const allPlanes = cat => [...(cat.planes ?? [])];
 // внутри уровня свои машины раньше машин из сводок
 const byTier = (cat, t) => allPlanes(cat).filter(p => p.tier === t).sort((a, b) => !!a.fleet - !!b.fleet);
 const planeOf = (cat, key) => allPlanes(cat).find(p => p.key === key) ?? null;
@@ -147,8 +148,8 @@ export async function announceHangar() {
 
 /* ---------- разметка ---------- */
 
-const tierLabel = (cat, t) => t === 0 ? "Шаблоны книги" : `Уровень ${t} · ${allPlanes(cat).find(p => p.tier === t)?.tierName ?? ""}`;
-const tiers = cat => [...new Set(allPlanes(cat).map(p => p.tier))].sort((a, b) => (a || 9) - (b || 9));
+const tierLabel = (cat, t) => `Уровень ${t} · ${allPlanes(cat).find(p => p.tier === t)?.tierName ?? ""}`;
+const tiers = cat => [...new Set(allPlanes(cat).map(p => p.tier))].sort((a, b) => a - b);
 const statLine = p => Object.keys(TB.planeStats).map(k => `<span title="${esc(TB.planeStats[k][1])}"><i>${esc(TB.planeStats[k][0])}</i>${p.stats[k] ?? "—"}</span>`).join("");
 
 /** Панель допуска у ведущего. */
@@ -169,12 +170,12 @@ export function adminHtml(cat, st = hangarState()) {
       <label class="tb-hg-switch${st.open ? " on" : ""}"><input type="checkbox" data-hg-open ${st.open ? "checked" : ""}><span class="tb-hg-lamp"></span> ${st.open ? "Ангар открыт игрокам" : "Ангар закрыт"}</label>
       <button type="button" data-hg-announce ${st.open ? "" : "disabled"}><i class="fas fa-bullhorn"></i> Объявить в чате</button>
       <button type="button" data-hg-pilot><i class="fas fa-plane"></i> Ангар пилота</button>
-      <span class="tb-hg-count">Машин ${st.planes.length} из ${P.length} · спецоружия ${st.weapons.length} из ${W.length}</span>
+      <span class="tb-hg-count">Машин ${P.filter(p => st.planes.includes(p.key)).length} из ${P.length} · спецоружия ${st.weapons.length} из ${W.length}</span>
     </header>
     <div class="tb-hg-scroll">
       <section><h3>Машины</h3>
         <div class="tb-hg-quick"><button type="button" data-hg-q="planes-all">Все</button><button type="button" data-hg-q="planes-none">Ничего</button><button type="button" data-hg-q="own" title="Только машины ВВС Юктобании, без машин из сводок">Только свои</button>
-          ${tiers(cat).filter(t => t > 0).map(t => `<button type="button" data-hg-q="tier" data-tier="${t}" title="Все машины уровня ${t} и ниже">до уровня ${t}</button>`).join("")}</div>
+          ${tiers(cat).map(t => `<button type="button" data-hg-q="tier" data-tier="${t}" title="Все машины уровня ${t} и ниже">до уровня ${t}</button>`).join("")}</div>
         ${groups}
       </section>
       <section><h3>Спецоружие</h3>
