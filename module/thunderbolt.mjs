@@ -336,7 +336,7 @@ function markFallen(root) {
     const id = li.dataset.documentId ?? li.dataset.entryId ?? li.dataset.uuid?.split(".").pop();
     if (!id) continue;
     const fate = fateOfActor(game.actors.get(id));
-    li.classList.remove("tb-fate-kia", "tb-fate-mia");
+    li.classList.remove("tb-fate-kia", "tb-fate-mia", "tb-fate-out");
     li.querySelector(".tb-fate-thumb .tb-fate-tag")?.remove();
     if (!fate) continue;
     li.classList.add(`tb-fate-${fate.key}`);

@@ -32,12 +32,13 @@ function folder(pack, type, name, sort) {
   return fid;
 }
 
-// самолёты: по категориям ангара, шаблоны книги отдельно
+// самолёты: единый авиапарк по уровням (эпохам), внутри по категориям; свои машины раньше машин из сводок; шаблоны книги отдельно
 const catOrder = ["multi", "fighter", "attack", "bomber", "book"];
 cat.planes.concat(cat.book).forEach((p, i) => {
   const d = planeItem(p);
-  add("planes", "items", { _id: id("plane:" + p.key), ...d, folder: folder("planes", "Item", p.catName || "Шаблоны книги", catOrder.indexOf(p.cat)),
-    sort: (p.tier || 0) * 1000 + i, effects: [], flags: {}, _stats: stats });
+  const fold = p.tier ? folder("planes", "Item", `Уровень ${p.tier} · ${p.tierName}`, p.tier) : folder("planes", "Item", "Шаблоны книги", 9);
+  add("planes", "items", { _id: id("plane:" + p.key), ...d, folder: fold,
+    sort: catOrder.indexOf(p.cat) * 1000 + (p.fleet ? 500 : 0) + i, effects: [], flags: {}, _stats: stats });
 });
 // спецоружие: по группам
 const wGroups = [...new Set(cat.weapons.map(w => w.group))];
@@ -54,15 +55,15 @@ const grpOrder = [...new Set(cat.npcs.map(n => n.grp))];
 cat.npcs.forEach((n, i) => {
   const d = npcActor(n, { tier: "conscript" });
   const aid = id("npc:" + n.key);
-  add("npcs", "actors", { _id: aid, ...d, folder: folder("npcs", "Actor", n.grpName, grpOrder.indexOf(n.grp)), sort: i,
+  add("npcs", "actors", { _id: aid, ...d, folder: folder("npcs", "Actor", n.grpName, grpOrder.indexOf(n.grp)), sort: (n.tier || 0) * 1000 + i,
     items: [], effects: [], flags: {}, _stats: stats,
     prototypeToken: { ...d.prototypeToken, bar1: { attribute: "hp" }, bar2: { attribute: null }, displayBars: 20, displayName: 30 } });
 });
-// самолёты ангара игроков тоже бывают противниками или союзниками: отдельная папка в конце
+// юктобанские машины авиапарка тоже бывают противниками или союзниками: отдельная папка в конце
 const hangar = cat.planeNpcs.filter(n => n.grp === "player");
 hangar.forEach((n, i) => {
   const d = npcActor(n, { tier: "conscript" });
-  add("npcs", "actors", { _id: id("npc:player:" + n.key), ...d, folder: folder("npcs", "Actor", "Ангар Юктобании", grpOrder.length), sort: 10000 + i,
+  add("npcs", "actors", { _id: id("npc:player:" + n.key), ...d, folder: folder("npcs", "Actor", "Авиапарк Юктобании", grpOrder.length), sort: (n.tier || 0) * 1000 + i,
     items: [], effects: [], flags: {}, _stats: stats,
     prototypeToken: { ...d.prototypeToken, bar1: { attribute: "hp" }, bar2: { attribute: null }, displayBars: 20, displayName: 30 } });
 });

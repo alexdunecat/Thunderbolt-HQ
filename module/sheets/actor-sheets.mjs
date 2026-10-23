@@ -403,8 +403,8 @@ async function addEdgeDialog(actor) {
 
 // отметка на портрете: погибший темнее с красной строкой K.I.A., пропавший без вести или в плену с жёлтой M.I.A.
 export function fateOf(status) {
-  const kia = { key: "kia", label: "K.I.A." }, mia = { key: "mia", label: "M.I.A." };
-  return { kia, mia, pow: mia }[status] ?? null;
+  const kia = { key: "kia", label: "K.I.A." }, mia = { key: "mia", label: "M.I.A." }, out = { key: "out", label: "ВЫБЫЛ" };
+  return { kia, mia, pow: mia, retired: out }[status] ?? null;
 }
 export const fateOfActor = a => fateOf(a?.type === "pilot" ? a.system?.service?.status : a?.system?.status);
 

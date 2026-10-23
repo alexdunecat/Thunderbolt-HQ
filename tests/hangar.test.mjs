@@ -39,7 +39,10 @@ items.push(mk({ name: "Лишний боекомплект", type: "trigger", sy
 pilot.system.edges[0].weapon = rcl.id;
 
 console.log("закрыт:", H.lockReason(pilot));
-await H.setHangarState(H.quickPick(cat, { open: true, planes: [], weapons: [] }, "tier", 2));
+const upTo2 = H.quickPick(cat, { open: true, planes: [], weapons: [] }, "tier", 2), own = H.quickPick(cat, upTo2, "own");
+console.log("авиапарк:", cat.planes.length, "машин, из сводок", cat.planes.filter(p => p.fleet).length, "· до уровня 2:", upTo2.planes.length, "· своих всего:", own.planes.length);
+// дальше только свои машины до уровня 2
+await H.setHangarState({ ...upTo2, planes: upTo2.planes.filter(k => own.planes.includes(k)) });
 let st = H.hangarState();
 st = H.quickPick(cat, st, "sig");
 await H.setHangarState(st);

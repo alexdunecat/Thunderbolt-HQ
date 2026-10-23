@@ -9,7 +9,7 @@ import { cockpitDialog } from "./aim.mjs";
 
 const VOICE = "voiceDebt";
 const isLead = () => game.users?.activeGM?.isSelf ?? game.user?.isGM;
-const alive = a => a?.type === "pilot" && !["kia", "mia"].includes(a.system.service?.status);
+const alive = a => a?.type === "pilot" && !["kia", "mia", "retired"].includes(a.system.service?.status);
 const pilots = () => (game.actors?.contents ?? [...(game.actors ?? [])]).filter(a => a.type === "pilot");
 const notUsed = (a, key) => { const t = trig(a, key); return t && !t.system.used ? t : null; };
 

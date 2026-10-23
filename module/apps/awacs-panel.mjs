@@ -1,5 +1,5 @@
 /* Панель AWACS для ведущего: пилоты, цели на сцене, погода сцены, подготовка и итоги вылета. */
-import { SYSTEM_ID, SYS_PATH, TB } from "../config.mjs";
+import { SYSTEM_ID, SYS_PATH, TB, inCampaign } from "../config.mjs";
 import { esc } from "../utils.mjs";
 import { formDialog } from "../dice/rolls.mjs";
 import { tokenOf, weatherAt, defenseWithWeather, altOf, sideOf } from "../scene.mjs";
@@ -82,7 +82,7 @@ export class AwacsPanel extends Application {
 
   getData() {
     const scene = game.scenes.viewed;
-    const pilots = game.actors.filter(a => a.type === "pilot").sort((a, b) => a.name.localeCompare(b.name, "ru")).map(a => {
+    const pilots = game.actors.filter(a => inCampaign(a) || (a.type === "pilot" && tokenOf(a))).sort((a, b) => a.name.localeCompare(b.name, "ru")).map(a => {
       const s = a.system, tok = tokenOf(a), w = weatherAt(a, tok);
       const kills = a.getFlag(SYSTEM_ID, "kills") ?? {};
       return {
@@ -152,7 +152,7 @@ export class AwacsPanel extends Application {
       bossClocks: allThreats.filter(t => t.kind === "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size,
         pct: Math.round(100 * t.value / t.size),
         marks: DT.bossMarks.filter(([k]) => k !== "full" && (t.lines?.[k] ?? "").trim()).map(([k, label]) => `${label} на ${bossMarkAt(k, t.size)}`).join(", ") })),
-      ground: game.actors.filter(a => a.type === "pilot").sort((a, b) => a.name.localeCompare(b.name, "ru")).map(a => {
+      ground: game.actors.filter(inCampaign).sort((a, b) => a.name.localeCompare(b.name, "ru")).map(a => {
         const s = a.system;
         return { id: a.id, name: a.name, nerves: s.nerves, nervesCls: s.nerves >= 5 ? "edge" : s.nerves >= 3 ? "high" : "", edgeFly: s.edgeFly,
           resolve: s.resolve, actions: s.downtime.actions, edges: s.edges.map(e => edgeLabel(e, a)).join("; "), bonds: s.bonds.filter(b => !b.dead && b.value).map(b => `${b.name} ${b.value}`).join(", ") };
@@ -205,7 +205,7 @@ export class AwacsPanel extends Application {
       setLineSettings(game.scenes.viewed, { [n.dataset.retSet]: v });
     }));
     on("[data-sortie-all]", async () => {
-      const pilots = game.actors.filter(a => a.type === "pilot");
+      const pilots = game.actors.filter(inCampaign);
       if (!(await Dialog.confirm({ title: "Все к вылету", content: `<p>Подготовить к вылету всех пилотов (${pilots.length}): HP и Strain до максимума, Speed 1, метки сняты, спецоружие пополнено?</p>` }))) return;
       for (const a of pilots) await a.prepareSortie();
     });
@@ -315,7 +315,7 @@ const noq = a => a.items.some(i => i.type === "trigger" && i.system.key === "noq
 
 export async function sortieResults() {
   if (!game.user.isGM) return;
-  const pilots = game.actors.filter(a => a.type === "pilot").sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  const pilots = game.actors.filter(inCampaign).sort((a, b) => a.name.localeCompare(b.name, "ru"));
   if (!pilots.length) return ui.notifications.info("Пилотов пока нет.");
   const scene = game.scenes.viewed;
   const objectives = scene?.getFlag(SYSTEM_ID, "objectives") ?? [];

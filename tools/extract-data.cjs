@@ -50,7 +50,7 @@ const grpName = Object.fromEntries(Y.NPC_GROUPS);
 
 const planes = Y.PLANES.filter(p => !p.npc).map(p => ({
   key: p.id, name: p.name, nato: p.nato, cls: p.cls, cat: p.cat, catName: catName[p.cat] || "", tier: p.tier, tierName: Y.TIERS[p.tier],
-  base: p.base, seats: p.seats || 1, carrier: !!p.carrier, est: !!p.est,
+  base: p.base, seats: p.seats || 1, carrier: !!p.carrier, est: !!p.est, fleet: !!p.fromNpc,
   stats: { spd: p.tb.spd, ev: p.tb.ev, aa: p.tb.aa, ag: p.tb.ag, hp: p.tb.hp, str: p.tb.str, gun: p.tb.gun, hard: p.tb.hard },
   props: propsOf(p.props), sig: p.sig || [], ac5: p.ac5 || null, desc: p.desc || "", service: p.service || "", img: planeImg(p.shape)
 }));
@@ -67,7 +67,7 @@ const weapons = Object.entries(Y.WEAPONS).map(([k, w]) => ({
 const npcs = Y.NPCS.map(n => {
   const base = { key: n.id, kind: n.kind, grp: n.grp, grpName: grpName[n.grp] || "", side: n.side || "enemy", name: n.name, nato: n.nato, cls: n.cls, desc: n.desc || "", service: n.service || "", short: n.short };
   if (n.kind === "air") return Object.assign(base, {
-    seats: n.seats || 1, carrier: !!n.carrier,
+    seats: n.seats || 1, carrier: !!n.carrier, tier: n.tier || 0,
     stats: { spd: n.tb.spd, ev: n.tb.ev, aa: n.tb.aa, ag: n.tb.ag, hp: n.tb.hp, gun: n.tb.gun },
     props: propsOf(n.props), sig: n.sig || [], img: planeImg(n.shape) });
   if (n.kind === "ground") return Object.assign(base, {
@@ -77,8 +77,9 @@ const npcs = Y.NPCS.map(n => {
   n.systems.forEach(s => { for (let i = 1; i <= s.x; i++) systems.push({ name: s.n + (s.x > 1 ? " №" + i : ""), occ: s.occ, hp: s.hp, ga: s.ga, gg: s.gg, gun: s.gun, note: s.note || "" }); });
   return Object.assign(base, { systems, rules: rulesOf(n.rules), img: targetImg(n.icon) });
 });
-// игроковские машины и шаблоны книги тоже могут лететь против игроков: даём им «воздушный» вид NPC для импорта миссий
-const airFromPlane = p => ({ key: p.key, kind: "air", grp: p.cat === "book" ? "book" : "player", grpName: p.cat === "book" ? "Шаблоны книги" : "Ангар игроков",
+// машины авиапарка и шаблоны книги тоже могут лететь против игроков: даём им «воздушный» вид NPC для импорта миссий
+// (машины из сводок NPC, fleet, уже есть в npcs под тем же ключом)
+const airFromPlane = p => ({ key: p.key, kind: "air", grp: p.cat === "book" ? "book" : "player", grpName: p.cat === "book" ? "Шаблоны книги" : "Авиапарк Юктобании", tier: p.tier || 0,
   name: p.name, nato: p.nato, cls: p.cls, desc: p.desc, service: p.service, seats: p.seats, carrier: p.carrier,
   stats: { spd: p.stats.spd, ev: p.stats.ev, aa: p.stats.aa, ag: p.stats.ag, hp: p.stats.hp, gun: p.stats.gun }, props: p.props, sig: p.sig, img: p.img });
 
@@ -88,7 +89,7 @@ const archetypes = Object.entries(D.ARCH).map(([k, a]) => ({ key: k, name: a.n, 
 
 const out = {
   generated: new Date().toISOString().slice(0, 10),
-  planes, book, weapons, npcs, planeNpcs: planes.concat(book).map(airFromPlane),
+  planes, book, weapons, npcs, planeNpcs: planes.filter(p => !p.fleet).concat(book).map(airFromPlane),
   triggers, archetypes, triggerTypes: D.TT, status: Object.fromEntries(Object.entries(D.STATUS).map(([k, s]) => [k, s.n])),
   terrain: TERRAIN, effects: EFFECTS, markers: MARKERS, alias: ALIAS, tunnel: TUNNEL, tunnelArt: TUNNEL_ART
 };

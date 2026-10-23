@@ -5,7 +5,7 @@
    (Поворот, метка Structure, своя очередь хода, подходящая цель).
    General и Twist — раз за вылет (отметка «исп.»), Twist только после Поворота. Пишет в чужих актёров и в бой ведущий:
    игроки шлют ему просьбы по сокету. */
-import { SYSTEM_ID, TB } from "./config.mjs";
+import { SYSTEM_ID, TB, inCampaign } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
 import { sideOf, tokenOf, zoneDistance, ALT_ORDER, hasRule } from "./scene.mjs";
 import { cockpitDialog } from "./aim.mjs";
@@ -479,7 +479,7 @@ async function spend(pilot, label, { rolled = false } = {}) {
 
 /** Союзник-пилот для «Прикрываю», «Рядом с тобой»: окно со списком. */
 export async function pickAlly(pilot, title, intro) {
-  const list = (game.actors?.contents ?? [...(game.actors ?? [])]).filter(a => a.type === "pilot" && a.id !== pilot.id && a.hasPlayerOwner);
+  const list = (game.actors?.contents ?? [...(game.actors ?? [])]).filter(a => inCampaign(a) && a.id !== pilot.id && a.hasPlayerOwner);
   if (!list.length) { ui.notifications.warn(`${title}: других пилотов нет.`); return null; }
   const r = await cockpitDialog(title, `<p class="tb-hint">${intro}</p><div class="tb-ck-fire tb-ct-pick">${list.map(a => `<button type="button" class="tb-ck-big" data-pick="${a.id}"><b>${esc(callsign(a))}</b><small>${esc(a.name)}</small></button>`).join("")}</div>`, { width: 460 });
   return r ? list.find(a => a.id === r.pick) ?? null : null;

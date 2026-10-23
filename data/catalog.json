@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-19",
+ "generated": "2026-10-23",
  "planes": [
   {
    "key": "mig21bis",
@@ -14,6 +14,7 @@
    "seats": 1,
    "carrier": false,
    "est": false,
+   "fleet": false,
    "stats": {
     "spd": 3,
     "ev": 3,
@@ -62,6 +63,7 @@
    "seats": 1,
    "carrier": false,
    "est": false,
+   "fleet": false,
    "stats": {
     "spd": 3,
     "ev": 3,
@@ -104,6 +106,7 @@
    "seats": 1,
    "carrier": false,
    "est": false,
+   "fleet": false,
    "stats": {
     "spd": 3,
     "ev": 3,
@@ -146,6 +149,7 @@
    "seats": 1,
    "carrier": false,
    "est": false,
+   "fleet": false,
    "stats": {
     "spd": 3,
     "ev": 3,
@@ -188,6 +192,7 @@
    "seats": 1,
    "carrier": false,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -237,6 +242,7 @@
    "seats": 2,
    "carrier": false,
    "est": false,
+   "fleet": false,
    "stats": {
     "spd": 5,
     "ev": 2,
@@ -290,6 +296,7 @@
    "seats": 2,
    "carrier": false,
    "est": false,
+   "fleet": false,
    "stats": {
     "spd": 2,
     "ev": 3,
@@ -343,6 +350,7 @@
    "seats": 2,
    "carrier": false,
    "est": false,
+   "fleet": false,
    "stats": {
     "spd": 5,
     "ev": 3,
@@ -396,6 +404,7 @@
    "seats": 1,
    "carrier": false,
    "est": false,
+   "fleet": false,
    "stats": {
     "spd": 4,
     "ev": 3,
@@ -438,6 +447,7 @@
    "seats": 1,
    "carrier": false,
    "est": false,
+   "fleet": false,
    "stats": {
     "spd": 4,
     "ev": 4,
@@ -486,6 +496,7 @@
    "seats": 1,
    "carrier": false,
    "est": false,
+   "fleet": false,
    "stats": {
     "spd": 4,
     "ev": 4,
@@ -535,6 +546,7 @@
    "seats": 1,
    "carrier": false,
    "est": false,
+   "fleet": false,
    "stats": {
     "spd": 4,
     "ev": 4,
@@ -584,6 +596,7 @@
    "seats": 1,
    "carrier": false,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 5,
     "ev": 5,
@@ -636,6 +649,7 @@
    "seats": 1,
    "carrier": false,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 5,
     "ev": 4,
@@ -693,6 +707,7 @@
    "seats": 1,
    "carrier": false,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 5,
     "ev": 4,
@@ -745,6 +760,7 @@
    "seats": 1,
    "carrier": false,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 4,
     "ev": 2,
@@ -791,6 +807,7 @@
    "seats": 1,
    "carrier": false,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 5,
     "ev": 2,
@@ -837,6 +854,7 @@
    "seats": 1,
    "carrier": true,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 3,
     "ev": 3,
@@ -883,6 +901,7 @@
    "seats": 1,
    "carrier": true,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 3,
     "ev": 3,
@@ -929,6 +948,7 @@
    "seats": 1,
    "carrier": true,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 4,
     "ev": 3,
@@ -980,6 +1000,7 @@
    "seats": 1,
    "carrier": false,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 3,
     "ev": 3,
@@ -1020,6 +1041,7 @@
    "seats": 2,
    "carrier": false,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 3,
     "ev": 3,
@@ -1066,6 +1088,7 @@
    "seats": 1,
    "carrier": false,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 4,
     "ev": 3,
@@ -1106,6 +1129,7 @@
    "seats": 1,
    "carrier": true,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -1158,6 +1182,7 @@
    "seats": 1,
    "carrier": false,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 3,
     "ev": 2,
@@ -1204,6 +1229,7 @@
    "seats": 1,
    "carrier": false,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 3,
     "ev": 2,
@@ -1250,6 +1276,7 @@
    "seats": 2,
    "carrier": false,
    "est": true,
+   "fleet": false,
    "stats": {
     "spd": 3,
     "ev": 2,
@@ -1287,6 +1314,1501 @@
    "desc": "Фронтовой бомбардировщик с крылом изменяемой стреловидности. Экипаж сидит рядом, а система огибания рельефа ведёт машину на предельно малой высоте.",
    "service": "Главная ударная машина фронта до прихода Су-32. Ночь, непогода и высота в полсотни метров — его стихия.",
    "img": "systems/thunderbolt-shtab/assets/planes/su24.svg"
+  },
+  {
+   "key": "f5e",
+   "name": "F-5E Tiger II",
+   "nato": "F-5E Tiger II",
+   "cls": "Лёгкий истребитель",
+   "cat": "fighter",
+   "catName": "Истребители",
+   "tier": 1,
+   "tierName": "Старый парк",
+   "base": "Fighter (Aggressive)",
+   "seats": 1,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 3,
+    "ev": 3,
+    "aa": 5,
+    "ag": 5,
+    "hp": 3,
+    "str": 10,
+    "gun": 2,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "cheap",
+     "name": "Дешёвая машина",
+     "text": "Потеря такой машины никого не огорчает: после катапультирования новую выдают без вопросов."
+    }
+   ],
+   "sig": [
+    "UGB"
+   ],
+   "ac5": null,
+   "desc": "Маленький и дешёвый истребитель, который держат в строю десятки стран. Простой, лёгкий, прощает ошибки.",
+   "service": "Массовка второй линии и учебные полки. Хорош для первого вылета новичков.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f5.svg"
+  },
+  {
+   "key": "f20a",
+   "name": "F-20A Tigershark",
+   "nato": "F-20A Tigershark",
+   "cls": "Лёгкий истребитель",
+   "cat": "fighter",
+   "catName": "Истребители",
+   "tier": 2,
+   "tierName": "Строевые",
+   "base": "Fighter (Aggressive)",
+   "seats": 1,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 3,
+    "aa": 6,
+    "ag": 5,
+    "hp": 3,
+    "str": 10,
+    "gun": 2,
+    "hard": 1
+   },
+   "props": [],
+   "sig": [
+    "QAAM"
+   ],
+   "ac5": null,
+   "desc": "Глубоко переделанный «Тайгер» с одним мощным двигателем и новым радаром. Быстрее и злее своего предка.",
+   "service": "Редкая машина: если в звене F-20, там кто-то, кто любит ближний бой.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f5.svg"
+  },
+  {
+   "key": "x29a",
+   "name": "X-29A",
+   "nato": "X-29A",
+   "cls": "Опытный истребитель",
+   "cat": "fighter",
+   "catName": "Истребители",
+   "tier": 4,
+   "tierName": "Опытные машины",
+   "base": "Experimental Prototype",
+   "seats": 1,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 4,
+    "aa": 6,
+    "ag": 5,
+    "hp": 2,
+    "str": 8,
+    "gun": 2,
+    "hard": 2
+   },
+   "props": [
+    {
+     "key": "aoa",
+     "name": "Angle of Attack Limiter",
+     "text": "В любой момент своего хода потратить 2 Strain: +1 к Evasion, Air-to-Air и навыкам Aim, Dodge, Push."
+    }
+   ],
+   "sig": [
+    "QAAM"
+   ],
+   "ac5": null,
+   "desc": "Исследовательский самолёт с крылом обратной стреловидности. Нестабилен настолько, что без компьютера не летает.",
+   "service": "Испытательные полигоны и показательные вылеты. Встреча с ним в бою говорит, что противник бросил в дело всё.",
+   "img": "systems/thunderbolt-shtab/assets/planes/x29.svg"
+  },
+  {
+   "key": "f4e",
+   "name": "F-4E Phantom II",
+   "nato": "F-4E Phantom II",
+   "cls": "Истребитель-бомбардировщик",
+   "cat": "fighter",
+   "catName": "Истребители",
+   "tier": 1,
+   "tierName": "Старый парк",
+   "base": "Multi-Role (Defensive)",
+   "seats": 2,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 2,
+    "aa": 6,
+    "ag": 6,
+    "hp": 4,
+    "str": 10,
+    "gun": 3,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "wso",
+     "name": "WSO-Compatible",
+     "text": "Двухместная машина. Если во второй кабине летит игрок-WSO, он использует Aim, Deploy и Lead, а машина заявляет на одно действие больше без штрафа к инициативе."
+    }
+   ],
+   "sig": [
+    "UGB"
+   ],
+   "ac5": null,
+   "desc": "Тяжёлый двухместный ветеран, который умеет всё понемногу. Дымит двигателями так, что его видно издалека.",
+   "service": "Старый парк, резервные эскадрильи, союзники противника.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg"
+  },
+  {
+   "key": "f4x",
+   "name": "F-4X",
+   "nato": "F-4X",
+   "cls": "Скоростной перехватчик",
+   "cat": "fighter",
+   "catName": "Истребители",
+   "tier": 2,
+   "tierName": "Строевые",
+   "base": "High-Speed Interceptor",
+   "seats": 2,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 5,
+    "ev": 2,
+    "aa": 7,
+    "ag": 5,
+    "hp": 4,
+    "str": 8,
+    "gun": 3,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "highspeed",
+     "name": "High Speed",
+     "text": "Одним действием сместиться на две зоны, если в конце действия Speed = 5."
+    },
+    {
+     "key": "wso",
+     "name": "WSO-Compatible",
+     "text": "Двухместная машина. Если во второй кабине летит игрок-WSO, он использует Aim, Deploy и Lead, а машина заявляет на одно действие больше без штрафа к инициативе."
+    }
+   ],
+   "sig": [
+    "LAAM"
+   ],
+   "ac5": null,
+   "desc": "Экспериментальная скоростная переделка «Фантома» с охлаждением воздухозаборников водой. Прямая линия — его стихия.",
+   "service": "Малая серия. Хороший кандидат в самолёт для вражеского аса старой школы.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg"
+  },
+  {
+   "key": "f16c",
+   "name": "F-16C Fighting Falcon",
+   "nato": "F-16C Fighting Falcon",
+   "cls": "Лёгкий фронтовой истребитель",
+   "cat": "fighter",
+   "catName": "Истребители",
+   "tier": 2,
+   "tierName": "Строевые",
+   "base": "Fighter (Balanced)",
+   "seats": 1,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 3,
+    "aa": 6,
+    "ag": 6,
+    "hp": 3,
+    "str": 11,
+    "gun": 3,
+    "hard": 1
+   },
+   "props": [],
+   "sig": [
+    "UGB"
+   ],
+   "ac5": null,
+   "desc": "Массовый лёгкий истребитель с электродистанционным управлением. Резкий в вираже, неплох по земле.",
+   "service": "Основа истребительной авиации противника. Чаще всего встречается парами и четвёрками.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg"
+  },
+  {
+   "key": "f14a",
+   "name": "F-14A Tomcat",
+   "nato": "F-14A Tomcat",
+   "cls": "Палубный перехватчик",
+   "cat": "fighter",
+   "catName": "Истребители",
+   "tier": 2,
+   "tierName": "Строевые",
+   "base": "High-Speed Interceptor",
+   "seats": 2,
+   "carrier": true,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 3,
+    "aa": 7,
+    "ag": 4,
+    "hp": 4,
+    "str": 9,
+    "gun": 3,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "swing",
+     "name": "Крыло изменяемой стреловидности",
+     "text": "Пока Speed равна Max Speed, Evasion +1: крыло сложено, машина режет воздух."
+    },
+    {
+     "key": "wso",
+     "name": "WSO-Compatible",
+     "text": "Двухместная машина. Если во второй кабине летит игрок-WSO, он использует Aim, Deploy и Lead, а машина заявляет на одно действие больше без штрафа к инициативе."
+    }
+   ],
+   "sig": [
+    "LAAM"
+   ],
+   "ac5": null,
+   "desc": "Палубный перехватчик с крылом изменяемой стреловидности и ракетами большой дальности. Защищает флот на дальних подступах.",
+   "service": "Авиагруппы вражеских авианосцев. Встречает ударные группы задолго до кораблей.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f14.svg"
+  },
+  {
+   "key": "f14d",
+   "name": "F-14D Super Tomcat",
+   "nato": "F-14D Super Tomcat",
+   "cls": "Палубный перехватчик",
+   "cat": "fighter",
+   "catName": "Истребители",
+   "tier": 3,
+   "tierName": "Новейшие",
+   "base": "High-Speed Interceptor",
+   "seats": 2,
+   "carrier": true,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 5,
+    "ev": 3,
+    "aa": 8,
+    "ag": 5,
+    "hp": 4,
+    "str": 9,
+    "gun": 3,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "swing",
+     "name": "Крыло изменяемой стреловидности",
+     "text": "Пока Speed равна Max Speed, Evasion +1: крыло сложено, машина режет воздух."
+    },
+    {
+     "key": "wso",
+     "name": "WSO-Compatible",
+     "text": "Двухместная машина. Если во второй кабине летит игрок-WSO, он использует Aim, Deploy и Lead, а машина заявляет на одно действие больше без штрафа к инициативе."
+    },
+    {
+     "key": "highspeed",
+     "name": "High Speed",
+     "text": "Одним действием сместиться на две зоны, если в конце действия Speed = 5."
+    }
+   ],
+   "sig": [
+    "XLAA"
+   ],
+   "ac5": null,
+   "desc": "Последняя модернизация «Томкэта»: новые двигатели, радар и авионика. Догоняет и достаёт почти всё.",
+   "service": "Лучшие палубные эскадрильи. Опасен для групп бомбардировщиков.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f14.svg"
+  },
+  {
+   "key": "f15c",
+   "name": "F-15C Eagle",
+   "nato": "F-15C Eagle",
+   "cls": "Истребитель",
+   "cat": "fighter",
+   "catName": "Истребители",
+   "tier": 2,
+   "tierName": "Строевые",
+   "base": "Fighter (Balanced)",
+   "seats": 1,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 3,
+    "aa": 7,
+    "ag": 5,
+    "hp": 4,
+    "str": 11,
+    "gun": 3,
+    "hard": 1
+   },
+   "props": [],
+   "sig": [
+    "SAAM"
+   ],
+   "ac5": null,
+   "desc": "Тяжёлый истребитель завоевания превосходства в воздухе. Большой радар, мощные двигатели и привычка побеждать.",
+   "service": "Элитные части ПВО противника. Прямой соперник Су-27.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f15.svg"
+  },
+  {
+   "key": "f15smtd",
+   "name": "F-15 S/MTD",
+   "nato": "F-15 S/MTD",
+   "cls": "Опытный истребитель",
+   "cat": "fighter",
+   "catName": "Истребители",
+   "tier": 4,
+   "tierName": "Опытные машины",
+   "base": "Experimental Prototype",
+   "seats": 1,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 4,
+    "aa": 8,
+    "ag": 5,
+    "hp": 3,
+    "str": 9,
+    "gun": 3,
+    "hard": 2
+   },
+   "props": [
+    {
+     "key": "tvc",
+     "name": "Управляемый вектор тяги",
+     "text": "После Break! Speed падает на 1, а не на 2."
+    }
+   ],
+   "sig": [
+    "SAAM"
+   ],
+   "ac5": null,
+   "desc": "Демонстратор с передним оперением и плоскими поворотными соплами. Вертится там, где обычный «Игл» уже сорвался бы.",
+   "service": "Испытательные части. Отличная машина для вражеского аса-дуэлянта.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f15smtd.svg"
+  },
+  {
+   "key": "yf23",
+   "name": "YF-23A Black Widow II",
+   "nato": "YF-23A Black Widow II",
+   "cls": "Опытный истребитель",
+   "cat": "fighter",
+   "catName": "Истребители",
+   "tier": 4,
+   "tierName": "Опытные машины",
+   "base": "Experimental Prototype",
+   "seats": 1,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 5,
+    "ev": 4,
+    "aa": 7,
+    "ag": 5,
+    "hp": 2,
+    "str": 8,
+    "gun": 2,
+    "hard": 2
+   },
+   "props": [
+    {
+     "key": "supercruise",
+     "name": "Сверхзвуковой крейсерский режим",
+     "text": "Одним действием сместиться на две зоны, если в конце действия Speed не ниже 4."
+    },
+    {
+     "key": "stealth",
+     "name": "Малозаметность",
+     "text": "Пока самолёт в этом раунде не стрелял, захватить его можно только из той же зоны."
+    }
+   ],
+   "sig": [
+    "LAAM"
+   ],
+   "ac5": null,
+   "desc": "Малозаметный опытный истребитель с ромбовидным крылом. Быстрый, тихий на радаре и почти не виден до пуска.",
+   "service": "Прототипы. Встреча с ним в небе сама по себе повод для доклада в штаб.",
+   "img": "systems/thunderbolt-shtab/assets/planes/yf23.svg"
+  },
+  {
+   "key": "f22",
+   "name": "F/A-22A Raptor",
+   "nato": "F/A-22A Raptor",
+   "cls": "Истребитель нового поколения",
+   "cat": "fighter",
+   "catName": "Истребители",
+   "tier": 3,
+   "tierName": "Новейшие",
+   "base": "Fighter (Aggressive)",
+   "seats": 1,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 5,
+    "ev": 4,
+    "aa": 8,
+    "ag": 6,
+    "hp": 3,
+    "str": 11,
+    "gun": 3,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "supercruise",
+     "name": "Сверхзвуковой крейсерский режим",
+     "text": "Одним действием сместиться на две зоны, если в конце действия Speed не ниже 4."
+    },
+    {
+     "key": "stealth",
+     "name": "Малозаметность",
+     "text": "Пока самолёт в этом раунде не стрелял, захватить его можно только из той же зоны."
+    },
+    {
+     "key": "tvc",
+     "name": "Управляемый вектор тяги",
+     "text": "После Break! Speed падает на 1, а не на 2."
+    }
+   ],
+   "sig": [
+    "XLAA"
+   ],
+   "ac5": null,
+   "desc": "Малозаметный истребитель нового поколения со сверхзвуковым крейсерским режимом и управляемым вектором тяги.",
+   "service": "Только у лучших частей противника. Для уровня Немезиды: такой самолёт заслуживает имени и позывного.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f22.svg"
+  },
+  {
+   "key": "mirage2000",
+   "name": "Mirage 2000-5",
+   "nato": "Mirage 2000-5",
+   "cls": "Истребитель",
+   "cat": "fighter",
+   "catName": "Истребители",
+   "tier": 2,
+   "tierName": "Строевые",
+   "base": "Fighter (Aggressive)",
+   "seats": 1,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 3,
+    "aa": 7,
+    "ag": 5,
+    "hp": 3,
+    "str": 10,
+    "gun": 2,
+    "hard": 1
+   },
+   "props": [],
+   "sig": [
+    "SAAM"
+   ],
+   "ac5": null,
+   "desc": "Изящный истребитель с треугольным крылом. Быстро разгоняется и хорошо держит энергию в вираже.",
+   "service": "Встречается у союзников противника и у наёмников.",
+   "img": "systems/thunderbolt-shtab/assets/planes/mirage2000.svg"
+  },
+  {
+   "key": "typhoon",
+   "name": "Typhoon",
+   "nato": "Eurofighter Typhoon",
+   "cls": "Истребитель",
+   "cat": "fighter",
+   "catName": "Истребители",
+   "tier": 3,
+   "tierName": "Новейшие",
+   "base": "Fighter (Aggressive)",
+   "seats": 1,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 4,
+    "aa": 8,
+    "ag": 5,
+    "hp": 3,
+    "str": 11,
+    "gun": 3,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "supercruise",
+     "name": "Сверхзвуковой крейсерский режим",
+     "text": "Одним действием сместиться на две зоны, если в конце действия Speed не ниже 4."
+    }
+   ],
+   "sig": [
+    "SAAM"
+   ],
+   "ac5": null,
+   "desc": "Современный истребитель схемы «утка» с огромной тяговооружённостью. В ближнем бою один из самых опасных противников.",
+   "service": "Элитные части. Ровня Су-37.",
+   "img": "systems/thunderbolt-shtab/assets/planes/typhoon.svg"
+  },
+  {
+   "key": "tornadof3",
+   "name": "Tornado F.3",
+   "nato": "Tornado F.3",
+   "cls": "Перехватчик",
+   "cat": "fighter",
+   "catName": "Истребители",
+   "tier": 2,
+   "tierName": "Строевые",
+   "base": "High-Speed Interceptor",
+   "seats": 2,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 2,
+    "aa": 7,
+    "ag": 4,
+    "hp": 4,
+    "str": 8,
+    "gun": 3,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "swing",
+     "name": "Крыло изменяемой стреловидности",
+     "text": "Пока Speed равна Max Speed, Evasion +1: крыло сложено, машина режет воздух."
+    },
+    {
+     "key": "wso",
+     "name": "WSO-Compatible",
+     "text": "Двухместная машина. Если во второй кабине летит игрок-WSO, он использует Aim, Deploy и Lead, а машина заявляет на одно действие больше без штрафа к инициативе."
+    }
+   ],
+   "sig": [
+    "LAAM"
+   ],
+   "ac5": null,
+   "desc": "Перехватчик на базе ударного «Торнадо»: удлинённый фюзеляж, большой радар, ракеты средней дальности.",
+   "service": "Патрули ПВО на дальних рубежах.",
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
+  },
+  {
+   "key": "f16b60",
+   "name": "F-16C Block 60",
+   "nato": "F-16 Block 60",
+   "cls": "Многоцелевой истребитель",
+   "cat": "multi",
+   "catName": "Многоцелевые",
+   "tier": 3,
+   "tierName": "Новейшие",
+   "base": "Multi-Role (Aggressive)",
+   "seats": 1,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 3,
+    "aa": 7,
+    "ag": 7,
+    "hp": 3,
+    "str": 11,
+    "gun": 3,
+    "hard": 1
+   },
+   "props": [],
+   "sig": [
+    "XAGM"
+   ],
+   "ac5": null,
+   "desc": "Самая совершенная версия «Файтинг Фалкона»: конформные баки, новый радар и мощная ударная нагрузка.",
+   "service": "Многоцелевые звенья, которые сначала бьют по земле, а потом отбиваются.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg"
+  },
+  {
+   "key": "f16xl",
+   "name": "F-16XL",
+   "nato": "F-16XL",
+   "cls": "Опытный многоцелевой",
+   "cat": "multi",
+   "catName": "Многоцелевые",
+   "tier": 4,
+   "tierName": "Опытные машины",
+   "base": "Experimental Prototype",
+   "seats": 2,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 3,
+    "aa": 6,
+    "ag": 7,
+    "hp": 3,
+    "str": 9,
+    "gun": 3,
+    "hard": 2
+   },
+   "props": [
+    {
+     "key": "supercruise",
+     "name": "Сверхзвуковой крейсерский режим",
+     "text": "Одним действием сместиться на две зоны, если в конце действия Speed не ниже 4."
+    }
+   ],
+   "sig": [
+    "GPB"
+   ],
+   "ac5": null,
+   "desc": "Опытный «Фалкон» с крылом сложной стреловидности. Больше топлива, больше подвесок, меньше сопротивления.",
+   "service": "Редкая машина испытательных частей.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f16xl.svg"
+  },
+  {
+   "key": "fa18c",
+   "name": "F/A-18C Hornet",
+   "nato": "F/A-18C Hornet",
+   "cls": "Палубный многоцелевой",
+   "cat": "multi",
+   "catName": "Многоцелевые",
+   "tier": 2,
+   "tierName": "Строевые",
+   "base": "Multi-Role (Defensive)",
+   "seats": 1,
+   "carrier": true,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 3,
+    "ev": 3,
+    "aa": 6,
+    "ag": 6,
+    "hp": 4,
+    "str": 10,
+    "gun": 3,
+    "hard": 1
+   },
+   "props": [],
+   "sig": [
+    "UGB"
+   ],
+   "ac5": null,
+   "desc": "Палубная рабочая лошадка: прикрывает флот и бьёт по берегу в одном вылете.",
+   "service": "Основа палубных авиагрупп противника.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg"
+  },
+  {
+   "key": "fa18e",
+   "name": "F/A-18E Super Hornet",
+   "nato": "F/A-18E Super Hornet",
+   "cls": "Палубный многоцелевой",
+   "cat": "multi",
+   "catName": "Многоцелевые",
+   "tier": 3,
+   "tierName": "Новейшие",
+   "base": "Multi-Role (Defensive)",
+   "seats": 1,
+   "carrier": true,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 3,
+    "ev": 3,
+    "aa": 7,
+    "ag": 7,
+    "hp": 4,
+    "str": 11,
+    "gun": 3,
+    "hard": 1
+   },
+   "props": [],
+   "sig": [
+    "XAGM"
+   ],
+   "ac5": null,
+   "desc": "Увеличенный «Хорнет» с большим запасом топлива и подвесками под тяжёлое оружие.",
+   "service": "Новые палубные эскадрильи.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg"
+  },
+  {
+   "key": "ea18g",
+   "name": "EA-18G Growler",
+   "nato": "EA-18G Growler",
+   "cls": "Палубный самолёт РЭБ",
+   "cat": "multi",
+   "catName": "Многоцелевые",
+   "tier": 3,
+   "tierName": "Новейшие",
+   "base": "Multi-Role (Defensive)",
+   "seats": 2,
+   "carrier": true,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 3,
+    "ev": 3,
+    "aa": 6,
+    "ag": 6,
+    "hp": 4,
+    "str": 10,
+    "gun": 3,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "ecm",
+     "name": "Станция РЭБ",
+     "text": "Союзники в его зоне получают +1 к Defense, а захватить их можно только из той же зоны."
+    },
+    {
+     "key": "wso",
+     "name": "WSO-Compatible",
+     "text": "Двухместная машина. Если во второй кабине летит игрок-WSO, он использует Aim, Deploy и Lead, а машина заявляет на одно действие больше без штрафа к инициативе."
+    }
+   ],
+   "sig": [
+    "ESM"
+   ],
+   "ac5": null,
+   "desc": "Двухместный «Супер Хорнет» с контейнерами радиоэлектронной борьбы. Глушит радары и прикрывает ударную группу.",
+   "service": "Всегда летит с ударной группой. Сбей его первым, и остальные станут видны.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg"
+  },
+  {
+   "key": "f35c",
+   "name": "F-35C Lightning II",
+   "nato": "F-35C Lightning II",
+   "cls": "Палубный малозаметный",
+   "cat": "multi",
+   "catName": "Многоцелевые",
+   "tier": 3,
+   "tierName": "Новейшие",
+   "base": "Multi-Role (Aggressive)",
+   "seats": 1,
+   "carrier": true,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 3,
+    "aa": 7,
+    "ag": 7,
+    "hp": 3,
+    "str": 10,
+    "gun": 2,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "stealth",
+     "name": "Малозаметность",
+     "text": "Пока самолёт в этом раунде не стрелял, захватить его можно только из той же зоны."
+    }
+   ],
+   "sig": [
+    "XAGM"
+   ],
+   "ac5": null,
+   "desc": "Малозаметный палубный многоцелевой самолёт. Видит поле боя целиком и первым пускает оружие.",
+   "service": "Новейшие палубные авиагруппы. Вместе с «Харриерами» стоял на палубе подводного авианосца «Скинфакси».",
+   "img": "systems/thunderbolt-shtab/assets/planes/f35.svg"
+  },
+  {
+   "key": "f2a",
+   "name": "F-2A",
+   "nato": "Mitsubishi F-2A",
+   "cls": "Многоцелевой истребитель",
+   "cat": "multi",
+   "catName": "Многоцелевые",
+   "tier": 3,
+   "tierName": "Новейшие",
+   "base": "Multi-Role (Aggressive)",
+   "seats": 1,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 3,
+    "aa": 6,
+    "ag": 7,
+    "hp": 3,
+    "str": 10,
+    "gun": 3,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "antiship",
+     "name": "Противокорабельная ракета",
+     "text": "Атака по морской цели в любой точке зоны операции: A-G − Speed против Occlusion, урон 12."
+    }
+   ],
+   "sig": [
+    "XAGM"
+   ],
+   "ac5": null,
+   "desc": "Увеличенный и переработанный «Фалкон» с упором на удары по кораблям. Синий камуфляж под цвет моря.",
+   "service": "Береговая авиация. Главная угроза для эскадр в прибрежных водах.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg"
+  },
+  {
+   "key": "rafalem",
+   "name": "Rafale M",
+   "nato": "Rafale M",
+   "cls": "Палубный многоцелевой",
+   "cat": "multi",
+   "catName": "Многоцелевые",
+   "tier": 3,
+   "tierName": "Новейшие",
+   "base": "Multi-Role (Aggressive)",
+   "seats": 1,
+   "carrier": true,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 3,
+    "ev": 3,
+    "aa": 7,
+    "ag": 6,
+    "hp": 3,
+    "str": 10,
+    "gun": 2,
+    "hard": 1
+   },
+   "props": [],
+   "sig": [
+    "LAAM"
+   ],
+   "ac5": null,
+   "desc": "Палубная «утка» с треугольным крылом. Одинаково уверенно работает по воздуху и по кораблям.",
+   "service": "Авиагруппы небольших авианосцев.",
+   "img": "systems/thunderbolt-shtab/assets/planes/rafale.svg"
+  },
+  {
+   "key": "rafaleb",
+   "name": "Rafale B",
+   "nato": "Rafale B",
+   "cls": "Многоцелевой истребитель",
+   "cat": "multi",
+   "catName": "Многоцелевые",
+   "tier": 3,
+   "tierName": "Новейшие",
+   "base": "Multi-Role (Defensive)",
+   "seats": 2,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 3,
+    "ev": 3,
+    "aa": 6,
+    "ag": 7,
+    "hp": 4,
+    "str": 10,
+    "gun": 2,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "wso",
+     "name": "WSO-Compatible",
+     "text": "Двухместная машина. Если во второй кабине летит игрок-WSO, он использует Aim, Deploy и Lead, а машина заявляет на одно действие больше без штрафа к инициативе."
+    }
+   ],
+   "sig": [
+    "XAGM"
+   ],
+   "ac5": null,
+   "desc": "Двухместный сухопутный «Рафаль» для сложных ударных задач.",
+   "service": "Ударные группы, которым нужен второй член экипажа.",
+   "img": "systems/thunderbolt-shtab/assets/planes/rafale.svg"
+  },
+  {
+   "key": "jas39c",
+   "name": "JAS-39C Gripen",
+   "nato": "JAS-39C Gripen",
+   "cls": "Лёгкий многоцелевой",
+   "cat": "multi",
+   "catName": "Многоцелевые",
+   "tier": 3,
+   "tierName": "Новейшие",
+   "base": "Multi-Role (Aggressive)",
+   "seats": 1,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 3,
+    "aa": 6,
+    "ag": 6,
+    "hp": 3,
+    "str": 10,
+    "gun": 2,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "field",
+     "name": "Полевой аэродром",
+     "text": "Взлетает с грунта и дорог: AWACS может разрешить старт с передовой площадки, ближе к цели."
+    },
+    {
+     "key": "cheap",
+     "name": "Дешёвая машина",
+     "text": "Потеря такой машины никого не огорчает: после катапультирования новую выдают без вопросов."
+    }
+   ],
+   "sig": [
+    "QAAM"
+   ],
+   "ac5": null,
+   "desc": "Лёгкая «утка», рассчитанная на взлёт с дорог и быстрое обслуживание в поле.",
+   "service": "Рассредоточенные звенья: появляются там, где аэродрома вроде бы нет.",
+   "img": "systems/thunderbolt-shtab/assets/planes/gripen.svg"
+  },
+  {
+   "key": "f4g",
+   "name": "F-4G Wild Weasel",
+   "nato": "F-4G Wild Weasel",
+   "cls": "Самолёт подавления ПВО",
+   "cat": "attack",
+   "catName": "Штурмовики",
+   "tier": 1,
+   "tierName": "Старый парк",
+   "base": "Ground Attack",
+   "seats": 2,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 2,
+    "aa": 5,
+    "ag": 7,
+    "hp": 4,
+    "str": 9,
+    "gun": 0,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "wso",
+     "name": "WSO-Compatible",
+     "text": "Двухместная машина. Если во второй кабине летит игрок-WSO, он использует Aim, Deploy и Lead, а машина заявляет на одно действие больше без штрафа к инициативе."
+    },
+    {
+     "key": "sead",
+     "name": "Подавление ПВО",
+     "text": "+2 к атакам A-G по ЗРК, зенитным установкам, РЛС и станциям помех."
+    }
+   ],
+   "sig": [
+    "XAGM"
+   ],
+   "ac5": null,
+   "desc": "«Фантом» без пушки, зато с аппаратурой поиска радаров. Первым идёт на зенитки, чтобы за ним прошли остальные.",
+   "service": "Открывает ударные операции: если он над твоими ЗРК, жди бомбардировщиков.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg"
+  },
+  {
+   "key": "f15e",
+   "name": "F-15E Strike Eagle",
+   "nato": "F-15E Strike Eagle",
+   "cls": "Ударный истребитель",
+   "cat": "bomber",
+   "catName": "Бомбардировщики",
+   "tier": 3,
+   "tierName": "Новейшие",
+   "base": "Ground Attack",
+   "seats": 2,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 4,
+    "ev": 3,
+    "aa": 6,
+    "ag": 8,
+    "hp": 5,
+    "str": 10,
+    "gun": 3,
+    "hard": 2
+   },
+   "props": [
+    {
+     "key": "wso",
+     "name": "WSO-Compatible",
+     "text": "Двухместная машина. Если во второй кабине летит игрок-WSO, он использует Aim, Deploy и Lead, а машина заявляет на одно действие больше без штрафа к инициативе."
+    }
+   ],
+   "sig": [
+    "XAGM"
+   ],
+   "ac5": null,
+   "desc": "Двухместный ударный «Игл»: тяжёлая нагрузка, дальность и способность отбиться от истребителей.",
+   "service": "Глубокие рейды в тыл. Прямой соперник Су-32.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f15.svg"
+  },
+  {
+   "key": "a6e",
+   "name": "A-6E Intruder",
+   "nato": "A-6E Intruder",
+   "cls": "Палубный штурмовик",
+   "cat": "attack",
+   "catName": "Штурмовики",
+   "tier": 1,
+   "tierName": "Старый парк",
+   "base": "Ground Attack",
+   "seats": 2,
+   "carrier": true,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 2,
+    "ev": 2,
+    "aa": 4,
+    "ag": 8,
+    "hp": 5,
+    "str": 9,
+    "gun": 0,
+    "hard": 2
+   },
+   "props": [
+    {
+     "key": "wso",
+     "name": "WSO-Compatible",
+     "text": "Двухместная машина. Если во второй кабине летит игрок-WSO, он использует Aim, Deploy и Lead, а машина заявляет на одно действие больше без штрафа к инициативе."
+    },
+    {
+     "key": "terrain",
+     "name": "Огибание рельефа",
+     "text": "На Низкой Evasion +1."
+    }
+   ],
+   "sig": [
+    "GPB"
+   ],
+   "ac5": null,
+   "desc": "Палубный всепогодный штурмовик. Некрасивый, медленный и очень точный.",
+   "service": "Ночные удары с авианосцев.",
+   "img": "systems/thunderbolt-shtab/assets/planes/a6.svg"
+  },
+  {
+   "key": "ea6b",
+   "name": "EA-6B Prowler",
+   "nato": "EA-6B Prowler",
+   "cls": "Палубный самолёт РЭБ",
+   "cat": "attack",
+   "catName": "Штурмовики",
+   "tier": 1,
+   "tierName": "Старый парк",
+   "base": "Ground Attack",
+   "seats": 4,
+   "carrier": true,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 2,
+    "ev": 2,
+    "aa": 3,
+    "ag": 5,
+    "hp": 5,
+    "str": 8,
+    "gun": 0,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "ecm",
+     "name": "Станция РЭБ",
+     "text": "Союзники в его зоне получают +1 к Defense, а захватить их можно только из той же зоны."
+    }
+   ],
+   "sig": [
+    "ESM"
+   ],
+   "ac5": null,
+   "desc": "Четырёхместный самолёт радиоэлектронной борьбы на базе «Интрудера». Ослепляет радары целого района.",
+   "service": "Прикрывает ударные группы флота.",
+   "img": "systems/thunderbolt-shtab/assets/planes/a6.svg"
+  },
+  {
+   "key": "a10a",
+   "name": "A-10A Thunderbolt II",
+   "nato": "A-10A Thunderbolt II",
+   "cls": "Штурмовик",
+   "cat": "attack",
+   "catName": "Штурмовики",
+   "tier": 2,
+   "tierName": "Строевые",
+   "base": "Support Gunship",
+   "seats": 1,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 2,
+    "ev": 3,
+    "aa": 4,
+    "ag": 8,
+    "hp": 6,
+    "str": 7,
+    "gun": 4,
+    "hard": 2
+   },
+   "props": [
+    {
+     "key": "armor",
+     "name": "Бронированная кабина",
+     "text": "Первое попадание пушкой за вылет снимает на 2 HP меньше."
+    }
+   ],
+   "sig": [
+    "RCL"
+   ],
+   "ac5": null,
+   "desc": "Бронированный штурмовик, построенный вокруг огромной семиствольной пушки. Возвращается домой на половине крыла.",
+   "service": "Охотник за танками. Там, где он висит над полем боя, бронетехника горит.",
+   "img": "systems/thunderbolt-shtab/assets/planes/a10.svg"
+  },
+  {
+   "key": "ya10b",
+   "name": "YA-10B",
+   "nato": "YA-10B",
+   "cls": "Двухместный штурмовик",
+   "cat": "attack",
+   "catName": "Штурмовики",
+   "tier": 2,
+   "tierName": "Строевые",
+   "base": "Support Gunship",
+   "seats": 2,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 2,
+    "ev": 3,
+    "aa": 4,
+    "ag": 8,
+    "hp": 6,
+    "str": 7,
+    "gun": 4,
+    "hard": 2
+   },
+   "props": [
+    {
+     "key": "armor",
+     "name": "Бронированная кабина",
+     "text": "Первое попадание пушкой за вылет снимает на 2 HP меньше."
+    },
+    {
+     "key": "wso",
+     "name": "WSO-Compatible",
+     "text": "Двухместная машина. Если во второй кабине летит игрок-WSO, он использует Aim, Deploy и Lead, а машина заявляет на одно действие больше без штрафа к инициативе."
+    }
+   ],
+   "sig": [
+    "UGB"
+   ],
+   "ac5": null,
+   "desc": "Опытный двухместный «Тандерболт» для ночной и всепогодной работы.",
+   "service": "Редкая машина. Удобна, чтобы дать вражескому штурмовику умного второго пилота.",
+   "img": "systems/thunderbolt-shtab/assets/planes/a10.svg"
+  },
+  {
+   "key": "f117a",
+   "name": "F-117A Nighthawk",
+   "nato": "F-117A Nighthawk",
+   "cls": "Малозаметный ударный самолёт",
+   "cat": "attack",
+   "catName": "Штурмовики",
+   "tier": 3,
+   "tierName": "Новейшие",
+   "base": "Ground Attack",
+   "seats": 1,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 3,
+    "ev": 2,
+    "aa": 3,
+    "ag": 8,
+    "hp": 3,
+    "str": 8,
+    "gun": 0,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "stealth",
+     "name": "Малозаметность",
+     "text": "Пока самолёт в этом раунде не стрелял, захватить его можно только из той же зоны."
+    }
+   ],
+   "sig": [
+    "GPB"
+   ],
+   "ac5": null,
+   "desc": "Угловатый малозаметный ударный самолёт. Медленный и беззащитный в бою, но его почти невозможно найти.",
+   "service": "Ночные удары по командным пунктам и мостам. Задача игроков: найти до того, как он сбросит.",
+   "img": "systems/thunderbolt-shtab/assets/planes/f117.svg"
+  },
+  {
+   "key": "mirage2000d",
+   "name": "Mirage 2000D",
+   "nato": "Mirage 2000D",
+   "cls": "Ударный самолёт",
+   "cat": "bomber",
+   "catName": "Бомбардировщики",
+   "tier": 2,
+   "tierName": "Строевые",
+   "base": "Ground Attack",
+   "seats": 2,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 3,
+    "ev": 3,
+    "aa": 5,
+    "ag": 7,
+    "hp": 4,
+    "str": 10,
+    "gun": 2,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "wso",
+     "name": "WSO-Compatible",
+     "text": "Двухместная машина. Если во второй кабине летит игрок-WSO, он использует Aim, Deploy и Lead, а машина заявляет на одно действие больше без штрафа к инициативе."
+    },
+    {
+     "key": "terrain",
+     "name": "Огибание рельефа",
+     "text": "На Низкой Evasion +1."
+    }
+   ],
+   "sig": [
+    "GPB"
+   ],
+   "ac5": null,
+   "desc": "Двухместный ударный «Мираж» для точных ударов на малой высоте.",
+   "service": "Ударные звенья союзников противника.",
+   "img": "systems/thunderbolt-shtab/assets/planes/mirage2000.svg"
+  },
+  {
+   "key": "tornadogr1",
+   "name": "Tornado GR.1",
+   "nato": "Tornado GR.1",
+   "cls": "Ударный самолёт",
+   "cat": "bomber",
+   "catName": "Бомбардировщики",
+   "tier": 1,
+   "tierName": "Старый парк",
+   "base": "Ground Attack",
+   "seats": 2,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 3,
+    "ev": 2,
+    "aa": 5,
+    "ag": 7,
+    "hp": 4,
+    "str": 9,
+    "gun": 3,
+    "hard": 2
+   },
+   "props": [
+    {
+     "key": "swing",
+     "name": "Крыло изменяемой стреловидности",
+     "text": "Пока Speed равна Max Speed, Evasion +1: крыло сложено, машина режет воздух."
+    },
+    {
+     "key": "wso",
+     "name": "WSO-Compatible",
+     "text": "Двухместная машина. Если во второй кабине летит игрок-WSO, он использует Aim, Deploy и Lead, а машина заявляет на одно действие больше без штрафа к инициативе."
+    },
+    {
+     "key": "terrain",
+     "name": "Огибание рельефа",
+     "text": "На Низкой Evasion +1."
+    }
+   ],
+   "sig": [
+    "UGB"
+   ],
+   "ac5": null,
+   "desc": "Ударный самолёт с крылом изменяемой стреловидности. Проходит к цели на высоте деревьев.",
+   "service": "Удары по аэродромам и узлам связи.",
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
+  },
+  {
+   "key": "tornadogr4",
+   "name": "Tornado GR.4",
+   "nato": "Tornado GR.4",
+   "cls": "Ударный самолёт",
+   "cat": "bomber",
+   "catName": "Бомбардировщики",
+   "tier": 2,
+   "tierName": "Строевые",
+   "base": "Ground Attack",
+   "seats": 2,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 3,
+    "ev": 2,
+    "aa": 5,
+    "ag": 8,
+    "hp": 4,
+    "str": 10,
+    "gun": 3,
+    "hard": 2
+   },
+   "props": [
+    {
+     "key": "swing",
+     "name": "Крыло изменяемой стреловидности",
+     "text": "Пока Speed равна Max Speed, Evasion +1: крыло сложено, машина режет воздух."
+    },
+    {
+     "key": "wso",
+     "name": "WSO-Compatible",
+     "text": "Двухместная машина. Если во второй кабине летит игрок-WSO, он использует Aim, Deploy и Lead, а машина заявляет на одно действие больше без штрафа к инициативе."
+    },
+    {
+     "key": "terrain",
+     "name": "Огибание рельефа",
+     "text": "На Низкой Evasion +1."
+    }
+   ],
+   "sig": [
+    "LACM"
+   ],
+   "ac5": null,
+   "desc": "Модернизированный «Торнадо» с высокоточным оружием и новой авионикой.",
+   "service": "Ударные звенья, которые бьют издалека.",
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
+  },
+  {
+   "key": "tornadoecr",
+   "name": "Tornado ECR",
+   "nato": "Tornado ECR",
+   "cls": "Самолёт подавления ПВО",
+   "cat": "attack",
+   "catName": "Штурмовики",
+   "tier": 2,
+   "tierName": "Строевые",
+   "base": "Ground Attack",
+   "seats": 2,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 3,
+    "ev": 2,
+    "aa": 5,
+    "ag": 7,
+    "hp": 4,
+    "str": 9,
+    "gun": 0,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "swing",
+     "name": "Крыло изменяемой стреловидности",
+     "text": "Пока Speed равна Max Speed, Evasion +1: крыло сложено, машина режет воздух."
+    },
+    {
+     "key": "wso",
+     "name": "WSO-Compatible",
+     "text": "Двухместная машина. Если во второй кабине летит игрок-WSO, он использует Aim, Deploy и Lead, а машина заявляет на одно действие больше без штрафа к инициативе."
+    },
+    {
+     "key": "sead",
+     "name": "Подавление ПВО",
+     "text": "+2 к атакам A-G по ЗРК, зенитным установкам, РЛС и станциям помех."
+    }
+   ],
+   "sig": [
+    "XAGM"
+   ],
+   "ac5": null,
+   "desc": "«Торнадо» для разведки радаров и их уничтожения. Пушку сняли ради аппаратуры.",
+   "service": "Идёт впереди ударной группы и выбивает ЗРК.",
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
+  },
+  {
+   "key": "hawk",
+   "name": "Hawk",
+   "nato": "BAE Hawk",
+   "cls": "Учебно-боевой",
+   "cat": "attack",
+   "catName": "Штурмовики",
+   "tier": 1,
+   "tierName": "Старый парк",
+   "base": "Ground Attack",
+   "seats": 2,
+   "carrier": false,
+   "est": false,
+   "fleet": true,
+   "stats": {
+    "spd": 2,
+    "ev": 3,
+    "aa": 4,
+    "ag": 5,
+    "hp": 3,
+    "str": 9,
+    "gun": 2,
+    "hard": 1
+   },
+   "props": [
+    {
+     "key": "cheap",
+     "name": "Дешёвая машина",
+     "text": "Потеря такой машины никого не огорчает: после катапультирования новую выдают без вопросов."
+    }
+   ],
+   "sig": [
+    "RCL"
+   ],
+   "ac5": null,
+   "desc": "Учебно-боевой самолёт. Лёгкий, послушный и слабо вооружённый.",
+   "service": "Учебные полки и лёгкие штурмовые звенья. Хорошая массовка для слабого противника.",
+   "img": "systems/thunderbolt-shtab/assets/planes/hawk.svg"
   }
  ],
  "book": [
@@ -1807,6 +3329,7 @@
    "short": "F5E",
    "seats": 1,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 3,
     "ev": 3,
@@ -1841,6 +3364,7 @@
    "short": "F20",
    "seats": 1,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 4,
     "ev": 3,
@@ -1869,6 +3393,7 @@
    "short": "X29",
    "seats": 1,
    "carrier": false,
+   "tier": 4,
    "stats": {
     "spd": 4,
     "ev": 4,
@@ -1903,6 +3428,7 @@
    "short": "F4E",
    "seats": 2,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 4,
     "ev": 2,
@@ -1937,6 +3463,7 @@
    "short": "F4X",
    "seats": 2,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 5,
     "ev": 2,
@@ -1976,6 +3503,7 @@
    "short": "F16",
    "seats": 1,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 4,
     "ev": 3,
@@ -2004,6 +3532,7 @@
    "short": "F14A",
    "seats": 2,
    "carrier": true,
+   "tier": 2,
    "stats": {
     "spd": 4,
     "ev": 3,
@@ -2048,6 +3577,7 @@
    "short": "F14D",
    "seats": 2,
    "carrier": true,
+   "tier": 3,
    "stats": {
     "spd": 5,
     "ev": 3,
@@ -2097,6 +3627,7 @@
    "short": "F15C",
    "seats": 1,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 4,
     "ev": 3,
@@ -2125,6 +3656,7 @@
    "short": "SMTD",
    "seats": 1,
    "carrier": false,
+   "tier": 4,
    "stats": {
     "spd": 4,
     "ev": 4,
@@ -2159,6 +3691,7 @@
    "short": "YF23",
    "seats": 1,
    "carrier": false,
+   "tier": 4,
    "stats": {
     "spd": 5,
     "ev": 4,
@@ -2198,6 +3731,7 @@
    "short": "F22",
    "seats": 1,
    "carrier": false,
+   "tier": 3,
    "stats": {
     "spd": 5,
     "ev": 4,
@@ -2242,6 +3776,7 @@
    "short": "M2K",
    "seats": 1,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 4,
     "ev": 3,
@@ -2270,6 +3805,7 @@
    "short": "TYPH",
    "seats": 1,
    "carrier": false,
+   "tier": 3,
    "stats": {
     "spd": 4,
     "ev": 4,
@@ -2304,6 +3840,7 @@
    "short": "TF3",
    "seats": 2,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 4,
     "ev": 2,
@@ -2343,6 +3880,7 @@
    "short": "F16+",
    "seats": 1,
    "carrier": false,
+   "tier": 3,
    "stats": {
     "spd": 4,
     "ev": 3,
@@ -2371,6 +3909,7 @@
    "short": "16XL",
    "seats": 2,
    "carrier": false,
+   "tier": 4,
    "stats": {
     "spd": 4,
     "ev": 3,
@@ -2405,6 +3944,7 @@
    "short": "F18C",
    "seats": 1,
    "carrier": true,
+   "tier": 2,
    "stats": {
     "spd": 3,
     "ev": 3,
@@ -2439,6 +3979,7 @@
    "short": "F18E",
    "seats": 1,
    "carrier": true,
+   "tier": 3,
    "stats": {
     "spd": 3,
     "ev": 3,
@@ -2473,6 +4014,7 @@
    "short": "EA18",
    "seats": 2,
    "carrier": true,
+   "tier": 3,
    "stats": {
     "spd": 3,
     "ev": 3,
@@ -2517,6 +4059,7 @@
    "short": "F35",
    "seats": 1,
    "carrier": true,
+   "tier": 3,
    "stats": {
     "spd": 4,
     "ev": 3,
@@ -2556,6 +4099,7 @@
    "short": "F2A",
    "seats": 1,
    "carrier": false,
+   "tier": 3,
    "stats": {
     "spd": 4,
     "ev": 3,
@@ -2590,6 +4134,7 @@
    "short": "RAFM",
    "seats": 1,
    "carrier": true,
+   "tier": 3,
    "stats": {
     "spd": 3,
     "ev": 3,
@@ -2624,6 +4169,7 @@
    "short": "RAFB",
    "seats": 2,
    "carrier": false,
+   "tier": 3,
    "stats": {
     "spd": 3,
     "ev": 3,
@@ -2658,6 +4204,7 @@
    "short": "JAS",
    "seats": 1,
    "carrier": false,
+   "tier": 3,
    "stats": {
     "spd": 4,
     "ev": 3,
@@ -2697,6 +4244,7 @@
    "short": "F4G",
    "seats": 2,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 4,
     "ev": 2,
@@ -2736,6 +4284,7 @@
    "short": "F15E",
    "seats": 2,
    "carrier": false,
+   "tier": 3,
    "stats": {
     "spd": 4,
     "ev": 3,
@@ -2770,6 +4319,7 @@
    "short": "A6E",
    "seats": 2,
    "carrier": true,
+   "tier": 1,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -2814,6 +4364,7 @@
    "short": "EA6",
    "seats": 4,
    "carrier": true,
+   "tier": 1,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -2853,6 +4404,7 @@
    "short": "A10",
    "seats": 1,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 2,
     "ev": 3,
@@ -2887,6 +4439,7 @@
    "short": "YA10",
    "seats": 2,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 2,
     "ev": 3,
@@ -2926,6 +4479,7 @@
    "short": "F117",
    "seats": 1,
    "carrier": false,
+   "tier": 3,
    "stats": {
     "spd": 3,
     "ev": 2,
@@ -2960,6 +4514,7 @@
    "short": "M2KD",
    "seats": 2,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 3,
     "ev": 3,
@@ -2999,6 +4554,7 @@
    "short": "GR1",
    "seats": 2,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 3,
     "ev": 2,
@@ -3043,6 +4599,7 @@
    "short": "GR4",
    "seats": 2,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 3,
     "ev": 2,
@@ -3087,6 +4644,7 @@
    "short": "ECR",
    "seats": 2,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 3,
     "ev": 2,
@@ -3131,6 +4689,7 @@
    "short": "HAWK",
    "seats": 2,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 2,
     "ev": 3,
@@ -3165,6 +4724,7 @@
    "short": "Ту22",
    "seats": 4,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 4,
     "ev": 2,
@@ -3202,6 +4762,7 @@
    "short": "Ту95",
    "seats": 7,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -3239,6 +4800,7 @@
    "short": "Т160",
    "seats": 4,
    "carrier": false,
+   "tier": 3,
    "stats": {
     "spd": 4,
     "ev": 2,
@@ -3276,6 +4838,7 @@
    "short": "B1B",
    "seats": 4,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 4,
     "ev": 2,
@@ -3318,6 +4881,7 @@
    "short": "B2A",
    "seats": 2,
    "carrier": false,
+   "tier": 3,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -3355,6 +4919,7 @@
    "short": "B52",
    "seats": 5,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -3392,6 +4957,7 @@
    "short": "VULC",
    "seats": 5,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 3,
     "ev": 2,
@@ -3424,6 +4990,7 @@
    "short": "AC13",
    "seats": 13,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -3456,6 +5023,7 @@
    "short": "А50",
    "seats": 15,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -3488,6 +5056,7 @@
    "short": "E767",
    "seats": 20,
    "carrier": false,
+   "tier": 3,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -3520,6 +5089,7 @@
    "short": "Ил76",
    "seats": 7,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -3557,6 +5127,7 @@
    "short": "124",
    "seats": 6,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -3589,6 +5160,7 @@
    "short": "C130",
    "seats": 5,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -3626,6 +5198,7 @@
    "short": "C5",
    "seats": 7,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -3658,6 +5231,7 @@
    "short": "NIMR",
    "seats": 12,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -3690,6 +5264,7 @@
    "short": "AH64",
    "seats": 2,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 1,
     "ev": 3,
@@ -3724,6 +5299,7 @@
    "short": "CH47",
    "seats": 3,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 1,
     "ev": 2,
@@ -3761,6 +5337,7 @@
    "short": "MH60",
    "seats": 4,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 1,
     "ev": 3,
@@ -3798,6 +5375,7 @@
    "short": "UH60",
    "seats": 4,
    "carrier": false,
+   "tier": 2,
    "stats": {
     "spd": 1,
     "ev": 3,
@@ -3835,6 +5413,7 @@
    "short": "Ми24",
    "seats": 3,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -3879,6 +5458,7 @@
    "short": "Ми28",
    "seats": 2,
    "carrier": false,
+   "tier": 3,
    "stats": {
     "spd": 1,
     "ev": 3,
@@ -3918,6 +5498,7 @@
    "short": "Ми8",
    "seats": 3,
    "carrier": false,
+   "tier": 1,
    "stats": {
     "spd": 1,
     "ev": 2,
@@ -3955,6 +5536,7 @@
    "short": "Ка52",
    "seats": 2,
    "carrier": false,
+   "tier": 3,
    "stats": {
     "spd": 1,
     "ev": 4,
@@ -3994,6 +5576,7 @@
    "short": "БПЛА",
    "seats": 1,
    "carrier": false,
+   "tier": 3,
    "stats": {
     "spd": 4,
     "ev": 3,
@@ -5267,6 +6850,7 @@
    "short": "ЛАЙН",
    "seats": 2,
    "carrier": false,
+   "tier": 0,
    "stats": {
     "spd": 3,
     "ev": 1,
@@ -5299,6 +6883,7 @@
    "short": "ШФЛ",
    "seats": 3,
    "carrier": false,
+   "tier": 0,
    "stats": {
     "spd": 3,
     "ev": 0,
@@ -5331,6 +6916,7 @@
    "short": "БИЗ",
    "seats": 2,
    "carrier": false,
+   "tier": 0,
    "stats": {
     "spd": 4,
     "ev": 2,
@@ -5363,6 +6949,7 @@
    "short": "C172",
    "seats": 1,
    "carrier": false,
+   "tier": 0,
    "stats": {
     "spd": 1,
     "ev": 2,
@@ -5395,6 +6982,7 @@
    "short": "ГРУЗ",
    "seats": 5,
    "carrier": false,
+   "tier": 0,
    "stats": {
     "spd": 2,
     "ev": 1,
@@ -6231,6 +7819,7 @@
    "short": "МБР",
    "seats": 1,
    "carrier": false,
+   "tier": 0,
    "stats": {
     "spd": 5,
     "ev": 1,
@@ -7749,6 +9338,7 @@
    "short": "БМБ",
    "seats": 4,
    "carrier": false,
+   "tier": 0,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -7781,6 +9371,7 @@
    "short": "ТРП",
    "seats": 4,
    "carrier": false,
+   "tier": 0,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -7813,6 +9404,7 @@
    "short": "ПТР",
    "seats": 3,
    "carrier": false,
+   "tier": 0,
    "stats": {
     "spd": 2,
     "ev": 2,
@@ -7920,7 +9512,8 @@
    "key": "mig21bis",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 1,
    "name": "МиГ-21бис",
    "nato": "MiG-21bis Fishbed",
    "cls": "Истребитель",
@@ -7952,7 +9545,8 @@
    "key": "mig29a",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 1,
    "name": "МиГ-29А",
    "nato": "MiG-29A Fulcrum",
    "cls": "Фронтовой истребитель",
@@ -7978,7 +9572,8 @@
    "key": "mig21-93",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 2,
    "name": "МиГ-21-93",
    "nato": "MiG-21-93",
    "cls": "Истребитель",
@@ -8004,7 +9599,8 @@
    "key": "su27",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 2,
    "name": "Су-27",
    "nato": "Su-27 Flanker",
    "cls": "Истребитель",
@@ -8030,7 +9626,8 @@
    "key": "su25",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 2,
    "name": "Су-25",
    "nato": "Su-25 Frogfoot",
    "cls": "Штурмовик",
@@ -8063,7 +9660,8 @@
    "key": "mig31",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 2,
    "name": "МиГ-31",
    "nato": "MiG-31 Foxhound",
    "cls": "Перехватчик",
@@ -8100,7 +9698,8 @@
    "key": "su32",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 3,
    "name": "Су-32",
    "nato": "Su-32 Strike Flanker",
    "cls": "Фронтовой бомбардировщик",
@@ -8137,7 +9736,8 @@
    "key": "mig31m",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 3,
    "name": "МиГ-31М",
    "nato": "MiG-31M Foxhound",
    "cls": "Перехватчик",
@@ -8174,7 +9774,8 @@
    "key": "su35",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 3,
    "name": "Су-35",
    "nato": "Su-35 Super Flanker",
    "cls": "Многоцелевой истребитель",
@@ -8200,7 +9801,8 @@
    "key": "su37",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 3,
    "name": "Су-37",
    "nato": "Su-37 Terminator",
    "cls": "Истребитель",
@@ -8232,7 +9834,8 @@
    "key": "su47",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 4,
    "name": "Су-47",
    "nato": "Su-47 Berkut",
    "cls": "Опытный истребитель",
@@ -8265,7 +9868,8 @@
    "key": "mig144",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 4,
    "name": "МиГ-1.44",
    "nato": "MiG-1.44 Flatpack",
    "cls": "Опытный многоцелевой",
@@ -8298,7 +9902,8 @@
    "key": "falken",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 4,
    "name": "ADF-01 FALKEN",
    "nato": "ADF-01 FALKEN",
    "cls": "Экспериментальный истребитель",
@@ -8336,7 +9941,8 @@
    "key": "wyvern",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 4,
    "name": "X-02 Wyvern",
    "nato": "X-02 Wyvern",
    "cls": "Экспериментальный многоцелевой",
@@ -8379,7 +9985,8 @@
    "key": "adler",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 4,
    "name": "ADA-01A ADLER",
    "nato": "ADA-01A ADLER",
    "cls": "Экспериментальный истребитель",
@@ -8417,7 +10024,8 @@
    "key": "mig23",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 1,
    "name": "МиГ-23МЛД",
    "nato": "MiG-23MLD Flogger",
    "cls": "Истребитель",
@@ -8449,7 +10057,8 @@
    "key": "mig25",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 1,
    "name": "МиГ-25ПД",
    "nato": "MiG-25PD Foxbat",
    "cls": "Перехватчик",
@@ -8481,7 +10090,8 @@
    "key": "su33",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 2,
    "name": "Су-33",
    "nato": "Su-33 Flanker-D",
    "cls": "Палубный истребитель",
@@ -8513,7 +10123,8 @@
    "key": "mig29k",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 3,
    "name": "МиГ-29К",
    "nato": "MiG-29K Fulcrum-D",
    "cls": "Палубный многоцелевой",
@@ -8545,7 +10156,8 @@
    "key": "yak141",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 4,
    "name": "Як-141",
    "nato": "Yak-141 Freestyle",
    "cls": "Палубный истребитель СВВП",
@@ -8582,7 +10194,8 @@
    "key": "mig29m",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 2,
    "name": "МиГ-29М",
    "nato": "MiG-29M Fulcrum-E",
    "cls": "Многоцелевой истребитель",
@@ -8608,7 +10221,8 @@
    "key": "su30",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 3,
    "name": "Су-30",
    "nato": "Su-30 Flanker-C",
    "cls": "Многоцелевой истребитель",
@@ -8640,7 +10254,8 @@
    "key": "mig35",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 3,
    "name": "МиГ-35",
    "nato": "MiG-35 Fulcrum-F",
    "cls": "Многоцелевой истребитель",
@@ -8666,7 +10281,8 @@
    "key": "yak38",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 1,
    "name": "Як-38",
    "nato": "Yak-38 Forger",
    "cls": "Палубный штурмовик СВВП",
@@ -8704,7 +10320,8 @@
    "key": "su22",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 1,
    "name": "Су-22",
    "nato": "Su-22 Fitter",
    "cls": "Истребитель-бомбардировщик",
@@ -8736,7 +10353,8 @@
    "key": "mig27",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 1,
    "name": "МиГ-27",
    "nato": "MiG-27 Flogger-D",
    "cls": "Истребитель-бомбардировщик",
@@ -8768,7 +10386,8 @@
    "key": "su24",
    "kind": "air",
    "grp": "player",
-   "grpName": "Ангар игроков",
+   "grpName": "Авиапарк Юктобании",
+   "tier": 2,
    "name": "Су-24М",
    "nato": "Su-24M Fencer",
    "cls": "Фронтовой бомбардировщик",
@@ -8806,6 +10425,7 @@
    "kind": "air",
    "grp": "book",
    "grpName": "Шаблоны книги",
+   "tier": 0,
    "name": "Fighter (Balanced)",
    "nato": "напр. F-15C, F-16C",
    "cls": "Шаблон книги",
@@ -8830,6 +10450,7 @@
    "kind": "air",
    "grp": "book",
    "grpName": "Шаблоны книги",
+   "tier": 0,
    "name": "Fighter (Aggressive)",
    "nato": "напр. F-5E, F-20A, Mirage 2000-5",
    "cls": "Шаблон книги",
@@ -8854,6 +10475,7 @@
    "kind": "air",
    "grp": "book",
    "grpName": "Шаблоны книги",
+   "tier": 0,
    "name": "Multi-Role (Aggressive)",
    "nato": "напр. F/A-18F, Rafale M",
    "cls": "Шаблон книги",
@@ -8884,6 +10506,7 @@
    "kind": "air",
    "grp": "book",
    "grpName": "Шаблоны книги",
+   "tier": 0,
    "name": "Multi-Role (Defensive)",
    "nato": "напр. F-15E, Tornado IDS",
    "cls": "Шаблон книги",
@@ -8914,6 +10537,7 @@
    "kind": "air",
    "grp": "book",
    "grpName": "Шаблоны книги",
+   "tier": 0,
    "name": "Ground Attack",
    "nato": "напр. A-10A",
    "cls": "Шаблон книги",
@@ -8938,6 +10562,7 @@
    "kind": "air",
    "grp": "book",
    "grpName": "Шаблоны книги",
+   "tier": 0,
    "name": "Support Gunship",
    "nato": "вымышленный ганшип",
    "cls": "Шаблон книги",
@@ -8973,6 +10598,7 @@
    "kind": "air",
    "grp": "book",
    "grpName": "Шаблоны книги",
+   "tier": 0,
    "name": "High-Speed Interceptor",
    "nato": "напр. F-14D",
    "cls": "Шаблон книги",
@@ -9003,6 +10629,7 @@
    "kind": "air",
    "grp": "book",
    "grpName": "Шаблоны книги",
+   "tier": 0,
    "name": "Experimental Prototype",
    "nato": "напр. F-22A, YF-23A",
    "cls": "Шаблон книги",
@@ -9973,7 +11600,8 @@
   "ejected": "Катапультировался, ждёт эвакуации",
   "pow": "В плену",
   "mia": "Пропал без вести",
-  "kia": "Погиб"
+  "kia": "Погиб",
+  "retired": "Выбыл из кампании"
  },
  "terrain": [
   {

@@ -66,7 +66,7 @@ export const TB = {
   },
   status: {
     active: "В строю, годен к полётам", hospital: "На лечении", ejected: "Катапультировался, ждёт эвакуации",
-    pow: "В плену", mia: "Пропал без вести", kia: "Погиб"
+    pow: "В плену", mia: "Пропал без вести", kia: "Погиб", retired: "Выбыл из кампании"
   },
   planeStats: {
     spd: ["Max Speed", "макс. скорость"], ev: ["Evasion", "уклонение"], aa: ["Air-Air", "атака по воздуху"], ag: ["Air-Gnd", "атака по земле"],
@@ -312,3 +312,6 @@ export const DT = {
   ],
   maxEdges: 3, maxResolve: 2, maxBond: 3, maxNpcBond: 2, maxNerves: 5
 };
+
+/** Пилот ещё в кампании: выбывший («Выбыл из кампании») остаётся в журнале, но не в списках звена. */
+export const inCampaign = a => a?.type === "pilot" && a.system?.service?.status !== "retired";

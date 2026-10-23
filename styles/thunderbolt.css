@@ -34,12 +34,14 @@ body[data-tb-skin="brief"] .thunderbolt .tb-portrait-screen {
   radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, .4) 100%); }
 .thunderbolt .tb-fate-kia .tb-portrait, .directory-list .directory-item.tb-fate-kia img.thumbnail { filter: grayscale(.75) brightness(.42) contrast(1.1); }
 .thunderbolt .tb-fate-mia .tb-portrait, .directory-list .directory-item.tb-fate-mia img.thumbnail { filter: grayscale(.45) brightness(.7); }
+.thunderbolt .tb-fate-out .tb-portrait, .directory-list .directory-item.tb-fate-out img.thumbnail { filter: grayscale(1) brightness(.62); }
 /* метка строкой поперёк портрета, как текст на экране */
 .tb-fate-tag { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); pointer-events: none; white-space: nowrap; text-align: center;
   font-family: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace; font-weight: 700; font-size: 14px; line-height: 1.5; letter-spacing: .22em; text-indent: .22em;
   background: rgba(0, 0, 0, .62); border-block: 1px solid color-mix(in srgb, currentColor 45%, transparent); }
 .tb-fate-kia .tb-fate-tag { color: #ff4b3a; text-shadow: 0 0 5px rgba(255, 75, 58, .7); }
 .tb-fate-mia .tb-fate-tag { color: #f2c14e; text-shadow: 0 0 5px rgba(242, 193, 78, .6); }
+.tb-fate-out .tb-fate-tag { color: #c9cfc4; text-shadow: 0 0 4px rgba(201, 207, 196, .45); }
 .thunderbolt .tb-portrait-box .tb-fate-tag { right: auto; width: 84px; top: 42px; }
 /* список «Актёры»: та же строка на миниатюре */
 .directory-list .directory-item .tb-fate-thumb { position: relative; flex: none; display: block; line-height: 0; }
@@ -847,6 +849,7 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .thunderbolt .tb-image-slot[class*="tb-fate-"] .tb-image-frame { position: relative; }
 .thunderbolt .tb-fate-kia .tb-image-frame img { filter: grayscale(.75) brightness(.42) contrast(1.1); }
 .thunderbolt .tb-fate-mia .tb-image-frame img { filter: grayscale(.45) brightness(.7); }
+.thunderbolt .tb-fate-out .tb-image-frame img { filter: grayscale(1) brightness(.62); }
 .thunderbolt .tb-image-frame .tb-fate-tag { font-size: 20px; line-height: 1.6; letter-spacing: .26em; text-indent: .26em; }
 .thunderbolt .tb-image-frame:hover { border-color: var(--tb-accent); }
 .thunderbolt .tb-image-frame img { width: 100%; height: 100%; object-fit: contain; border: 0; }

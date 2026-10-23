@@ -1,6 +1,6 @@
 /* Даунтайм: проверка на земле по шкале 7+ / 4–6 / ≤3, действия между вылетами, Заделы, Связи, личные цели,
    Решимость, Нервы и «На пределе» со срывом, шкалы угроз и события на базе. Правила: «Даунтайм» (09.10.2026). */
-import { SYSTEM_ID, TB, DT } from "./config.mjs";
+import { SYSTEM_ID, TB, DT, inCampaign } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
 import { formDialog, postCard, computeCard } from "./dice/rolls.mjs";
 import { giveNext } from "./squad.mjs";
@@ -180,7 +180,7 @@ function groundParts(actor, skill) {
 const actionsLeft = actor => actor.system.downtime?.actions ?? 0;
 
 function otherPilots(actor) {
-  return game.actors.filter(a => a.type === "pilot" && a.id !== actor.id).sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  return game.actors.filter(a => inCampaign(a) && a.id !== actor.id).sort((a, b) => a.name.localeCompare(b.name, "ru"));
 }
 
 const skillSelect = (keys, sel) => `<select name="skill">${keys.map(k => `<option value="${k}" ${k === sel ? "selected" : ""}>${TB.skills[k].label} (${TB.skills[k].en})</option>`).join("")}</select>`;

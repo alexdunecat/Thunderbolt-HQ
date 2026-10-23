@@ -39,7 +39,10 @@ export async function setHangarState(patch) {
   return next;
 }
 
+// единый авиапарк: свои машины, машины из сводок NPC (fleet) и шаблоны книги; допуск решает ведущий
 const allPlanes = cat => [...(cat.planes ?? []), ...(cat.book ?? [])];
+// внутри уровня свои машины раньше машин из сводок
+const byTier = (cat, t) => allPlanes(cat).filter(p => p.tier === t).sort((a, b) => !!a.fleet - !!b.fleet);
 const planeOf = (cat, key) => allPlanes(cat).find(p => p.key === key) ?? null;
 const weaponOf = (cat, key) => (cat.weapons ?? []).find(w => w.key === key) ?? null;
 
@@ -151,10 +154,10 @@ const statLine = p => Object.keys(TB.planeStats).map(k => `<span title="${esc(TB
 /** Панель допуска у ведущего. */
 export function adminHtml(cat, st = hangarState()) {
   const P = allPlanes(cat), W = cat.weapons ?? [];
-  const groups = tiers(cat).map(t => `<h4>${esc(tierLabel(cat, t))}</h4><div class="tb-hg-grid">${P.filter(p => p.tier === t).map(p => {
+  const groups = tiers(cat).map(t => `<h4>${esc(tierLabel(cat, t))}</h4><div class="tb-hg-grid">${byTier(cat, t).map(p => {
     const on = st.planes.includes(p.key);
     return `<label class="tb-hg-card${on ? " on" : ""}"><input type="checkbox" data-hg-plane="${esc(p.key)}" ${on ? "checked" : ""}>
-      <img src="${esc(p.img)}" alt=""><span><b>${esc(p.name)}</b><small>${esc(p.cls)} · узлов ${p.stats.hard}${p.sig?.length ? ` · ${esc(p.sig.join(", "))}` : ""}</small></span></label>`;
+      <img src="${esc(p.img)}" alt=""><span><b>${esc(p.name)}</b><small>${esc(p.cls)}${p.fleet ? " · из сводок" : ""} · узлов ${p.stats.hard}${p.sig?.length ? ` · ${esc(p.sig.join(", "))}` : ""}</small></span></label>`;
   }).join("")}</div>`).join("");
   const wgroups = [...new Set(W.map(w => w.group))].map(g => `<h4>${esc(g)}</h4><div class="tb-hg-wlist">${W.filter(w => w.group === g).map(w => {
     const on = st.weapons.includes(w.key);
@@ -170,7 +173,7 @@ export function adminHtml(cat, st = hangarState()) {
     </header>
     <div class="tb-hg-scroll">
       <section><h3>Машины</h3>
-        <div class="tb-hg-quick"><button type="button" data-hg-q="planes-all">Все</button><button type="button" data-hg-q="planes-none">Ничего</button>
+        <div class="tb-hg-quick"><button type="button" data-hg-q="planes-all">Все</button><button type="button" data-hg-q="planes-none">Ничего</button><button type="button" data-hg-q="own" title="Только машины ВВС Юктобании, без машин из сводок">Только свои</button>
           ${tiers(cat).filter(t => t > 0).map(t => `<button type="button" data-hg-q="tier" data-tier="${t}" title="Все машины уровня ${t} и ниже">до уровня ${t}</button>`).join("")}</div>
         ${groups}
       </section>
@@ -191,6 +194,7 @@ export function quickPick(cat, st, q, tier = 0) {
     case "planes-all": return { ...st, planes: P.map(p => p.key) };
     case "planes-none": return { ...st, planes: [] };
     case "tier": return { ...st, planes: P.filter(p => p.tier > 0 && p.tier <= tier).map(p => p.key) };
+    case "own": return { ...st, planes: P.filter(p => p.tier > 0 && !p.fleet).map(p => p.key) };
     case "weapons-all": return { ...st, weapons: W.map(w => w.key) };
     case "weapons-none": return { ...st, weapons: [] };
     case "sig": return { ...st, weapons: W.map(w => w.key).filter(k => st.weapons.includes(k) || st.planes.some(pk => planeOf(cat, pk)?.sig?.includes(k))) };
@@ -209,7 +213,7 @@ export function pilotHtml(cat, { actor, pilots = [], planeKey, slots = [], user 
   const pick = pilots.length > 1 ? `<select data-hg-actor>${pilots.map(a => `<option value="${a.id}" ${a.id === actor?.id ? "selected" : ""}>${esc(a.name)}</option>`).join("")}</select>` : `<b>${esc(actor?.name ?? "нет пилота")}</b>`;
   const state = !st.open ? ["closed", "ЗАКРЫТ"] : lock ? ["closed", "НЕДОСТУПЕН"] : ["open", "ОТКРЫТ"];
   const list = P.length ? tiers(cat).map(t => {
-    const row = P.filter(x => x.tier === t);
+    const row = byTier(cat, t).filter(x => P.includes(x));
     return row.length ? `<h4>${esc(tierLabel(cat, t))}</h4>${row.map(x => `<a class="tb-hg-row${x.key === planeKey ? " on" : ""}${gm && !st.planes.includes(x.key) ? " off" : ""}" data-hg-pick="${esc(x.key)}">
       <img src="${esc(x.img)}" alt=""><span><b>${esc(x.name)}</b><small>${esc(x.cls)}${x.key === cur ? " · на листе" : ""}${gm && !st.planes.includes(x.key) ? " · вне допуска" : ""}</small></span></a>`).join("")}` : "";
   }).join("") : `<p class="tb-muted">AWACS пока не выдал ни одной машины.</p>`;
