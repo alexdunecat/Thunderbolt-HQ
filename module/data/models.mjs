@@ -219,7 +219,10 @@ export class PilotData extends foundry.abstract.TypeDataModel {
     if (propKeys.has("terrain") && this.alt === "low") ev += 1;
     this.evasion = ev;
     this.defense = airDefense(this, ev);
-    this.aa = ps.aa + sum("aa"); this.ag = ps.ag + sum("ag"); this.gun = ps.gun + sum("gun"); this.hardpoints = ps.hard + sum("hardpoints");
+    // Machine Gun Pod висит постоянно: Gun DMG +3 (и +1 Strafe в броске Guns), пока спецоружие не сломано Structure
+    const mgp = broken === "sw" ? null : actor.items.find(i => i.type === "weapon" && i.system.key === "MGP" && i.system.ready);
+    this.mgp = mgp?.id ?? "";
+    this.aa = ps.aa + sum("aa"); this.ag = ps.ag + sum("ag"); this.gun = ps.gun + sum("gun") + (mgp ? 3 : 0); this.hardpoints = ps.hard + sum("hardpoints");
     this.planeProps = propKeys;
     this.broken = broken;
     this.markerCount = ["grit", "structure", "doom"].filter(k => this.markers[k]).length;

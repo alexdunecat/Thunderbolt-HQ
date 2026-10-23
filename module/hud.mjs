@@ -11,7 +11,7 @@ import { combatantOf, spentOf, declaredOf, endTurn } from "./actions.mjs";
 import { runAction, PILOT_BAR } from "./macros.mjs";
 import { lockersOf } from "./rwr.mjs";
 import { vmaxOf, kmhOf } from "./plane-speed.mjs";
-import { ejectNow, weaponReady } from "./dice/rolls.mjs";
+import { ejectNow, weaponReady, isGunPod } from "./dice/rolls.mjs";
 import { unitKind, unitHtml, onUnitClick, registerUnitHud } from "./unit-hud.mjs";
 import { hudTriggers, useCombatTrigger } from "./combat-triggers.mjs";
 import { adviceRow, runAdvice, showTarget } from "./npc-advice.mjs";
@@ -425,6 +425,9 @@ async function onClick(ev) {
     if (delta) await stepAltitude(tokenOf(actor), delta);
     return;
   }
+  // НУР и пушечные контейнеры стреляют как пушка: без захвата, сразу пульт Guns с этой станцией
+  const spw = d.hudSpw ? actor.items.get(d.hudSpw) : null;
+  if (spw && isGunPod(spw)) return runAction(actor, "guns", { pod: spw.id });
   // ракеты: стандартная снимает прицел со спецоружия, пилон спецоружия наводит его и сразу открывает пуск
   if (d.hudSpw || d.hudAct === "missile") {
     const aim = aimedWeapon(actor)?.id ?? null, want = d.hudSpw ?? null;

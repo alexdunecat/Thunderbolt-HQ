@@ -555,21 +555,7 @@ export class PilotSheet extends TBActorSheet {
     if (items.some(i => i.type === "trigger" && this.actor.items.some(t => t.type === "trigger" && t.system.key && t.system.key === i.system?.key)))
       ui.notifications.info("Этот триггер уже есть на листе.");
     if (!planes.length) return super._onDropItemCreate(items.length === 1 ? items[0] : items);
-    const a = this.actor;
-    return a.withoutPoolSync(async () => {
-      const old = a.items.filter(i => i.type === "plane").map(i => i.id);
-      if (old.length) await a.deleteEmbeddedDocuments("Item", old);
-      const created = await super._onDropItemCreate(items.length === 1 ? items[0] : items);
-      const p = planes[planes.length - 1];
-      const upd = { "system.hp.value": a.system.hp.max, "system.strain.value": a.system.strain.max,
-        "system.speed": Math.min(a.system.speed, a.system.maxSpeed), [`flags.${SYSTEM_ID}.pools`]: a.poolsFlag() };
-      // своя картинка игрока остаётся; заглушка или силуэт системы меняется на силуэт нового самолёта
-      const replaceable = src => !src || src.includes("mystery-man") || src.includes("/assets/planes/") || src.includes("/assets/portraits/");
-      if (p.img && replaceable(a.prototypeToken.texture.src)) upd["prototypeToken.texture.src"] = p.img;
-      await a.update(upd, { tbFree: true });
-      if (p.img) for (const t of a.getActiveTokens(false, true)) if (replaceable(t.texture.src) && t.texture.src !== p.img) await t.update({ "texture.src": p.img });
-      return created;
-    });
+    return this.actor.swapPlane(planes[planes.length - 1], () => super._onDropItemCreate(items.length === 1 ? items[0] : items));
   }
 }
 

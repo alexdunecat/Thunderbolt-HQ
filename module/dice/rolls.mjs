@@ -754,20 +754,23 @@ const practicedOvercharge = actor => actor.items.find(i => i.type === "trigger" 
  * схема корабля и кнопка GUNS. Окна нет, если выбирать нечего: одна цель, без контейнеров, корабля и «Отточенного мастерства».
  * Ураган берётся из погоды, «За мной!» — если предложено. Возвращает { target, pod, sys_i, practiced, follow, storm, mod } или null.
  */
-function gunPanel(actor, { list, pre, podItems, sys }) {
+function gunPanel(actor, { list, pre, podItems, sys, pod = "" }) {
   const s = actor.system, wx = weatherAt(actor);
   const fo = followOffer(actor, "strafe"), pr = !!practicedReady(actor);
   const targets = list ?? (pre ? [pre] : []);
-  const auto = { target: list ? String(Math.max(0, list.indexOf(pre))) : "p", pod: "", storm: !!wx.comp2, follow: !!fo, practiced: false, mod: 0 };
+  const auto = { target: list ? String(Math.max(0, list.indexOf(pre))) : "p", pod, storm: !!wx.comp2, follow: !!fo, practiced: false, mod: 0 };
   if (targets.length <= 1 && !podItems.length && !targets.some(x => x.kind === "ship") && !pr) return Promise.resolve(auto);
   const speed = actor.type === "npc" && s.kind !== "air" ? 0 : (s.speed ?? 0);
   const own = actor.type === "npc" && s.kind === "ground" ? s.ground.strafe : actor.type === "npc" && s.kind === "ship" && sys ? sysStrafe(actor, sys) : null;
   const base = (own ?? skillSum(actor, "strafe")) - speed;
   const gun0 = actor.type === "npc" && s.kind === "ground" ? s.ground.gun ?? 0 : sys ? sys.gun ?? 0 : s.gun ?? 0;
-  // станции: бортовая пушка и подвесные контейнеры (MGP +1 и +3 урона, PLSL +1 и урон 6, НУР — урон залпа)
-  const stations = [{ id: "", code: "GUN", cnt: "∞", add: 0, dmg: gun0 },
+  // станции: бортовая пушка (с MGP: +1 и урон уже +3 в Gun DMG) и подвесное (PLSL +1 и урон 6, НУР — урон залпа)
+  const mgp = !sys && !!s.mgp;
+  const stations = [{ id: "", code: mgp ? "GUN+MGP" : "GUN", cnt: "∞", add: mgp ? 1 : 0, dmg: gun0 },
     ...podItems.map(w => ({ id: w.id, code: w.name.split(" · ")[0], cnt: w.system.unlimited ? "∞" : String(w.system.ammo.value ?? 0).padStart(2, "0"),
-      add: ["MGP", "PLSL"].includes(w.system.key) ? 1 : 0, dmg: w.system.key === "MGP" ? gun0 + 3 : w.system.key === "PLSL" ? 6 : w.system.key === "RCL" ? Number(w.system.dmg) || 5 : gun0 }))];
+      add: w.system.key === "PLSL" ? 1 : 0, dmg: w.system.key === "PLSL" ? 6 : w.system.key === "RCL" ? Number(w.system.dmg) || 5 : gun0 }))];
+  // станция по умолчанию: выбранная на HUD, иначе лазер (он заменяет пушку), иначе пушка
+  const pick = stations.find(x => x.id && x.id === pod)?.id ?? podItems.find(w => w.system.key === "PLSL")?.id ?? "";
   const tg = targets.map((x, i) => ({ x, key: list ? String(i) : "p",
     def: x.defense === null || x.defense === undefined ? null : x.defense + nemesisDefense(actor, x.actor) + triggerDefense(actor, x.actor),
     add: sum(triggerAttack(actor, x.actor, { rolled: true, skill: "strafe", guns: true }).parts) + sum(nemesisAttack(actor, x.actor, { rolled: true, skill: "strafe" }).parts) + sum([surprise(actor, x)]) }));
@@ -776,8 +779,8 @@ function gunPanel(actor, { list, pre, podItems, sys }) {
   const tile = g => `<label class="st tg ${g === first ? "aimed" : ""}" title="${esc(g.x.name)}${g.x.dist ? " · соседняя зона" : ""}">
       <input type="radio" name="target" value="${g.key}" ${g === first ? "checked" : ""}><i class="st-led"></i><span class="st-name">${g.x.priority ? "★ " : ""}${esc(g.x.name)}</span>
       <span class="st-cnt">${g.def !== null ? `DEF ${g.def}` : "OCC"}${g.x.dist ? " · ADJ" : ""}</span>${g.def !== null ? `<b class="st-key" data-ck-pk="${g.key}"></b>` : ""}</label>`;
-  const station = st => `<label class="st ${st.id === "" ? "aimed" : ""}" title="урон ${st.dmg}">
-      <input type="radio" name="pod" value="${st.id}" ${st.id === "" ? "checked" : ""}><i class="st-led"></i><span class="st-name">${esc(st.code)}</span><span class="st-cnt">${esc(st.cnt)}</span><b class="st-key">DMG ${st.dmg}</b></label>`;
+  const station = st => `<label class="st ${st.id === pick ? "aimed" : ""}" title="урон ${st.dmg}">
+      <input type="radio" name="pod" value="${st.id}" ${st.id === pick ? "checked" : ""}><i class="st-led"></i><span class="st-name">${esc(st.code)}</span><span class="st-cnt">${esc(st.cnt)}</span><b class="st-key">DMG ${st.dmg}</b></label>`;
   const schemes = tg.filter(g => g.x.kind === "ship").map(g => schematicHtml(g.x, { name: `sys_${g.key}`, key: g.key, hidden: g !== first })).join("");
   const toggles = [
     fo ? `<label title="d10 = ${fo.d10}, d4 = ${fo.d4}"><input type="checkbox" name="follow" checked><span>ЗА МНОЙ · ${esc(fo.name)}</span></label>` : "",
@@ -959,20 +962,24 @@ function gunTargets(actor, pods, sys) {
 }
 
 /** Guns, Guns, Guns!: Strafe − Speed против защиты цели в своей зоне, без захвата. Попадание наносит урон сразу. */
-export async function fireGuns(actor, { system: sysIndex } = {}) {
+export async function fireGuns(actor, { system: sysIndex, pod: podPref = "" } = {}) {
   const s = actor.system;
-  if (s.broken === "gu") return ui.notifications.warn("Пушка сломана (метка Structure).");
+  const prefItem = podPref ? actor.items.get(podPref) : null;
+  if (prefItem && !weaponReady(prefItem)) return ui.notifications.warn(`${prefItem.name}: ${prefItem.getFlag(SYSTEM_ID, "off") ? "выведено из строя до конца вылета" : "боезапас кончился"}.`);
+  if (s.broken === "gu" && (!prefItem || prefItem.system.key === "MGP")) return ui.notifications.warn("Пушка сломана (метка Structure).");
   if (blocked(actor, "strafe")) return;
-  const podItems = s.broken === "sw" ? [] : actor.items.filter(i => i.type === "weapon" && isGunPod(i) && weaponReady(i));
+  // MGP не отдельная станция: он висит на пушке всегда (Gun DMG уже +3, в броске +1)
+  const podItems = s.broken === "sw" ? [] : actor.items.filter(i => i.type === "weapon" && isGunPod(i) && i.system.key !== "MGP" && weaponReady(i));
   // цель: противник в зоне досягаемости; если их несколько или есть что выбрать, выбор на пульте
   const sys = s.kind === "ship" && sysIndex !== undefined ? gunSys(actor, s.systems[sysIndex]) : null;
   const { list, why, reach } = gunTargets(actor, podItems, sys);
   if (list && !list.length) return ui.notifications.warn(`Guns, Guns, Guns!: ${reach ? "в своей и соседних зонах" : "в своей зоне"} нет противника.${why.length ? ` Рядом: ${why.join("; ")}.` : ""}`, { permanent: why.length > 0 });
   const picked = currentTarget();
   const pre = list ? (list.find(x => x.uuid === picked?.uuid && x.token === picked?.token) ?? list[0]) : picked ?? lockedTarget(actor);
-  const data = await gunPanel(actor, { list, pre, podItems, sys });
+  const data = await gunPanel(actor, { list, pre, podItems, sys, pod: podItems.some(w => w.id === podPref) ? podPref : "" });
   if (!data) return;
   const podItem = data.pod ? actor.items.get(data.pod) : null;
+  if (!podItem && s.broken === "gu") return ui.notifications.warn("Пушка сломана (метка Structure): стрелять можно только подвесным.");
   const tIdx = list ? (list.length > 1 ? Number(data.target) || 0 : list.indexOf(pre)) : "p";
   const t = list ? (list.length > 1 ? list[tIdx] : pre) : pre;
   const aim = t?.kind === "ship" && data[`sys_${tIdx}`] !== undefined ? aimAt(actor, t, Number(data[`sys_${tIdx}`])) : null;
@@ -1004,7 +1011,7 @@ export async function fireGuns(actor, { system: sysIndex } = {}) {
   }
   const parts = strafe === null ? skillParts(actor, "strafe", "Пушка") : [[sys?.beam ? "Луч" : "Пушка", strafe]];
   const pod = podItem;
-  if (pod?.system.key === "MGP") { parts.push(["MGP", 1]); gun += 3; label += " (MGP)"; }
+  if (!pod && !sys && s.mgp) { parts.push(["MGP", 1]); label += " (MGP)"; }
   if (pod?.system.key === "PLSL") { parts.push(["PLSL", 1]); gun = 6; label = "Импульсный лазер"; }
   if (pod?.system.key === "RCL") { gun = Number(pod.system.dmg) || 5; label = `Залп НУР (${pod.name})`; }
   if (pod && !pod.system.unlimited) await pod.update({ "system.ammo.value": Math.max(0, (pod.system.ammo.value ?? 0) - 1) });

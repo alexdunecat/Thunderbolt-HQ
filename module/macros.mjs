@@ -15,10 +15,10 @@ export const ACTIONS = {
 };
 
 /** Выполнить действие листа за актёра. В бою сделанное действие попадает в счётчик хода. */
-export async function runAction(actor, act, { skill } = {}) {
+export async function runAction(actor, act, { skill, pod } = {}) {
   // проверка хода уже была, но «Отточенное мастерство» её не тратит: окно откроется, обычный бросок оно не пустит
   if (!allowAction(actor, act, { rolled: ROLLED.has(act) && !practicedReady(actor) })) return;
-  const res = await doAction(actor, act, { skill });
+  const res = await doAction(actor, act, { skill, pod });
   if (!res) return res;
   // действие состоялось: карточка в чате (отмена диалога и предупреждения возвращают не её) или строй собран
   const card = res.documentName === "ChatMessage" ? res.getFlag(SYSTEM_ID, "card") : null;
@@ -27,12 +27,12 @@ export async function runAction(actor, act, { skill } = {}) {
   return res;
 }
 
-function doAction(actor, act, { skill } = {}) {
+function doAction(actor, act, { skill, pod } = {}) {
   switch (act) {
     case "skill": return TB.skills[skill] ? actor.rollSkill(skill) : null;
     case "lock": return actor.lockOn();
     case "missile": return actor.fireMissile();
-    case "guns": return actor.fireGuns();
+    case "guns": return actor.fireGuns(pod ? { pod } : undefined);
     case "break": return actor.rollBreak();
     case "recover": return actor.rollRecover();
     case "lead": return leadership(actor);

@@ -40,6 +40,18 @@ export async function migratePortraits() {
   return updates.length;
 }
 
+/** Окно метки: выбор навыка или системы в списке сразу отмечает и саму метку (раньше нужно было ещё щёлкнуть кружок). */
+function pickWithSelect(root) {
+  root.querySelectorAll(".form-group").forEach(g => {
+    const r = g.querySelector('input[type="radio"]'), sel = g.querySelector("select");
+    if (!r || !sel) return;
+    const check = () => { if (!r.disabled) r.checked = true; };
+    sel.addEventListener("focus", check);
+    sel.addEventListener("change", check);
+    sel.addEventListener("pointerdown", check);
+  });
+}
+
 export class TBActor extends Actor {
   async _preCreate(data, options, user) {
     if ((await super._preCreate(data, options, user)) === false) return false;
@@ -123,6 +135,27 @@ export class TBActor extends Actor {
     this._tbNoSync = true;
     try { return await fn(); }
     finally { this._tbNoSync = false; }
+  }
+
+  /**
+   * Сменить машину пилота: старая уходит, HP и Strain полные по новой, Speed не выше нового Max Speed,
+   * заглушка или силуэт на токенах меняется на силуэт новой машины. create создаёт предметы
+   * (лист передаёт свой drop, чтобы сохранить ссылку на компендиум); по умолчанию — просто data.
+   */
+  async swapPlane(data, create = () => this.createEmbeddedDocuments("Item", [data])) {
+    return this.withoutPoolSync(async () => {
+      const old = this.items.filter(i => i.type === "plane").map(i => i.id);
+      if (old.length) await this.deleteEmbeddedDocuments("Item", old);
+      const created = await create();
+      const upd = { "system.hp.value": this.system.hp.max, "system.strain.value": this.system.strain.max,
+        "system.speed": Math.min(this.system.speed, this.system.maxSpeed), [`flags.${SYSTEM_ID}.pools`]: this.poolsFlag() };
+      // своя картинка игрока остаётся; заглушка или силуэт системы меняется на силуэт нового самолёта
+      const replaceable = src => !src || src.includes("mystery-man") || src.includes("/assets/planes/") || src.includes("/assets/portraits/");
+      if (data.img && replaceable(this.prototypeToken.texture.src)) upd["prototypeToken.texture.src"] = data.img;
+      await this.update(upd, { tbFree: true });
+      if (data.img) for (const t of this.getActiveTokens(false, true)) if (replaceable(t.texture.src) && t.texture.src !== data.img) await t.update({ "texture.src": data.img });
+      return created;
+    });
   }
 
   /* ---------- урон ---------- */
@@ -262,7 +295,7 @@ export class TBActor extends Actor {
       ${radio("grit", "Grit: навык недоступен", `<select name="skill">${skills}</select>`, m.grit)}
       ${radio("structure", "Structure: сломана система", `<select name="sys">${systems}</select>`, m.structure)}
       ${radio("doom", "Doom: машина обречена, бросок на катапультирование", "", m.doom)}
-      ${fake ? radio("fakeout", `«${esc(fake.name)}»: отменить попадание (раз за вылет)`, "", false) : ""}`, { ok: "Отметить" })
+      ${fake ? radio("fakeout", `«${esc(fake.name)}»: отменить попадание (раз за вылет)`, "", false) : ""}`, { ok: "Отметить", render: pickWithSelect })
       .then(d => (d?.marker ? d : null));
   }
 
