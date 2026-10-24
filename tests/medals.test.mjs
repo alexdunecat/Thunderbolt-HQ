@@ -27,6 +27,13 @@ console.log("Награды в личном деле:\n" + pilot.system.service.
 console.log("колодки:", M.rack(pilot).map(r => r.title).join(" | "), "·", /<rect[^>]+fill="#c9a227"/.test(M.rack(pilot)[0].svg) ? "полосы аса есть" : "без полос");
 await M.revoke(pilot, M.awardsOf(pilot)[1].key);
 console.log("после отмены:", M.awardsOf(pilot).length, "·", JSON.stringify(pilot.system.service.awards));
+// «Итоги вылета»: что предложить после вылета (личное дело уже с ним)
+const svBefore = { ...pilot.system.service };
+pilot.system.service.sorties = 10; pilot.system.service.eject = 1;
+const kills = [{ name: "Пиксис-1", kind: "air", ace: true }, { name: "Скинфакси", kind: "ground", boss: true }, { name: "Су-27", kind: "air" }];
+console.log("предложить:", M.suggestAwards(pilot, { kills, goalsDone: true, flightIntact: true }).map(x => `${x.id}${x.on ? "✔" : "○"} (${x.why})`).join(" | "));
+console.log("без побед и задач:", M.suggestAwards(pilot).map(x => x.id).join(", "));
+Object.assign(pilot.system.service, svBefore);
 const html = M.panelHtml(pilot);
 console.log("панель:", (html.match(/data-medal-give="(\w+)" disabled/g) ?? []).map(x => x.match(/"(\w+)"/)[1]).join(",") || "все доступны", "закрыты ·",
   (html.match(/tb-medal-row ready/g) ?? []).length, "с выполненным условием ·", /data-medal-revoke/.test(html) ? "есть отмена" : "");

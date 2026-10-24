@@ -18,7 +18,7 @@ import { lessonDone, lessonReset } from "../career-triggers.mjs";
 import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMarkAt, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
 import { DT } from "../config.mjs";
 import { squadBudget, pointsText, operationsDone, setOperationsDone, allSquads, squadPoints, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
-import { openMedals } from "../medals.mjs";
+import { openMedals, suggestAwards, offerAwards } from "../medals.mjs";
 import { openHangarAdmin } from "../hangar.mjs";
 import { undo, redo, openUndoLog } from "../undo.mjs";
 import { markStrike, cancelStrike, strikesOfCombat, strikeWhere } from "../strikes.mjs";
@@ -353,7 +353,7 @@ export async function sortieResults() {
   // дату поменяли в форме: она становится датой кампании для следующих записей
   const date = String(data.date ?? "").trim() || campaignDate();
   if (date !== campaignDate()) await setCampaignDate(date);
-  const lines = [], report = [];
+  const lines = [], report = [], flown = [];
   for (const a of pilots) {
     if (!data[`fly_${a.id}`]) { await a.unsetFlag(SYSTEM_ID, "kills"); continue; }
     const sv = a.system.service, k = a.getFlag(SYSTEM_ID, "kills") ?? {};
@@ -375,16 +375,21 @@ export async function sortieResults() {
       "system.service.eject": sv.eject + (eject ? 1 : 0), "system.bonusPoints": a.system.bonusPoints + pts,
       [`flags.${SYSTEM_ID}.-=kills`]: null
     });
+    flown.push({ pilot: a, kills: k.list ?? [], eject });
     lines.push(`<b>${esc(a.name)}</b>: вылет ${sortie}${air ? `, сбито ${air}` : ""}${gnd ? `, на земле ${gnd}` : ""}${eject ? ", катапультировался" : ""}${pts ? `, +${pts} ${pts === 1 ? "очко" : "очка"} навыков` : ""}${dt.notes.length ? `, ${dt.notes.map(esc).join(", ")}` : ""}`);
   }
   if (data.g_on) await applyGlory(data, op, date);
   if (!lines.length) return;
   const entry = data.journal ? await writeDebrief({ op, rows: report, targets: sceneTargets(), date,
     objectives: objectives.map((text, i) => ({ text, done: !!data[`obj_${i}`] })) }) : null;
-  return ChatMessage.create({
+  await ChatMessage.create({
     speaker: { alias: "AWACS" },
     content: `<div class="tb-card tb-card-results"><header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">Итоги вылета: ${esc(op)}</span></header><div class="tb-note">${lines.join("<br>")}</div>${entry ? `<div class="tb-note">@UUID[${entry.uuid}]{Разбор полёта}</div>` : ""}</div>`
   });
+  // награды, условия которых выполнены этим вылетом: ведущий отмечает, кому вручить
+  const goalsDone = objectives.length > 0 && objectives.every((_, i) => data[`obj_${i}`]);
+  const flightIntact = flown.every(f => !f.eject && !["kia", "mia", "pow"].includes(f.pilot.system.service?.status));
+  await offerAwards(flown.map(f => ({ pilot: f.pilot, list: suggestAwards(f.pilot, { kills: f.kills, goalsDone, flightIntact }) })), { date, op });
 }
 
 /** «Все в бой»: все пилоты и NPC сцены в трекер боя (бой создаётся сам). Здания и объекты отсеивает preCreateCombatant, сбитые и отступившие не идут. */

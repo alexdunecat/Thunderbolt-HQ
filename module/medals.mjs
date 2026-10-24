@@ -90,6 +90,50 @@ export function progress(pilot, m) {
 /** Можно ли вручить: неповторяемую — один раз. */
 export const canAward = (pilot, m) => m.repeat || !awardsOf(pilot).some(a => a.id === m.id);
 
+/**
+ * Какие награды предложить пилоту после вылета (личное дело уже с этим вылетом): по счёту — те, чей счёт набран;
+ * «Охотник на асов» — сбит ас или Немезида; «За боевые заслуги» — все задачи выполнены, звено цело; Боевое Знамя — сбито супероружие.
+ * [{ id, name, why, on }]: on — галочка по умолчанию (по счёту и за аса — да, остальное решает ведущий).
+ */
+export function suggestAwards(pilot, { kills = [], goalsDone = false, flightIntact = false } = {}) {
+  const out = [];
+  for (const m of medalList()) {
+    if (!canAward(pilot, m)) continue;
+    const p = progress(pilot, m);
+    if (p?.met) { out.push({ id: m.id, name: m.name, why: p.text, on: true }); continue; }
+    if (p) continue;
+    if (m.id === "hunter") {
+      const ace = kills.filter(k => k.ace || k.nemesis).map(k => k.name);
+      if (ace.length) out.push({ id: m.id, name: m.name, why: `сбит${ace.length > 1 ? "ы" : ""} ${ace.join(", ")}`, on: true });
+    } else if (m.id === "banner") {
+      const boss = kills.filter(k => k.boss).map(k => k.name);
+      if (boss.length) out.push({ id: m.id, name: m.name, why: `уничтожено: ${boss.join(", ")}`, on: false });
+    } else if (m.id === "merit" && goalsDone && flightIntact) out.push({ id: m.id, name: m.name, why: "все задачи выполнены, звено цело", on: false });
+  }
+  return out;
+}
+
+/** «Итоги вылета»: окно с предложенными наградами, отмеченные вручаются приказом. rows — [{ pilot, list }]. */
+export async function offerAwards(rows, { date = campaignDate(), op = "" } = {}) {
+  rows = rows.filter(r => r.list.length);
+  if (!game.user.isGM || !rows.length) return 0;
+  const { formDialog } = await import("./dice/rolls.mjs");
+  const data = await formDialog("Награды по итогам вылета", `
+    <p class="tb-hint">Условия этих наград выполнены. Отмеченные будут вручены приказом с датой ${esc(date)}${op ? ` и операцией «${esc(op)}»` : ""}. Остальные награды — в панели «Награды».</p>
+    ${rows.map(({ pilot, list }) => `<h3 class="tb-medal-who">${esc(pilot.system.callsign ? `«${pilot.system.callsign}» ` : "")}${esc(pilot.name)}</h3>
+      ${list.map(s => `<label class="tb-medal-offer"><input type="checkbox" name="m_${pilot.id}_${s.id}" ${s.on ? "checked" : ""}>${ribbonSvg(byId(s.id), { w: 36, h: 11 })}<b>${esc(s.name)}</b><small>${esc(s.why)}</small></label>`).join("")}`).join("")}`,
+    { ok: "Вручить отмеченные", width: 520 });
+  if (!data) return 0;
+  let n = 0;
+  for (const { pilot, list } of rows) for (const s of list) {
+    if (!data[`m_${pilot.id}_${s.id}`]) continue;
+    // счёт и так в условии награды; основание пишется только у того, что решал ведущий
+    await award(pilot, s.id, { date, op, note: progress(pilot, byId(s.id)) ? "" : s.why });
+    n++;
+  }
+  return n;
+}
+
 /** Строка награды в личном деле. */
 const awardLine = a => `${a.name}${[a.date, a.op].filter(Boolean).length ? ` (${[a.date, a.op].filter(Boolean).join(", ")})` : ""}${a.note ? `: ${a.note}` : ""}`;
 
