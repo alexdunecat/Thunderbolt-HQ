@@ -39,6 +39,14 @@ export function giveNext(actor, mod) {
 }
 
 /** Забрать отложенные бонусы в бросок: строки для карточки, флаг очищается. */
+const NEXT_D4 = new Map();
+/** Пороги d4, которые принёс приказ с Cautious или Reckless на Lead, для броска, что сейчас собирается; забираются один раз. */
+export function takeNextD4(actor) {
+  const d = NEXT_D4.get(actor?.uuid);
+  NEXT_D4.delete(actor?.uuid);
+  return d ?? null;
+}
+
 export async function takeNext(actor) {
   const list = nextMods(actor);
   if (!list.length || !actor.isOwner) return [];
@@ -47,7 +55,10 @@ export async function takeNext(actor) {
   const hunter = preyedBy(actor);
   const lost = hunter ? list.filter(m => /^Lead\b/.test(m.label ?? "")) : [];
   if (lost.length) ui.notifications.info(`${actor.name}: добыча «${hunter.token?.name ?? hunter.name}», Lead не действует.`);
-  const out = list.filter(m => !lost.includes(m)).map(m => [m.label, m.value]);
+  const kept = list.filter(m => !lost.includes(m)), out = kept.map(m => [m.label, m.value]);
+  // пороги d4 от приказа (Cautious, Reckless): их заберёт карточка этого броска
+  const d4 = kept.reduce((o, m) => ({ perkOn: Math.min(o.perkOn, m.perkOn ?? 4), compOn: Math.max(o.compOn, m.compOn ?? 1) }), { perkOn: 4, compOn: 1 });
+  if (d4.perkOn < 4 || d4.compOn > 1) NEXT_D4.set(actor.uuid, d4);
   // «Скажи, что делать»: после Поворота ещё +1 к броску, где союзник даёт Lead
   const tell = actor.items?.find?.(i => i.type === "trigger" && i.system.key === "tellme");
   if (tell && actor.system.twist && out.some(([l]) => /^Lead\b/.test(l ?? ""))) out.push([tell.name, 1]);
@@ -113,7 +124,9 @@ export async function leadership(actor) {
   if (!rows.length) return ui.notifications.info("Других пилотов нет.");
   const chosen = await pickDialog("Leadership: совет или приказ", `Кто послушал, прибавит ваш Lead (+${lead}) к следующему броску. Подходит и для «Сомкнуть строй».`, rows, "Приказать");
   if (!chosen?.length) return;
-  for (const r of chosen) await giveNext(r.actor, { label: `Lead ${actor.name}`, value: lead });
+  // Cautious или Reckless на Lead (книга, стр. 34–35): Perk на 3–4 или Complication на 1–2 получает тот, кто послушал
+  const d4 = { ...(actor.system.perkOn?.lead < 4 ? { perkOn: actor.system.perkOn.lead } : {}), ...(actor.system.compOn?.lead > 1 ? { compOn: actor.system.compOn.lead } : {}) };
+  for (const r of chosen) await giveNext(r.actor, { label: `Lead ${actor.name}`, value: lead, ...d4 });
   // для Тревоги: приказ только соседям вплотную в эфир не выходит
   const c = game.combat;
   const quiet = chosen.every(r => adj.has(r.actor.uuid));

@@ -4,7 +4,8 @@
    «Кобра» через ведущего (чужие захваты), строка «МАШИНА» в HUD и уборка отметок хода. */
 import { SYSTEM_ID, TB, sysOff, roleOf, moveOf, moveReady, hasProp, sortieMark, sortieUsed } from "./config.mjs";
 import { esc } from "./utils.mjs";
-import { tokenOf, altOf, ecmCover, firedThisRound } from "./scene.mjs";
+import { tokenOf, altOf, ecmCover, firedThisRound, zoneDistance, canFireAt, hasRule } from "./scene.mjs";
+import { sysCount, unitFlag } from "./scales.mjs";
 import { combatantOf, actionProblem, allowAction, spendAction, turnKey, twoZones } from "./actions.mjs";
 
 const CHANNEL = `system.${SYSTEM_ID}`;
@@ -121,7 +122,29 @@ function toGm(op, data) {
   game.socket.emit(CHANNEL, { type: "planeMove", op, data });
 }
 
+/** Сорвать захваты преследователей на беглеца (Pushing Limits): чужие машины правит ведущий. */
+export async function dropLocks(uuid, pursuers) {
+  if (game.user.isGM) return run("unlock", { uuid, pursuers });
+  if (!game.users.activeGM) return ui.notifications.warn("Ведущего нет в сети: захваты отставших снимите вручную.");
+  game.socket.emit(CHANNEL, { type: "planeMove", op: "unlock", data: { uuid, pursuers } });
+}
+
 async function run(op, d) {
+  if (op === "unlock") {
+    for (const tok of canvas?.tokens?.placeables ?? []) {
+      const a = tok.actor;
+      if (!a || !(d.pursuers ?? []).includes(a.uuid)) continue;
+      const salvo = a.getFlag(SYSTEM_ID, "salvo");
+      if (a.system.lockUuid === d.uuid) await a.update({ "system.lock": "", "system.lockUuid": "", [`flags.${SYSTEM_ID}.salvo`]: null, [`flags.${SYSTEM_ID}.phoenix`]: null });
+      else if (salvo?.list?.some(x => x.uuid === d.uuid)) await a.setFlag(SYSTEM_ID, "salvo", { ...salvo, list: salvo.list.filter(x => x.uuid !== d.uuid) });
+    }
+    return;
+  }
+  if (op === "deck") {
+    const a = await fromUuid(d.uuid), ship = a?.actor ?? a;
+    if (ship) await ship.update({ [`flags.${SYSTEM_ID}.unit.deck`]: Math.max(0, unitFlag(ship, "deck", 0) + d.delta) });
+    return;
+  }
   if (op !== "cobra") return;
   const names = [];
   for (const tok of canvas?.tokens?.placeables ?? []) {
@@ -138,6 +161,84 @@ async function run(op, d) {
   }
   if (names.length) await ChatMessage.create({ speaker: { alias: "AWACS" },
     content: `<div class="tb-card tb-card-lock"><div class="tb-note">Кобра: захват сорван у ${names.map(n => `<b>${esc(n)}</b>`).join(", ")}.</div></div>` });
+}
+
+/** Кого ганшип навёл Targeting Booster в этом раунде: { uuid, name } или null. */
+export function boosterPick(actor) {
+  const f = actor?.getFlag?.(SYSTEM_ID, "booster");
+  return f && f.key === roundKey() ? f : null;
+}
+
+/** Targeting Booster: выбрать союзника в своей или соседней зоне на этот раунд (щелчок по токену). */
+export async function pickBooster(actor) {
+  if (!roundKey()) return ui.notifications.warn("Targeting Booster: только в начатом бою.");
+  const { pickTargetToken } = await import("./pick.mjs");
+  const tok = await pickTargetToken(actor, { title: "Targeting Booster", hint: "Союзник в своей или соседней зоне: +1 к A-A, A-G, Aim и Deploy до конца раунда" });
+  if (!tok) return;
+  if (tok.actor === actor || canFireAt(actor, tok.actor)) return ui.notifications.warn(`Targeting Booster: «${tok.name}» не союзник.`);
+  const d = zoneDistance(tokenOf(actor), tok);
+  if (d !== null && d > 1) return ui.notifications.warn(`Targeting Booster: «${tok.name}» в ${d} зонах, нужна своя или соседняя.`);
+  await actor.setFlag(SYSTEM_ID, "booster", { key: roundKey(), uuid: tok.actor.uuid, name: tok.name });
+  return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="tb-card tb-card-lock"><div class="tb-note"><b>Targeting Booster</b>: ${esc(tok.name)} до конца раунда +1 к A-A, A-G, Aim и Deploy, пока в своей или соседней зоне.</div></div>` });
+}
+
+/** Палубная машина пилота (Палубный, Стрэйнджриал 8.4). */
+export const isCarrierPlane = actor => actor?.type === "pilot" && !!actor.system.plane?.system?.carrier;
+
+/** На чьей палубе стоит машина в этом бою: { uuid, name } или null. */
+export function onDeck(actor) {
+  const f = actor?.getFlag?.(SYSTEM_ID, "deck");
+  return f && f.combat === game.combat?.id ? f : null;
+}
+
+/** Свой авианосец с целой палубой в том же участке, если машина на Низкой: { token, actor } или null. */
+export function deckNear(actor, tok = tokenOf(actor)) {
+  if (!tok || !canvas?.ready || altOf(tok, actor) !== "low") return null;
+  for (const t of canvas.tokens.placeables) {
+    const a = t.actor;
+    if (!a || a === actor || !hasRule(a, "carrierdeck") || canFireAt(actor, a)) continue;
+    if (a.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) || !sysCount(a, /палуб|runway/i).alive) continue;
+    if (zoneDistance(tok, t) === 0) return { token: t, actor: a };
+  }
+  return null;
+}
+
+/** Кнопка палубы в HUD: { on, near, can, title } или null, если машина не палубная. */
+export function deckState(actor) {
+  if (!isCarrierPlane(actor) || !game.combat?.started) return null;
+  const on = onDeck(actor), near = on ? null : deckNear(actor);
+  const why = actionProblem(actor, on ? "deckUp" : "deckDown");
+  const title = on ? `На палубе «${on.name}»: действием взлёт (Carrier Runway)`
+    : near ? `Палубный: действием сесть на «${near.token.name}», после посадки боезапас спецоружия полный`
+    : "Палубный: сесть можно на свой авианосец с целой палубой, в его участке на Низкой";
+  return { on: !!on, near: !!near, can: (!!on || !!near) && !why, title: why && (on || near) ? `${title}\nСейчас: ${why}` : title };
+}
+
+/** Посадка на палубу или взлёт с неё: одно действие (Carrier Runway, книга, стр. 50). Посадка восстанавливает боезапас спецоружия. */
+export async function useDeck(actor) {
+  if (!isCarrierPlane(actor)) return;
+  const on = onDeck(actor);
+  const near = on ? null : deckNear(actor);
+  if (!on && !near) return ui.notifications.warn("Палубный: нужен свой авианосец с целой палубой в этом участке, машина на Низкой.");
+  if (!allowAction(actor, on ? "deckUp" : "deckDown")) return;
+  const who = esc(actor.token?.name ?? actor.name);
+  if (on) {
+    await actor.unsetFlag(SYSTEM_ID, "deck");
+    toGm("deck", { uuid: on.uuid, delta: -1 });
+    await spendAction(actor, "deckUp");
+    return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
+      content: `<div class="tb-card tb-card-move"><div class="tb-note"><b>${who}</b> взлетает с палубы «${esc(on.name)}».</div></div>` });
+  }
+  const s = actor.system;
+  const ammo = actor.items.filter(i => i.type === "weapon" && i.system.ammo.max !== null)
+    .map(i => ({ _id: i.id, "system.ammo.value": i.system.ammo.max + (s.ammoBonus?.[i.id] ?? 0) }));
+  if (ammo.length) await actor.updateEmbeddedDocuments("Item", ammo);
+  await actor.setFlag(SYSTEM_ID, "deck", { combat: game.combat.id, uuid: near.actor.uuid, name: near.token.name });
+  toGm("deck", { uuid: near.actor.uuid, delta: 1 });
+  await spendAction(actor, "deckDown");
+  return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="tb-card tb-card-move"><div class="tb-note"><b>${who}</b> садится на палубу «${esc(near.token.name)}». Боезапас спецоружия восстановлен${ammo.length ? "" : " (спецоружия нет)"}. Взлёт отдельным действием.</div></div>` });
 }
 
 /** Строка «МАШИНА» в HUD: роль и черта, лампы свойств, Angle of Attack Limiter и кнопка приёма. */
@@ -159,8 +260,17 @@ export function hudPlane(actor) {
   if (hasProp(actor, "antiship")) lamp("ПКР", !sysOff(s, "ms"), "Противокорабельная ракета: станция ASM на пульте Fox Two!, по кораблю в любой точке зоны операции");
   const aoa = hasProp(actor, "aoa") ? { on: !!s.aoa, can: !!myTurn(actor) && !s.aoa && (actor.type !== "pilot" || (s.strain?.value ?? 0) >= 2) } : null;
   const move = moveState(actor);
-  if (!role?.trait && !lamps.length && !aoa && !move) return null;
-  return { role, lamps, aoa, move };
+  const booster = hasProp(actor, "booster") ? { name: boosterPick(actor)?.name ?? "" } : null;
+  const deck = deckState(actor);
+  // атаки бомбардировщиков и ганшипов NPC: кнопки рядом с лампами (Fox Two! с крылатыми ракетами — на пульте пуска)
+  const attacks = actor.type === "npc" ? [
+    hasProp(actor, "carpet") && { act: "carpet", code: "КОВЁР", title: "Ковровая бомбардировка: действием вся наземка противника в своём участке, A-G − Speed против Occlusion, урон 6" },
+    hasProp(actor, "gunship") && { act: "gunship", code: "ОРУДИЯ", title: "Бортовые орудия: наземная цель в своём или соседнем участке, d10 + 1 против Occlusion, урон 4" }
+  ].filter(Boolean) : [];
+  if (hasProp(actor, "cruise")) lamp("CRS", true, "Крылатые ракеты: станция CRS на пульте Fox Two!, по наземной цели в любой точке зоны операции, урон 7");
+  if (hasProp(actor, "tailgun")) lamp("КОРМА", true, "Кормовая пушка: Guns только по преследователю в своей зоне");
+  if (!role?.trait && !lamps.length && !aoa && !move && !booster && !deck && !attacks.length) return null;
+  return { role, lamps, aoa, move, booster, deck, attacks };
 }
 
 /** Разметка строки «МАШИНА» для HUD. */
@@ -171,13 +281,16 @@ export function planeRowHtml(p) {
   const aoa = p.aoa ? `<button type="button" class="tb-hud-aoa ${p.aoa.on ? "on" : ""}" data-hud-aoa ${p.aoa.can || p.aoa.on ? "" : "disabled"} title="Angle of Attack Limiter: в свой ход −2 Strain, до конца хода +1 к Evasion, A-A, Aim, Dodge, Push">AOA${p.aoa.on ? " +1" : ""}</button>` : "";
   const m = p.move;
   const move = m ? `<button type="button" class="tb-hud-move ${m.ready ? "" : "used"} ${m.why ? "wait" : "ready"}" data-hud-move title="${esc(m.name)} (раз за вылет): ${esc(m.text)}${m.why ? `\nСейчас: ${esc(m.why)}` : ""}">ПРИЁМ · ${esc(m.name)}</button>` : "";
-  return `<div class="tb-hud-btns tb-hud-plane"><small title="Роль, свойства и фирменный приём машины">МАШИНА</small>${role}${lamps}${aoa}${move}</div>`;
+  const bst = p.booster ? `<button type="button" class="tb-hud-aoa ${p.booster.name ? "on" : ""}" data-hud-booster title="Targeting Booster: в начале раунда выберите союзника в своей или соседней зоне, ему +1 к A-A, A-G, Aim и Deploy">BOOST${p.booster.name ? ` · ${esc(p.booster.name)}` : ""}</button>` : "";
+  const deck = p.deck ? `<button type="button" class="tb-hud-aoa ${p.deck.on ? "on" : ""}" data-hud-deck ${p.deck.can ? "" : "disabled"} title="${esc(p.deck.title)}">${p.deck.on ? "ВЗЛЁТ" : "ПОСАДКА"}</button>` : "";
+  const atk = (p.attacks ?? []).map(x => `<button type="button" class="tb-hud-aoa" data-hud-act="${x.act}" title="${esc(x.title)}">${esc(x.code)}</button>`).join("");
+  return `<div class="tb-hud-btns tb-hud-plane"><small title="Роль, свойства и фирменный приём машины">МАШИНА</small>${role}${lamps}${aoa}${bst}${deck}${atk}${move}</div>`;
 }
 
 /** Для листа: роль и приём машины. */
 export function sheetPlane(actor) {
   const r = roleOf(actor), m = moveState(actor);
-  return { role: r ? TB.planeRoles[r] : null, move: m, aoa: hasProp(actor, "aoa") };
+  return { role: r ? TB.planeRoles[r] : null, move: m, aoa: hasProp(actor, "aoa"), deck: deckState(actor) };
 }
 
 export function registerPlaneRoles() {

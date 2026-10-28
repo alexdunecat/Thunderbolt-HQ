@@ -4,14 +4,15 @@ import { SYSTEM_ID, SYS_PATH, TB } from "./config.mjs";
 import { resolveActor } from "./utils.mjs";
 import { leadership, formUp } from "./squad.mjs";
 import { spendAction, allowAction, endTurn } from "./actions.mjs";
-import { practicedReady } from "./dice/rolls.mjs";
+import { practicedReady, fireCarpet, fireGunship } from "./dice/rolls.mjs";
 
 /** Действия, которые всегда с броском (Fox Two! с броском решается в окне пуска). */
-const ROLLED = new Set(["guns", "break", "recover", "skill"]);
+const ROLLED = new Set(["guns", "break", "recover", "skill", "gunship"]);
 
 export const ACTIONS = {
   lock: "Lock On!", missile: "Fox Two!", guns: "Guns, Guns, Guns!", break: "Break!",
-  recover: "Вернуть Strain", lead: "Leadership", formup: "Вплотную"
+  recover: "Вернуть Strain", lead: "Leadership", formup: "Вплотную",
+  carpet: "Ковровая бомбардировка", gunship: "Бортовые орудия"
 };
 
 /** Выполнить действие листа за актёра. В бою сделанное действие попадает в счётчик хода. */
@@ -38,6 +39,8 @@ function doAction(actor, act, { skill, pod, weapon, opts } = {}) {
     case "recover": return actor.rollRecover();
     case "lead": return leadership(actor);
     case "formup": return formUp(actor);
+    case "carpet": return fireCarpet(actor);
+    case "gunship": return fireGunship(actor);
   }
 }
 

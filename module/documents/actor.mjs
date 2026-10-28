@@ -208,7 +208,8 @@ export class TBActor extends Actor {
         // сначала отметка «сбит» со стрелком: иначе её раньше поставит хук статуса, уже без стрелка
         await this.#creditKill(sourceUuid);
         await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
-        return this.#say(`<b>${esc(this.name)}</b> уничтожена.`);
+        await this.#say(`<b>${esc(this.name)}</b> уничтожена.`);
+        return this.#explode();
       }
       this.#chatter("damaged");
       return this.#say(`<b>${esc(this.name)}</b>: −${amount} HP, осталось ${hp}.`);
@@ -409,6 +410,20 @@ export class TBActor extends Actor {
     if (!data) return null;
     const i = Number(data.sys);
     return systems[i]?.value > 0 ? i : null;
+  }
+
+  /** «Взрыв» (Стрэйнджриал 9.3): уничтоженная цель наносит 2 урона всем наземным целям своего участка. */
+  async #explode() {
+    const { hasRule, tokenOf, cellOf } = await import("../scene.mjs");
+    if (!hasRule(this, "explode") || !canvas?.ready) return;
+    const me = cellOf(tokenOf(this));
+    if (!me) return;
+    const dead = CONFIG.specialStatusEffects.DEFEATED;
+    const near = canvas.tokens.placeables.filter(t => t.actor && t.actor !== this && t.actor.type === "npc" && t.actor.system.kind === "ground"
+      && !t.actor.statuses?.has(dead) && (c => c && c.col === me.col && c.row === me.row)(cellOf(t)));
+    if (!near.length) return;
+    await this.#say(`<b>${esc(this.name)}</b>: взрыв, 2 урона по соседям на участке: ${near.map(t => esc(t.name)).join(", ")}.`);
+    for (const t of near) await t.actor.applyDamage(2, { source: `Взрыв: ${this.name}` });
   }
 
   /** Тревога у всех, если это приоритетная цель союзников или гражданских (sounds.mjs). */

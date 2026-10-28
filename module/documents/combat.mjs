@@ -6,7 +6,7 @@
    Конец раунда: ракеты раунда долетают залпом, потом заканчивается Break! и списывается его Speed, заявки сбрасываются.
    Ракеты по цели со сломанным MAWS (и HVAA) бьют в начале её хода.
    Всё, что меняет бой, делает клиент ведущего: так раунд закрывается правильно, даже если ход передал игрок. */
-import { SYSTEM_ID } from "../config.mjs";
+import { SYSTEM_ID, hasProp } from "../config.mjs";
 import { formDialog, resolveVolley, renderCard } from "../dice/rolls.mjs";
 import { clearLosses, lossLine } from "../losses.mjs";
 import { resolveStrikes } from "../strikes.mjs";
@@ -88,7 +88,8 @@ async function declareDialog(combat, list) {
   const npcs = combat.combatants.filter(c => npcSide(c) && declared(c) && !passive(c.actor));
   const seen = !game.user.isGM && npcs.length
     ? `<p class="tb-hint">Заявки врага: ${npcs.map(c => `${esc(c.name)} ${declareLabel(c.initiative)}`).join(", ")}.</p>` : "";
-  const rows = list.map(c => `<div class="form-group"><label>${esc(c.name)}</label>
+  const wsoOf = c => c.actor?.type === "pilot" && !!c.actor.system.wso?.trim?.() && (hasProp(c.actor, "wso") || hasProp(c.actor, "wsoall"));
+  const rows = list.map(c => `<div class="form-group"><label>${esc(c.name)}${wsoOf(c) ? ` <small title="WSO во второй кабине: ещё одно действие сверх заявки, место в очереди по заявке пилота; у экипажа две проверки за ход">+1 WSO</small>` : ""}</label>
     <select name="${c.id}">${[1, 2, 3].map(n => `<option value="${n}" ${(advice[c.id] ?? 2) === n ? "selected" : ""}>${n} ${n === 1 ? "действие" : "действия"}${advice[c.id] === n ? " · совет" : ""}</option>`).join("")}<option value="${PASS}">Пропуск</option></select></div>`).join("");
   return formDialog(`Заявка действий: раунд ${combat.round}`,
     `<p class="tb-hint">Меньше действий: ходите раньше. Пропуск уходит в конец очереди.</p>${seen}${rows}`, { ok: "Заявить" });
@@ -288,7 +289,9 @@ function decorateTracker(app, html) {
     if (ini && declared(c)) {
       // сколько из заявленного уже сделано: «1/2»
       const spent = c.getFlag(SYSTEM_ID, "acts"), used = spent?.round === combat.round ? spent.used : 0;
-      const n = isPass(c.initiative) ? 0 : delayedBy(c.initiative) || c.initiative;
+      // игрок-WSO во второй кабине: действие сверх заявки
+      const wso = c.actor?.type === "pilot" && !!c.actor.system.wso?.trim?.() && (hasProp(c.actor, "wso") || hasProp(c.actor, "wsoall"));
+      const n = isPass(c.initiative) ? 0 : (delayedBy(c.initiative) || c.initiative) + (wso ? 1 : 0);
       ini.textContent = used ? `${used}/${n}${delayedBy(c.initiative) ? "↓" : ""}` : declareLabel(c.initiative);
       if (used > n) ini.style.color = "#d0302a";
     }

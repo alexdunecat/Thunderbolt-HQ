@@ -97,6 +97,8 @@
         <button type="button" data-act="missile"><i class="fas fa-rocket"></i> Fox Two! <span class="tb-dice-tag half" title="Без броска. С броском только Improved Fox Two!"><i class="fas fa-dice-d10"></i>?</span></button>
         {{#if canGun}}<button type="button" data-act="guns"><i class="fas fa-burst"></i> Пушка <span class="tb-dice-tag" title="С броском d10 + d4: одна проверка за ход"><i class="fas fa-dice-d10"></i></span></button>{{/if}}
         <button type="button" data-act="break"><i class="fas fa-shuffle"></i> Break! <span class="tb-dice-tag" title="С броском d10 + d4: одна проверка за ход"><i class="fas fa-dice-d10"></i></span></button>
+        {{#if npcAttacks.carpet}}<button type="button" data-act="carpet" title="Вся наземка противника в своём участке: A-G − Speed против Occlusion, урон 6"><i class="fas fa-bomb"></i> Ковровая бомбардировка</button>{{/if}}
+        {{#if npcAttacks.gunship}}<button type="button" data-act="gunship" title="Наземная цель в своём или соседнем участке: d10 + 1 против Occlusion, урон 4"><i class="fas fa-crosshairs"></i> Бортовые орудия <span class="tb-dice-tag" title="С броском d10 + d4: одна проверка за ход"><i class="fas fa-dice-d10"></i></span></button>{{/if}}
       </div>
       <p class="tb-small tb-muted tb-dice-legend"><i class="fas fa-dice-d10"></i> — действие с броском (за ход одна проверка). <i class="fas fa-dice-d10"></i>? — бросок по желанию (Improved). Без значка — без броска: Lock On!, Leadership, Вплотную, пуск ЗРК, Move, Climb / Dive, Change Speed.</p>
       <fieldset class="tb-box tb-markers">

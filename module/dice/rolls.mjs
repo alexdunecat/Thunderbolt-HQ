@@ -1,9 +1,9 @@
 /* Броски и чат-карточки: проверки, ракеты, пушка, Break!, Strain, урон, сваливание. */
 import { SYSTEM_ID, TB, sysOff, offWhy, roleOf, moveReady, sortieMark, hasProp } from "../config.mjs";
 import { esc, resolveActor } from "../utils.mjs";
-import { sameZoneLock, tokenOf, altOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, stratLift, isAirTarget, inNarrowTunnel, wallBonus, zoneDistance, rangeLabel, isFlying, struckBy, gunVs, sysGunReach, sysStrafe, gunSys } from "../scene.mjs";
+import { sameZoneLock, tokenOf, altOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, stratLift, isAirTarget, inNarrowTunnel, wallBonus, zoneDistance, rangeLabel, isFlying, struckBy, gunVs, sysGunReach, sysStrafe, gunSys, hasRule, escortCover, radarCue, awacsCue, revealAmbush, boosterOn } from "../scene.mjs";
 import { alarmRows, raiseAlarm, surprise, quietAA, markVolley } from "../stealth.mjs";
-import { takeNext, passOutcome } from "../squad.mjs";
+import { takeNext, takeNextD4, passOutcome } from "../squad.mjs";
 import { nemesisAttack, nemesisDefense } from "../nemesis.mjs";
 import { triggerAttack, triggerDefense, triggerBreak, trashComp, coverPart, millionFor, letGo, trig, weakOf, followFor, offerFollow, followOffer, takeFollow, aceRadio } from "../combat-triggers.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
@@ -136,11 +136,11 @@ function renderAlarm(c) {
  * Проверка вне хода: не считается броском хода (Тревога, пролёт в туннеле).
  * onFail: "alarm" — кнопка ведущему «Тревога +1»; failDmg — урон при провале (кнопка владельцу).
  */
-export async function rollSideCheck(actor, skill, { dc = 7, label, notes = [], onFail = "", failDmg = 0, turnRoll = false, onWin = null } = {}) {
+export async function rollSideCheck(actor, skill, { dc = 7, label, notes = [], onFail = "", failDmg = 0, turnRoll = false, onWin = null, extra = {} } = {}) {
   // обязательная проверка не пропадает из-за Grit: навык недоступен — автоматический провал
   if (actor.system.skillBlocked?.[skill]) return postCard(actor, {
     type: "side", label: label ?? `${TB.skills[skill].label} против ${dc}`, rolled: false, parts: [[`${TB.skills[skill].label} недоступен (Grit)`, 0]], strain: 0, dc,
-    forceFail: true, strainable: false, skill, onFail, failDmg, onWin, notes: ["Метка Grit: навык недоступен, проверка провалена.", ...notes.map(esc)]
+    forceFail: true, strainable: false, skill, onFail, failDmg, onWin, notes: ["Метка Grit: навык недоступен, проверка провалена.", ...notes.map(esc)], ...extra
   }, []);
   const dice = await rollDice(actor, false, { turnRoll });
   if (!dice) return null;
@@ -149,7 +149,7 @@ export async function rollSideCheck(actor, skill, { dc = 7, label, notes = [], o
   const card = {
     type: "side", label: label ?? `${TB.skills[skill].label} против ${dc}`, rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc,
     strainable: canStrain(actor), skill, onFail, failDmg, onWin, notes: [...(turnRoll ? [] : ["Не считается броском хода."]), ...notes.map(esc)],
-    ...thresholds(actor, skill, w.comp2)
+    ...thresholds(actor, skill, w.comp2), ...extra
   };
   return postCard(actor, card, dice.rolls);
 }
@@ -188,7 +188,8 @@ export function renderCard(card) {
     verdict = `<div class="tb-total">${c.total} ÷ 2 = <b>${c.value}</b> · Evasion ${c.ev} → ${c.applies
       ? `<b class="ok">Evasion ${c.value} до конца раунда</b>` : `<b class="fail">не выше Evasion, остаётся ${c.ev}</b>`}</div>`;
   } else if (c.type === "rail") {
-    verdict = `<div class="tb-total">Итог <b>${c.total}</b> по воздуху (Aim)${c.line?.some(r => r.gnd) ? ` · <b>${c.total + (c.depShift ?? 0)}</b> по земле и морю (Deploy)` : ""}</div>`;
+    verdict = c.word ? `<div class="tb-total">Итог <b>${c.total}</b> (${esc(c.word)})</div>`
+      : `<div class="tb-total">Итог <b>${c.total}</b> по воздуху (Aim)${c.line?.some(r => r.gnd) ? ` · <b>${c.total + (c.depShift ?? 0)}</b> по земле и морю (Deploy)` : ""}</div>`;
   } else if (c.dc !== null && c.dc !== undefined) {
     const vs = c.vsLabel ?? "сложности";
     verdict = `<div class="tb-total">Итог <b>${c.total}</b> против ${vs} ${c.dc} → <b class="${c.success ? "ok" : "fail"}">${c.success ? (c.attack ? "Попадание" : "Успех") : (c.attack ? (c.delayed && c.combatKey && !c.resolved ? "одна мимо" : "Промах") : "Провал")}</b>${c.proxHit ? ` · <b class="ok">неконтактный взрыв, ${PROX_DMG} урона</b>` : ""}</div>`;
@@ -256,6 +257,10 @@ export function renderCard(card) {
     if (c.success) btn.push(`<button type="button" data-tb-action="stall-ok" class="tb-owner">Выровняться: Speed 1</button>`);
     else btn.push(`<button type="button" data-tb-action="stall-fail" class="tb-owner">${c.alt === "low" ? "Удар о землю: Doom" : c.alt === "strat" ? "Спуститься на Высокую" : "Потерять высоту"}</button>`);
   }
+  // Pushing Limits (книга, стр. 21): после удачного Push преследователи должны его перебить, иначе теряют хвост
+  if (c.type === "check" && c.skill === "push" && c.success && !c.chased && pursuersOf(c.actorUuid).length)
+    btn.push(`<button type="button" data-tb-action="chase" class="tb-owner" title="Каждый, кто держит вас на захвате, бросает Push: не перебил ваш итог — захват сорван"><i class="fas fa-wind"></i> Оторваться: Push преследователей</button>`);
+  if (c.chaseRows) rows.push(...c.chaseRows.map(r => `<div class="tb-note">${r}</div>`));
   // «Один на миллион»: промах можно сделать попаданием
   if (c.attack && c.dc !== null && c.dc !== undefined && !c.success && millionFor(c)) btn.push(`<button type="button" data-tb-action="million" class="tb-owner" title="Раз за вылет: выбранный выстрел попадает"><i class="fas fa-crosshairs"></i> ${esc(millionFor(c).name)}: попадание</button>`);
   if (c.million) rows.push(`<div class="tb-note">«${esc(c.million)}»: выстрел попадает.</div>`);
@@ -293,7 +298,7 @@ export async function postCard(actor, card, rolls = [], { author } = {}) {
     flags: { [SYSTEM_ID]: { card } }
   });
   // бросок на катапультирование идёт уже после Doom: ни молнии, ни срыва
-  if (card.rolled && card.type !== "eject" && computeCard(card).comp) await lightningStrike(actor);
+  if (card.rolled && card.type !== "eject" && computeCard(card).comp) { await lightningStrike(actor); await tornadoDebris(actor); }
   // на пределе: первая d4 = 1 в вылете — срыв
   if (card.rolled && !["ground", "eject"].includes(card.type) && card.d4 === 1) await checkBreakdown(actor, "на d4 выпала 1");
   return msg;
@@ -317,13 +322,25 @@ async function lightningStrike(actor) {
   });
 }
 
+/** Торнадо: Complication в зоне торнадо — урон обломками (книга, стр. 65). Сколько, книга не говорит: 1 HP. */
+export const DEBRIS_DMG = 1;
+async function tornadoDebris(actor) {
+  if (!game.combat?.started || !isFlying(actor) || !actor.isOwner) return;
+  if (!weatherAt(actor).list.some(d => d.id === "tornado")) return;
+  await ChatMessage.create({ speaker: { alias: "AWACS" },
+    content: `<div class="tb-card tb-card-lightning"><header class="tb-card-head"><span class="tb-card-who">⌁ Торнадо</span><span class="tb-card-what">${esc(actor.token?.name ?? actor.name)}</span></header>
+      <div class="tb-note">Complication в торнадо: обломки и порывы ветра, <b>${DEBRIS_DMG} урона</b>.</div></div>` });
+  return actor.applyDamage(DEBRIS_DMG, { source: "Обломки торнадо" });
+}
+
 /* ---------- проверки ---------- */
 
 /** Пороги Perk/Complication с учётом погоды «Ураган» (Complication на 1–2). */
 function thresholds(actor, skill, extraComp) {
   const s = actor.system;
   // «Трёп в эфире» эскадрильи: у врагов Complication на 1–2
-  return { perkOn: s.perkOn?.[skill] ?? 4, compOn: Math.max(s.compOn?.[skill] ?? 1, extraComp || trashComp(actor) ? 2 : 1), skill };
+  const lead = takeNextD4(actor);
+  return { perkOn: Math.min(s.perkOn?.[skill] ?? 4, lead?.perkOn ?? 4), compOn: Math.max(s.compOn?.[skill] ?? 1, extraComp || trashComp(actor) ? 2 : 1, lead?.compOn ?? 1), skill };
 }
 
 /** Триггер «Отточенное мастерство» (Practiced Competence), ещё не использованный в этом вылете. */
@@ -418,6 +435,11 @@ export async function rollRecover(actor) {
 
 /** Сваливание: Push против 7. */
 export async function rollStall(actor) {
+  // Push под Grit: выровняться нечем, проверка проваливается сама (как другие обязательные проверки)
+  if (actor.system.skillBlocked?.push) return postCard(actor, {
+    type: "stall", label: "Сваливание: Push против 7", rolled: false, parts: [["Push недоступен (Grit)", 0]], strain: 0, dc: 7, forceFail: true,
+    strainable: false, alt: actor.system.alt, notes: ["Метка Grit на Push: выровняться нельзя, проверка провалена.", "Провал: минус уровень высоты и повтор на следующем ходу, на Низкой сразу Doom."]
+  }, []);
   const dice = await rollDice(actor, false, { turnRoll: false });
   const w = weatherAt(actor);
   const parts = [...skillParts(actor, "push", "Форсаж"), ...weatherParts(w, "push"), ...await takeNext(actor)];
@@ -482,7 +504,8 @@ export async function ejectNow(actor, { marked = false } = {}) {
   if (!dice) return null;
   const card = {
     type: "eject", label: "Катапультирование: Push против 7", rolled: true, d10: dice.d10, d4: dice.d4,
-    parts: [...skillParts(actor, "push", "Форсаж"), ...await takeNext(actor)], strain: 0, dc: 7, strainable: true,
+    // Push под Grit: ранги Push не идут, бросок остаётся (d10 + Strain)
+    parts: [...(actor.system.skillBlocked?.push ? [["Push недоступен (Grit)", 0]] : skillParts(actor, "push", "Форсаж")), ...await takeNext(actor)], strain: 0, dc: 7, strainable: true,
     skill: "push", perkOn: 4, compOn: 1
   };
   // не хватает до 7, а Strain дотягивает: тратится сам
@@ -581,6 +604,20 @@ export const isOwnFire = w => ["line", "util"].includes(w?.system.target);
 /** Залповое спецоружие (4AAM, XLAA, XAGM): один захват до 4 целей. */
 export const isSalvo = w => TB.salvoWeapons.includes(w?.system.key);
 
+/** Кто держит этого актёра на захвате (основном или залповом): токены на сцене, не сбитые. */
+export function pursuersOf(uuid) {
+  if (!uuid || !canvas?.ready) return [];
+  return canvas.tokens.placeables.filter(t => t.actor && t.actor.uuid !== uuid && !t.actor.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)
+    && (t.actor.system.lockUuid === uuid || t.actor.getFlag?.(SYSTEM_ID, "salvo")?.list?.some(x => x.uuid === uuid)));
+}
+
+/** Держит ли токен эту машину на захвате (преследователь для кормовой пушки). */
+const tailChaser = (actor, tok) => pursuersOf(actor.uuid).includes(tok);
+
+/** «Укреплённый» (Стрэйнджриал 9.3): обычные ракеты и пушки наносят половину урона, вниз. Спецоружие (GPB, UGB, LACM и другое) бьёт полным. */
+const hardened = t => !!t && hasRule(t.actor, "hardened");
+const HARD_NOTE = "<b>Укреплённый.</b> Обычная ракета или пушка: урон вдвое меньше (вниз).";
+
 /** Есть ли у стрелка стандартная ракета против вида цели: у NPC — только при Air-Air / Air-Gnd в листе (у бомбардировщиков Air-Air нет). */
 function stdMissile(actor, kind) {
   const s = actor.system;
@@ -645,6 +682,9 @@ export async function lockOn(actor, { free = false, phoenix = false, maxDist = n
   // «Мощный радар» тяжёлого истребителя: воздушная цель на 2 зоны; «Феникс» F-14: в любой точке зоны операции
   const radar = kind === "air" && roleOf(actor) === "heavy" && range < 2;
   if (radar) range = 2;
+  // ЗРК большой дальности: захват на две зоны; малой: только своя зона (Стрэйнджриал 9.3)
+  if (hasRule(actor, "longsam") && range < 2) range = 2;
+  if (hasRule(actor, "shortsam")) range = 0;
   const fenix = phoenix && kind === "air";
   if (phoenix && !fenix) return ui.notifications.warn("«Феникс»: захват в любой точке зоны операции только по воздушной цели.");
   if (fenix) range = TB.range.operation;
@@ -655,6 +695,9 @@ export async function lockOn(actor, { free = false, phoenix = false, maxDist = n
   // Малозаметность и Станция РЭБ: только из той же зоны
   const same = dist ? sameZoneLock(t.actor, t.token) : "";
   if (same) return ui.notifications.warn(`Lock On! невозможен: ${same}`);
+  // «Ордер»: при целом эскорте авианосец берут только из соседней зоны или ближе (и дальнобойным оружием тоже)
+  const guard = dist > 1 ? escortCover(t.actor, t.token) : "";
+  if (guard) return ui.notifications.warn(`Lock On! невозможен: ордер (${guard} рядом), «${t.name}» захватывают только из соседней зоны или ближе.`);
   if (!(await confirmReach(problems, "Lock On!"))) return;
   selectTarget(tok);
   // залповое спецоружие: тот же Lock On берёт ещё до трёх целей в пределах его дальности
@@ -740,6 +783,10 @@ export function seadPart(actor, t) {
 const seaTarget = t => t?.kind === "ship" && !isAirTarget(t);
 /** Противокорабельная ракета (свойство машины): станция ASM на пульте Fox Two!, A-G − Speed против Occlusion, урон 12. */
 export const ASM = { id: "ASM", dmg: 12 };
+/** Наземная цель для крылатой ракеты NPC. */
+const landTarget = t => t?.kind === "ground";
+/** Крылатые ракеты бомбардировщика NPC: станция CRS, по наземной цели в любой точке зоны операции, A-G − Speed против Occlusion, урон 7. */
+export const CRS = { id: "CRS", dmg: 7 };
 
 /** С чем сравнивать атаку: защита цели, Occlusion выбранной системы корабля или (система не выбрана) итог без сравнения. */
 function shipDc(t, aim, dc, occCut = 0) {
@@ -792,6 +839,9 @@ export function foxPanel(actor, t, tk, { preMove = "", src = {} } = {}) {
   if (hasProp(actor, "antiship") && kinds.includes("ground") && (!t || seaTarget(t)) && !sysOff(s, "ms"))
     stations.push({ id: ASM.id, code: "ASM", cnt: "∞", dmg: ASM.dmg, fits: ["ground"], w: null, asm: true,
       trait: { name: "Противокорабельная ракета", tag: "SEA", text: "По морской цели в любой точке зоны операции, без захвата: A-G − Speed против Occlusion, урон 12. Только без броска." } });
+  if (hasProp(actor, "cruise") && kinds.includes("ground") && (!t || landTarget(t)))
+    stations.push({ id: CRS.id, code: "CRS", cnt: "∞", dmg: CRS.dmg, fits: ["ground"], w: null, crs: true,
+      trait: { name: "Крылатые ракеты", tag: "LAND", text: "По наземной цели в любой точке зоны операции, без захвата: A-G − Speed против Occlusion, урон 7. Только без броска." } });
   // EMRG и ESM без захвата и цели: станция есть при любом виде цели, пуск уходит в своё окно (линия, система)
   if (!sysOff(s, "sw")) for (const w of actor.items.filter(i => i.type === "weapon" && !isGunPod(i))) {
     const own = isOwnFire(w);
@@ -825,7 +875,7 @@ export function foxPanel(actor, t, tk, { preMove = "", src = {} } = {}) {
   const oc = stations.some(x => x.w) ? practicedOvercharge(actor) : null;
   const occ = t?.kind === "ship" ? Object.fromEntries((t.actor.system.systems ?? []).map((y, i) => [i, y.occ])) : null;
   const struck = struckBy(actor);
-  const lockOk = !t || s.lockUuid === t.uuid || (t && seaTarget(t) && stations.some(x => x.asm));
+  const lockOk = !t || s.lockUuid === t.uuid || (t && seaTarget(t) && stations.some(x => x.asm)) || (t && landTarget(t) && stations.some(x => x.crs));
   // фирменные приёмы при пуске (раз за вылет): «Удар из ниоткуда», «Ракетный шквал»
   const moveBox = (key, hint) => moveReady(actor, key) ? `<label title="${esc(TB.planeMoves[key].text)}"><input type="checkbox" name="${key}" ${preMove === key ? "checked" : ""}><span>${esc(TB.planeMoves[key].name.toUpperCase())}</span><em>${esc(hint)}</em></label>` : "";
   const moves = moveBox("ghost", "без предупреждения, без Break!") + moveBox("salvo", "две ракеты, −2 Ammo");
@@ -897,7 +947,7 @@ export function foxPanel(actor, t, tk, { preMove = "", src = {} } = {}) {
       if (fb && !struck) fb.disabled = !!cur?.own;
       // противокорабельная ракета — только без броска
       const ib = form.querySelector('[data-pick="improved"]');
-      if (ib) ib.disabled = !!cur?.asm;
+      if (ib) ib.disabled = !!cur?.asm || !!cur?.crs;
       const lamp = form.querySelector("[data-ck-foxhit]");
       const all = fox + (occ ? 0 : inAir);
       if (lamp) { lamp.className = `tb-ck-hit ${need === null || need === undefined ? "" : all >= need ? "ok" : "bad"}`; lamp.title = need === null || need === undefined ? "" : all >= need ? `Сейчас хватает до цели${inAir && fox < need ? ` вместе с ракетами в воздухе (+${inAir})` : ""}` : `Сейчас не хватает ${need - all}${inAir ? ` даже с ракетами в воздухе (+${inAir})` : ""}`; }
@@ -1040,9 +1090,14 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
     if (!t || !seaTarget(t)) return ui.notifications.warn("Противокорабельная ракета бьёт только по морской цели: выберите корабль.");
     data.improved = false;
   }
+  const crs = data.weapon === CRS.id;
+  if (crs) {
+    if (!t || !landTarget(t)) return ui.notifications.warn("Крылатые ракеты бьют только по наземной цели: выберите её.");
+    data.improved = false;
+  }
   // «Универсал» многоцелевой машины: Improved Fox Two! с большим из Aim и Deploy
   const skill = data.improved ? foxSkill(actor, air) : air ? "aim" : "deploy";
-  const w = data.weapon && !asm ? actor.items.get(data.weapon) : null;
+  const w = data.weapon && !asm && !crs ? actor.items.get(data.weapon) : null;
   const ws = w?.system;
   if (isOwnFire(w)) return fireOwn(actor, w, data);
   // фирменные приёмы при пуске
@@ -1052,7 +1107,7 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
   // противовоздушное спецоружие не бьёт по земле, ударное не бьёт по воздуху; стандартной ракеты у NPC без Air-Air / Air-Gnd нет
   if (w && !weaponFits(w, air ? "air" : "ground"))
     return ui.notifications.warn(`${w.name} бьёт только по ${ws.target === "air" ? "воздушным" : "наземным и морским"} целям.`);
-  if (!w && !asm && !stdMissile(actor, air ? "air" : "ground"))
+  if (!w && !asm && !crs && !stdMissile(actor, air ? "air" : "ground"))
     return ui.notifications.warn(`У «${actor.name}» нет стандартной ракеты против ${air ? "воздушных" : "наземных и морских"} целей.`);
   if (data.improved && blocked(actor, skill)) return;
   if (data.improved && !data.practiced && !allowRoll(actor)) return;
@@ -1067,9 +1122,9 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
   if (t) {
     // UGB без захвата: сброс по наземной или морской цели на своём участке, с Низкой или Средней
     // «Прицельный комплекс» бомбардировщика: с Высокой по земле ракетами и GPB (strike), но не UGB
-    const { problems } = reachProblems(actor, t, ugb ? 0 : asm ? TB.range.operation : ws?.reach ?? TB.range.missile, { strike: !ugb });
+    const { problems } = reachProblems(actor, t, ugb ? 0 : asm || crs ? TB.range.operation : ws?.reach ?? TB.range.missile, { strike: !ugb });
     if (ugb && !["low", "med"].includes(altOf(tokenOf(actor), actor))) problems.unshift("UGB сбрасывают только с Низкой или Средней высоты.");
-    if (!ugb && !asm && s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
+    if (!ugb && !asm && !crs && s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
     if (aim) problems.push(...aim.problems);
     problems.push(...nem.problems, ...ct.problems);
     if (!(await confirmReach(problems, "Fox Two!"))) return;
@@ -1097,6 +1152,11 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
   }
   const sead = air ? null : seadPart(actor, t);
   if (sead) parts.push(sead);
+  const cue = awacsCue(actor);
+  if (cue) parts.push(cue);
+  // Targeting Booster ганшипа рядом: +1 к A-A и A-G, а с броском к Aim и Deploy
+  const bst = boosterOn(actor);
+  if (bst) parts.push([`Targeting Booster: ${bst}`, 1]);
   const lift = t && air ? stratLift(actor, t) : null;
   if (lift) parts.push(lift);
   const sneak = surprise(actor, t);
@@ -1107,11 +1167,15 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
   if (speed) parts.push(["Speed", -speed]);
   if (data.mod) parts.push(["мод.", data.mod]);
 
-  const dmg = (asm ? ASM.dmg : w ? (parseInt(ws.dmg) || 0) : TB.missileDamage) + (oc ? 2 : 0) + ct.dmg;
+  const hard = !w && !asm && !crs && hardened(t);
+  const dmg0 = (asm ? ASM.dmg : crs ? CRS.dmg : w ? (parseInt(ws.dmg) || 0) : TB.missileDamage) + (oc ? 2 : 0) + ct.dmg;
+  const dmg = hard ? Math.floor(dmg0 / 2) : dmg0;
   const notes = weatherNotes(wx).filter(n => !data.improved || !/A-A/.test(n));
+  if (hard) notes.push(HARD_NOTE);
   // черта спецоружия вместо старого текста эффекта
   if (ws?.trait) notes.push(`<b>${esc(ws.trait.name)}.</b> ${esc(ws.trait.text)}`);
   if (asm) notes.push("<b>Противокорабельная ракета.</b> По морской цели в любой точке зоны операции, без захвата, урон 12.");
+  if (crs) notes.push("<b>Крылатые ракеты.</b> По наземной цели в любой точке зоны операции, без захвата, урон 7.");
   if (data.improved && skill !== (air ? "aim" : "deploy")) notes.push(`<b>Универсал.</b> Improved Fox Two! с ${esc(TB.skills[skill].en)}: он больше.`);
   if (ghost) notes.push(`<b>${esc(TB.planeMoves.ghost.name)}.</b> Цель не получает предупреждения о ракете и не может сделать Break! против неё.`);
   if (shkval) notes.push(`<b>${esc(TB.planeMoves.salvo.name)}.</b> Две ракеты по цели: вторая даёт +1 к атаке или свой урон.`);
@@ -1148,7 +1212,7 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
   const card = {
     type: "attack", attack: true, label: `Fox Two! ${w ? w.name : "стандартная ракета"}`, rolled: !!data.improved,
     d10: dice.d10, d4: dice.d4, parts, strain: 0, ...shipDc(t, aim, defVs(actor, t, w, ghost), ws?.key === "GPB" ? 2 : 0),
-    wkey: asm ? ASM.id : ws?.key ?? "", close, ghost, shotKey: key, salvo: salvo?.list.length ? salvo.list.map(({ uuid, name, dc, sys }) => ({ uuid, name, dc, sys })) : null,
+    wkey: asm ? ASM.id : crs ? CRS.id : ws?.key ?? "", close, ghost, shotKey: key, salvo: salvo?.list.length ? salvo.list.map(({ uuid, name, dc, sys }) => ({ uuid, name, dc, sys })) : null,
     strainable: !!data.improved && canStrain(actor), forceHit: nem.forceHit || ct.forceHit,
     practiced: !!dice.practiced, followOf: dice.follow ?? "", dmg, delayed: atTurn || !(hv || tBroken), atTurn, combatKey: hv || tBroken ? (atTurn ? key : "") : key,
     targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes, maws: !ghost && mawsOn(t), tkind: air ? "air" : "ground", bomb: ["UGB", "GPB"].includes(ws?.key),
@@ -1258,10 +1322,10 @@ async function fireRail(actor, w, pre = {}) {
 
 /** Строки линии EMRG на карточке: кто на линии, итог против его защиты. */
 function railRows(c) {
-  if (!c.line?.length) return [`<div class="tb-note">На линии никого нет.</div>`];
+  if (!c.line?.length) return [`<div class="tb-note">${c.word ? "Наземных целей противника там нет." : "На линии никого нет."}</div>`];
   return c.line.map(r => {
     const tot = railTotal(c, r), hit = tot >= r.vs;
-    return `<div class="tb-volley-row ${hit ? "hit" : "miss"}"><b>${esc(r.name)}</b>: ${r.gnd ? "Deploy" : "Aim"} ${tot} против ${r.ship ? `Occlusion «${esc(r.sysName)}»` : r.gnd ? "Occlusion" : "защиты"} ${r.vs} → ${hit ? `<b class="ok">${c.dmg} урона${r.applied ? ", нанесено" : ""}</b>` : `<b class="fail">мимо</b>`}</div>`;
+    return `<div class="tb-volley-row ${hit ? "hit" : "miss"}"><b>${esc(r.name)}</b>: ${c.word ? esc(c.word) : r.gnd ? "Deploy" : "Aim"} ${tot} против ${r.ship ? `Occlusion «${esc(r.sysName)}»` : r.gnd ? "Occlusion" : "защиты"} ${r.vs} → ${hit ? `<b class="ok">${c.dmg} урона${r.applied ? ", нанесено" : ""}</b>` : `<b class="fail">мимо</b>`}</div>`;
   });
 }
 
@@ -1282,6 +1346,63 @@ async function railHit(message) {
     if (by === game.user.id) await hitTarget(hit, key).catch(err => damageFailed(hit, err));
     else game.socket.emit(CHANNEL, { type: "hit", to: by, hit });
   }
+}
+
+/** Наземные цели противника не дальше dist участков от стрелка: строки для карточки по площади (как линия EMRG). */
+function groundRows(actor, dist, only = null) {
+  const me = tokenOf(actor);
+  if (!me || !canvas?.ready) return null;
+  const rows = [];
+  for (const t of only ? [only] : canvas.tokens.placeables) {
+    const a = t.actor;
+    if (!a || a === actor || a.type !== "npc" || a.system.kind !== "ground" || (t.document.hidden && !game.user.isGM)) continue;
+    if (a.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) || !canFireAt(actor, a)) continue;
+    const d = zoneDistance(me, t);
+    if (d === null || d > dist) continue;
+    rows.push({ uuid: a.uuid, name: t.name, vs: describeTarget(a, t.name, t).defense, gnd: true, ship: false, sys: null, sysName: "", hard: hardened({ actor: a }) });
+  }
+  return rows;
+}
+
+/** «Ковровая бомбардировка» бомбардировщика NPC: действием каждая наземная цель противника его участка, A-G − Speed против Occlusion, урон 6 сразу. */
+export async function fireCarpet(actor) {
+  if (!hasProp(actor, "carpet")) return ui.notifications.warn(`У «${actor.name}» нет ковровой бомбардировки.`);
+  const rows = groundRows(actor, 0);
+  if (!rows) return ui.notifications.warn("Ковровая бомбардировка: нужен самолёт на сцене с сеткой.");
+  const s = actor.system, speed = s.speed ?? 0;
+  const parts = [["Air-Gnd", s.ag ?? 0], ...weatherParts(weatherAt(actor), "ag")];
+  const cue = awacsCue(actor);
+  if (cue) parts.push(cue);
+  if (speed) parts.push(["Speed", -speed]);
+  const card = {
+    type: "rail", attack: true, shotKey: combatKey(), label: "Ковровая бомбардировка", rolled: false, parts, strain: 0, dc: null, dmg: 6, word: "A-G",
+    line: rows, notes: ["<b>Ковровая бомбардировка.</b> Вся наземка противника в участке под бомбардировщиком: A-G − Speed против Occlusion, урон 6. Бомбы: «Укреплённый» не спасает."]
+  };
+  const msg = await postCard(actor, card);
+  await railHit(msg);
+  return msg;
+}
+
+/** «Бортовые орудия» AC-130: наземная цель противника в своём или соседнем участке, d10 + 1 против Occlusion, урон 4 сразу. */
+export async function fireGunship(actor) {
+  if (!hasProp(actor, "gunship")) return ui.notifications.warn(`У «${actor.name}» нет бортовых орудий.`);
+  const tok = await pickTargetToken(actor, { title: "Бортовые орудия", hint: "Наземная цель противника в своём или соседнем участке" });
+  if (!tok) return;
+  const rows = groundRows(actor, 1, tok);
+  if (!rows?.length) return ui.notifications.warn(`Бортовые орудия: «${tok.name}» не наземная цель противника в своём или соседнем участке.`);
+  if (!allowRoll(actor)) return;
+  const dice = await rollDice(actor, false);
+  if (!dice) return;
+  const hard = rows[0].hard;
+  const card = {
+    type: "rail", attack: true, shotKey: combatKey(), label: "Бортовые орудия", rolled: true, d10: dice.d10, d4: dice.d4, parts: [["Бортовые орудия", 1], ...await takeNext(actor)],
+    strain: 0, dc: null, dmg: hard ? 2 : 4, word: "d10 + 1", line: rows,
+    notes: ["<b>Бортовые орудия.</b> По наземной цели своего или соседнего участка: d10 + 1 против Occlusion, урон 4.", ...(hard ? [HARD_NOTE] : [])],
+    ...thresholds(actor, "strafe")
+  };
+  const msg = await postCard(actor, card, dice.rolls);
+  await railHit(msg);
+  return msg;
 }
 
 /** Guns, Guns, Guns!: d10 + Strafe − Speed против защиты, урон сразу. */
@@ -1315,6 +1436,8 @@ function gunTargets(actor, pods, sys) {
     if (vs === "ground" && isAirTarget(d)) { if (near) why.push(`${t.name}: по воздуху это орудие не стреляет`); continue; }
     const r = reachProblems(actor, d, reach);
     if (r.problems.length) { if (near) why.push(`${t.name}: ${r.problems[0]}`); continue; }
+    // «Кормовая пушка»: только по тому, кто держит эту машину на захвате, в её зоне
+    if (hasProp(actor, "tailgun") && (r.dist !== 0 || !tailChaser(actor, t))) { if (near) why.push(`${t.name}: кормовая пушка бьёт только по преследователю в своей зоне`); continue; }
     list.push({ ...d, dist: r.dist, priority: ours && !!t.actor.system.priority });
   }
   list.sort((x, y) => (y.priority - x.priority) || (x.dist ?? 0) - (y.dist ?? 0) || x.name.localeCompare(y.name));
@@ -1350,6 +1473,7 @@ export async function fireGuns(actor, { system: sysIndex, pod: podPref = "" } = 
     if (vs === "air" && !isAirTarget(t)) problems.unshift("зенитное орудие не бьёт по земле и морю.");
     if (vs === "ground" && isAirTarget(t)) problems.unshift("по воздуху это орудие не стреляет.");
     if (podItem?.system.key === "RCL" && isAirTarget(t)) problems.unshift("НУР бьют только по земле и морю.");
+    if (hasProp(actor, "tailgun") && t.token && (zoneDistance(tokenOf(actor), t.token) !== 0 || !tailChaser(actor, t.token))) problems.unshift("кормовая пушка бьёт только по преследователю в своей зоне.");
     if (problems.length) return ui.notifications.warn(`Guns, Guns, Guns!: ${problems[0]}`);
     if (aim && !(await confirmReach(aim.problems, "Guns, Guns, Guns!"))) return;
     const quiet = isAirTarget(t) ? quietAA(actor) : null;
@@ -1393,14 +1517,15 @@ export async function fireGuns(actor, { system: sysIndex, pod: podPref = "" } = 
     type: "attack", attack: true, label, rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, shotKey: combatKey(),
     ...shipDc(t, aim, t && t.kind !== "ship" ? t.defense + nemDef + ctDef : null),
     strainable: canStrain(actor), practiced: !!dice.practiced, followOf: dice.follow ?? "", forceHit: nem.forceHit || ct.forceHit,
-    dmg: gun + ct.dmg, delayed: false, instant: true, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "",
-    notes: [...(t?.actor.system.breakEv != null && t.kind === "air" ? [`У цели Break!: защита ${t.defense}.`] : []),
+    dmg: hardened(t) ? Math.floor((gun + ct.dmg) / 2) : gun + ct.dmg, delayed: false, instant: true, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "",
+    notes: [...(hardened(t) ? [HARD_NOTE] : []), ...(t?.actor.system.breakEv != null && t.kind === "air" ? [`У цели Break!: защита ${t.defense}.`] : []),
       ...(pod?.system.key === "PLSL" ? ["Бьёт в своей и соседних зонах. Облака блокируют лазер."] : []),
       ...(nemDef ? [`«Опять ты!»: защита ${esc(t.name)} против Немезиды +${nemDef}.`] : []), ...nem.notes.map(esc), ...ct.notes.map(esc),
       ...(ctDef ? [ctDef < 0 ? `«Уязвимость»: защита ${esc(t.name)} ${ctDef}.` : `Поединок: защита ${esc(t.name)} +${ctDef}.`] : [])],
     ...thresholds(actor, "strafe", data.storm)
   };
   const msg = await postCard(actor, card, dice.rolls);
+  await revealAmbush(actor);
   await nem.take();
   await ct.take();
   await autoHit(msg);
@@ -1467,7 +1592,7 @@ export async function fireSam(actor, sysIndex, { target = null, free = false, ta
   // Системам корабля захват нужен, только если так сказано в описании («Lock On и пуск — два действия»): нижним орудиям — нет
   const needLock = !free && (s.kind !== "ship" || /Lock On/i.test(src?.note ?? ""));
   if (t) {
-    const { problems } = reachProblems(actor, t, TB.range.missile);
+    const { problems } = reachProblems(actor, t, hasRule(actor, "shortsam") ? 0 : TB.range.missile);
     if (needLock && s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
     const quiet = quietAA(actor);
     if (quiet && air) problems.unshift(quiet);
@@ -1475,15 +1600,22 @@ export async function fireSam(actor, sysIndex, { target = null, free = false, ta
     if (!(await confirmReach(problems, label))) return;
   }
   const parts = [[air ? "G-A" : "G-G", ga ?? 0]];
+  // «Наведение» РЛС рядом и «Радар ДРЛО» своей стороны
+  const cue = air ? radarCue(actor) : null, aw = awacsCue(actor);
+  if (cue) parts.push(cue);
+  if (aw) parts.push(aw);
+  // «Батарея»: урон +1 за каждое целое орудие сверх первого (счётчик на панели цели)
+  const guns = hasRule(actor, "battery") ? Math.max(1, actor.getFlag(SYSTEM_ID, "unit")?.guns ?? 3) : 1;
   const key = combatKey(), tBroken = sysOff(t?.actor.system, "ma");
   const card = {
     type: "attack", attack: true, label, rolled: false, parts, strain: 0,
     // по кораблю и летающему супероружию — против Occlusion системы, а не защиты (у кораблей её нет)
     ...shipDc(t, null, t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) + nemesisDefense(actor, t.actor) + triggerDefense(actor, t.actor) : null),
-    dmg: TB.missileDamage, delayed: true, atTurn: tBroken && !!key, combatKey: key, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", maws: mawsOn(t),
-    notes: [tBroken ? (key ? "Ракета ударит в начале хода цели (у неё сломан MAWS): посчитается сама." : "Попадает в начале хода цели: у неё сломан MAWS.")
+    dmg: (hardened(t) ? Math.floor(TB.missileDamage / 2) : TB.missileDamage) + guns - 1, delayed: true, atTurn: tBroken && !!key, combatKey: key, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", maws: mawsOn(t),
+    notes: [...(hardened(t) ? [HARD_NOTE] : []), ...(guns > 1 ? [`Батарея: орудий ${guns}, урон +${guns - 1}.`] : []), tBroken ? (key ? "Ракета ударит в начале хода цели (у неё сломан MAWS): посчитается сама." : "Попадает в начале хода цели: у неё сломан MAWS.")
       : key ? "Ракета долетит в конце раунда: залп посчитается сам." : "Ракета долетает в конце раунда."]
   };
+  await revealAmbush(actor);
   return postCard(actor, card);
 }
 
@@ -1834,6 +1966,7 @@ export async function onCardAction(message, action, button) {
   switch (action) {
     case "strain": {
       if (!actor?.isOwner) return;
+      if (actor.system.off?.has?.("fl")) return ui.notifications.warn(`Strain 0: закрылки ${actor.system.jam === "fl" ? "заглушены РЭБ" : "сломаны"}.`);
       if ((actor.system.strain.value ?? 0) <= 0) return ui.notifications.warn("Strain закончился.");
       await actor.update({ "system.strain.value": actor.system.strain.value - 1 });
       card.strain = (card.strain ?? 0) + 1;
@@ -1952,6 +2085,26 @@ export async function onCardAction(message, action, button) {
       if (!actor?.isOwner || card.ugbPerk || card.resolved) return;
       card.ugbPerk = button?.dataset.perk === "splash" ? "splash" : "double";
       return save();
+    }
+    case "chase": {
+      if (!actor?.isOwner || card.chased) return;
+      const c = computeCard(card);
+      if (!c.success) return;
+      const rows = [], lost = [], rolls = [];
+      for (const p of pursuersOf(actor.uuid)) {
+        const r = await roll("1d10"), sk = p.actor.system.skillBlocked?.push ? 0 : p.actor.system.skillTotal?.push ?? 0, total = r.total + sk;
+        rolls.push(r);
+        // ничья за пилотом: за пилотом-беглецом нужно перебить, пилот-преследователь держится и при равенстве
+        const keep = actor.type === "pilot" ? total > c.total : total >= c.total;
+        if (!keep) lost.push(p.actor.uuid);
+        rows.push(`${esc(p.name)}: Push d10 ${r.total} + ${sk} = <b>${total}</b> против ${c.total} — ${keep ? "<b>держится на хвосте</b>" : '<b class="fail">отстал, захват сорван</b>'}.`);
+      }
+      card.chased = true;
+      card.chaseRows = rows.length ? rows : ["На хвосте никого нет."];
+      await save();
+      if (rolls.length && game.dice3d) for (const r of rolls) game.dice3d.showForRoll(r, game.user, true).catch(() => null);
+      if (lost.length) { const { dropLocks } = await import("../plane-roles.mjs"); await dropLocks(actor.uuid, lost); }
+      return;
     }
     case "perk-next":
     case "comp-next": {

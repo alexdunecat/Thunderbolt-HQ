@@ -195,6 +195,13 @@ async function battleReport(combat) {
   // разбор полёта в итогах вылета читает эту сводку: убранных с поля токенов на сцене уже нет
   if (scene) await scene.setFlag(SYSTEM_ID, "lastBattle", { op, date, rounds: combat.round, losses, survivors });
   const msg = await ChatMessage.create({ speaker: { alias: "AWACS" }, content: html, flags: { [SYSTEM_ID]: { card: { type: "battle", op } } } });
+  // книга, стр. 51: враг, который сбил пилота или вынудил отступить, потом возвращается уровнем выше. Напоминание только ведущему
+  const back = [
+    ...ours.filter(r => r.pilot && r.how === "down" && r.by).map(r => `«${esc(r.name)}» сбит, сбил <b>${esc(r.by)}</b>`),
+    ...ours.filter(r => r.pilot && r.how === "retreat").map(r => `«${esc(r.name)}» отступил: кого вернуть, решает ведущий`)
+  ];
+  if (back.length) await ChatMessage.create({ speaker: { alias: "AWACS" }, whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id),
+    content: `<div class="tb-card tb-card-battle"><div class="tb-note"><b>Ведущему.</b> Враг, который сбил пилота или вынудил отступить, вернётся в другом вылете уровнем выше (книга, стр. 51): ${back.join("; ")}.</div></div>` });
   // итог миссии: ведущему окно с подсказкой по сводке (баннер решает он)
   let ask = true;
   try { ask = game.settings.get(SYSTEM_ID, "missionPrompt"); } catch { /* настройка не зарегистрирована */ }

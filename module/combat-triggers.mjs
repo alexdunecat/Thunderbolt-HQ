@@ -7,7 +7,7 @@
    игроки шлют ему просьбы по сокету. */
 import { SYSTEM_ID, TB, inCampaign } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
-import { sideOf, tokenOf, zoneDistance, ALT_ORDER, hasRule } from "./scene.mjs";
+import { sideOf, tokenOf, zoneDistance, ALT_ORDER, hasRule, weatherAt } from "./scene.mjs";
 import { cockpitDialog } from "./aim.mjs";
 import { giveNext } from "./squad.mjs";
 import { isNemesisFor } from "./nemesis.mjs";
@@ -700,7 +700,8 @@ async function limiterCheck(pilot) {
   const t = trig(pilot, "limiter");
   if (t?.system.active) await t.update({ "system.active": false });
   await pilot.unsetFlag(SYSTEM_ID, F.limiter);
-  if (pilot.system.speed > pilot.system.maxSpeed) await pilot.update({ "system.speed": pilot.system.maxSpeed }, { tbFree: true });
+  const cap = pilot.system.maxSpeed + (weatherAt(pilot).spd ?? 0);
+  if (pilot.system.speed > cap) await pilot.update({ "system.speed": cap }, { tbFree: true });
   const { rollSideCheck } = await import("./dice/rolls.mjs");
   return rollSideCheck(pilot, "push", { dc: 7, label: `${t?.name ?? "Снять ограничитель"}: Push против 7`, onFail: "engines",
     notes: ["Конец хода: ограничитель снова на месте. Провал: отметьте Structure (Engines) вместо урона."] });

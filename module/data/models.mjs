@@ -197,7 +197,8 @@ export class PilotData extends foundry.abstract.TypeDataModel {
     try {
       for (const uuid of actor.getFlag?.(SYSTEM_ID, "adjacent") ?? []) {
         const ally = fromUuidSync(uuid);
-        if (ally?.items?.some(i => i.type === "trigger" && i.system.key === "inelement") && ally.system.skills?.lead)
+        // навык под Grit для пассивных способностей считается 0 (книга, стр. 23)
+        if (ally?.items?.some(i => i.type === "trigger" && i.system.key === "inelement") && ally.system.skills?.lead && !ally.system.skillBlocked?.lead)
           push("evasion", `В строю: ${ally.name}`, ally.system.skills.lead);
       }
     } catch { /* союзник ещё не загружен: пересчёт на ready */ }
@@ -297,6 +298,8 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       this.maxSpeed = Math.max(1, this.stats.spd - (this.off.has("en") ? 1 : 0) + thin);
       // свойства из сводки, как у машин пилотов: крыло на Max Speed, огибание рельефа на Низкой, Angle of Attack Limiter
       const pk = new Set(this.props.map(p => p.key));
+      // «Бортовые орудия»: ганшип кружит над целью, Max Speed в бою не выше 2
+      if (pk.has("gunship")) this.maxSpeed = Math.min(this.maxSpeed, 2);
       this.aoa = pk.has("aoa") && aoaActive(this.parent);
       this.evasion = this.stats.ev - thin + (pk.has("swing") && this.speed >= this.maxSpeed ? 1 : 0) + (pk.has("terrain") && this.alt === "low" ? 1 : 0) + (this.aoa ? 1 : 0);
       this.defense = airDefense(this, this.evasion);
@@ -304,7 +307,8 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       if (this.aoa) for (const k of ["aim", "dodge", "push"]) this.skillTotal[k] += 1;
       // ас: Strain машины + 5 (поле листа «Strain машины» переопределяет справочник)
       this.planeStrain = this.tier === "ace" ? acePlaneStrain(this) : null;
-      this.strain.max = this.tier === "ace" ? this.planeStrain + ACE_STRAIN_EXTRA : 0;
+      // сломанные закрылки (Structure: Flaps) у аса, как у пилота: Strain 0
+      this.strain.max = this.tier === "ace" && !this.off.has("fl") ? this.planeStrain + ACE_STRAIN_EXTRA : 0;
     }
     // триггеры пилотов против Немезиды до конца вылета: «Знаю эту машину» (−1 к Evasion, Max Speed или A-A), «Я тоже в это верил» (Complication 1–2)
     const nf = this.nemesis ? this.parent?.getFlag?.(SYSTEM_ID, "nemFx") ?? {} : {};

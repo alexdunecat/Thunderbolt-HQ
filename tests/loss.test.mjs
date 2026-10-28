@@ -14,7 +14,7 @@ Object.assign(globalThis, {
   foundry: { utils: { deepClone: x => structuredClone(x) } },
   Hooks: { on: (n, f) => (hooks[n] ??= []).push(f) },
   CONFIG: { specialStatusEffects: { DEFEATED: "dead" }, statusEffects: [{ id: "dead", img: "skull" }] },
-  ChatMessage: { create: async d => { log.push("CHAT " + d.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()); return d; } },
+  ChatMessage: { getWhisperRecipients: () => [{ id: "gm" }], create: async d => { log.push((d.whisper ? "WHISPER " : "CHAT ") + d.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()); return d; } },
   game: { users, user: users[0], actors: [], combats: { has: () => true }, scenes: { viewed: null } },
   Dialog: class { constructor(d) { log.push("DIALOG " + d.title + ": " + (/По сводке боя: <b>([^<]*)<\/b>([^.]*)/.exec(d.content)?.slice(1).join("") ?? "без подсказки")); } render() {} }
 });

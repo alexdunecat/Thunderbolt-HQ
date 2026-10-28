@@ -15,7 +15,7 @@ import { registerGlory, gloryDialog } from "./glory.mjs";
 import { registerCampaignDate } from "./campaign-date.mjs";
 import { registerStealth } from "./stealth.mjs";
 import { registerTunnel } from "./tunnel.mjs";
-import { tokenOf, zoneDistance } from "./scene.mjs";
+import { tokenOf, zoneDistance, weatherAt } from "./scene.mjs";
 import { esc } from "./utils.mjs";
 import { initSocket, checkAdjacency, leadership, formUp } from "./squad.mjs";
 import { registerTokenSettings, arrangeSceneTokens } from "./tokens.mjs";
@@ -69,7 +69,8 @@ for (const ev of ["updateItem", "createItem", "deleteItem"])
 /** Speed не выше Max Speed: после спуска из стратосферы, выключения «Снять ограничитель», смены машины. */
 function clampSpeed(actor) {
   if (!actor?.isOwner || !["pilot", "npc"].includes(actor.type)) return;
-  const max = actor.system.maxSpeed;
+  // ураган «по ветру» поднимает Max Speed погодой (+2): её не срезать
+  const max = actor.system.maxSpeed + (weatherAt(actor).spd ?? 0);
   if (max > 0 && (actor.system.speed ?? 0) > max) actor.update({ "system.speed": max }, { tbFree: true });
 }
 
@@ -421,7 +422,9 @@ async function onActorUpdate(actor, change, options, userId) {
   if ((has("system.speed") || options.tbStallTurn) && actor.system.speed <= 0 && (options.tbStallBy ?? userId) === game.user.id) {
     const flying = actor.type === "pilot" || actor.system.kind === "air";
     const hover = actor.system.planeProps?.has?.("vtol") || actor.system.props?.some?.(p => p.key === "vtol" || p.key === "hover");
-    if (flying && !hover) R.rollStall(actor);
+    // машина на палубе авианосца стоит, а не летит
+    const deck = actor.getFlag(SYSTEM_ID, "deck")?.combat === game.combat?.id && !!game.combat;
+    if (flying && !hover && !deck) R.rollStall(actor);
   }
   if (userId !== game.user.id) return;
   if (has("system.alt")) {

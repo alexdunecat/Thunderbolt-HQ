@@ -8,3 +8,8 @@ Improved по воздуху: deploy aim
 стелс: только своя зона · под РЭБ: только своя зона · защита под РЭБ: 6 без: 5
 залп: [["Кобра",null,true,null],["Вираж",false,false,null],["Бандит",false,false,"Игл"]] · вираж: [{"uuid":"Actor.Вираж","name":"Вираж","pick":[{"uuid":"Actor.МиГ","name":"МиГ"}],"locked":"МиГ"}]
 UPDATE Вираж {"system.lock":"МиГ","system.lockUuid":"Actor.МиГ","flags.thunderbolt-shtab.salvo":null,"flags.thunderbolt-shtab.phoenix":null}
+с Низкой: С Низкой по воздуху бьют только по целям тоже на Низкой. · по Низкой: можно
+помехи: Помехи / нет · защита: 7 против 5 · захват: только своя зона
+палуба: {"on":false,"near":true,"can":true,"title":"Палубный: действием сесть на «Авианосец», после посадки боезапас спецоружия полный"} · высоко: false · не палубный: null
+бомбардировщик в HUD: ["carpet"] ["КОРМА"]
+ковёр: 6 [["Склад",4,true],["Бункер",9,false]]

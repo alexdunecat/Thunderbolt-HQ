@@ -7,13 +7,14 @@
    Move и Climb / Dive засчитываются в момент перемещения, и двигавший видит об этом сообщение. */
 import { SYSTEM_ID, TB, hasProp } from "./config.mjs";
 import { PASS, isOut } from "./documents/combat.mjs";
-import { landBlocked, climbProblem, ALT_ORDER, tunnelClimbProblem, tunnelMoveProblem, tokenOf } from "./scene.mjs";
+import { landBlocked, climbProblem, ALT_ORDER, tunnelClimbProblem, tunnelMoveProblem, tokenOf, weatherAt, isFlying } from "./scene.mjs";
 import { esc } from "./utils.mjs";
 import { forkChoice } from "./tunnel.mjs";
 
 export const ACT_NAMES = {
   lock: "Lock On!", missile: "Fox Two!", guns: "Guns, Guns, Guns!", break: "Break!", recover: "Передышка",
-  lead: "Leadership", formup: "Вплотную", sam: "Пуск ЗРК", skill: "Проверка", speed: "Change Speed", move: "Move", climb: "Climb / Dive"
+  lead: "Leadership", formup: "Вплотную", sam: "Пуск ЗРК", skill: "Проверка", speed: "Change Speed", move: "Move", climb: "Climb / Dive",
+  deckDown: "Посадка на палубу", deckUp: "Взлёт с палубы", carpet: "Ковровая бомбардировка", gunship: "Бортовые орудия"
 };
 
 /** Боец текущего боя для актёра или токена: сначала по токену, потом по актёру. */
@@ -31,8 +32,14 @@ export function declaredOf(c) {
   const v = c?.initiative;
   if (typeof v !== "number") return null;
   if (v === PASS) return 0;
-  return v > PASS ? v - PASS : v;
+  return (v > PASS ? v - PASS : v) + (wsoActive(c.actor) ? 1 : 0);
 }
+
+/**
+ * Игрок-WSO во второй кабине (книга, стр. 25): машина WSO-Compatible и на листе вписан WSO.
+ * Он заявляет ещё одно действие без потери места в очереди, и у экипажа две проверки за ход (по одной у пилота и WSO).
+ */
+export const wsoActive = a => a?.type === "pilot" && !!a.system?.wso?.trim?.() && (hasProp(a, "wso") || hasProp(a, "wsoall"));
 
 // своё последнее записанное, пока запись летит на сервер: следующее действие считается уже от него, а не от старого флага.
 // Когда запись дошла, флаг сам свежий и своё больше не нужно.
@@ -55,6 +62,8 @@ export function actionProblem(actor, what, { rolled = false, token = null } = {}
   const lr = lastRunOf(actor);
   if (lr) return lr.used >= 3 ? `${c.name}: последний заход окончен, три действия сделаны.` : rolled && lr.rolls >= 1 ? `${c.name}: в последнем заходе бросок уже был.` : null;
   if (isOut(c)) return `${c.name} выбыл из боя: действий нет.`;
+  const fallen = actor.type === "pilot" ? combat.getFlag(SYSTEM_ID, "fallen") : "";
+  if (fallen) return `${fallen} погиб: до конца вылета кубики не бросают, стол решает исход вместе.`;
   if (combat.getFlag(SYSTEM_ID, "ready") !== combat.round) return `${c.name}: сначала заявка действий на этот раунд.`;
   if (combat.combatant?.id !== c.id) return `${c.name}: «${name}» только в свой ход.`;
   const s = spentOf(c), n = declaredOf(c) ?? 0;
@@ -75,7 +84,8 @@ export const turnKey = c => (c ? `${c.parent.id}:${c.parent.round}:${c.id}` : ""
 
 /** «Сверхманёвренность» (приём Су-47 и ADLER) в этот ход: вторая проверка с броском, пока бросков меньше двух. */
 function extraRoll(c, s) {
-  return c.actor?.getFlag?.(SYSTEM_ID, "supermano") === turnKey(c) && (s.rolls ?? (s.rolled ? 1 : 0)) < 2;
+  const two = c.actor?.getFlag?.(SYSTEM_ID, "supermano") === turnKey(c) || wsoActive(c.actor);
+  return two && (s.rolls ?? (s.rolled ? 1 : 0)) < 2;
 }
 
 /** Можно ли действие; если нет, объяснить. */
@@ -99,7 +109,7 @@ export function allowRoll(actor) {
  * Отметить сделанное действие. what — ключ из ACT_NAMES; rolled — с броском.
  * Move и Climb / Dive открывают бесплатную смену скорости в этот ход.
  */
-export async function spendAction(actor, what, { rolled = false, token = null } = {}) {
+export async function spendAction(actor, what, { rolled = false, token = null, noAct = false } = {}) {
   const lr = lastRunOf(actor);
   if (lr) {
     const next = { ...lr, used: lr.used + 1, rolls: lr.rolls + (rolled ? 1 : 0), list: [...(lr.list ?? []), ACT_NAMES[what] ?? what] };
@@ -111,7 +121,7 @@ export async function spendAction(actor, what, { rolled = false, token = null } 
   const s = foundry.utils.deepClone(spentOf(c));
   const free = what === "speed" && s.freeSpeed;
   if (free) s.freeSpeed = false;
-  else s.used += 1;
+  else if (!noAct) s.used += 1;
   if (what === "move" || what === "climb") s.freeSpeed = true;
   if (rolled) { s.rolled = true; s.rolls = (s.rolls ?? 0) + 1; }
   s.list.push(free ? `${name} (заодно)` : name);
@@ -130,7 +140,8 @@ export function actsSummary(actor) {
   if (!c) return null;
   const s = spentOf(c), n = declaredOf(c);
   const turn = c.parent.combatant?.id === c.id;
-  const label = `${turn ? "Ваш ход" : "Ход"}: действий ${s.used}${n === null ? ", заявки ещё нет" : ` из ${n}`}${s.rolled ? " · бросок был" : ""}${s.freeSpeed ? " · скорость можно сменить заодно" : ""}`;
+  const wso = wsoActive(actor), rolls = s.rolls ?? (s.rolled ? 1 : 0);
+  const label = `${turn ? "Ваш ход" : "Ход"}: действий ${s.used}${n === null ? ", заявки ещё нет" : ` из ${n}${wso && n ? " (WSO +1)" : ""}`}${wso ? (rolls ? ` · бросков ${rolls} из 2` : "") : s.rolled ? " · бросок был" : ""}${s.freeSpeed ? " · скорость можно сменить заодно" : ""}`;
   return { used: s.used, declared: n, rolled: s.rolled, freeSpeed: s.freeSpeed, list: s.list.join(", "), over: n !== null && s.used > n, turn, label,
     left: n !== null && s.used < n ? n - s.used : 0, canEnd: turn && c.isOwner && c.parent.getFlag(SYSTEM_ID, "ready") === c.parent.round };
 }
@@ -145,6 +156,26 @@ export async function endTurn(actor) {
   if (left) await ChatMessage.create({ speaker: { alias: "AWACS" },
     content: `<div class="tb-card tb-card-round"><div class="tb-note">${esc(c.name)} пропускает ${left === 1 ? "оставшееся действие" : `оставшиеся действия (${left})`} и передаёт ход.</div></div>` });
   return combat.nextTurn();
+}
+
+/**
+ * Торнадо (книга, стр. 65, и поправка стола): из зоны торнадо в соседнюю — 2 Move и сначала Push против 7 в этот ход.
+ * Возвращает { cost, problem }: cost — сколько Move стоит переход, problem — почему пока нельзя (и бросок Push уже начат).
+ */
+function tornadoExit(doc) {
+  const actor = doc.actor;
+  if (!isFlying(actor) || !weatherAt(actor, doc.object).list.some(d => d.id === "tornado")) return { cost: 1, problem: "" };
+  const c = combatantOf(actor, doc), key = turnKey(c);
+  const card = game.messages.contents.slice(-60).reverse().map(m => m.getFlag(SYSTEM_ID, "card")).find(x => x?.tornado === key && x.actorUuid === actor.uuid);
+  if (!card) {
+    if (c && c.parent.combatant?.id === c.id) import("./dice/rolls.mjs").then(R => R.rollSideCheck(actor, "push", { dc: 7, label: "Торнадо: Push против 7, чтобы выйти из зоны",
+      turnRoll: true, notes: ["Успех: можно уходить в соседнюю зону, переход стоит 2 Move."], extra: { tornado: key } })
+      .then(m => m ? spendAction(actor, "Push: выход из торнадо", { rolled: true, token: doc, noAct: true }) : null)).catch(err => console.error(`${SYSTEM_ID} | торнадо`, err));
+    return { cost: 2, problem: `${doc.name}: из торнадо сначала Push против 7 — бросок в чате, после успеха двигайте снова.` };
+  }
+  return card.forceFail || (card.d10 ?? 0) + card.parts.reduce((t, p) => t + p[1], 0) + (card.strain ?? 0) < card.dc
+    ? { cost: 2, problem: `${doc.name}: Push не вытянул из торнадо, в этот ход из зоны не выйти (Strain на карточке ещё можно добавить).` }
+    : { cost: 2, problem: "" };
 }
 
 /** На сколько зон сдвигается токен (по центру): 0 — в своей зоне. */
@@ -226,6 +257,8 @@ export function registerActions() {
     if (!combatantOf(doc.actor, doc)) return console.log(`${SYSTEM_ID} | ${doc.name}: токена нет в текущем бою, перемещение не считается`);
     const gmFree = game.user.isGM && !!game.keyboard?.isModifierActive?.(KeyboardManager.MODIFIER_KEYS.SHIFT);
     const problems = [], acts = [];
+    const deck = doc.actor.getFlag?.(SYSTEM_ID, "deck");
+    if (deck?.combat === game.combat.id && !gmFree) { ui.notifications.warn(`${doc.name} на палубе «${deck.name}»: сначала взлёт (кнопка ВЗЛЁТ в HUD).`); return false; }
     // «Полный газ» (Punch It, раз за вылет): одним Move до 3 зон
     const punch = doc.actor.items?.find?.(i => i.type === "trigger" && i.system.key === "punch" && !i.system.used) ?? null;
     let punchUsed = null, fast = null, dash = false;
@@ -233,7 +266,14 @@ export function registerActions() {
       const d = zoneStep(doc, change);
       if (d > 0) {
         acts.push("move");
-        const p = actionProblem(doc.actor, "move", { token: doc }) ?? tunnelMoveProblem(doc, change);
+        // торнадо: переход из его зоны стоит 2 Move и Push против 7 на выход
+        const tor = gmFree || actionProblem(doc.actor, "move", { token: doc }) ? { cost: 1, problem: "" } : tornadoExit(doc);
+        if (tor.cost > 1) {
+          acts.push("move");
+          const c = combatantOf(doc.actor, doc), left = (declaredOf(c) ?? 0) - spentOf(c).used;
+          if (!tor.problem && left < 2) tor.problem = `${doc.name}: из зоны торнадо переход стоит 2 Move, а действий осталось ${left}.`;
+        }
+        const p = actionProblem(doc.actor, "move", { token: doc }) ?? tunnelMoveProblem(doc, change) ?? (tor.problem || null);
         // «Бросок на рубеж» (приём МиГ-31М и МиГ-1.44), объявленный в этот ход: Move до 3 зон
         dash = d <= 3 && doc.actor.getFlag?.(SYSTEM_ID, "dash") === turnKey(combatantOf(doc.actor, doc));
         // High Speed и сверхзвуковой режим: Move на 2 зоны, если в конце действия Speed 5 (не ниже 4); скорость меняется заодно

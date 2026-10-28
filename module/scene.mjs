@@ -177,6 +177,9 @@ export function reachProblems(attacker, target, range, { strike = false } = {}) 
   if (far)
     problems.push(`Цель в ${dist} ${dist === 1 ? "зоне" : "зонах"} от вас, а дальность: ${rangeLabel(range)}.${dusty ? " Пыльная буря: цели только в своей зоне." : ""}`);
   const altA = altOf(a, attacker), altB = altOf(b, target.actor);
+  if (ambushState(target.actor) === "hidden") problems.push("Цель в засаде: пока она не выстрелила, её не видно и не атаковать.");
+  // «Малая дальность» ЗРК (9.3): только своя зона, только по Низкой и Средней
+  if (hasRule(attacker, "shortsam") && isAirTarget(target) && !["low", "med"].includes(altB)) problems.push("Малая дальность: бьёт только по целям на Низкой и Средней.");
   const bal = ballisticPhase(target.actor);
   if (bal === "climb") problems.push("Баллистическая ракета на взлёте: сбить её можно только в стратосфере, в следующем раунде.");
   else if (bal === "gone") problems.push("Баллистическая ракета ушла в космос.");
@@ -189,6 +192,10 @@ export function reachProblems(attacker, target, range, { strike = false } = {}) 
   // «Прицельный комплекс» фронтового бомбардировщика: с Высокой по земле и морю ракетами и GPB (strike), но не UGB, RCL и пушкой
   else if (altA === "high" && !downAll && !(strike && !air && roleOf(attacker) === "bomber") && (!air || altB === "low")) problems.push("С Высокой нельзя бить по земле и по целям на Низкой.");
   else if (air && altB === "low" && altA !== "low") problems.push("По воздушной цели на Низкой бьют только с Низкой.");
+  // книга, стр. 17: с Низкой по воздуху бьют только по целям тоже на Низкой (наземные цели стоят на Низкой и бьют вверх)
+  else if (air && altA === "low" && altB !== "low" && isFlying(attacker)) problems.push("С Низкой по воздуху бьют только по целям тоже на Низкой.");
+  // вертолёт (Стрэйнджриал 9.2): самолёт с Высокой его не захватывает
+  else if (air && altA === "high" && hasProp(target.actor, "hover")) problems.push("С Высокой вертолёт не достать: он летает у земли.");
   // туннель: наружу и снаружи не достать; в узком туннеле только своя секция и одна вперёд (на Изгибе только своя)
   const ta = tunnelAt(a, attacker), tb = tunnelAt(b, target.actor);
   if (ta && !tb) problems.push("Из туннеля наружу не достать.");
@@ -290,11 +297,11 @@ export function defenseWithWeather(actor, w, { noBreak = false, halfSpeed = fals
   const s = actor.system;
   if (actor.type === "npc" && s.kind === "ship") return s.defense ?? null;
   // Станция РЭБ союзника в той же зоне: Defense +1
-  if (actor.type === "npc" && s.kind !== "air") return s.defense === null || s.defense === undefined ? null : s.defense + (ecmCover(actor) ? 1 : 0);
+  if (actor.type === "npc" && s.kind !== "air") return s.defense === null || s.defense === undefined ? null : s.defense + (ecmCover(actor) ? 1 : 0) + (jammerCover(actor) ? 2 : 0);
   const ev = (s.evasion ?? s.stats?.ev ?? 0) + (w?.ev ?? 0);
   // черты спецоружия: QAAM вблизи — Break! не работает, HVAA — Speed цели вполовину, вниз
   const speed = s.speed ?? 0;
-  return Math.max(ev, noBreak ? -Infinity : s.breakEv ?? -Infinity) + (halfSpeed ? Math.floor(speed / 2) : speed) + (ecmCover(actor) ? 1 : 0);
+  return Math.max(ev, noBreak ? -Infinity : s.breakEv ?? -Infinity) + (halfSpeed ? Math.floor(speed / 2) : speed) + (ecmCover(actor) ? 1 : 0) + (jammerCover(actor) ? 2 : 0);
 }
 
 /**
@@ -311,6 +318,86 @@ export function ecmCover(actor, token = tokenOf(actor)) {
     return t.name ?? a.name;
   }
   return "";
+}
+
+/** Живая цель на сцене с правилом rule той же стороны, что actor: [{ token, actor }]. */
+function teamWith(actor, rule) {
+  if (!canvas?.ready) return [];
+  const team = a => (sideOf(a) === "player" ? "ally" : sideOf(a));
+  return canvas.tokens.placeables.filter(t => t.actor && hasRule(t.actor, rule) && !t.actor.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)
+    && team(t.actor) === team(actor)).map(t => ({ token: t, actor: t.actor }));
+}
+
+/**
+ * «Помехи» станции помех (книга, Radar Jammer; Стрэйнджриал 9.3): накрывает две зоны — Низкую и Среднюю над своим участком.
+ * Союзные ей цели там получают +2 к Defense и захватываются только из той же зоны. Возвращает имя станции или "".
+ */
+export function jammerCover(actor, token = tokenOf(actor)) {
+  if (!token || !actor) return "";
+  if (!["low", "med"].includes(altOf(token, actor))) return "";
+  const me = cellOf(token);
+  if (!me) return "";
+  for (const j of teamWith(actor, "jammer")) {
+    const c = cellOf(j.token);
+    if (c && c.col === me.col && c.row === me.row) return j.token.name ?? j.actor.name;
+  }
+  return "";
+}
+
+/** «Наведение» РЛС (9.3): ЗРК её стороны в соседних участках +1 к G-A. Строка для карточки или null. */
+export function radarCue(actor, token = tokenOf(actor)) {
+  if (!token || actor?.type !== "npc" || actor.system.kind === "air") return null;
+  const me = cellOf(token);
+  if (!me) return null;
+  const r = teamWith(actor, "radar").find(x => x.actor !== actor && (c => c && Math.max(Math.abs(c.col - me.col), Math.abs(c.row - me.row)) <= 1)(cellOf(x.token)));
+  return r ? [`Наведение: ${r.token.name ?? r.actor.name}`, 1] : null;
+}
+
+/**
+ * Targeting Booster (Support Gunship, книга, стр. 40): ганшип в начале раунда выбирает союзника в своей или соседней зоне,
+ * тот получает +1 к A-A, A-G, Aim и Deploy, пока остаётся в этой дальности. Имя ганшипа или "".
+ */
+export function boosterOn(actor, token = tokenOf(actor)) {
+  const c = game.combat;
+  if (!c?.started || !token || !canvas?.ready) return "";
+  for (const t of canvas.tokens.placeables) {
+    const f = t.actor?.getFlag?.(SYSTEM_ID, "booster");
+    if (!f || f.uuid !== actor.uuid || f.key !== `${c.id}:${c.round}` || !hasProp(t.actor, "booster")) continue;
+    if (t.actor.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) continue;
+    const d = zoneDistance(t, token);
+    if (d !== null && d <= 1) return t.name ?? t.actor.name;
+  }
+  return "";
+}
+
+/** «Радар ДРЛО» (9.2): пока самолёт в воздухе, ракетные атаки NPC его стороны +1. Строка для карточки или null. */
+export function awacsCue(actor) {
+  if (actor?.type !== "npc") return null;
+  const r = teamWith(actor, "awacs").find(x => x.actor !== actor && isFlying(x.actor));
+  return r ? [`Радар ДРЛО: ${r.token.name ?? r.actor.name}`, 1] : null;
+}
+
+/** «Засада» (9.3): hidden — ещё не стреляла (захватить нельзя), open — стреляла в этом или прошлом раунде (захват только из её зоны), null — правила нет. */
+export function ambushState(actor) {
+  if (!hasRule(actor, "ambush")) return null;
+  const shot = actor.getFlag?.(SYSTEM_ID, "unit")?.launch?.ambush, round = game.combat?.started ? game.combat.round : null;
+  return Number.isFinite(shot) && round !== null && round - shot <= 1 && round >= shot ? "open" : "hidden";
+}
+
+/** Засада выстрелила: раскрыта до конца следующего раунда. */
+export async function revealAmbush(actor) {
+  if (!hasRule(actor, "ambush") || !game.combat?.started || !actor.isOwner) return;
+  await actor.update({ [`flags.${SYSTEM_ID}.unit.launch.ambush`]: game.combat.round });
+}
+
+/** «Ордер» (9.4): пока цел хоть один корабль эскорта своей стороны в соседних участках, захват этой цели только из соседней зоны или ближе. */
+export function escortCover(actor, token = tokenOf(actor)) {
+  if (!hasRule(actor, "escort") || !token) return "";
+  const me = cellOf(token);
+  const guard = me && canvas.tokens.placeables.find(t => t !== token && t.actor?.type === "npc" && t.actor.system.kind === "ship"
+    && !t.actor.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) && sideOf(t.actor) === sideOf(actor)
+    && (c => c && Math.max(Math.abs(c.col - me.col), Math.abs(c.row - me.row)) <= 1)(cellOf(t)));
+  return guard ? guard.name : "";
 }
 
 /** Ключ раунда текущего боя или "". */
@@ -330,7 +417,10 @@ export function firedThisRound(actor) {
 export function sameZoneLock(actor, token = tokenOf(actor)) {
   if (hasProp(actor, "stealth") && !firedThisRound(actor)) return "Малозаметность: пока цель в этом раунде не стреляла, её захватывают только из той же зоны.";
   const ecm = ecmCover(actor, token);
-  return ecm ? `Станция РЭБ (${ecm}): прикрытого захватывают только из той же зоны.` : "";
+  if (ecm) return `Станция РЭБ (${ecm}): прикрытого захватывают только из той же зоны.`;
+  const jam = jammerCover(actor, token);
+  if (jam) return `Помехи (${jam}): прикрытого захватывают только из той же зоны.`;
+  return ambushState(actor) === "open" ? "Засада раскрыта: захватить её можно только из той же зоны." : "";
 }
 
 /* ---------- вода и суша ---------- */

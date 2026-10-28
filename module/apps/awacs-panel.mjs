@@ -347,6 +347,7 @@ export async function sortieResults() {
     ${gloryBlock}
     <div class="form-group"><label>Операция</label><input type="text" name="op" value="${esc(scene?.getFlag(SYSTEM_ID, "mission") || scene?.name || "")}" placeholder="название вылета"></div>
     <div class="form-group"><label>Дата</label><input type="text" name="date" value="${esc(campaignDate())}" placeholder="${esc(todayDate())}" maxlength="40" title="Игровая дата вылета: попадёт в личные дела, разбор полёта и Славу и станет датой кампании"></div>
+    <div class="form-group"><label title="Книга, стр. 31: после операции каждый пилот добавляет новый триггер"><input type="checkbox" name="opDone"> Операция завершена: каждому летавшему пилоту новый триггер</label></div>
     <div class="form-group"><label><input type="checkbox" name="journal" checked> Записать разбор полёта в журнал</label></div>`, { ok: "Записать в личные дела", width: 640 });
   if (!data) return;
   const op = data.op || "Вылет";
@@ -376,7 +377,7 @@ export async function sortieResults() {
       [`flags.${SYSTEM_ID}.-=kills`]: null
     });
     flown.push({ pilot: a, kills: k.list ?? [], eject });
-    lines.push(`<b>${esc(a.name)}</b>: вылет ${sortie}${air ? `, сбито ${air}` : ""}${gnd ? `, на земле ${gnd}` : ""}${eject ? ", катапультировался" : ""}${pts ? `, +${pts} ${pts === 1 ? "очко" : "очка"} навыков` : ""}${dt.notes.length ? `, ${dt.notes.map(esc).join(", ")}` : ""}`);
+    lines.push(`<b>${esc(a.name)}</b>: вылет ${sortie}${air ? `, сбито ${air}` : ""}${gnd ? `, на земле ${gnd}` : ""}${eject ? ", катапультировался" : ""}${pts ? `, +${pts} ${pts === 1 ? "очко" : "очка"} навыков` : ""}${data.opDone && !["kia", "mia"].includes(a.system.service?.status) ? ", новый триггер за операцию" : ""}${dt.notes.length ? `, ${dt.notes.map(esc).join(", ")}` : ""}`);
   }
   if (data.g_on) await applyGlory(data, op, date);
   if (!lines.length) return;

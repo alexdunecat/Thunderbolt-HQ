@@ -1,5 +1,5 @@
 /* Листы пилота и NPC (ActorSheet v1, стабильный API Foundry v12). */
-import { SYSTEM_ID, SYS_PATH, TB, DT } from "../config.mjs";
+import { SYSTEM_ID, SYS_PATH, TB, DT, hasProp } from "../config.mjs";
 import { esc } from "../utils.mjs";
 import { weatherAt, defenseWithWeather, tokenOf, zoneDistance, rangeLabel, gunVs, ceilingOf, ALT_ORDER } from "../scene.mjs";
 import { nextMods, dropNext, adjacentOf, breakAdjacent } from "../squad.mjs";
@@ -17,7 +17,7 @@ import { rack, openMedals } from "../medals.mjs";
 import { openHangar, hangarState, inBattle } from "../hangar.mjs";
 import { CT, ctView, useCombatTrigger } from "../combat-triggers.mjs";
 import { NEM, STATE_TEXT, nemTriggers, trigState, metOf, useTrigger, appear, monologue, startMonologue, endMonologue, fxOf, clearFx } from "../nemesis.mjs";
-import { sheetPlane, useMove, useAoa } from "../plane-roles.mjs";
+import { sheetPlane, useMove, useAoa, useDeck } from "../plane-roles.mjs";
 import { aceBudget, aceSlots, PLANE_STR, PLANE_STRAIN_DEFAULT, ACE_STRAIN_EXTRA } from "../ace-kit.mjs";
 import { aceState, aceClick, addAceWeapons } from "../ace-play.mjs";
 
@@ -127,6 +127,7 @@ class TBActorSheet extends ActorSheet {
         case "sortie": return a.prepareSortie();
         case "move": return useMove(a);
         case "aoa": return useAoa(a);
+        case "deck": return useDeck(a);
         case "unlock": return a.update({ "system.lock": "", "system.lockUuid": "" });
         case "lock-focus": {
           const t = a.system.lockUuid ? tokenOf(resolveActor(a.system.lockUuid)) : null;
@@ -610,6 +611,7 @@ export class NpcSheet extends TBActorSheet {
     ctx.canSam = ctx.isGround && (s.ground.ga !== null || s.ground.gg !== null);
     ctx.shipSam = s.kind === "ship" && s.systems.some(y => y.ga !== null && y.ga !== undefined);
     ctx.canGun = ctx.isAir || (ctx.isGround && s.ground.gun !== null);
+    ctx.npcAttacks = { carpet: hasProp(this.actor, "carpet"), gunship: hasProp(this.actor, "gunship") };
     ctx.gunLabel = gunVs(this.actor) === "air" ? "Зенитный огонь" : "Огонь по земле";
     ctx.taskOptions = TB.tasks;
     ctx.voice = !this.actor.getFlag(SYSTEM_ID, "quiet");

@@ -18,6 +18,7 @@ export function registerCareerTriggers() {
   Hooks.on("updateActor", (actor, change, options) => {
     if (options?.tbUndo || actor.type !== "pilot" || foundry.utils.getProperty(change, "system.service.status") !== "kia" || !isLead()) return;
     onDeath(actor).catch(err => console.error(`${SYSTEM_ID} | триггеры гибели`, err));
+    fallenInCombat(actor).catch(err => console.error(`${SYSTEM_ID} | гибель в бою`, err));
   });
   // combatStart приходит только тому, кто начал бой (может быть и не главный ведущий)
   Hooks.on("combatStart", combat => { if (game.user.isGM) voiceReminder(combat).catch(err => console.warn(`${SYSTEM_ID} | Голос в эфире`, err)); });
@@ -25,6 +26,16 @@ export function registerCareerTriggers() {
 }
 
 /* ---------- гибель пилота ---------- */
+
+/** Гибель в идущем бою (книга, стр. 24): до конца вылета пилоты кубики не бросают, стол выбирает исход. Действия пилотов стопорит actions.mjs. */
+async function fallenInCombat(dead) {
+  const c = game.combat;
+  if (!c?.started || c.getFlag(SYSTEM_ID, "fallen")) return;
+  await c.setFlag(SYSTEM_ID, "fallen", dead.name);
+  return ChatMessage.create({ speaker: { alias: "AWACS" },
+    content: `<div class="tb-card tb-card-ctrig tb-card-life"><header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">${esc(dead.name)} погиб</span></header>
+      <div class="tb-note">До конца вылета кубики не бросают: действия пилотов остановлены. Стол решает вместе: «Победа любой ценой» или «Достойное отступление». Ведущий снимает запрет, завершив бой.</div></div>` });
+}
 
 /** Карточка с кнопкой: who — чей это выбор (кнопка видна его владельцу и ведущему). */
 function card(actor, what, note, buttons = []) {
