@@ -1,6 +1,9 @@
 /* Курс токена: поворот на любой угол. Q / E — на 15° против и по часовой (с Shift — на 5°),
-   кнопка «Курс» в меню токена — щёлкнуть по карте, куда смотреть носом (Esc — отмена). Работает для всех выделенных токенов. */
+   кнопка «Курс» в меню токена — щёлкнуть по карте, куда смотреть носом (Esc — отмена). Работает для всех выделенных токенов.
+   Автокурс (настройка мира): при перемещении машина сама разворачивается носом по курсу, при Lock On! и выстреле — на цель.
+   Здания и прочие неподвижные цели не поворачиваются; токен с «Запретом поворота» Foundry тоже. */
 import { SYSTEM_ID } from "./config.mjs";
+import { resolveActor } from "./utils.mjs";
 
 export function registerRotate() {
   game.keybindings.register(SYSTEM_ID, "rotLeft", {
@@ -11,9 +14,60 @@ export function registerRotate() {
     name: "Курс: повернуть по часовой (15°, с Shift 5°)", editable: [{ key: "KeyE" }],
     onDown: ctx => turnSelected(ctx.isShift ? 5 : 15)
   });
+  game.settings.register(SYSTEM_ID, "autoFace", {
+    name: "Автокурс токенов", hint: "Машины сами поворачиваются носом по курсу перемещения, а при Lock On! и выстреле — на цель. Здания не поворачиваются.",
+    scope: "world", config: true, type: Boolean, default: true
+  });
+  Hooks.on("preUpdateToken", faceMove);
+  // захват: стрелок разворачивается на цель у того, кто его поставил
+  Hooks.on("updateActor", (actor, change, options, userId) => {
+    const uuid = foundry.utils.getProperty(change, "system.lockUuid");
+    if (!uuid || options?.tbUndo || userId !== game.user.id) return;
+    const me = actor.isToken ? actor.token?.object : actor.getActiveTokens?.()[0];
+    const t = resolveActor(uuid);
+    const tt = t?.isToken ? t.token?.object : t?.getActiveTokens?.()[0];
+    if (me && tt) faceToken(me, tt).catch(err => console.warn(`${SYSTEM_ID} | автокурс`, err));
+  });
   Hooks.on("renderTokenHUD", addHudButton);
   // смена сцены посреди выбора курса: прежние токены уже не на этой сцене
   Hooks.on("canvasTearDown", () => picking?.cancel());
+}
+
+/* ---------- автокурс ---------- */
+
+/** Неподвижные наземные цели: здания и объекты (группа obj) и кварталы. */
+const STILL = ["hospital", "housing"];
+/** Поворачивается ли машина сама: пилоты, самолёты, корабли, техника; здания нет. */
+export function turns(actor) {
+  if (actor?.type === "pilot") return true;
+  if (actor?.type !== "npc") return false;
+  const s = actor.system ?? {};
+  return s.kind !== "ground" || (s.grp !== "obj" && !STILL.includes(s.key));
+}
+const autoFace = () => { try { return game.settings.get(SYSTEM_ID, "autoFace") !== false; } catch { return true; } };
+
+/** Курс от точки a к точке b в градусах токена (0 — нос вверх, по часовой) или null, если точки совпадают. */
+export function headingOf(a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  if (Math.hypot(dx, dy) < 2) return null;
+  return norm(Math.atan2(dx, -dy) * 180 / Math.PI);
+}
+
+/** Перемещение: нос по курсу. Раскладка, отмена и подтяжка высоты (tbKeep, tbUndo, tbSync) курс не трогают. */
+export function faceMove(doc, change, options = {}) {
+  if (!("x" in change || "y" in change) || "rotation" in change) return;
+  if (options.tbKeep || options.tbUndo || options.tbSync || doc.lockRotation || !autoFace() || !turns(doc.actor)) return;
+  const h = headingOf({ x: doc.x, y: doc.y }, { x: change.x ?? doc.x, y: change.y ?? doc.y });
+  if (h !== null) change.rotation = h;
+}
+
+/** Развернуть свой токен носом на другой токен (Lock On!, выстрел). */
+export async function faceToken(me, target) {
+  const d = me?.document;
+  if (!d || !target || me === target || !d.isOwner || d.lockRotation || !autoFace() || !turns(d.actor)) return;
+  const h = headingOf(me.center, target.center);
+  if (h === null || Math.abs(((h - d.rotation + 540) % 360) - 180) < 1) return;
+  await d.update({ rotation: h });
 }
 
 const mine = () => (canvas?.tokens?.controlled ?? []).filter(t => t.document.isOwner);

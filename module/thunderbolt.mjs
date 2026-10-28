@@ -45,6 +45,7 @@ import { applyCanvasStyle, patchTargetReticle } from "./canvas-style.mjs";
 import { openDossierExchange, importDossier, exportDossier } from "./dossier-sync.mjs";
 import { registerMapInfo } from "./mapinfo.mjs";
 import { registerRotate } from "./rotate.mjs";
+import { registerFx } from "./fx.mjs";
 import { registerInsignia } from "./insignia.mjs";
 import { registerSideColor } from "./sidecolor.mjs";
 import { registerLosses } from "./losses.mjs";
@@ -171,6 +172,7 @@ Hooks.once("init", () => {
   registerPopout();
   registerMapInfo();
   registerRotate();
+  registerFx();
   registerAltitude();
   registerInsignia();
   registerSideColor();

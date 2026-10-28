@@ -1,0 +1,19 @@
+курс: 0 90 180 270 45 
+поворачиваются: пилот=true самолёт=true корабль=true танк=true ЗРК=true штаб=false госпиталь=false колонна=true
+ход вправо: 90 · вниз-влево: 225 · раскладка: — · отмена: — · запрет поворота: — · свой поворот: 45 · высота: — · здание: —
+автокурс выключен: —
+Fox Two! в бою: [{"kind":"launch","from":"A","to":"T","bomb":false,"wait":true},{"kind":"launch","from":"A","to":"T2","bomb":false,"wait":true}]
+Fox Two! вне боя: [{"kind":"launch","from":"A","to":"T","bomb":true,"wait":false}]
+пушка попала: [{"kind":"guns","from":"A","to":"T","hit":true,"n":6}]
+пушка мимо: [{"kind":"guns","from":"A","to":"T","hit":false,"n":6}]
+пушка по кораблю: [{"kind":"guns","from":"A","to":"S","hit":null,"n":6}]
+НУР: [{"kind":"rockets","from":"A","to":"T","hit":true,"n":4}]
+лазер: [{"kind":"beam","from":"A","rows":[{"to":"T","hit":true}]}]
+ковровая: [{"kind":"carpet","from":"B","rows":[{"to":"G1","hit":true},{"to":"G2","hit":false}]}]
+бортовые орудия: [{"kind":"guns","from":"B","to":"G1","hit":false,"n":4},{"kind":"guns","from":"B","to":"G2","hit":false,"n":4}]
+EMRG: [{"kind":"beam","from":"B","rows":[{"to":"G1","hit":true},{"to":"G2","hit":true}]}]
+Break!: [{"kind":"flares","at":"P"}]
+удар по площади: [{"kind":"blast","zones":["3,4|low","3,4|med","5,5"]}]
+залп: [{"kind":"impact","to":"T","from":["A","B"],"count":2,"hit":true,"ship":false,"bomb":false,"broke":false,"prox":false},{"kind":"impact","to":"U","from":["A"],"count":1,"hit":false,"ship":false,"bomb":false,"broke":true,"prox":false},{"kind":"impact","to":"V","from":["A"],"count":1,"hit":false,"ship":false,"bomb":false,"broke":true,"prox":false},{"kind":"impact","to":"S","from":["A"],"count":1,"hit":false,"ship":true,"bomb":false,"broke":false,"prox":false},{"kind":"lost","name":"X"}]
+проверка: []
+в воздухе: true false false false

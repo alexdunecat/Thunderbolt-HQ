@@ -448,7 +448,7 @@ export async function resolveStrikes(combat, round) {
       return `<div class="tb-volley-row ${h.hit ? "hit" : "miss"}"><b>${esc(h.name)}</b>: ${roll}${h.hit ? `<b class="ok">${h.dmg} урона</b>` : `<b class="fail">мимо</b>`}</div>`;
     }).join("");
     const ships = hits.filter(h => h.ship);
-    const card = { type: "strike", label: s.label, ships: ships.map(h => ({ uuid: h.uuid, name: h.name, dmg: S.ships === "attack" ? h.dmg : 99 })) };
+    const card = { type: "strike", label: s.label, zones: s.zones ?? [], ships: ships.map(h => ({ uuid: h.uuid, name: h.name, dmg: S.ships === "attack" ? h.dmg : 99 })) };
     const btn = ships.length ? `<div class="tb-actions">${ships.map(h => `<button type="button" data-tb-action="strike-ship" data-uuid="${esc(h.uuid)}" class="tb-gm"><i class="fas fa-burst"></i> ${esc(h.name)}: ${S.ships === "attack" ? `${h.dmg} урона` : "снять систему"}</button>`).join("")}</div>` : "";
     await ChatMessage.create({
       speaker: { alias: "AWACS" }, flags: { [SYSTEM_ID]: { card } },
