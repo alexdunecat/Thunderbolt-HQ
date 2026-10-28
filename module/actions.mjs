@@ -5,7 +5,7 @@
    Запрещено: действовать до заявки и не в свой ход, сверх заявки, второй бросок за ход, Move дальше соседней зоны
    и Climb / Dive больше чем на ступень. Ведущий может переставить токен в обход правил, перетаскивая его с Shift.
    Move и Climb / Dive засчитываются в момент перемещения, и двигавший видит об этом сообщение. */
-import { SYSTEM_ID, TB } from "./config.mjs";
+import { SYSTEM_ID, TB, hasProp } from "./config.mjs";
 import { PASS, isOut } from "./documents/combat.mjs";
 import { landBlocked, climbProblem, ALT_ORDER, tunnelClimbProblem, tunnelMoveProblem, tokenOf } from "./scene.mjs";
 import { esc } from "./utils.mjs";
@@ -57,8 +57,16 @@ export function actionProblem(actor, what, { rolled = false, token = null } = {}
   const s = spentOf(c), n = declaredOf(c) ?? 0;
   const free = what === "speed" && s.freeSpeed;
   if (!free && s.used >= n) return n === 0 ? `${c.name}: ход пропущен, действий нет.` : `${c.name}: все заявленные действия (${n}) уже сделаны.`;
-  if (rolled && s.rolled) return `${c.name}: бросок за этот ход уже был, а он один.`;
+  if (rolled && s.rolled && !extraRoll(c, s)) return `${c.name}: бросок за этот ход уже был, а он один.`;
   return null;
+}
+
+/** Ключ хода бойца: бой, раунд, боец (для отметок «в этот ход»). */
+export const turnKey = c => (c ? `${c.parent.id}:${c.parent.round}:${c.id}` : "");
+
+/** «Сверхманёвренность» (приём Су-47 и ADLER) в этот ход: вторая проверка с броском, пока бросков меньше двух. */
+function extraRoll(c, s) {
+  return c.actor?.getFlag?.(SYSTEM_ID, "supermano") === turnKey(c) && (s.rolls ?? (s.rolled ? 1 : 0)) < 2;
 }
 
 /** Можно ли действие; если нет, объяснить. */
@@ -71,7 +79,7 @@ export function allowAction(actor, what, opts) {
 /** Второй бросок за ход (Improved Fox Two! решается уже в окне пуска). */
 export function allowRoll(actor) {
   const c = combatantOf(actor);
-  if (!c || !spentOf(c).rolled) return true;
+  if (!c || !spentOf(c).rolled || extraRoll(c, spentOf(c))) return true;
   ui.notifications.warn(`${c.name}: бросок за этот ход уже был, а он один.`);
   return false;
 }
@@ -89,7 +97,7 @@ export async function spendAction(actor, what, { rolled = false, token = null } 
   if (free) s.freeSpeed = false;
   else s.used += 1;
   if (what === "move" || what === "climb") s.freeSpeed = true;
-  if (rolled) s.rolled = true;
+  if (rolled) { s.rolled = true; s.rolls = (s.rolls ?? 0) + 1; }
   s.list.push(free ? `${name} (заодно)` : name);
   // действия идут быстрее, чем сервер отвечает: считаю сразу у себя, а пишу по очереди, последним состоянием
   mine.set(c.id, s);
@@ -133,6 +141,39 @@ function zoneStep(doc, to) {
   return Math.max(Math.abs(a - p), Math.abs(b - q));
 }
 
+/**
+ * Move на 2 зоны свойством машины: { label, speed } — High Speed (Speed 5) или сверхзвуковой режим (Speed не ниже 4).
+ * Скорость, которой не хватает, ставится заодно с Move (смена скорости при Move бесплатна). null — нельзя.
+ */
+export function twoZones(actor) {
+  const s = actor.system, max = s.maxSpeed ?? s.stats?.spd ?? 0;
+  for (const [key, need, label] of [["highspeed", 5, "High Speed"], ["supercruise", 4, "сверхзвуковой режим"]]) {
+    if (!hasProp(actor, key)) continue;
+    if ((s.speed ?? 0) >= need) return { label, speed: null };
+    if (max >= need) return { label, speed: need };
+  }
+  return null;
+}
+const twoZoneHint = actor => hasProp(actor, "highspeed") ? " High Speed — 2 зоны при Speed 5." : hasProp(actor, "supercruise") ? " Сверхзвуковой режим — 2 зоны при Speed от 4." : "";
+
+/** После Move на 2–3 зоны: скорость заодно с Move; «Бросок на рубеж» — Speed = Max Speed и бесплатный Lock On!. */
+async function afterFastMove(doc, { fast, dash }) {
+  const actor = doc.actor;
+  if (!actor || (!fast && !dash)) return;
+  if (dash) {
+    await actor.update({ "system.speed": actor.system.maxSpeed ?? actor.system.speed, [`flags.${SYSTEM_ID}.-=dash`]: null }, { tbFree: true });
+    ui.notifications.info(`${doc.name}: «Бросок на рубеж» — Speed ${actor.system.maxSpeed}. Бесплатный Lock On! по цели в зоне прибытия или соседней.`);
+    // токен ещё едет: захват считается от места прибытия
+    setTimeout(() => actor.lockOn?.({ free: true, label: "Бросок на рубеж" })?.catch?.(err => console.warn(`${SYSTEM_ID} | бросок на рубеж`, err)), 600);
+    return;
+  }
+  if (fast.speed !== null) {
+    await spendAction(actor, "speed", { token: doc });
+    await actor.update({ "system.speed": fast.speed }, { tbFree: true });
+  }
+  ui.notifications.info(`${doc.name}: ${fast.label} — Move на 2 зоны${fast.speed !== null ? `, Speed ${fast.speed} заодно` : ""}.`);
+}
+
 /** Засчитать Move и Climb / Dive по токену и сказать об этом тому, кто двигал. */
 async function countMove(actor, acts, token = null) {
   for (const what of acts) await spendAction(actor, what, { token });
@@ -171,15 +212,20 @@ export function registerActions() {
     const problems = [], acts = [];
     // «Полный газ» (Punch It, раз за вылет): одним Move до 3 зон
     const punch = doc.actor.items?.find?.(i => i.type === "trigger" && i.system.key === "punch" && !i.system.used) ?? null;
-    let punchUsed = null;
+    let punchUsed = null, fast = null, dash = false;
     if ("x" in change || "y" in change) {
       const d = zoneStep(doc, change);
       if (d > 0) {
         acts.push("move");
         const p = actionProblem(doc.actor, "move", { token: doc }) ?? tunnelMoveProblem(doc, change);
+        // «Бросок на рубеж» (приём МиГ-31М и МиГ-1.44), объявленный в этот ход: Move до 3 зон
+        dash = d <= 3 && doc.actor.getFlag?.(SYSTEM_ID, "dash") === turnKey(combatantOf(doc.actor, doc));
+        // High Speed и сверхзвуковой режим: Move на 2 зоны, если в конце действия Speed 5 (не ниже 4); скорость меняется заодно
+        fast = d === 2 && !dash ? twoZones(doc.actor) : null;
         if (p) problems.push(p);
+        else if (dash || fast) { /* можно */ }
         else if (d > 1 && d <= 3 && punch) punchUsed = punch;
-        else if (d > 1) problems.push(`${doc.name}: Move только в соседнюю зону, а здесь ${d}.${punch ? " «Полный газ» — до 3 зон." : ""}`);
+        else if (d > 1) problems.push(`${doc.name}: Move только в соседнюю зону, а здесь ${d}.${punch ? " «Полный газ» — до 3 зон." : ""}${twoZoneHint(doc.actor)}`);
       }
     }
     // токен без высоты (0, брошен на сцену вручную) стоит на высоте листа
@@ -195,7 +241,8 @@ export function registerActions() {
     if (problems.length && !gmFree) { ui.notifications.warn(problems[0]); return false; }
     if (gmFree && problems.length) return;   // ведущий с Shift: в обход правил и без счёта
     console.log(`${SYSTEM_ID} | ${doc.name}: ${acts.join(", ") || "в своей зоне"}${problems.length ? ` (в обход: ${problems[0]})` : ""}`);
-    if (acts.length) countMove(doc.actor, acts, doc)?.catch?.(err => console.error(`${SYSTEM_ID} | счёт действий`, err));
+    if (acts.length) countMove(doc.actor, acts, doc).then(() => afterFastMove(doc, { fast, dash }))
+      .catch(err => console.error(`${SYSTEM_ID} | счёт действий`, err));
     if (punchUsed) punchUsed.update({ "system.used": true }).then(() => ui.notifications.info(`${doc.name}: «Полный газ» — Move через несколько зон, триггер отмечен использованным в этом вылете.`))
       .catch(err => console.error(`${SYSTEM_ID} | Полный газ`, err));
   });

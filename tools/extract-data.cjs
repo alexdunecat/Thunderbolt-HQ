@@ -52,13 +52,15 @@ const planes = Y.PLANES.filter(p => !p.npc).map(p => ({
   key: p.id, name: p.name, nato: p.nato, cls: p.cls, cat: p.cat, catName: catName[p.cat] || "", tier: p.tier, tierName: Y.TIERS[p.tier],
   base: p.base, seats: p.seats || 1, carrier: !!p.carrier, est: !!p.est, fleet: !!p.fromNpc,
   stats: { spd: p.tb.spd, ev: p.tb.ev, aa: p.tb.aa, ag: p.tb.ag, hp: p.tb.hp, str: p.tb.str, gun: p.tb.gun, hard: p.tb.hard },
-  props: propsOf(p.props), sig: p.sig || [], ac5: p.ac5 || null, desc: p.desc || "", service: p.service || "", img: planeImg(p.shape)
+  props: propsOf(p.props), sig: p.sig || [], ac5: p.ac5 || null, desc: p.desc || "", service: p.service || "", img: planeImg(p.shape),
+  role: p.role || "", move: p.move || ""
 }));
 const book = Y.BOOK.map(b => ({
   key: b.id, name: b.name, nato: b.ex, cls: "Шаблон книги", cat: "book", catName: "Шаблоны книги", tier: 0, tierName: "",
   base: b.name, seats: 1, carrier: false, est: false,
   stats: { spd: b.s[0], ev: b.s[1], aa: b.s[2], ag: b.s[3], hp: b.s[4], str: b.s[5], gun: b.s[6], hard: b.s[7] },
-  props: propsOf(b.props), sig: [], ac5: null, desc: "", service: "", img: planeImg(BOOK_SHAPE[b.id])
+  props: propsOf(b.props), sig: [], ac5: null, desc: "", service: "", img: planeImg(BOOK_SHAPE[b.id]),
+  role: b.role || "", move: ""
 }));
 const wgroup = {}; Y.GROUPS.forEach(([g, keys]) => keys.forEach(k => wgroup[k] = g));
 const weapons = Object.entries(Y.WEAPONS).map(([k, w]) => ({
@@ -69,7 +71,7 @@ const npcs = Y.NPCS.map(n => {
   if (n.kind === "air") return Object.assign(base, {
     seats: n.seats || 1, carrier: !!n.carrier, tier: n.tier || 0,
     stats: { spd: n.tb.spd, ev: n.tb.ev, aa: n.tb.aa, ag: n.tb.ag, hp: n.tb.hp, gun: n.tb.gun },
-    props: propsOf(n.props), sig: n.sig || [], img: planeImg(n.shape) });
+    props: propsOf(n.props), sig: n.sig || [], img: planeImg(n.shape), role: n.role || "", move: n.move || "" });
   if (n.kind === "ground") return Object.assign(base, {
     t: { occ: n.t.occ, hp: n.t.hp, ga: n.t.ga, gg: n.t.gg, gun: n.t.gun, strafe: n.t.strafe || 0 },
     rules: rulesOf(n.rules), img: targetImg(n.icon) });
@@ -81,7 +83,7 @@ const npcs = Y.NPCS.map(n => {
 // (машины из сводок NPC, fleet, уже есть в npcs под тем же ключом)
 const airFromPlane = p => ({ key: p.key, kind: "air", grp: p.cat === "book" ? "book" : "player", grpName: p.cat === "book" ? "Шаблоны книги" : "Авиапарк Юктобании", tier: p.tier || 0,
   name: p.name, nato: p.nato, cls: p.cls, desc: p.desc, service: p.service, seats: p.seats, carrier: p.carrier,
-  stats: { spd: p.stats.spd, ev: p.stats.ev, aa: p.stats.aa, ag: p.stats.ag, hp: p.stats.hp, gun: p.stats.gun }, props: p.props, sig: p.sig, img: p.img });
+  stats: { spd: p.stats.spd, ev: p.stats.ev, aa: p.stats.aa, ag: p.stats.ag, hp: p.stats.hp, gun: p.stats.gun }, props: p.props, sig: p.sig, img: p.img, role: p.role, move: p.move });
 
 const triggers = Object.entries(D.T).filter(([k]) => k !== "custom").map(([k, t]) => ({
   key: k, archetype: t.a, name: t.n, en: t.en, types: t.ty, text: t.t, skills: t.sk || 0, mod: t.mod || 0, slot: !!t.slot }));
@@ -90,6 +92,7 @@ const archetypes = Object.entries(D.ARCH).map(([k, a]) => ({ key: k, name: a.n, 
 const out = {
   generated: new Date().toISOString().slice(0, 10),
   planes, book, weapons, npcs, planeNpcs: planes.filter(p => !p.fleet).concat(book).map(airFromPlane),
+  roles: Y.ROLES, moves: Y.MOVES,
   triggers, archetypes, triggerTypes: D.TT, status: Object.fromEntries(Object.entries(D.STATUS).map(([k, s]) => [k, s.n])),
   terrain: TERRAIN, effects: EFFECTS, markers: MARKERS, alias: ALIAS, tunnel: TUNNEL, tunnelArt: TUNNEL_ART
 };

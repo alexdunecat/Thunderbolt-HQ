@@ -22,6 +22,13 @@ export class TBItemSheet extends ItemSheet {
       ctx.statRows = Object.entries(TB.planeStats).map(([k, [en, ru]]) => ({ key: k, en, ru, value: s.stats[k] }));
       ctx.ac5 = s.ac5 ? [["Скорость", s.ac5.spd], ["Манёвр", s.ac5.mob], ["Устойч.", s.ac5.sta], ["Защита", s.ac5.def],
         ["Возд.", s.ac5.a2a], ["Земля", s.ac5.a2g], ["Ракеты", s.ac5.msl]] : null;
+      // роль и приём: пусто — по ключу машины
+      const byKey = { role: TB.roleOf[s.key] ?? "", move: TB.moveOf[s.key] ?? "" };
+      ctx.roleOptions = { "": `по машине${byKey.role ? `: ${TB.planeRoles[byKey.role].name}` : ""}`, ...Object.fromEntries(Object.entries(TB.planeRoles).map(([k, r]) => [k, r.name])) };
+      ctx.moveOptions = { "": `по машине${byKey.move ? `: ${TB.planeMoves[byKey.move].name}` : ": нет"}`, ...Object.fromEntries(Object.entries(TB.planeMoves).map(([k, m]) => [k, m.name])) };
+      const r = TB.planeRoles[s.role || byKey.role], m = TB.planeMoves[s.move || byKey.move];
+      ctx.roleInfo = r ? `${r.name}${r.trait ? `. ${r.trait}: ${r.text}` : `. ${r.text}`}` : "";
+      ctx.moveInfo = m ? `${m.name} (раз за вылет): ${m.text}` : "";
     }
     if (this.item.type === "weapon") {
       ctx.targetOptions = TB.weaponTargets;

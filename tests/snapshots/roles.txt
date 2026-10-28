@@ -1,0 +1,10 @@
+роли: heavy cobra · heavy phoenix · — — · книга fa: light gs: —
+приёмов: 10 машин с приёмом: 16 · ролей у машин: 71
+2 зоны: {"label":"High Speed","speed":5} {"label":"сверхзвуковой режим","speed":null} null
+Improved по воздуху: deploy aim
+Штурмовой заход: true false false
+Подавление ПВО: ["Подавление ПВО",2] null
+бомбер с Высокой: можно · пушкой: Цель в 1 зоне от вас, а дальность: только своя зона. С Высокой нельзя бить по земле и по целям на Низкой.
+стелс: только своя зона · под РЭБ: только своя зона · защита под РЭБ: 6 без: 5
+залп: [["Кобра",null,true,null],["Вираж",false,false,null],["Бандит",false,false,"Игл"]] · вираж: [{"uuid":"Actor.Вираж","name":"Вираж","pick":[{"uuid":"Actor.МиГ","name":"МиГ"}],"locked":"МиГ"}]
+UPDATE Вираж {"system.lock":"МиГ","system.lockUuid":"Actor.МиГ","flags.thunderbolt-shtab.salvo":null,"flags.thunderbolt-shtab.phoenix":null}

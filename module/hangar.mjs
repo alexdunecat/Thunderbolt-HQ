@@ -231,6 +231,8 @@ export function quickPick(cat, st, q, tier = 0) {
   return st;
 }
 
+const roleOfP = p => TB.planeRoles?.[p?.role || TB.roleOf?.[p?.key]] ?? null;
+const moveOfP = p => TB.planeMoves?.[p?.move || TB.moveOf?.[p?.key]] ?? null;
 const ROMAN = ["", "I", "II", "III", "IV", "V"];
 const GAUGE = { spd: "SPD", ev: "EVA", aa: "A-A", ag: "A-G", hp: "HP", str: "STR", gun: "GUN", hard: "HRD" };
 /** Наибольшее значение каждой характеристики в авиапарке: шкалы ТТХ в ангаре считаются от него. */
@@ -256,7 +258,7 @@ export function pilotHtml(cat, { actor, pilots = [], planeKey, slots = [], user 
   const list = P.length ? tiers(cat).map(t => {
     const row = byTier(cat, t).filter(x => P.includes(x));
     return row.length ? `<h4><span class="tb-hgx-roman">${ROMAN[t] ?? t}</span>${esc(allPlanes(cat).find(x => x.tier === t)?.tierName ?? "")}<small>${row.length}</small></h4>${row.map(x => `<a class="tb-hg-row${x.key === planeKey ? " on" : ""}${off(x) ? " off" : ""}" data-hg-pick="${esc(x.key)}">
-      <img src="${esc(x.img)}" alt=""><span><b>${esc(x.name)}</b><small>${esc(x.cls)}${x.fleet ? " · из сводок" : ""}${off(x) ? " · вне допуска" : ""}</small></span>${x.key === cur ? `<i class="tb-hgx-mine" title="Сейчас на листе">НА ЛИСТЕ</i>` : ""}</a>`).join("")}` : "";
+      <img src="${esc(x.img)}" alt=""><span><b>${esc(x.name)}${moveOfP(x) ? ` <i class="tb-hgx-star" title="Приём: ${esc(moveOfP(x).name)}">★</i>` : ""}</b><small>${esc(x.cls)}${roleOfP(x) ? ` · ${esc(roleOfP(x).name)}` : ""}${x.fleet ? " · из сводок" : ""}${off(x) ? " · вне допуска" : ""}</small></span>${x.key === cur ? `<i class="tb-hgx-mine" title="Сейчас на листе">НА ЛИСТЕ</i>` : ""}</a>`).join("")}` : "";
   }).join("") : `<p class="tb-muted">AWACS пока не выдал ни одной машины.${user.isGM ? " Отметьте машины в допуске или включите «Весь каталог»." : ""}</p>`;
   const W = (cat.weapons ?? []).filter(w => gm || st.weapons.includes(w.key));
   const own = actor ? ownWeapons(actor, cat) : [];
@@ -283,7 +285,8 @@ export function pilotHtml(cat, { actor, pilots = [], planeKey, slots = [], user 
       <div class="tb-hgx-ttx"><h3>ТТХ <small>от лучшей машины авиапарка</small></h3>${Object.keys(GAUGE).map(gauge).join("")}</div>
       <div class="tb-hgx-form"><h3>Формуляр</h3>
         ${p.desc ? `<p>${esc(p.desc)}</p>` : ""}${p.service ? `<p class="tb-hgx-quote">${esc(p.service)}</p>` : ""}
-        ${p.props?.length ? `<ul class="tb-hg-props">${p.props.map(x => `<li><b>${esc(x.name)}.</b> ${esc(x.text)}</li>`).join("")}</ul>` : ""}</div>
+        ${p.props?.length ? `<ul class="tb-hg-props">${p.props.map(x => `<li><b>${esc(x.name)}.</b> ${esc(x.text)}</li>`).join("")}</ul>` : ""}
+        ${roleOfP(p) || moveOfP(p) ? `<ul class="tb-hg-props tb-hgx-role">${roleOfP(p) ? `<li><b>Роль: ${esc(roleOfP(p).name)}${roleOfP(p).trait ? ` · ${esc(roleOfP(p).trait)}` : ""}.</b> ${esc(roleOfP(p).text)}</li>` : ""}${moveOfP(p) ? `<li class="move"><b>★ ${esc(moveOfP(p).name)} (раз за вылет).</b> ${esc(moveOfP(p).text)}</li>` : ""}</ul>` : ""}</div>
     </section>
     <h3 class="tb-hgx-h">Пульт подвески <small>${slots.length} ${slots.length === 1 ? "узел" : slots.length < 5 && slots.length ? "узла" : "узлов"}${bonusHard(actor) ? ` (с триггерами ${bonusHard(actor) > 0 ? "+" : ""}${bonusHard(actor)})` : ""} · заряжено ${filled}</small></h3>
     <div class="tb-hg-slots">${slots.map((k, i) => {

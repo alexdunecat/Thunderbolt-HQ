@@ -15,6 +15,7 @@ import { ejectNow, weaponReady, isGunPod, isOwnFire } from "./dice/rolls.mjs";
 import { unitKind, unitHtml, onUnitClick, registerUnitHud } from "./unit-hud.mjs";
 import { hudTriggers, useCombatTrigger } from "./combat-triggers.mjs";
 import { adviceRow, runAdvice, showTarget } from "./npc-advice.mjs";
+import { hudPlane, planeRowHtml, useMove, useAoa } from "./plane-roles.mjs";
 import { hudNemesis, isNemesis, pilotsOf, monologue, startMonologue, endMonologue, appear, useTrigger, STATE_TEXT } from "./nemesis.mjs";
 
 const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, POS_KEY = `${SYSTEM_ID}.hudPos`;
@@ -74,7 +75,8 @@ function incoming(actor) {
   if (!combat?.started) return 0;
   return game.messages.contents.slice(-300).filter(m => {
     const c = m.getFlag(SYSTEM_ID, "card");
-    return c?.delayed && c.targetUuid === actor.uuid && c.combatKey?.startsWith(`${combat.id}:`) && !c.resolved && !c.dmgApplied;
+    // «Удар из ниоткуда»: о такой ракете цель не знает (ведущий видит)
+    return c?.delayed && c.targetUuid === actor.uuid && c.combatKey?.startsWith(`${combat.id}:`) && !c.resolved && !c.dmgApplied && (!c.ghost || game.user.isGM);
   }).length;
 }
 
@@ -129,6 +131,8 @@ export function hudData(actor) {
     nem: pilot ? hudNemesis(actor) : null,
     // боевые триггеры: что можно задействовать сейчас и что действует
     ct: pilot ? hudTriggers(actor) : null,
+    // роль машины, лампы свойств, Angle of Attack Limiter и фирменный приём
+    planeRow: hudPlane(actor),
     nemSelf: !pilot && isNemesis(actor) && game.user.isGM
       ? { side: s.side === "ally" || s.side === "neutral" ? s.side : "enemy", who: pilotsOf(actor).map(p => p.system.callsign || p.name).join(", "), talking: monologue()?.uuid === actor.uuid } : null
   };
@@ -266,6 +270,7 @@ function html(actor, d, folded) {
         <div class="tb-hud-btns tb-hud-wpns"><small title="Пульт вооружения">STORES</small>${weaponButtons(d)}</div>
         <div class="tb-hud-btns"><small>МАНЁВР</small>${moves}</div>
         <div class="tb-hud-btns tb-hud-acts" title="Действия хода${d.acts?.rolled ? " · бросок уже был" : ""}"><small>ХОД</small>${actBoxes}${d.acts?.rolled ? `<i class="fas fa-dice-d10" title="Бросок за ход уже был"></i>` : ""}${button("end", BUTTONS.end)}</div>
+        ${planeRowHtml(d.planeRow)}
         ${ctRow(d)}
         ${nemRow(d)}
         ${actor.type === "npc" ? adviceRow(actor) : ""}
@@ -386,7 +391,7 @@ async function onClick(ev) {
   const hl = ev.target.closest("[data-hud-hl]");
   if (hl) { ev.preventDefault(); ev.stopPropagation(); return setHlMode(hl.dataset.hudHl); }
   if (dragged && ev.target.closest("header")) { dragged = false; return; }
-  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target]");
+  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa]");
   if (!t || !shown) return;
   ev.preventDefault();
   const d = t.dataset, actor = shown;
@@ -407,6 +412,8 @@ async function onClick(ev) {
   if (!actor.isOwner) return ui.notifications.warn(`«${actor.name}» вам не принадлежит.`);
   if (d.hudNemtrig) return useTrigger(actor, actor.items.get(d.hudNemtrig));
   if (d.hudCtrig) return useCombatTrigger(actor, actor.items.get(d.hudCtrig));
+  if (d.hudMove !== undefined) return useMove(actor);
+  if (d.hudAoa !== undefined) return useAoa(actor);
   if (d.hudAdvTarget !== undefined) return showTarget(actor);
   if (d.hudAdv !== undefined) return runAdvice(actor, d.hudAdv);
   if (d.hudAppear !== undefined) return appear(actor);

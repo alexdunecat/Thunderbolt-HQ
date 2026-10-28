@@ -6,7 +6,7 @@
    «Ход» — куда долетит за оставшиеся действия хода, с ценой в действиях; «Угрозы» — то же плюс ЗРК, зенитки, удары и погода
    по зонам (tactical.mjs). В режимах хода наведение мыши на зону показывает, кого оттуда достать, а при перетаскивании
    токена у курсора — цена Move. «Авто» — ход в свой ход, дальность в остальное время. Видит только тот, кто выделил. */
-import { SYSTEM_ID, TB } from "./config.mjs";
+import { SYSTEM_ID, TB, roleOf } from "./config.mjs";
 import { cellOf, hasRule, weatherAt, landBlocked, tunnelMoveProblem } from "./scene.mjs";
 import { moveCells, movesLeft, threatCells, reachFrom, zkey } from "./tactical.mjs";
 import { combatantOf, actionProblem } from "./actions.mjs";
@@ -130,7 +130,13 @@ function shape(token, weapon, block, bounds) {
   rings(0, () => OWN);
   if (weatherAt(token.actor, token).ownZone) return cells;
   // стандартная ракета: своя и соседние зоны; через одну — только пока самолёт держит захват (он срывается дальше двух зон)
-  if (!weapon) { rings(token.actor.system?.lockUuid ? TB.range.lockHold : TB.range.lockOn, d => d === 1 ? NEAR : HOLD); return cells; }
+  // «Мощный радар» тяжёлого истребителя: захват на 2 зоны, держится до 3
+  if (!weapon) {
+    const heavy = roleOf(token.actor) === "heavy";
+    const lock = heavy ? 2 : TB.range.lockOn, hold = heavy ? 3 : TB.range.lockHold;
+    rings(token.actor.system?.lockUuid ? hold : lock, d => d <= lock ? NEAR : HOLD);
+    return cells;
+  }
 
   const s = weapon.system;
   if (s.target === "line") {

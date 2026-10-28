@@ -69,6 +69,9 @@ missile("Гроза", 6, 4, "МиГ", 1);
 missile("МиГ", 3, 4, "Гроза");
 // Су: def 4, missiles 3 and 2 -> best 3 +1 boost = hit, dmg 4
 missile("Су", 3, 4, "Гроза"); missile("Су", 2, 4, "Гроза");
+// прогноз залпа на карточке пуска: у Су две ракеты, у МиГ одна (прогноза нет)
+log.push("FORECAST Су " + JSON.stringify(Rm.volleyForecast(msgs[2].flags["thunderbolt-shtab"].card)) + " · МиГ " + JSON.stringify(Rm.volleyForecast(msgs[1].flags["thunderbolt-shtab"].card)));
+log.push("STACKROW " + Rm.renderCard({ ...msgs[3].flags["thunderbolt-shtab"].card, dc: 4, stack: Rm.volleyForecast(msgs[3].flags["thunderbolt-shtab"].card) }).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
 const combat = { id: "C1", round: 1 };
 const m = await Rm.resolveVolley(combat, { round: 1 });
 const card = m.flags["thunderbolt-shtab"].card;

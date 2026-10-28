@@ -21,6 +21,12 @@
       <label class="tb-check"><input type="checkbox" name="system.carrier" {{checked system.carrier}}> палубный</label>
     </div>
     {{#if system.props.length}}<h3>Особенности</h3><ul class="tb-props">{{#each system.props as |p|}}<li><b>{{p.name}}.</b> {{p.text}}</li>{{/each}}</ul>{{/if}}
+    <div class="tb-row tb-small">
+      <label>Роль <select name="system.role">{{selectOptions roleOptions selected=system.role}}</select></label>
+      <label>Фирменный приём <select name="system.move">{{selectOptions moveOptions selected=system.move}}</select></label>
+    </div>
+    {{#if roleInfo}}<p class="tb-small"><b>Роль:</b> {{roleInfo}}</p>{{/if}}
+    {{#if moveInfo}}<p class="tb-small"><b>★ Приём:</b> {{moveInfo}}</p>{{/if}}
     {{#if system.sig.length}}<p class="tb-small">Штатное спецоружие: {{#each system.sig}}<b>{{this}}</b> {{/each}}</p>{{/if}}
     {{#if ac5}}<p class="tb-small tb-muted">Ace Combat 5: {{#each ac5 as |x|}}{{x.[0]}} {{x.[1]}} · {{/each}}{{system.ac5.sp}}{{#if system.ac5.price}} · {{system.ac5.price}}{{/if}}</p>{{/if}}
     <label class="tb-q">Описание <textarea name="system.desc" rows="3">{{system.desc}}</textarea></label>

@@ -102,6 +102,12 @@ function airDefense(sys, ev) {
   return evasion + sys.speed;
 }
 
+/** Angle of Attack Limiter включён в этот ход этой машины (флаг aoa: бой, раунд, боец). */
+function aoaActive(actor) {
+  const f = actor?.getFlag?.(SYSTEM_ID, "aoa"), c = globalThis.game?.combat;
+  return !!f && !!c && f.combat === c.id && f.round === c.round && c.combatant?.id === f.turn;
+}
+
 export class PilotData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     return {
@@ -194,6 +200,9 @@ export class PilotData extends foundry.abstract.TypeDataModel {
           push("evasion", `В строю: ${ally.name}`, ally.system.skills.lead);
       }
     } catch { /* союзник ещё не загружен: пересчёт на ready */ }
+    // Angle of Attack Limiter (свойство машины): −2 Strain в свой ход, до конца хода +1 к Evasion, A-A, Aim, Dodge, Push
+    this.aoa = propKeys.has("aoa") && aoaActive(actor);
+    if (this.aoa) for (const k of ["aim", "dodge", "push"]) push(`skill.${k}`, "Angle of Attack Limiter", 1);
     const sum = target => (fx[target] ?? []).reduce((a, m) => a + m.value, 0);
     this.trigFx = fx;
 
@@ -220,12 +229,14 @@ export class PilotData extends foundry.abstract.TypeDataModel {
     let ev = ps.ev + sum("evasion") - thin;
     if (propKeys.has("swing") && this.speed >= this.maxSpeed) ev += 1;
     if (propKeys.has("terrain") && this.alt === "low") ev += 1;
+    // Angle of Attack Limiter: до конца своего хода +1 к Evasion и Air-to-Air (навыки — в skillParts выше)
+    if (this.aoa) ev += 1;
     this.evasion = ev;
     this.defense = airDefense(this, ev);
     // Machine Gun Pod висит постоянно: Gun DMG +3 (и +1 Strafe в броске Guns), пока спецоружие не сломано Structure
     const mgp = this.off.has("sw") ? null : actor.items.find(i => i.type === "weapon" && i.system.key === "MGP" && i.system.ready);
     this.mgp = mgp?.id ?? "";
-    this.aa = ps.aa + sum("aa"); this.ag = ps.ag + sum("ag"); this.gun = ps.gun + sum("gun") + (mgp ? 3 : 0); this.hardpoints = ps.hard + sum("hardpoints");
+    this.aa = ps.aa + sum("aa") + (this.aoa ? 1 : 0); this.ag = ps.ag + sum("ag"); this.gun = ps.gun + sum("gun") + (mgp ? 3 : 0); this.hardpoints = ps.hard + sum("hardpoints");
     this.planeProps = propKeys;
     this.broken = broken;
     this.markerCount = ["grit", "structure", "doom"].filter(k => this.markers[k]).length;
@@ -282,9 +293,13 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       // баллистическая ракета идёт по своей траектории: Defense 6 и в стратосфере
       const thin = this.alt === "strat" && !this.props.some(p => p.key === "ballistic") ? 1 : 0;
       this.maxSpeed = Math.max(1, this.stats.spd - (this.off.has("en") ? 1 : 0) + thin);
-      this.evasion = this.stats.ev - thin;
+      // свойства из сводки, как у машин пилотов: крыло на Max Speed, огибание рельефа на Низкой, Angle of Attack Limiter
+      const pk = new Set(this.props.map(p => p.key));
+      this.aoa = pk.has("aoa") && aoaActive(this.parent);
+      this.evasion = this.stats.ev - thin + (pk.has("swing") && this.speed >= this.maxSpeed ? 1 : 0) + (pk.has("terrain") && this.alt === "low" ? 1 : 0) + (this.aoa ? 1 : 0);
       this.defense = airDefense(this, this.evasion);
-      this.aa = this.stats.aa; this.ag = this.stats.ag; this.gun = this.stats.gun;
+      this.aa = this.stats.aa === null ? null : this.stats.aa + (this.aoa ? 1 : 0); this.ag = this.stats.ag; this.gun = this.stats.gun;
+      if (this.aoa) for (const k of ["aim", "dodge", "push"]) this.skillTotal[k] += 1;
       this.strain.max = this.tier === "ace" ? (this.stats.str ?? 0) : 0;
     }
     // триггеры пилотов против Немезиды до конца вылета: «Знаю эту машину» (−1 к Evasion, Max Speed или A-A), «Я тоже в это верил» (Complication 1–2)
@@ -328,7 +343,9 @@ export class PlaneData extends foundry.abstract.TypeDataModel {
       props: named(),
       sig: new f.ArrayField(new f.StringField()),
       ac5: new f.ObjectField({ required: false, nullable: true, initial: null }),
-      desc: str(), service: str()
+      desc: str(), service: str(),
+      // роль машины и фирменный приём (Стрэйнджриал 8.5–8.6); пусто — по ключу машины (TB.roleOf, TB.moveOf)
+      role: str(), move: str()
     };
   }
 }

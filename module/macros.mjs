@@ -15,25 +15,26 @@ export const ACTIONS = {
 };
 
 /** Выполнить действие листа за актёра. В бою сделанное действие попадает в счётчик хода. */
-export async function runAction(actor, act, { skill, pod, weapon } = {}) {
+export async function runAction(actor, act, { skill, pod, weapon, opts } = {}) {
   // проверка хода уже была, но «Отточенное мастерство» её не тратит: окно откроется, обычный бросок оно не пустит
-  if (!allowAction(actor, act, { rolled: ROLLED.has(act) && !practicedReady(actor) })) return;
-  const res = await doAction(actor, act, { skill, pod, weapon });
+  // (и «Перегрузка 12g»: Break! без броска)
+  if (!allowAction(actor, act, { rolled: ROLLED.has(act) && !practicedReady(actor) && !opts?.g12 })) return;
+  const res = await doAction(actor, act, { skill, pod, weapon, opts });
   if (!res) return res;
   // действие состоялось: карточка в чате (отмена диалога и предупреждения возвращают не её) или строй собран
   const card = res.documentName === "ChatMessage" ? res.getFlag(SYSTEM_ID, "card") : null;
   if (res.documentName !== "ChatMessage" && res !== true) return res;
-  await spendAction(actor, act, { rolled: !!card?.rolled && !card?.practiced });
+  await spendAction(actor, act, { rolled: !!card?.rolled && !card?.practiced && !card?.noTurnRoll });
   return res;
 }
 
-function doAction(actor, act, { skill, pod, weapon } = {}) {
+function doAction(actor, act, { skill, pod, weapon, opts } = {}) {
   switch (act) {
     case "skill": return TB.skills[skill] ? actor.rollSkill(skill) : null;
-    case "lock": return actor.lockOn();
-    case "missile": return actor.fireMissile(weapon ? { weapon } : undefined);
+    case "lock": return actor.lockOn(opts);
+    case "missile": return actor.fireMissile(weapon || opts ? { weapon, ...opts } : undefined);
     case "guns": return actor.fireGuns(pod ? { pod } : undefined);
-    case "break": return actor.rollBreak();
+    case "break": return actor.rollBreak(opts);
     case "recover": return actor.rollRecover();
     case "lead": return leadership(actor);
     case "formup": return formUp(actor);

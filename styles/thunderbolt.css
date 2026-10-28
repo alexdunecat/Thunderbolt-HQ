@@ -1662,6 +1662,8 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-hangar-pilot .tb-hgx-seg b.on:nth-child(n + 10) { background: var(--tb-warn); box-shadow: 0 0 4px rgba(242, 193, 78, .55); }
 .tb-hangar-pilot .tb-hgx-form p { margin: 0 0 6px; font-size: 12.5px; line-height: 1.45; }
 .tb-hangar-pilot .tb-hgx-quote { padding-left: 8px; border-left: 2px solid var(--tb-line); color: var(--tb-muted); font-style: italic; }
+.tb-hangar-pilot .tb-hgx-role { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--tb-line); }
+.tb-hangar-pilot .tb-hgx-role .move b, .tb-hangar-pilot .tb-hgx-star { color: var(--tb-amber, #e0a030); font-style: normal; }
 /* пульт подвески: станции, как в HUD */
 .tb-hangar-pilot .tb-hg-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; }
 .tb-hangar-pilot .tb-hg-slot { grid-template-columns: auto 1fr auto; grid-template-rows: none; gap: 3px 8px; padding: 6px 8px 7px; border: 1px solid #050807; border-radius: 3px; color: #d9e2dc;
@@ -1733,3 +1735,17 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-esm-sys button small { font-size: 10px; color: #b8c2bc; }
 .tb-esm-sys button:hover { border-color: var(--ck-amber, #ffb547); }
 #tb-pilot-hud .tb-hud-sys span.jam { background: #04141c; color: #bdeeff; text-decoration: none; text-shadow: 0 0 6px #6fd3ff; border-color: #1d5a73; animation: tb-hud-blink 1.2s steps(2, start) infinite; }
+/* прогноз залпа: несколько ракет по одной цели */
+.tb-card .tb-stack { border-left: 3px solid #c9a14a; padding-left: 6px; }
+.tb-ck-stack { border-left-color: #7fd17f; }
+.tb-ck-stack b { color: #7fd17f; }
+/* строка «МАШИНА» в HUD: роль, лампы свойств, AOA и фирменный приём */
+.tb-hud-plane .tb-hud-role { padding: 1px 6px; border: 1px solid #3a6b4a; color: #9fe0a8; font-size: 10px; letter-spacing: .06em; border-radius: 2px; }
+.tb-hud-plane .tb-hud-plamp { padding: 1px 5px; border: 1px solid #333; color: #666; font-size: 10px; letter-spacing: .06em; border-radius: 2px; }
+.tb-hud-plane .tb-hud-plamp.on { color: #7fd17f; border-color: #3f8f4a; box-shadow: 0 0 4px rgba(127, 209, 127, .35); }
+.tb-hud-plane .tb-hud-aoa.on { color: #ffb547; border-color: #ffb547; }
+.tb-hud-plane .tb-hud-move { color: #ffb547; border-color: #8a6420; }
+.tb-hud-plane .tb-hud-move.wait { opacity: .65; }
+.tb-hud-plane .tb-hud-move.used { opacity: .35; text-decoration: line-through; }
+.tb-ck-move label em { font-style: normal; font-size: 10px; opacity: .7; margin-left: 4px; }
+.tb-role { margin: 2px 0 6px; }

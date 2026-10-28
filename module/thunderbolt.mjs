@@ -1,6 +1,6 @@
 /* Thunderbolt: Штаб ВВС Юктобании — точка входа системы. */
 import "./delta-bridge.mjs";
-import { SYSTEM_ID, SYS_PATH, TB } from "./config.mjs";
+import { SYSTEM_ID, SYS_PATH, TB, roleOf } from "./config.mjs";
 import { PilotData, NpcData, StaffData, PlaneData, WeaponData, TriggerData } from "./data/models.mjs";
 import { TBActor, TBItem, migratePortraits } from "./documents/actor.mjs";
 import { TBCombat, registerCombat } from "./documents/combat.mjs";
@@ -58,6 +58,7 @@ import { registerCareerTriggers } from "./career-triggers.mjs";
 import { registerBossFate } from "./boss-fate.mjs";
 import { registerBallistic } from "./ballistic.mjs";
 import { registerSpecialWeapons } from "./special-weapons.mjs";
+import { registerPlaneRoles } from "./plane-roles.mjs";
 
 // триггер выключен или машина сменилась: Max Speed мог упасть
 for (const ev of ["updateItem", "createItem", "deleteItem"])
@@ -176,6 +177,7 @@ Hooks.once("init", () => {
   registerBossFate();
   registerBallistic();
   registerSpecialWeapons();
+  registerPlaneRoles();
   registerMedals();
   registerUndo();
   registerHangar();
@@ -211,6 +213,9 @@ for (const ev of ["createItem", "updateItem", "deleteItem"]) Hooks.on(ev, (item,
 Hooks.on("renderChatMessage", (message, html) => R.decorateCard(message, html));
 // залп попал в самолёт игрока: урон наносит его клиент (выбор метки открывается у него)
 Hooks.on("createChatMessage", (message, options) => { if (!options?.tbUndo) R.onVolleyCreated(message); });
+// ракеты по одной цели: на карточках пусков прогноз общего залпа (+1 за каждую следующую), пересчитывает ведущий
+Hooks.on("createChatMessage", (message, options) => { if (!options?.tbUndo) R.queueStack(message); });
+Hooks.on("updateChatMessage", (message, change, options) => { if (!options?.tbUndo && foundry.utils.hasProperty(change, `flags.${SYSTEM_ID}.card`)) R.queueStack(message); });
 
 /* Высота: поле листа и высота токена (1 = Низкая, 2 = Средняя, 3 = Высокая) держатся вместе. */
 let moveTimer = null, locking = false, lockAgain = false;
@@ -250,8 +255,11 @@ async function breakLocks() {
     if (!uuid) continue;
     const target = R.resolveActor(uuid);
     const far = a.items.some(i => i.type === "weapon" && i.system.reach >= TB.range.operation && R.weaponReady(i));
+    // «Феникс» не срывается расстоянием; «Мощный радар» держит воздушную цель до трёх зон
+    if (far || a.getFlag(SYSTEM_ID, "phoenix") === uuid) continue;
     const dist = zoneDistance(tok, tokenOf(target));
-    if (far || dist === null || dist <= TB.range.lockHold) continue;
+    const hold = roleOf(a) === "heavy" && target && (target.type === "pilot" || target.system.kind === "air") ? 3 : TB.range.lockHold;
+    if (dist === null || dist <= hold) continue;
     await a.update({ "system.lock": "", "system.lockUuid": "" });
     await ChatMessage.create({
       speaker: { alias: "AWACS" },

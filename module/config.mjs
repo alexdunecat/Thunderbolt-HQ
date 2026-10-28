@@ -103,6 +103,37 @@ export const TB = {
     ESM: { name: "РЭБ", tag: "ECM", text: "Глушит систему из списка Structure у вражеских самолётов и вертолётов в своей и соседних зонах до конца следующего раунда." }
   },
   salvoWeapons: ["4AAM", "XLAA", "XAGM"],
+  /* Роли машин (Стрэйнджриал 8.5): у роли одна черта. tag — лампа HUD. Действуют у пилотов и асов-NPC. */
+  planeRoles: {
+    heavy: { name: "Тяжёлый истребитель", trait: "Мощный радар", tag: "RDR", text: "Lock On! по воздушной цели берёт её на 2 зоны от себя. Такой захват не срывается, пока цель не дальше 3 зон." },
+    light: { name: "Лёгкий истребитель", trait: "Вираж", tag: "TURN", text: "Ракета врага по тебе промахнулась: в конце раунда бесплатный захват на стрелявшего, если он в твоей или соседней зоне." },
+    icpt: { name: "Перехватчик", trait: "Взлёт по тревоге", tag: "SCRM", text: "Вылет начинается на Speed, равной Max Speed, а не 1." },
+    multi: { name: "Многоцелевой", trait: "Универсал", tag: "MULT", text: "Improved Fox Two! бросается с большим из Aim и Deploy по воздушной или наземной цели; Aim Mod и Deploy Mod спецоружия по типу цели." },
+    attack: { name: "Штурмовик", trait: "Штурмовой заход", tag: "CAS", text: "На Низкой атаки Guns и RCL по наземным и морским целям своей зоны не вычитают Speed стрелка." },
+    bomber: { name: "Фронтовой бомбардировщик", trait: "Прицельный комплекс", tag: "TGP", text: "С Высокой можно захватывать и атаковать наземные и морские цели ракетами (обычными и спецоружием) и GPB. UGB, RCL и пушка с Высокой по земле не работают." },
+    proto: { name: "Опытная машина", trait: "", tag: "", text: "Без черты роли: у опытных машин свои свойства и по два порога min-max." },
+    ew: { name: "РЭБ", trait: "", tag: "", text: "Без черты роли: её работа это Станция РЭБ." }
+  },
+  /* Кому какая роль: ключи машин авиапарка и шаблонов книги. */
+  roleOf: Object.fromEntries(Object.entries({
+    heavy: "su27 su33 su35 su37 f15c f14a f22 tornadof3 fb", light: "mig21bis mig21-93 mig29a mig23 yak141 f5e f20a f16c mirage2000 typhoon fa",
+    icpt: "mig25 mig31 mig31m f4x f14d hsi", multi: "mig29m mig29k mig35 su30 fa18c fa18e f16b60 f16xl rafalem rafaleb f35c f2a jas39c f4e mra mrd",
+    attack: "su25 su22 mig27 yak38 a10a ya10b hawk f4g tornadoecr ga", bomber: "su24 su32 f15e tornadogr1 tornadogr4 mirage2000d a6e f117a",
+    proto: "su47 mig144 x29a f15smtd yf23 falken wyvern adler prt", ew: "ea18g ea6b"
+  }).flatMap(([r, keys]) => keys.split(" ").map(k => [k, r]))),
+  /* Фирменные приёмы (Стрэйнджриал 8.6): раз за вылет, не тратят действие и проверку хода, если не сказано иное. */
+  planeMoves: {
+    cobra: { name: "Кобра Пугачёва", planes: "su35 su37", text: "Когда по тебе пущена ракета, даже не в свой ход: все ракеты в тебя в этом раунде промахиваются, все захваты на тебя срываются, Speed сразу 1 без сваливания. Нужен рабочий MAWS." },
+    supermano: { name: "Сверхманёвренность", planes: "su47 adler", text: "В этот ход можно сделать вторую проверку с броском." },
+    dash: { name: "Бросок на рубеж", planes: "mig31m mig144", text: "Одним действием Move до 3 зон, Speed сразу равна Max Speed. В конце броска бесплатный Lock On! по цели в зоне прибытия или соседней." },
+    hmd: { name: "Нашлемный прицел", planes: "mig35", text: "Lock On! и Fox Two! по цели в своей зоне одним действием." },
+    tank: { name: "Летающий танк", planes: "su25 a10a", text: "Когда должен получить метку урона, не получай её: HP просто восстанавливается до максимума." },
+    phoenix: { name: "Феникс", planes: "f14a f14d", text: "Lock On! по воздушной цели в любой точке зоны операции. Этот захват не срывается из-за расстояния, пока цель в зоне операции." },
+    ace104: { name: "104:0", planes: "f15c", text: "Твоя ракета по воздушной цели промахнулась на 1 или 2: она всё равно попадает. Объявляется после сравнения атаки с защитой." },
+    ghost: { name: "Удар из ниоткуда", planes: "f22 f117a", text: "Объяви при пуске: цель не получает предупреждения о ракете и не может сделать Break! против неё." },
+    g12: { name: "Перегрузка 12g", planes: "falken", text: "Break! без броска, как будто на d10 выпало 10. Не тратит проверку хода, и Speed после него не падает." },
+    salvo: { name: "Ракетный шквал", planes: "wyvern", text: "Fox Two! пускает две ракеты по захваченной цели: две обычных или две одного спецоружия (на 2 Ammo). Вторая даёт +1 к атаке или добавляет свой урон." }
+  },
   rangeOptions: { "": "по умолчанию для этого оружия", 0: "своя зона", 1: "своя и соседние", 2: "до двух зон", 99: "вся зона операции" },
 
   /* Погода (как в Планшете AWACS). mods: ev, aa, ag, push, spd; alts: на каких высотах действует; comp2: Complication на 1–2. */
@@ -175,6 +206,48 @@ export const TB = {
     limiter: "до конца хода, в конце Push против 7", notatthis: "мешаешь удару супероружия или по гражданским, после Поворота"
   }
 };
+
+/** Фирменный приём по ключу машины. */
+TB.moveOf = Object.fromEntries(Object.entries(TB.planeMoves).flatMap(([m, d]) => d.planes.split(" ").map(k => [k, m])));
+
+/* ---------- роли, приёмы и свойства машины (Стрэйнджриал 8.4–8.6) ---------- */
+
+/** Ключ машины: у пилота — его самолёт, у NPC — сам самолёт из сводки. */
+export function planeKeyOf(actor) {
+  if (actor?.type === "pilot") return actor.system.plane?.system?.key ?? "";
+  return actor?.type === "npc" && actor.system.kind === "air" ? actor.system.key ?? "" : "";
+}
+/** Роли и приёмы есть у пилотов и асов-NPC (конскрипты и дуэлянты летают без них). */
+const withRole = actor => actor?.type === "pilot" || (actor?.type === "npc" && actor.system.kind === "air" && actor.system.tier === "ace");
+/** Роль машины: ключ TB.planeRoles или "". На самолёте пилота роль можно переписать полем role. */
+export function roleOf(actor) {
+  if (!withRole(actor)) return "";
+  const r = (actor.type === "pilot" ? actor.system.plane?.system?.role : "") || TB.roleOf[planeKeyOf(actor)] || "";
+  return TB.planeRoles[r] ? r : "";
+}
+/** Черта роли (у опытных машин и РЭБ её нет): { name, trait, tag, text } или null. */
+export const roleTrait = actor => { const r = TB.planeRoles[roleOf(actor)]; return r?.trait ? r : null; };
+/** Фирменный приём машины: ключ TB.planeMoves или "". */
+export function moveOf(actor) {
+  if (!withRole(actor)) return "";
+  const m = (actor.type === "pilot" ? actor.system.plane?.system?.move : "") || TB.moveOf[planeKeyOf(actor)] || "";
+  return TB.planeMoves[m] ? m : "";
+}
+/** Свойство машины (TB catalog props): у пилота с самолёта, у NPC из сводки. */
+export function hasProp(actor, key) {
+  if (!actor) return false;
+  if (actor.type === "pilot") return !!actor.system.planeProps?.has?.(key);
+  return !!actor.system?.props?.some?.(p => p.key === key);
+}
+/** Разовая отметка вылета (приём, броня кабины): у пилота стоит до «К вылету», у NPC — до конца этого боя. */
+export function sortieUsed(actor, key) {
+  const v = actor?.getFlag?.(SYSTEM_ID, "sortie")?.[key];
+  if (!v) return false;
+  return actor.type === "pilot" || v === (globalThis.game?.combat?.id ?? true);
+}
+export const sortieMark = actor => (actor?.type === "pilot" ? true : (globalThis.game?.combat?.id ?? true));
+/** Приём есть и в этом вылете ещё не использован (key — нужен именно этот приём). */
+export const moveReady = (actor, key = null) => { const m = moveOf(actor); return !!m && (!key || m === key) && !sortieUsed(actor, "move"); };
 
 /** Размер большой цели [ширина, длина] в местах зоны по данным NPC или null: стратегические бомбардировщики, крупные самолёты, Аркбёрд, летающие крейсеры, подводные авианосцы, сухопутный линкор, корабли крупнее катера. */
 export function footprintOf(sys) {

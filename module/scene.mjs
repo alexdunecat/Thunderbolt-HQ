@@ -1,5 +1,5 @@
 /* Сцена: зоны (клетки сетки), высота токенов, дальность атак и погода. Одна клетка сетки = одна зона. */
-import { SYSTEM_ID, TB } from "./config.mjs";
+import { SYSTEM_ID, TB, hasProp, roleOf } from "./config.mjs";
 import { esc } from "./utils.mjs";
 
 export const ALT_ORDER = ["low", "med", "high", "strat"];
@@ -165,7 +165,7 @@ export function rangeLabel(r) {
  * Что мешает атаке или захвату: дальность, погода «цели только в своей зоне», запреты по высоте.
  * target: { actor, token, kind }. Возвращает { dist, far (дальше дальности), problems: [строки] }.
  */
-export function reachProblems(attacker, target, range) {
+export function reachProblems(attacker, target, range, { strike = false } = {}) {
   const problems = [];
   const a = tokenOf(attacker), b = target?.token ?? tokenOf(target?.actor);
   if (!a || !b) return { dist: null, problems };
@@ -186,7 +186,8 @@ export function reachProblems(attacker, target, range) {
   const downAll = air && hasRule(attacker, "strato");
   if (altA === "strat" && !downAll && (!air || !["strat", "high"].includes(altB))) problems.push("Из стратосферы бьют только по целям в стратосфере и на Высокой.");
   else if (air && altB === "strat" && !["strat", "high"].includes(altA)) problems.push("До стратосферы достают только из стратосферы и с Высокой.");
-  else if (altA === "high" && !downAll && (!air || altB === "low")) problems.push("С Высокой нельзя бить по земле и по целям на Низкой.");
+  // «Прицельный комплекс» фронтового бомбардировщика: с Высокой по земле и морю ракетами и GPB (strike), но не UGB, RCL и пушкой
+  else if (altA === "high" && !downAll && !(strike && !air && roleOf(attacker) === "bomber") && (!air || altB === "low")) problems.push("С Высокой нельзя бить по земле и по целям на Низкой.");
   else if (air && altB === "low" && altA !== "low") problems.push("По воздушной цели на Низкой бьют только с Низкой.");
   // туннель: наружу и снаружи не достать; в узком туннеле только своя секция и одна вперёд (на Изгибе только своя)
   const ta = tunnelAt(a, attacker), tb = tunnelAt(b, target.actor);
@@ -287,11 +288,49 @@ export function weatherParts(w, key) {
 /** Защита воздушной цели с погодой: max(Evasion + погода, Break!) + Speed. */
 export function defenseWithWeather(actor, w, { noBreak = false, halfSpeed = false } = {}) {
   const s = actor.system;
-  if (actor.type === "npc" && s.kind !== "air") return s.defense ?? null;
+  if (actor.type === "npc" && s.kind === "ship") return s.defense ?? null;
+  // Станция РЭБ союзника в той же зоне: Defense +1
+  if (actor.type === "npc" && s.kind !== "air") return s.defense === null || s.defense === undefined ? null : s.defense + (ecmCover(actor) ? 1 : 0);
   const ev = (s.evasion ?? s.stats?.ev ?? 0) + (w?.ev ?? 0);
   // черты спецоружия: QAAM вблизи — Break! не работает, HVAA — Speed цели вполовину, вниз
   const speed = s.speed ?? 0;
-  return Math.max(ev, noBreak ? -Infinity : s.breakEv ?? -Infinity) + (halfSpeed ? Math.floor(speed / 2) : speed);
+  return Math.max(ev, noBreak ? -Infinity : s.breakEv ?? -Infinity) + (halfSpeed ? Math.floor(speed / 2) : speed) + (ecmCover(actor) ? 1 : 0);
+}
+
+/**
+ * Станция РЭБ (свойство машины): своя машина со Станцией РЭБ в той же зоне, что и actor (и сама она тоже).
+ * Даёт +1 к Defense, а захватить прикрытого можно только из той же зоны. Возвращает имя прикрывающего или "".
+ */
+export function ecmCover(actor, token = tokenOf(actor)) {
+  if (!token || !canvas?.ready) return "";
+  const team = a => (sideOf(a) === "player" ? "ally" : sideOf(a));
+  for (const t of canvas.tokens.placeables) {
+    const a = t.actor;
+    if (!a || !hasProp(a, "ecm") || a.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) continue;
+    if (team(a) !== team(actor) || zoneDistance(t, token) !== 0) continue;
+    return t.name ?? a.name;
+  }
+  return "";
+}
+
+/** Ключ раунда текущего боя или "". */
+const roundKey = () => { const c = game.combat; return c?.started ? `${c.id}:${c.round}` : ""; };
+
+/** Стрелял ли актёр в этом раунде: карточки атак с ключом раунда (ракеты, пушка, линия, пуск ЗРК). */
+export function firedThisRound(actor) {
+  const key = roundKey();
+  if (!key || !actor) return false;
+  return game.messages.contents.slice(-200).some(m => { const c = m.getFlag?.(SYSTEM_ID, "card"); return c?.attack && c.actorUuid === actor.uuid && (c.shotKey ?? c.combatKey) === key; });
+}
+
+/**
+ * Почему захват только из той же зоны: Малозаметность (пока цель в этом раунде не стрелял) или Станция РЭБ рядом с ней.
+ * Строка-причина или "".
+ */
+export function sameZoneLock(actor, token = tokenOf(actor)) {
+  if (hasProp(actor, "stealth") && !firedThisRound(actor)) return "Малозаметность: пока цель в этом раунде не стреляла, её захватывают только из той же зоны.";
+  const ecm = ecmCover(actor, token);
+  return ecm ? `Станция РЭБ (${ecm}): прикрытого захватывают только из той же зоны.` : "";
 }
 
 /* ---------- вода и суша ---------- */

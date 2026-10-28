@@ -17,6 +17,7 @@ import { rack, openMedals } from "../medals.mjs";
 import { openHangar, hangarState, inBattle } from "../hangar.mjs";
 import { CT, ctView, useCombatTrigger } from "../combat-triggers.mjs";
 import { NEM, STATE_TEXT, nemTriggers, trigState, metOf, useTrigger, appear, monologue, startMonologue, endMonologue, fxOf, clearFx } from "../nemesis.mjs";
+import { sheetPlane, useMove, useAoa } from "../plane-roles.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -88,6 +89,8 @@ class TBActorSheet extends ActorSheet {
     ctx.adjacent = adjacentOf(a).map(uuid => ({ uuid, name: resolveActor(uuid)?.name ?? "?" }));
     ctx.acts = actsSummary(a);
     ctx.lockInfo = lockInfo(a);
+    // роль машины, её черта и фирменный приём (Стрэйнджриал 8.5–8.6)
+    ctx.planeRole = ["pilot", "npc"].includes(a.type) ? sheetPlane(a) : null;
     ctx.sides = TB.sides;
     ctx.insigniaHint = a.type === "pilot" ? "Шильдик авиакрыла на токене. Щелчок: выбрать картинку, правый щелчок: убрать."
       : "Шильдик авиакрыла или страны на токене. Щелчок: выбрать картинку, правый щелчок: убрать.";
@@ -120,6 +123,8 @@ class TBActorSheet extends ActorSheet {
       const a = this.actor;
       switch (d.act) {
         case "sortie": return a.prepareSortie();
+        case "move": return useMove(a);
+        case "aoa": return useAoa(a);
         case "unlock": return a.update({ "system.lock": "", "system.lockUuid": "" });
         case "lock-focus": {
           const t = a.system.lockUuid ? tokenOf(resolveActor(a.system.lockUuid)) : null;

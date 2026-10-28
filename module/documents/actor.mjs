@@ -1,5 +1,5 @@
 /* Актёр: пилот в самолёте или NPC. Урон, метки, высота, подготовка к вылету. */
-import { SYSTEM_ID, TB, DT } from "../config.mjs";
+import { SYSTEM_ID, TB, DT, hasProp, sortieUsed, sortieMark, moveReady, roleOf } from "../config.mjs";
 import * as R from "../dice/rolls.mjs";
 import { esc } from "../utils.mjs";
 import { resetSortie } from "../nemesis.mjs";
@@ -88,13 +88,13 @@ export class TBActor extends Actor {
 
   /* ---------- броски (обёртки для листов и макросов) ---------- */
   rollSkill(skill) { return R.rollCheck(this, skill); }
-  rollBreak() { return R.rollBreak(this); }
+  rollBreak(opts) { return R.rollBreak(this, opts); }
   rollRecover() { return R.rollRecover(this); }
   rollStall() { return R.rollStall(this); }
   fireMissile(opts) { return R.fireMissile(this, opts); }
   fireGuns(opts) { return R.fireGuns(this, opts); }
   fireSam(i) { return R.fireSam(this, i); }
-  lockOn() { return R.lockOn(this); }
+  lockOn(opts) { return R.lockOn(this, opts); }
 
   /* ---------- высота ---------- */
   async setAltitude(alt, options = {}) {
@@ -181,13 +181,21 @@ export class TBActor extends Actor {
     return p;
   }
 
-  async #applyDamage(amount, { source, sourceUuid, roundKey, system, guard = false, one = false } = {}) {
+  async #applyDamage(amount, { source, sourceUuid, roundKey, system, guard = false, one = false, gun = false } = {}) {
     amount = Number(amount) || 0;
     if (amount <= 0 || !["pilot", "npc"].includes(this.type)) return;
     const s = this.system;
     // по уже сбитой машине урон не идёт: иначе второй сбитый засчитался бы дважды
     if (this.statuses?.has(CONFIG.specialStatusEffects.DEFEATED) || s.markers?.doom)
       return this.#say(`<b>${esc(this.name)}</b> уже ${this.type === "pilot" ? "катапультировался" : "сбит"}: урон не нужен.`);
+    // Бронированная кабина: первое попадание пушкой за вылет снимает на 2 HP меньше
+    if (gun && hasProp(this, "armor") && !sortieUsed(this, "armor")) {
+      await this.setFlag(SYSTEM_ID, "sortie", { ...(this.getFlag(SYSTEM_ID, "sortie") ?? {}), armor: sortieMark(this) });
+      const was = amount;
+      amount = Math.max(0, amount - 2);
+      await this.#say(`<b>${esc(this.name)}</b>: бронированная кабина, первое попадание пушкой за вылет −2 HP урона (${was} → ${amount}).`);
+      if (amount <= 0) return;
+    }
     const opts = { sourceUuid, roundKey, system, one };
     // «Рядом с тобой»: товарищ в той же зоне может принять удар на себя
     if (this.type === "pilot" && !guard && await offerGuard(this, amount, { source, sourceUuid, roundKey })) return;
@@ -227,7 +235,14 @@ export class TBActor extends Actor {
     // Grit и Structure уже стоят: выбирать нечего, это Doom («Обманный манёвр» ещё может отменить попадание)
     const m = s.markers;
     const fake = fakeoutReady(this, { guard });
-    const choice = m.grit && m.structure && !fake ? { marker: "doom" } : await this.#chooseMarker(fake);
+    // «Летающий танк» (приём Су-25 и A-10A): вместо метки HP до максимума
+    const tank = moveReady(this, "tank");
+    const choice = m.grit && m.structure && !fake && !tank ? { marker: "doom" } : await this.#chooseMarker(fake, tank);
+    if (choice?.marker === "tank") {
+      await this.setFlag(SYSTEM_ID, "sortie", { ...(this.getFlag(SYSTEM_ID, "sortie") ?? {}), move: sortieMark(this) });
+      await this.update({ "system.hp.value": s.hp.max });
+      return this.#say(`<b>${esc(this.name)}</b>: «${esc(TB.planeMoves.tank.name)}». Метки нет, HP восстановлен до ${s.hp.max}.`);
+    }
     if (choice?.marker === "fakeout") {
       await fake.update({ "system.used": true });
       return this.#say(`<b>${esc(this.name)}</b>: «${esc(fake.name)}». Попадание отменено, метку отмечать не нужно. HP остаётся ${s.hp.value}.`);
@@ -274,16 +289,16 @@ export class TBActor extends Actor {
   }
 
   /** Окно выбора метки нельзя просто закрыть: попадание уже засчитано, без выбора оно бы пропало. */
-  async #chooseMarker(fake = null) {
+  async #chooseMarker(fake = null, tank = false) {
     for (let i = 0; i < 20; i++) {
-      const d = await this.#markerDialog(fake, i);
+      const d = await this.#markerDialog(fake, i, tank);
       if (d?.marker) return d;
       ui.notifications.warn(`«${this.name}»: попадание уже засчитано, выберите метку.`);
     }
     return null;
   }
 
-  #markerDialog(fake, again) {
+  #markerDialog(fake, again, tank = false) {
     const m = this.system.markers;
     // сигнал «урон по системам» у того, кто выбирает метку
     if (!again) import("../sounds.mjs").then(x => x.playLocal("sysHit")).catch(() => null);
@@ -295,7 +310,8 @@ export class TBActor extends Actor {
       ${radio("grit", "Grit: навык недоступен", `<select name="skill">${skills}</select>`, m.grit)}
       ${radio("structure", "Structure: сломана система", `<select name="sys">${systems}</select>`, m.structure)}
       ${radio("doom", "Doom: машина обречена, бросок на катапультирование", "", m.doom)}
-      ${fake ? radio("fakeout", `«${esc(fake.name)}»: отменить попадание (раз за вылет)`, "", false) : ""}`, { ok: "Отметить", render: pickWithSelect })
+      ${fake ? radio("fakeout", `«${esc(fake.name)}»: отменить попадание (раз за вылет)`, "", false) : ""}
+      ${tank ? radio("tank", `«${esc(TB.planeMoves.tank.name)}»: без метки, HP до максимума (раз за вылет)`, "", false) : ""}`, { ok: "Отметить", render: pickWithSelect })
       .then(d => (d?.marker ? d : null));
   }
 
@@ -438,10 +454,15 @@ export class TBActor extends Actor {
       await this.update({
         "system.speed": 1, "system.breakEv": null, "system.lock": "", "system.lockUuid": "", "system.twist": false,
         "system.markers": { grit: false, gritSkill: "", structure: false, sys: "", doom: false, lastRound: "" },
-        [`flags.${SYSTEM_ID}.-=down`]: null, [`flags.${SYSTEM_ID}.-=escaped`]: null, [`flags.${SYSTEM_ID}.-=rearm`]: null
+        [`flags.${SYSTEM_ID}.-=down`]: null, [`flags.${SYSTEM_ID}.-=escaped`]: null, [`flags.${SYSTEM_ID}.-=rearm`]: null,
+        // разовые отметки вылета (фирменный приём, броня кабины) и отметки приёмов в бою
+        [`flags.${SYSTEM_ID}.-=sortie`]: null, [`flags.${SYSTEM_ID}.-=cobra`]: null, [`flags.${SYSTEM_ID}.-=phoenix`]: null,
+        [`flags.${SYSTEM_ID}.-=aoa`]: null, [`flags.${SYSTEM_ID}.-=dash`]: null, [`flags.${SYSTEM_ID}.-=supermano`]: null, [`flags.${SYSTEM_ID}.-=turnPick`]: null
       }, { tbFree: true, tbDoom: true });
       // после снятия меток и Поворота максимумы пересчитаны; Strain с учётом Нервов и «Свежей головы»
       const upd = { "system.hp.value": this.system.hp.max, "system.strain.value": this.system.strain.max, [`flags.${SYSTEM_ID}.pools`]: this.poolsFlag() };
+      // «Взлёт по тревоге» перехватчика: вылет на Max Speed
+      if (roleOf(this) === "icpt") notes.push("взлёт по тревоге");
       if (this.type === "pilot") {
         const st = startStrain(this);
         upd["system.strain.value"] = st.value;
@@ -457,6 +478,7 @@ export class TBActor extends Actor {
       }
       await this.update(upd);
     });
+    if (roleOf(this) === "icpt") await this.update({ "system.speed": this.system.maxSpeed }, { tbFree: true });
     const items = [];
     for (const i of this.items) {
       if (i.type === "trigger" && (i.system.used || i.system.active || i.system.stack))
@@ -471,7 +493,7 @@ export class TBActor extends Actor {
     if (this.type === "pilot") await resetCombatTriggers(this);
     for (const w of this.items.filter(i => i.type === "weapon" && i.getFlag(SYSTEM_ID, "off"))) await w.unsetFlag(SYSTEM_ID, "off");
     await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: false }).catch(() => null);
-    return this.#say(`<b>${esc(this.name)}</b> готов к вылету: Speed 1, Strain ${this.system.strain.value}, HP ${this.system.hp.max}${notes.length ? ` (${notes.map(esc).join("; ")})` : ""}.`);
+    return this.#say(`<b>${esc(this.name)}</b> готов к вылету: Speed ${this.system.speed}, Strain ${this.system.strain.value}, HP ${this.system.hp.max}${notes.length ? ` (${notes.map(esc).join("; ")})` : ""}.`);
   }
 }
 

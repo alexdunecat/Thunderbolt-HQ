@@ -64,6 +64,7 @@ console.log("триггер теперь на:", items.find(i => i.id === trig.s
 const html = H.pilotHtml(cat, { actor: pilot, pilots: [pilot], planeKey: "su25", slots: ["UGB", ""], user: game.user });
 console.log("ангар игрока:", ["АНГАР ОТКРЫТ", "data-hg-slot=\"1\"", "★ штатное", "Своё спецоружие", "data-hg-apply", "вне допуска"].map(k => `${k} ${html.includes(k) ? "✔" : "✘"}`).join(", "),
   "· машин в списке", (html.match(/data-hg-pick=/g) ?? []).length);
+console.log("роль и приём в формуляре:", ["Роль: Штурмовик", "★ Летающий танк (раз за вылет)", "tb-hgx-star"].map(k => `${k} ${html.includes(k) ? "✔" : "✘"}`).join(", "));
 const admin = H.adminHtml(cat);
 console.log("допуск ведущего:", (admin.match(/data-hg-plane="[^"]+" checked/g) ?? []).length, "отмечено из", (admin.match(/data-hg-plane=/g) ?? []).length, "·", ["data-hg-open", "data-hg-announce", "до уровня 4", "Только из книги"].map(k => `${k} ${admin.includes(k) ? "✔" : "✘"}`).join(", "));
 game.user.isGM = true;

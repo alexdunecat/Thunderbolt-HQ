@@ -11,7 +11,7 @@ export function planeItem(p) {
     system: {
       key: p.key, nato: p.nato, cls: p.cls, cat: p.cat, catName: p.catName, tier: p.tier, tierName: p.tierName, base: p.base,
       seats: p.seats, carrier: p.carrier, est: p.est, stats: { ...p.stats }, props: p.props, sig: p.sig, ac5: p.ac5,
-      desc: p.desc, service: p.service
+      desc: p.desc, service: p.service, role: p.role ?? "", move: p.move ?? ""
     }
   };
 }

@@ -48,7 +48,9 @@
    },
    "desc": "Маленький одномоторный истребитель. Электроника и вооружение устарели, но он берёт манёвренностью и дешевизной.",
    "service": "Старый парк ВВС Юктобании: стоит на резервных аэродромах побережья и в учебных полках. Ставит на крыло молодых пилотов и прикрывает второстепенные направления.",
-   "img": "systems/thunderbolt-shtab/assets/planes/mig21.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig21.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "mig29a",
@@ -91,7 +93,9 @@
    },
    "desc": "Создан, чтобы побеждать в поединке один на один. Мощные двигатели и отточенная аэродинамика дают отличную управляемость.",
    "service": "Самый массовый фронтовой истребитель ВВС Юктобании. Неприхотлив, летает с плохо подготовленных полос, а в ближнем бою опасен в руках опытного пилота.",
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "mig21-93",
@@ -134,7 +138,9 @@
    },
    "desc": "Глубокая модернизация «двадцать первого»: радар «Копьё», новая авионика и ракеты ближнего боя. Старый планер, новые зубы.",
    "service": "Заводы переделывают старые машины до сих пор: это самый дешёвый способ поставить в строй истребитель, который на равных держит современную ракету.",
-   "img": "systems/thunderbolt-shtab/assets/planes/mig21.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig21.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "su27",
@@ -177,7 +183,9 @@
    },
    "desc": "Одна из вершин истребителей завоевания превосходства в воздухе. Чистая аэродинамика и мощные двигатели дают исключительную манёвренность.",
    "service": "Опора истребительной авиации, на нём летает 703-я эскадрилья. Большая дальность позволяет прикрывать морские рубежи и сопровождать ударные группы далеко от дома.",
-   "img": "systems/thunderbolt-shtab/assets/planes/su27.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su27.svg",
+   "role": "heavy",
+   "move": ""
   },
   {
    "key": "su25",
@@ -227,7 +235,9 @@
    },
    "desc": "Штурмовик непосредственной поддержки войск по прозвищу «Грач». Кабина в титановой ванне, двигатели разнесены, чтобы одно попадание не убило оба. Летает низко, медленно и возвращается с дырами.",
    "service": "Сухопутные войска любят его больше любой другой машины: пока «Грачи» висят над полем боя, танки противника не поднимают головы.",
-   "img": "systems/thunderbolt-shtab/assets/planes/su25.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su25.svg",
+   "role": "attack",
+   "move": "tank"
   },
   {
    "key": "mig31",
@@ -281,7 +291,9 @@
    },
    "desc": "Создан для перехвата противника на большой скорости. Лучше подходит для атак с одного захода, чем для собачьей свалки.",
    "service": "Страж северных рубежей. Пара «тридцать первых» держит сектор размером с небольшую страну: штурман-оператор ведёт цели, пилот выводит машину на рубеж пуска.",
-   "img": "systems/thunderbolt-shtab/assets/planes/mig31.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig31.svg",
+   "role": "icpt",
+   "move": ""
   },
   {
    "key": "su32",
@@ -335,7 +347,9 @@
    },
    "desc": "Модификация Су-27 для дальних ударов по наземным целям. Уникальная деталь: за креслами экипажа есть туалет и простая кухня.",
    "service": "На «Стрик Фланкерах» летает 172-я истребительно-бомбардировочная эскадрилья. Экипаж сидит плечом к плечу и переносит долгие рейды в тыл противника с удобствами.",
-   "img": "systems/thunderbolt-shtab/assets/planes/su32.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su32.svg",
+   "role": "bomber",
+   "move": ""
   },
   {
    "key": "mig31m",
@@ -389,7 +403,9 @@
    },
    "desc": "Глубокая модернизация «Фоксхаунда»: новый радар, ракеты большой дальности и усиленный планер. Пушку сняли ради топлива и электроники.",
    "service": "Малая опытная партия. Говорят, одну машину забрал себе ас с позывным Cosm, и с тех пор её видят над пустыней.",
-   "img": "systems/thunderbolt-shtab/assets/planes/mig31.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig31.svg",
+   "role": "icpt",
+   "move": "dash"
   },
   {
    "key": "su35",
@@ -432,7 +448,9 @@
    },
    "desc": "Переднее горизонтальное оперение и новая авионика сделали и без того ловкий Су-27 непревзойдённым в воздушном бою.",
    "service": "В строю у немногих частей. Самые известные «Суперфланкеры» принадлежат эскадрилье «Офнир», о которой в штабе предпочитают не говорить.",
-   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg",
+   "role": "heavy",
+   "move": "cobra"
   },
   {
    "key": "su37",
@@ -481,7 +499,9 @@
    },
    "desc": "Развитие Су-35. Радар заднего обзора и управляемый вектор тяги дают небывалые возможности в ближнем бою.",
    "service": "Единичные машины-демонстраторы. Жёлтый «Терминатор» аса с позывным Yellow знает каждый пилот на фронте.",
-   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg",
+   "role": "heavy",
+   "move": "cobra"
   },
   {
    "key": "su47",
@@ -531,7 +551,9 @@
    },
    "desc": "Экспериментальный истребитель с крылом обратной стреловидности. Сверхманёвренность на больших углах атаки куплена ценой хрупкого и капризного планера.",
    "service": "Опытные экземпляры на испытательном аэродроме. В Белканскую войну на «Беркутах» летала эскадрилья «Грабакр», и юктобанские испытатели до сих пор изучают их тактику.",
-   "img": "systems/thunderbolt-shtab/assets/planes/su47.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su47.svg",
+   "role": "proto",
+   "move": "supermano"
   },
   {
    "key": "mig144",
@@ -581,7 +603,9 @@
    },
    "desc": "Опытный многофункциональный истребитель, ответ на заокеанские машины нового поколения. Схема «утка», сверхзвуковой крейсерский режим и мощная ударная нагрузка.",
    "service": "Официально программу закрыли после единственного показательного полёта. Неофициально машину видели над заливом, а пилот с позывным Replicator не отвечает на запросы.",
-   "img": "systems/thunderbolt-shtab/assets/planes/mig144.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig144.svg",
+   "role": "proto",
+   "move": "dash"
   },
   {
    "key": "falken",
@@ -634,7 +658,9 @@
    },
    "desc": "Экспериментальный истребитель с передним оперением и импульсным лазером в носу. Держит сверхзвук без форсажа и разворачивается там, где другие машины срываются в штопор.",
    "service": "Единственный опытный экземпляр в распоряжении командования. Кто и где его строил, в сводках не пишут, а пилоту, которому его доверят, завидует весь фронт.",
-   "img": "systems/thunderbolt-shtab/assets/planes/falken.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/falken.svg",
+   "role": "proto",
+   "move": "g12"
   },
   {
    "key": "wyvern",
@@ -692,7 +718,9 @@
    },
    "desc": "Многоцелевой прототип с крылом изменяемой стреловидности: на скорости консоли складываются, в бою раскрываются. Четырёхцелевые ракеты есть и для воздуха, и для земли.",
    "service": "Машина следующего поколения, опередившая серийные истребители лет на десять. На фронте их единицы, и каждую знают по бортовому номеру.",
-   "img": "systems/thunderbolt-shtab/assets/planes/wyvern.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/wyvern.svg",
+   "role": "proto",
+   "move": "salvo"
   },
   {
    "key": "adler",
@@ -745,7 +773,9 @@
    },
    "desc": "Тяжёлый экспериментальный истребитель с управляемым вектором тяги. Не такой острый, как «Фалькен», но выдерживает перегрузки и попадания, от которых другая машина развалилась бы в воздухе.",
    "service": "Испытательная партия из нескольких машин. Её отдают тем, кого командование хочет вернуть живыми.",
-   "img": "systems/thunderbolt-shtab/assets/planes/adler.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/adler.svg",
+   "role": "proto",
+   "move": "supermano"
   },
   {
    "key": "mig23",
@@ -792,7 +822,9 @@
    },
    "desc": "Истребитель с крылом изменяемой стреловидности. На прямой быстр, в вираже тяжёл: пилоты говорят, что он прощает всё, кроме ближнего боя.",
    "service": "Старый парк: стоит в резерве и в полках второй линии. Много машин ушло союзникам, но на складах их ещё хватает.",
-   "img": "systems/thunderbolt-shtab/assets/planes/mig23.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig23.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "mig25",
@@ -839,7 +871,9 @@
    },
    "desc": "Высотный скоростной перехватчик из нержавеющей стали. Создан догонять то, что догнать нельзя, и ради скорости пожертвовал всем остальным.",
    "service": "Почти весь парк переведён в разведку и учебные части. Из кабины «двадцать пятого» видно кривизну Земли.",
-   "img": "systems/thunderbolt-shtab/assets/planes/mig25.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig25.svg",
+   "role": "icpt",
+   "move": ""
   },
   {
    "key": "su33",
@@ -886,7 +920,9 @@
    },
    "desc": "Корабельный вариант Су-27 с передним горизонтальным оперением и складывающимися консолями крыла. Задача одна: прикрыть флот от удара с воздуха.",
    "service": "Основа авиагруппы авианосца «Адмирал Цанев». Каждый взлёт с трамплина — маленькое чудо, каждая посадка на трос — экзамен.",
-   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg",
+   "role": "heavy",
+   "move": ""
   },
   {
    "key": "mig29k",
@@ -933,7 +969,9 @@
    },
    "desc": "Палубная версия «двадцать девятого» с усиленным шасси, складывающимся крылом и посадочным гаком. Работает и по воздуху, и по кораблям.",
    "service": "Новейшее пополнение авиагруппы «Адмирала Цанева». Лётчики палубной авиации считают сухопутных пилотов туристами.",
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "yak141",
@@ -985,7 +1023,9 @@
    },
    "desc": "Сверхзвуковой истребитель вертикального взлёта и посадки. Поворотное сопло и подъёмные двигатели позволяют зависать там, где другие сваливаются.",
    "service": "Опытные машины, обкатанные на кораблях. Говорят, их проверяли и на палубе подводного авианосца.",
-   "img": "systems/thunderbolt-shtab/assets/planes/yak141.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/yak141.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "mig29m",
@@ -1026,7 +1066,9 @@
    },
    "desc": "Глубоко переработанный «двадцать девятый»: больше топлива, новая авионика и полноценная работа по наземным целям.",
    "service": "Строевые полки получают их на смену первым МиГ-29А. Универсальная машина, которую не стыдно отправить на любую задачу.",
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "su30",
@@ -1073,7 +1115,9 @@
    },
    "desc": "Двухместный многоцелевой истребитель на базе Су-27. Второй член экипажа ведёт цели и оружие, пока пилот держит машину в бою.",
    "service": "Машина для длинных патрулей и смешанных задач: сегодня прикрытие, завтра удар по кораблям. Экипажи летают на них годами одной парой.",
-   "img": "systems/thunderbolt-shtab/assets/planes/su30.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su30.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "mig35",
@@ -1114,7 +1158,9 @@
    },
    "desc": "Новейшее развитие семейства МиГ-29: радар с активной решёткой, оптико-локационная станция и расширенная подвеска.",
    "service": "Пока единичные машины в лучших частях. Пилоты называют его «двадцать девятым, каким он должен был быть».",
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg",
+   "role": "multi",
+   "move": "hmd"
   },
   {
    "key": "yak38",
@@ -1167,7 +1213,9 @@
    },
    "desc": "Первый серийный палубный самолёт вертикального взлёта. Мало топлива, мало оружия, много шума, зато он взлетает с любой палубы.",
    "service": "Почти списан, но ещё стоит на старых кораблях. Пилоты «Яков» шутят, что их главный противник — собственный двигатель.",
-   "img": "systems/thunderbolt-shtab/assets/planes/yak38.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/yak38.svg",
+   "role": "attack",
+   "move": ""
   },
   {
    "key": "su22",
@@ -1214,7 +1262,9 @@
    },
    "desc": "Истребитель-бомбардировщик с изменяемой стреловидностью крыла. Простой, крепкий, берёт много бомб и не задаёт вопросов.",
    "service": "Старый парк фронтовой авиации. Полки на «Сушках» поддерживают войска там, куда не долетают новые машины.",
-   "img": "systems/thunderbolt-shtab/assets/planes/su22.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su22.svg",
+   "role": "attack",
+   "move": ""
   },
   {
    "key": "mig27",
@@ -1261,7 +1311,9 @@
    },
    "desc": "Ударный потомок МиГ-23 с бронированной кабиной, упрощёнными воздухозаборниками и шестиствольной 30-мм пушкой.",
    "service": "Его пушку побаиваются даже свои: после длинной очереди трясёт весь планер. Старый парк, но на штурмовке ещё хорош.",
-   "img": "systems/thunderbolt-shtab/assets/planes/mig23.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig23.svg",
+   "role": "attack",
+   "move": ""
   },
   {
    "key": "su24",
@@ -1313,7 +1365,9 @@
    },
    "desc": "Фронтовой бомбардировщик с крылом изменяемой стреловидности. Экипаж сидит рядом, а система огибания рельефа ведёт машину на предельно малой высоте.",
    "service": "Главная ударная машина фронта до прихода Су-32. Ночь, непогода и высота в полсотни метров — его стихия.",
-   "img": "systems/thunderbolt-shtab/assets/planes/su24.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su24.svg",
+   "role": "bomber",
+   "move": ""
   },
   {
    "key": "f5e",
@@ -1352,7 +1406,9 @@
    "ac5": null,
    "desc": "Маленький и дешёвый истребитель, который держат в строю десятки стран. Простой, лёгкий, прощает ошибки.",
    "service": "Массовка второй линии и учебные полки. Хорош для первого вылета новичков.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f5.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f5.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "f20a",
@@ -1385,7 +1441,9 @@
    "ac5": null,
    "desc": "Глубоко переделанный «Тайгер» с одним мощным двигателем и новым радаром. Быстрее и злее своего предка.",
    "service": "Редкая машина: если в звене F-20, там кто-то, кто любит ближний бой.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f5.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f5.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "x29a",
@@ -1424,7 +1482,9 @@
    "ac5": null,
    "desc": "Исследовательский самолёт с крылом обратной стреловидности. Нестабилен настолько, что без компьютера не летает.",
    "service": "Испытательные полигоны и показательные вылеты. Встреча с ним в бою говорит, что противник бросил в дело всё.",
-   "img": "systems/thunderbolt-shtab/assets/planes/x29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/x29.svg",
+   "role": "proto",
+   "move": ""
   },
   {
    "key": "f4e",
@@ -1463,7 +1523,9 @@
    "ac5": null,
    "desc": "Тяжёлый двухместный ветеран, который умеет всё понемногу. Дымит двигателями так, что его видно издалека.",
    "service": "Старый парк, резервные эскадрильи, союзники противника.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "f4x",
@@ -1507,7 +1569,9 @@
    "ac5": null,
    "desc": "Экспериментальная скоростная переделка «Фантома» с охлаждением воздухозаборников водой. Прямая линия — его стихия.",
    "service": "Малая серия. Хороший кандидат в самолёт для вражеского аса старой школы.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg",
+   "role": "icpt",
+   "move": ""
   },
   {
    "key": "f16c",
@@ -1540,7 +1604,9 @@
    "ac5": null,
    "desc": "Массовый лёгкий истребитель с электродистанционным управлением. Резкий в вираже, неплох по земле.",
    "service": "Основа истребительной авиации противника. Чаще всего встречается парами и четвёрками.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "f14a",
@@ -1584,7 +1650,9 @@
    "ac5": null,
    "desc": "Палубный перехватчик с крылом изменяемой стреловидности и ракетами большой дальности. Защищает флот на дальних подступах.",
    "service": "Авиагруппы вражеских авианосцев. Встречает ударные группы задолго до кораблей.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f14.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f14.svg",
+   "role": "heavy",
+   "move": "phoenix"
   },
   {
    "key": "f14d",
@@ -1633,7 +1701,9 @@
    "ac5": null,
    "desc": "Последняя модернизация «Томкэта»: новые двигатели, радар и авионика. Догоняет и достаёт почти всё.",
    "service": "Лучшие палубные эскадрильи. Опасен для групп бомбардировщиков.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f14.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f14.svg",
+   "role": "icpt",
+   "move": "phoenix"
   },
   {
    "key": "f15c",
@@ -1666,7 +1736,9 @@
    "ac5": null,
    "desc": "Тяжёлый истребитель завоевания превосходства в воздухе. Большой радар, мощные двигатели и привычка побеждать.",
    "service": "Элитные части ПВО противника. Прямой соперник Су-27.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f15.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f15.svg",
+   "role": "heavy",
+   "move": "ace104"
   },
   {
    "key": "f15smtd",
@@ -1705,7 +1777,9 @@
    "ac5": null,
    "desc": "Демонстратор с передним оперением и плоскими поворотными соплами. Вертится там, где обычный «Игл» уже сорвался бы.",
    "service": "Испытательные части. Отличная машина для вражеского аса-дуэлянта.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f15smtd.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f15smtd.svg",
+   "role": "proto",
+   "move": ""
   },
   {
    "key": "yf23",
@@ -1749,7 +1823,9 @@
    "ac5": null,
    "desc": "Малозаметный опытный истребитель с ромбовидным крылом. Быстрый, тихий на радаре и почти не виден до пуска.",
    "service": "Прототипы. Встреча с ним в небе сама по себе повод для доклада в штаб.",
-   "img": "systems/thunderbolt-shtab/assets/planes/yf23.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/yf23.svg",
+   "role": "proto",
+   "move": ""
   },
   {
    "key": "f22",
@@ -1798,7 +1874,9 @@
    "ac5": null,
    "desc": "Малозаметный истребитель нового поколения со сверхзвуковым крейсерским режимом и управляемым вектором тяги.",
    "service": "Только у лучших частей противника. Для уровня Немезиды: такой самолёт заслуживает имени и позывного.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f22.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f22.svg",
+   "role": "heavy",
+   "move": "ghost"
   },
   {
    "key": "mirage2000",
@@ -1831,7 +1909,9 @@
    "ac5": null,
    "desc": "Изящный истребитель с треугольным крылом. Быстро разгоняется и хорошо держит энергию в вираже.",
    "service": "Встречается у союзников противника и у наёмников.",
-   "img": "systems/thunderbolt-shtab/assets/planes/mirage2000.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mirage2000.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "typhoon",
@@ -1870,7 +1950,9 @@
    "ac5": null,
    "desc": "Современный истребитель схемы «утка» с огромной тяговооружённостью. В ближнем бою один из самых опасных противников.",
    "service": "Элитные части. Ровня Су-37.",
-   "img": "systems/thunderbolt-shtab/assets/planes/typhoon.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/typhoon.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "tornadof3",
@@ -1914,7 +1996,9 @@
    "ac5": null,
    "desc": "Перехватчик на базе ударного «Торнадо»: удлинённый фюзеляж, большой радар, ракеты средней дальности.",
    "service": "Патрули ПВО на дальних рубежах.",
-   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg",
+   "role": "heavy",
+   "move": ""
   },
   {
    "key": "f16b60",
@@ -1947,7 +2031,9 @@
    "ac5": null,
    "desc": "Самая совершенная версия «Файтинг Фалкона»: конформные баки, новый радар и мощная ударная нагрузка.",
    "service": "Многоцелевые звенья, которые сначала бьют по земле, а потом отбиваются.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "f16xl",
@@ -1986,7 +2072,9 @@
    "ac5": null,
    "desc": "Опытный «Фалкон» с крылом сложной стреловидности. Больше топлива, больше подвесок, меньше сопротивления.",
    "service": "Редкая машина испытательных частей.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f16xl.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f16xl.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "fa18c",
@@ -2019,7 +2107,9 @@
    "ac5": null,
    "desc": "Палубная рабочая лошадка: прикрывает флот и бьёт по берегу в одном вылете.",
    "service": "Основа палубных авиагрупп противника.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "fa18e",
@@ -2052,7 +2142,9 @@
    "ac5": null,
    "desc": "Увеличенный «Хорнет» с большим запасом топлива и подвесками под тяжёлое оружие.",
    "service": "Новые палубные эскадрильи.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "ea18g",
@@ -2096,7 +2188,9 @@
    "ac5": null,
    "desc": "Двухместный «Супер Хорнет» с контейнерами радиоэлектронной борьбы. Глушит радары и прикрывает ударную группу.",
    "service": "Всегда летит с ударной группой. Сбей его первым, и остальные станут видны.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg",
+   "role": "ew",
+   "move": ""
   },
   {
    "key": "f35c",
@@ -2135,7 +2229,9 @@
    "ac5": null,
    "desc": "Малозаметный палубный многоцелевой самолёт. Видит поле боя целиком и первым пускает оружие.",
    "service": "Новейшие палубные авиагруппы. Вместе с «Харриерами» стоял на палубе подводного авианосца «Скинфакси».",
-   "img": "systems/thunderbolt-shtab/assets/planes/f35.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f35.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "f2a",
@@ -2174,7 +2270,9 @@
    "ac5": null,
    "desc": "Увеличенный и переработанный «Фалкон» с упором на удары по кораблям. Синий камуфляж под цвет моря.",
    "service": "Береговая авиация. Главная угроза для эскадр в прибрежных водах.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "rafalem",
@@ -2207,7 +2305,9 @@
    "ac5": null,
    "desc": "Палубная «утка» с треугольным крылом. Одинаково уверенно работает по воздуху и по кораблям.",
    "service": "Авиагруппы небольших авианосцев.",
-   "img": "systems/thunderbolt-shtab/assets/planes/rafale.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/rafale.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "rafaleb",
@@ -2246,7 +2346,9 @@
    "ac5": null,
    "desc": "Двухместный сухопутный «Рафаль» для сложных ударных задач.",
    "service": "Ударные группы, которым нужен второй член экипажа.",
-   "img": "systems/thunderbolt-shtab/assets/planes/rafale.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/rafale.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "jas39c",
@@ -2290,7 +2392,9 @@
    "ac5": null,
    "desc": "Лёгкая «утка», рассчитанная на взлёт с дорог и быстрое обслуживание в поле.",
    "service": "Рассредоточенные звенья: появляются там, где аэродрома вроде бы нет.",
-   "img": "systems/thunderbolt-shtab/assets/planes/gripen.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/gripen.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "f4g",
@@ -2334,7 +2438,9 @@
    "ac5": null,
    "desc": "«Фантом» без пушки, зато с аппаратурой поиска радаров. Первым идёт на зенитки, чтобы за ним прошли остальные.",
    "service": "Открывает ударные операции: если он над твоими ЗРК, жди бомбардировщиков.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg",
+   "role": "attack",
+   "move": ""
   },
   {
    "key": "f15e",
@@ -2373,7 +2479,9 @@
    "ac5": null,
    "desc": "Двухместный ударный «Игл»: тяжёлая нагрузка, дальность и способность отбиться от истребителей.",
    "service": "Глубокие рейды в тыл. Прямой соперник Су-32.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f15.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f15.svg",
+   "role": "bomber",
+   "move": ""
   },
   {
    "key": "a6e",
@@ -2417,7 +2525,9 @@
    "ac5": null,
    "desc": "Палубный всепогодный штурмовик. Некрасивый, медленный и очень точный.",
    "service": "Ночные удары с авианосцев.",
-   "img": "systems/thunderbolt-shtab/assets/planes/a6.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/a6.svg",
+   "role": "bomber",
+   "move": ""
   },
   {
    "key": "ea6b",
@@ -2456,7 +2566,9 @@
    "ac5": null,
    "desc": "Четырёхместный самолёт радиоэлектронной борьбы на базе «Интрудера». Ослепляет радары целого района.",
    "service": "Прикрывает ударные группы флота.",
-   "img": "systems/thunderbolt-shtab/assets/planes/a6.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/a6.svg",
+   "role": "ew",
+   "move": ""
   },
   {
    "key": "a10a",
@@ -2495,7 +2607,9 @@
    "ac5": null,
    "desc": "Бронированный штурмовик, построенный вокруг огромной семиствольной пушки. Возвращается домой на половине крыла.",
    "service": "Охотник за танками. Там, где он висит над полем боя, бронетехника горит.",
-   "img": "systems/thunderbolt-shtab/assets/planes/a10.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/a10.svg",
+   "role": "attack",
+   "move": "tank"
   },
   {
    "key": "ya10b",
@@ -2539,7 +2653,9 @@
    "ac5": null,
    "desc": "Опытный двухместный «Тандерболт» для ночной и всепогодной работы.",
    "service": "Редкая машина. Удобна, чтобы дать вражескому штурмовику умного второго пилота.",
-   "img": "systems/thunderbolt-shtab/assets/planes/a10.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/a10.svg",
+   "role": "attack",
+   "move": ""
   },
   {
    "key": "f117a",
@@ -2578,7 +2694,9 @@
    "ac5": null,
    "desc": "Угловатый малозаметный ударный самолёт. Медленный и беззащитный в бою, но его почти невозможно найти.",
    "service": "Ночные удары по командным пунктам и мостам. Задача игроков: найти до того, как он сбросит.",
-   "img": "systems/thunderbolt-shtab/assets/planes/f117.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f117.svg",
+   "role": "bomber",
+   "move": "ghost"
   },
   {
    "key": "mirage2000d",
@@ -2622,7 +2740,9 @@
    "ac5": null,
    "desc": "Двухместный ударный «Мираж» для точных ударов на малой высоте.",
    "service": "Ударные звенья союзников противника.",
-   "img": "systems/thunderbolt-shtab/assets/planes/mirage2000.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mirage2000.svg",
+   "role": "bomber",
+   "move": ""
   },
   {
    "key": "tornadogr1",
@@ -2671,7 +2791,9 @@
    "ac5": null,
    "desc": "Ударный самолёт с крылом изменяемой стреловидности. Проходит к цели на высоте деревьев.",
    "service": "Удары по аэродромам и узлам связи.",
-   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg",
+   "role": "bomber",
+   "move": ""
   },
   {
    "key": "tornadogr4",
@@ -2720,7 +2842,9 @@
    "ac5": null,
    "desc": "Модернизированный «Торнадо» с высокоточным оружием и новой авионикой.",
    "service": "Ударные звенья, которые бьют издалека.",
-   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg",
+   "role": "bomber",
+   "move": ""
   },
   {
    "key": "tornadoecr",
@@ -2769,7 +2893,9 @@
    "ac5": null,
    "desc": "«Торнадо» для разведки радаров и их уничтожения. Пушку сняли ради аппаратуры.",
    "service": "Идёт впереди ударной группы и выбивает ЗРК.",
-   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg",
+   "role": "attack",
+   "move": ""
   },
   {
    "key": "hawk",
@@ -2808,7 +2934,9 @@
    "ac5": null,
    "desc": "Учебно-боевой самолёт. Лёгкий, послушный и слабо вооружённый.",
    "service": "Учебные полки и лёгкие штурмовые звенья. Хорошая массовка для слабого противника.",
-   "img": "systems/thunderbolt-shtab/assets/planes/hawk.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/hawk.svg",
+   "role": "attack",
+   "move": ""
   }
  ],
  "book": [
@@ -2840,7 +2968,9 @@
    "ac5": null,
    "desc": "",
    "service": "",
-   "img": "systems/thunderbolt-shtab/assets/planes/su27.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su27.svg",
+   "role": "heavy",
+   "move": ""
   },
   {
    "key": "fa",
@@ -2870,7 +3000,9 @@
    "ac5": null,
    "desc": "",
    "service": "",
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "mra",
@@ -2906,7 +3038,9 @@
    "ac5": null,
    "desc": "",
    "service": "",
-   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "mrd",
@@ -2942,7 +3076,9 @@
    "ac5": null,
    "desc": "",
    "service": "",
-   "img": "systems/thunderbolt-shtab/assets/planes/su30.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su30.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "ga",
@@ -2972,7 +3108,9 @@
    "ac5": null,
    "desc": "",
    "service": "",
-   "img": "systems/thunderbolt-shtab/assets/planes/su25.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su25.svg",
+   "role": "attack",
+   "move": ""
   },
   {
    "key": "gs",
@@ -3013,7 +3151,9 @@
    "ac5": null,
    "desc": "",
    "service": "",
-   "img": "systems/thunderbolt-shtab/assets/planes/a10.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/a10.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "hsi",
@@ -3049,7 +3189,9 @@
    "ac5": null,
    "desc": "",
    "service": "",
-   "img": "systems/thunderbolt-shtab/assets/planes/mig31.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig31.svg",
+   "role": "icpt",
+   "move": ""
   },
   {
    "key": "prt",
@@ -3085,7 +3227,9 @@
    "ac5": null,
    "desc": "",
    "service": "",
-   "img": "systems/thunderbolt-shtab/assets/planes/su47.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su47.svg",
+   "role": "proto",
+   "move": ""
   }
  ],
  "weapons": [
@@ -3348,7 +3492,9 @@
    "sig": [
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f5.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f5.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "f20a",
@@ -3377,7 +3523,9 @@
    "sig": [
     "QAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f5.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f5.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "x29a",
@@ -3412,7 +3560,9 @@
    "sig": [
     "QAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/x29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/x29.svg",
+   "role": "proto",
+   "move": ""
   },
   {
    "key": "f4e",
@@ -3447,7 +3597,9 @@
    "sig": [
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "f4x",
@@ -3487,7 +3639,9 @@
    "sig": [
     "LAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg",
+   "role": "icpt",
+   "move": ""
   },
   {
    "key": "f16c",
@@ -3516,7 +3670,9 @@
    "sig": [
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "f14a",
@@ -3561,7 +3717,9 @@
    "sig": [
     "LAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f14.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f14.svg",
+   "role": "heavy",
+   "move": "phoenix"
   },
   {
    "key": "f14d",
@@ -3611,7 +3769,9 @@
    "sig": [
     "XLAA"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f14.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f14.svg",
+   "role": "icpt",
+   "move": "phoenix"
   },
   {
    "key": "f15c",
@@ -3640,7 +3800,9 @@
    "sig": [
     "SAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f15.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f15.svg",
+   "role": "heavy",
+   "move": "ace104"
   },
   {
    "key": "f15smtd",
@@ -3675,7 +3837,9 @@
    "sig": [
     "SAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f15smtd.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f15smtd.svg",
+   "role": "proto",
+   "move": ""
   },
   {
    "key": "yf23",
@@ -3715,7 +3879,9 @@
    "sig": [
     "LAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/yf23.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/yf23.svg",
+   "role": "proto",
+   "move": ""
   },
   {
    "key": "f22",
@@ -3760,7 +3926,9 @@
    "sig": [
     "XLAA"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f22.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f22.svg",
+   "role": "heavy",
+   "move": "ghost"
   },
   {
    "key": "mirage2000",
@@ -3789,7 +3957,9 @@
    "sig": [
     "SAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mirage2000.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mirage2000.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "typhoon",
@@ -3824,7 +3994,9 @@
    "sig": [
     "SAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/typhoon.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/typhoon.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "tornadof3",
@@ -3864,7 +4036,9 @@
    "sig": [
     "LAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg",
+   "role": "heavy",
+   "move": ""
   },
   {
    "key": "f16b60",
@@ -3893,7 +4067,9 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "f16xl",
@@ -3928,7 +4104,9 @@
    "sig": [
     "GPB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f16xl.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f16xl.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "fa18c",
@@ -3963,7 +4141,9 @@
    "sig": [
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "fa18e",
@@ -3998,7 +4178,9 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "ea18g",
@@ -4043,7 +4225,9 @@
    "sig": [
     "ESM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f18.svg",
+   "role": "ew",
+   "move": ""
   },
   {
    "key": "f35c",
@@ -4083,7 +4267,9 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f35.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f35.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "f2a",
@@ -4118,7 +4304,9 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f16.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "rafalem",
@@ -4153,7 +4341,9 @@
    "sig": [
     "LAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/rafale.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/rafale.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "rafaleb",
@@ -4188,7 +4378,9 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/rafale.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/rafale.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "jas39c",
@@ -4228,7 +4420,9 @@
    "sig": [
     "QAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/gripen.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/gripen.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "f4g",
@@ -4268,7 +4462,9 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f4.svg",
+   "role": "attack",
+   "move": ""
   },
   {
    "key": "f15e",
@@ -4303,7 +4499,9 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f15.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f15.svg",
+   "role": "bomber",
+   "move": ""
   },
   {
    "key": "a6e",
@@ -4348,7 +4546,9 @@
    "sig": [
     "GPB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/a6.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/a6.svg",
+   "role": "bomber",
+   "move": ""
   },
   {
    "key": "ea6b",
@@ -4388,7 +4588,9 @@
    "sig": [
     "ESM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/a6.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/a6.svg",
+   "role": "ew",
+   "move": ""
   },
   {
    "key": "a10a",
@@ -4423,7 +4625,9 @@
    "sig": [
     "RCL"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/a10.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/a10.svg",
+   "role": "attack",
+   "move": "tank"
   },
   {
    "key": "ya10b",
@@ -4463,7 +4667,9 @@
    "sig": [
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/a10.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/a10.svg",
+   "role": "attack",
+   "move": ""
   },
   {
    "key": "f117a",
@@ -4498,7 +4704,9 @@
    "sig": [
     "GPB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/f117.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/f117.svg",
+   "role": "bomber",
+   "move": "ghost"
   },
   {
    "key": "mirage2000d",
@@ -4538,7 +4746,9 @@
    "sig": [
     "GPB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mirage2000.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mirage2000.svg",
+   "role": "bomber",
+   "move": ""
   },
   {
    "key": "tornadogr1",
@@ -4583,7 +4793,9 @@
    "sig": [
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg",
+   "role": "bomber",
+   "move": ""
   },
   {
    "key": "tornadogr4",
@@ -4628,7 +4840,9 @@
    "sig": [
     "LACM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg",
+   "role": "bomber",
+   "move": ""
   },
   {
    "key": "tornadoecr",
@@ -4673,7 +4887,9 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tornado.svg",
+   "role": "attack",
+   "move": ""
   },
   {
    "key": "hawk",
@@ -4708,7 +4924,9 @@
    "sig": [
     "RCL"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/hawk.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/hawk.svg",
+   "role": "attack",
+   "move": ""
   },
   {
    "key": "tu22m",
@@ -4746,7 +4964,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/tu22m.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tu22m.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "tu95",
@@ -4784,7 +5004,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/tu95.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tu95.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "tu160",
@@ -4822,7 +5044,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/tu160.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/tu160.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "b1b",
@@ -4865,7 +5089,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/b1b.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/b1b.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "b2a",
@@ -4903,7 +5129,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/b2.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/b2.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "b52h",
@@ -4941,7 +5169,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/b52.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/b52.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "vulcan",
@@ -4974,7 +5204,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/vulcan.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/vulcan.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "ac130",
@@ -5007,7 +5239,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/c130.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/c130.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "a50",
@@ -5040,7 +5274,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/a50.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/a50.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "e767",
@@ -5073,7 +5309,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/e767.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/e767.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "il76",
@@ -5111,7 +5349,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/il76.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/il76.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "an124",
@@ -5144,7 +5384,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/an124.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/an124.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "c130",
@@ -5182,7 +5424,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/c130.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/c130.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "c5",
@@ -5215,7 +5459,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/c5.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/c5.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "nimrod",
@@ -5248,7 +5494,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/nimrod.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/nimrod.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "ah64a",
@@ -5283,7 +5531,9 @@
    "sig": [
     "RCL"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/ah64.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/ah64.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "ch47",
@@ -5321,7 +5571,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/ch47.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/ch47.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "mh60",
@@ -5359,7 +5611,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/uh60.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/uh60.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "uh60",
@@ -5397,7 +5651,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/uh60.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/uh60.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "mi24",
@@ -5442,7 +5698,9 @@
    "sig": [
     "RCL"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mi24.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mi24.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "mi28",
@@ -5482,7 +5740,9 @@
    "sig": [
     "RCL"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mi28.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mi28.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "mi8",
@@ -5520,7 +5780,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/mi8.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mi8.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "ka52",
@@ -5560,7 +5822,9 @@
    "sig": [
     "RCL"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/ka52.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/ka52.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "uav",
@@ -5593,7 +5857,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/uav.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/uav.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "t80u",
@@ -6867,7 +7133,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/airliner.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/airliner.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "widebody",
@@ -6900,7 +7168,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/widebody.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/widebody.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "bizjet",
@@ -6933,7 +7203,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/bizjet.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/bizjet.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "an2",
@@ -6966,7 +7238,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/an2.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/an2.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "cargojet",
@@ -6999,7 +7273,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/il76.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/il76.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "civconvoy",
@@ -7841,7 +8117,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/icbm.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/icbm.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "gyges",
@@ -9355,7 +9633,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/b52.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/b52.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "booktransport",
@@ -9388,7 +9668,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/transport.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/transport.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "bookpatrol",
@@ -9426,7 +9708,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/transport.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/transport.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "bookcruiser",
@@ -9539,7 +9823,9 @@
    "sig": [
     "RCL"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig21.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig21.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "mig29a",
@@ -9566,7 +9852,9 @@
    "sig": [
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "mig21-93",
@@ -9593,7 +9881,9 @@
    "sig": [
     "QAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig21.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig21.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "su27",
@@ -9620,7 +9910,9 @@
    "sig": [
     "SAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/su27.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su27.svg",
+   "role": "heavy",
+   "move": ""
   },
   {
    "key": "su25",
@@ -9654,7 +9946,9 @@
     "RCL",
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/su25.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su25.svg",
+   "role": "attack",
+   "move": "tank"
   },
   {
    "key": "mig31",
@@ -9692,7 +9986,9 @@
    "sig": [
     "SAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig31.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig31.svg",
+   "role": "icpt",
+   "move": ""
   },
   {
    "key": "su32",
@@ -9730,7 +10026,9 @@
    "sig": [
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/su32.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su32.svg",
+   "role": "bomber",
+   "move": ""
   },
   {
    "key": "mig31m",
@@ -9768,7 +10066,9 @@
    "sig": [
     "XLAA"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig31.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig31.svg",
+   "role": "icpt",
+   "move": "dash"
   },
   {
    "key": "su35",
@@ -9795,7 +10095,9 @@
    "sig": [
     "XLAA"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg",
+   "role": "heavy",
+   "move": "cobra"
   },
   {
    "key": "su37",
@@ -9828,7 +10130,9 @@
    "sig": [
     "QAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg",
+   "role": "heavy",
+   "move": "cobra"
   },
   {
    "key": "su47",
@@ -9862,7 +10166,9 @@
     "SAAM",
     "QAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/su47.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su47.svg",
+   "role": "proto",
+   "move": "supermano"
   },
   {
    "key": "mig144",
@@ -9896,7 +10202,9 @@
     "UGB",
     "LACM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig144.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig144.svg",
+   "role": "proto",
+   "move": "dash"
   },
   {
    "key": "falken",
@@ -9935,7 +10243,9 @@
     "PLSL",
     "HPAA"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/falken.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/falken.svg",
+   "role": "proto",
+   "move": "g12"
   },
   {
    "key": "wyvern",
@@ -9979,7 +10289,9 @@
     "XLAA",
     "XAGM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/wyvern.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/wyvern.svg",
+   "role": "proto",
+   "move": "salvo"
   },
   {
    "key": "adler",
@@ -10018,7 +10330,9 @@
     "QAAM",
     "LACM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/adler.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/adler.svg",
+   "role": "proto",
+   "move": "supermano"
   },
   {
    "key": "mig23",
@@ -10051,7 +10365,9 @@
    "sig": [
     "SAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig23.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig23.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "mig25",
@@ -10084,7 +10400,9 @@
    "sig": [
     "HPAA"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig25.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig25.svg",
+   "role": "icpt",
+   "move": ""
   },
   {
    "key": "su33",
@@ -10117,7 +10435,9 @@
    "sig": [
     "LAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg",
+   "role": "heavy",
+   "move": ""
   },
   {
    "key": "mig29k",
@@ -10150,7 +10470,9 @@
    "sig": [
     "QAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "yak141",
@@ -10188,7 +10510,9 @@
    "sig": [
     "QAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/yak141.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/yak141.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "mig29m",
@@ -10215,7 +10539,9 @@
    "sig": [
     "QAAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "su30",
@@ -10248,7 +10574,9 @@
    "sig": [
     "4AAM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/su30.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su30.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "mig35",
@@ -10275,7 +10603,9 @@
    "sig": [
     "LACM"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg",
+   "role": "multi",
+   "move": "hmd"
   },
   {
    "key": "yak38",
@@ -10314,7 +10644,9 @@
     "RCL",
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/yak38.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/yak38.svg",
+   "role": "attack",
+   "move": ""
   },
   {
    "key": "su22",
@@ -10347,7 +10679,9 @@
    "sig": [
     "RCL"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/su22.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su22.svg",
+   "role": "attack",
+   "move": ""
   },
   {
    "key": "mig27",
@@ -10380,7 +10714,9 @@
    "sig": [
     "UGB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig23.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig23.svg",
+   "role": "attack",
+   "move": ""
   },
   {
    "key": "su24",
@@ -10418,7 +10754,9 @@
    "sig": [
     "GPB"
    ],
-   "img": "systems/thunderbolt-shtab/assets/planes/su24.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su24.svg",
+   "role": "bomber",
+   "move": ""
   },
   {
    "key": "fb",
@@ -10443,7 +10781,9 @@
    },
    "props": [],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/su27.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su27.svg",
+   "role": "heavy",
+   "move": ""
   },
   {
    "key": "fa",
@@ -10468,7 +10808,9 @@
    },
    "props": [],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig29.svg",
+   "role": "light",
+   "move": ""
   },
   {
    "key": "mra",
@@ -10499,7 +10841,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su35.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "mrd",
@@ -10530,7 +10874,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/su30.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su30.svg",
+   "role": "multi",
+   "move": ""
   },
   {
    "key": "ga",
@@ -10555,7 +10901,9 @@
    },
    "props": [],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/su25.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su25.svg",
+   "role": "attack",
+   "move": ""
   },
   {
    "key": "gs",
@@ -10591,7 +10939,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/a10.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/a10.svg",
+   "role": "",
+   "move": ""
   },
   {
    "key": "hsi",
@@ -10622,7 +10972,9 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/mig31.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/mig31.svg",
+   "role": "icpt",
+   "move": ""
   },
   {
    "key": "prt",
@@ -10653,9 +11005,105 @@
     }
    ],
    "sig": [],
-   "img": "systems/thunderbolt-shtab/assets/planes/su47.svg"
+   "img": "systems/thunderbolt-shtab/assets/planes/su47.svg",
+   "role": "proto",
+   "move": ""
   }
  ],
+ "roles": {
+  "heavy": {
+   "name": "Тяжёлый истребитель",
+   "trait": "Мощный радар",
+   "text": "Lock On! по воздушной цели берёт её на 2 зоны от себя. Такой захват не срывается, пока цель не дальше 3 зон."
+  },
+  "light": {
+   "name": "Лёгкий истребитель",
+   "trait": "Вираж",
+   "text": "Ракета врага по тебе промахнулась: в конце раунда бесплатный захват на стрелявшего, если он в твоей или соседней зоне."
+  },
+  "icpt": {
+   "name": "Перехватчик",
+   "trait": "Взлёт по тревоге",
+   "text": "Вылет начинается на Speed, равной Max Speed, а не 1."
+  },
+  "multi": {
+   "name": "Многоцелевой",
+   "trait": "Универсал",
+   "text": "Improved Fox Two! бросается с большим из Aim и Deploy по воздушной или наземной цели; Aim Mod и Deploy Mod спецоружия по типу цели."
+  },
+  "attack": {
+   "name": "Штурмовик",
+   "trait": "Штурмовой заход",
+   "text": "На Низкой атаки Guns и RCL по наземным и морским целям своей зоны не вычитают Speed стрелка."
+  },
+  "bomber": {
+   "name": "Фронтовой бомбардировщик",
+   "trait": "Прицельный комплекс",
+   "text": "С Высокой можно захватывать и атаковать наземные и морские цели ракетами (обычными и спецоружием) и GPB. UGB, RCL и пушка с Высокой по земле не работают."
+  },
+  "proto": {
+   "name": "Опытная машина",
+   "trait": "",
+   "text": "Без черты роли: у опытных машин свои свойства и по два порога min-max."
+  },
+  "ew": {
+   "name": "РЭБ",
+   "trait": "",
+   "text": "Без черты роли: её работа это Станция РЭБ."
+  }
+ },
+ "moves": {
+  "cobra": {
+   "name": "Кобра Пугачёва",
+   "planes": "su35 su37",
+   "text": "Когда по тебе пущена ракета, даже не в свой ход: все ракеты в тебя в этом раунде промахиваются, все захваты на тебя срываются, Speed сразу 1 без сваливания. Нужен рабочий MAWS."
+  },
+  "supermano": {
+   "name": "Сверхманёвренность",
+   "planes": "su47 adler",
+   "text": "В этот ход можно сделать вторую проверку с броском."
+  },
+  "dash": {
+   "name": "Бросок на рубеж",
+   "planes": "mig31m mig144",
+   "text": "Одним действием Move до 3 зон, Speed сразу равна Max Speed. В конце броска бесплатный Lock On! по цели в зоне прибытия или соседней."
+  },
+  "hmd": {
+   "name": "Нашлемный прицел",
+   "planes": "mig35",
+   "text": "Lock On! и Fox Two! по цели в своей зоне одним действием."
+  },
+  "tank": {
+   "name": "Летающий танк",
+   "planes": "su25 a10a",
+   "text": "Когда должен получить метку урона, не получай её: HP просто восстанавливается до максимума."
+  },
+  "phoenix": {
+   "name": "Феникс",
+   "planes": "f14a f14d",
+   "text": "Lock On! по воздушной цели в любой точке зоны операции. Этот захват не срывается из-за расстояния, пока цель в зоне операции."
+  },
+  "ace104": {
+   "name": "104:0",
+   "planes": "f15c",
+   "text": "Твоя ракета по воздушной цели промахнулась на 1 или 2: она всё равно попадает. Объявляется после сравнения атаки с защитой."
+  },
+  "ghost": {
+   "name": "Удар из ниоткуда",
+   "planes": "f22 f117a",
+   "text": "Объяви при пуске: цель не получает предупреждения о ракете и не может сделать Break! против неё."
+  },
+  "g12": {
+   "name": "Перегрузка 12g",
+   "planes": "falken",
+   "text": "Break! без броска, как будто на d10 выпало 10. Не тратит проверку хода, и Speed после него не падает."
+  },
+  "salvo": {
+   "name": "Ракетный шквал",
+   "planes": "wyvern",
+   "text": "Fox Two! пускает две ракеты по захваченной цели: две обычных или две одного спецоружия (на 2 Ammo). Вторая даёт +1 к атаке или добавляет свой урон."
+  }
+ },
  "triggers": [
   {
    "key": "practiced",

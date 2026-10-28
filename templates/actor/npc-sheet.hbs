@@ -151,6 +151,12 @@
       {{#if system.desc}}<p>{{system.desc}}</p>{{/if}}
       {{#if system.service}}<p class="tb-muted">{{system.service}}</p>{{/if}}
       {{#if system.props.length}}<h3>Особенности</h3><ul class="tb-props">{{#each system.props as |p|}}<li><b>{{p.name}}.</b> {{p.text}}</li>{{/each}}</ul>{{/if}}
+      {{#if planeRole.role}}<h3>Роль: {{planeRole.role.name}}</h3>
+      <p class="tb-role">{{#if planeRole.role.trait}}<b>{{planeRole.role.trait}}.</b> {{/if}}{{planeRole.role.text}}</p>{{/if}}
+      {{#if planeRole.move}}<h3>Фирменный приём</h3>
+      <p class="tb-role"><b>{{planeRole.move.name}}</b> (раз за вылет{{#unless planeRole.move.ready}}, уже был{{/unless}}). {{planeRole.move.text}}</p>
+      {{#unless planeRole.move.passive}}<div class="tb-row"><a class="tb-btn {{#if planeRole.move.why}}tb-muted{{/if}}" data-act="move" title="{{planeRole.move.why}}"><i class="fas fa-star"></i> Приём: {{planeRole.move.name}}</a></div>{{/unless}}{{/if}}
+      {{#if planeRole.aoa}}<div class="tb-row"><a class="tb-btn" data-act="aoa" title="В свой ход −2 Strain: до конца хода +1 к Evasion, A-A, Aim, Dodge, Push"><i class="fas fa-angles-up"></i> Angle of Attack Limiter</a></div>{{/if}}
       {{#if system.rules.length}}<h3>Правила цели</h3><ul class="tb-props">{{#each system.rules as |p|}}<li><b>{{p.name}}.</b> {{p.text}}</li>{{/each}}</ul>{{/if}}
     </div>
 
