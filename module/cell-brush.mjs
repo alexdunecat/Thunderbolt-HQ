@@ -5,6 +5,8 @@ import { SYSTEM_ID, TB } from "./config.mjs";
 import { redrawWeatherCell, redrawReturnLine, sceneCells, mapProblems } from "./apps/mission-import.mjs";
 import { lineOf } from "./return-line.mjs";
 import { retNorm } from "./return-rules.mjs";
+import { showModeBar } from "./mode-bar.mjs";
+import { esc } from "./utils.mjs";
 
 let active = null;
 
@@ -27,7 +29,11 @@ export function openBrush(brush) {
   let stroke = null;   // { add, cells: Set }
   view.style.cursor = "cell";
   const what = brush.kind === "ret" ? "линия возврата" : `${TB.weather[brush.id].ico} ${TB.weather[brush.id].name}`;
-  ui.notifications.info(`Кисть: ${what}. Щёлкайте или ведите по клеткам: поставить или снять. Esc или правая кнопка — готово.`);
+  const mb = showModeBar({ title: `Кисть: ${what}`, text: "Щёлкайте или ведите по клеткам: поставить или снять.",
+    buttons: [
+      ...(brush.kind === "wx" ? [{ label: "Другая погода", icon: "fa-cloud", onClick: () => { finish(); pickWeatherBrush(); } }] : []),
+      { label: "Готово", icon: "fa-check", primary: true, onClick: () => finish() }
+    ] });
 
   const cellAt = ev => {
     const r = view.getBoundingClientRect();
@@ -74,8 +80,8 @@ export function openBrush(brush) {
     window.removeEventListener("keydown", onKey, true);
     view.style.cursor = prevCursor;
     gfx.destroy();
+    mb.close();
     active = null;
-    ui.notifications.info("Кисть убрана.");
   };
   window.addEventListener("pointerdown", onDown, true);
   window.addEventListener("pointermove", onMove, true);
@@ -84,6 +90,26 @@ export function openBrush(brush) {
   window.addEventListener("keydown", onKey, true);
   active = { finish };
   Hooks.once("canvasTearDown", () => active?.finish());
+}
+
+/** Кисть погоды без панели AWACS: окно с видами погоды, щелчок — кисть этой погоды. */
+export function pickWeatherBrush() {
+  const scene = canvas?.scene;
+  if (!game.user.isGM || !scene) return ui.notifications.warn("Кисть погоды: нужна сцена и права ведущего.");
+  const whole = new Set(scene.getFlag(SYSTEM_ID, "weather") ?? []);
+  const cells = scene.getFlag(SYSTEM_ID, "weatherCells") ?? {};
+  const count = id => Object.values(cells).filter(l => l.includes(id)).length;
+  const list = Object.entries(TB.weather).map(([id, d]) => whole.has(id)
+    ? `<button type="button" disabled title="Уже над всей сценой: снимите в AWACS «Миссия» → «Погода над всей сценой»"><span>${d.ico}</span>${esc(d.name)}<small>вся сцена</small></button>`
+    : `<button type="button" data-wx="${id}"><span>${d.ico}</span>${esc(d.name)}${count(id) ? `<small>${count(id)} кл.</small>` : ""}</button>`).join("");
+  const dlg = new Dialog({
+    title: "Кисть погоды",
+    content: `<div class="tb-dialog tb-wxpick">${list}</div><p class="tb-hint">Погода ложится на клетки сцены; над всей сценой её включают в AWACS.</p>`,
+    buttons: { close: { label: "Закрыть" } },
+    render: html => html.find("[data-wx]").on("click", ev => { dlg.close(); openBrush({ kind: "wx", id: ev.currentTarget.dataset.wx }); })
+  }, { width: 420 });
+  dlg.render(true);
+  return dlg;
 }
 
 /** Записать мазок: флаг сцены и рисунки клеток. */

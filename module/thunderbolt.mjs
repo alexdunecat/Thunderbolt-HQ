@@ -20,7 +20,8 @@ import { esc } from "./utils.mjs";
 import { initSocket, checkAdjacency, leadership, formUp } from "./squad.mjs";
 import { registerTokenSettings, arrangeSceneTokens } from "./tokens.mjs";
 import { registerSquadronSettings, squadFromSelection } from "./squadrons.mjs";
-import { registerMacros, actFromMacro, fillHotbars } from "./macros.mjs";
+import { registerMacros, actFromMacro, fillHotbars, fillGmHotbar } from "./macros.mjs";
+import { openBrush, pickWeatherBrush } from "./cell-brush.mjs";
 import { registerRwr } from "./rwr.mjs";
 import { registerRadio, sendRadio, say, caution, openRadioDialog } from "./radio.mjs";
 import { registerRange } from "./range.mjs";
@@ -185,7 +186,7 @@ Hooks.once("init", () => {
   registerActions();
 
   game.thunderbolt = { gloryDialog, importMission, openImportDialog, openAwacs, sortieResults, leadership, formUp, arrangeSceneTokens,
-    squadFromSelection, act: actFromMacro, fillHotbars, stepAltitude, rolls: R, TB, sound: cue, radio: { send: sendRadio, say, caution, log: openRadioLog, replies: openChatterEditor, mission: openMissionDialog, aces: openAceIntro, announceAces }, dossier: { open: openDossierExchange, importDossier, exportDossier },
+    squadFromSelection, act: actFromMacro, fillHotbars, fillGmHotbar, brush: { weather: pickWeatherBrush, returnLine: () => openBrush({ kind: "ret" }), open: openBrush }, stepAltitude, rolls: R, TB, sound: cue, radio: { send: sendRadio, say, caution, log: openRadioLog, replies: openChatterEditor, mission: openMissionDialog, aces: openAceIntro, announceAces }, dossier: { open: openDossierExchange, importDossier, exportDossier },
     refreshAwacs, nemesis: { appear: nemesisAppear, monologue: startMonologue, endMonologue }, medals: { open: openMedals, award: awardMedal }, undo: { undo, redo, log: openUndoLog }, hangar: { open: openHangar, admin: openHangarAdmin }, inactive: setInactive, boot: { open: openBootDialog, start: startBoot, play: playBoot, stop: stopBoot },
     briefing: { open: openBriefing, start: startBriefing, stop: stopBriefing, afterBoot: bootThenBriefing }, downtime: { ground: Downtime.rollGround, baseEvent: Downtime.baseEvent, threats: Downtime.threats, addThreat: Downtime.addThreat, stepThreat: Downtime.stepThreat } };
 });

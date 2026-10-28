@@ -52,6 +52,23 @@ export function actFromMacro(act, { actor: uuid, skill } = {}) {
   return runAction(actor, act, { skill });
 }
 
+/** Быстрые кнопки ведущего на его панели макросов: что открывает каждая. */
+export const GM_ACTIONS = {
+  briefing: ["Брифинг", () => game.thunderbolt.briefing.open()],
+  hangar: ["Ангар: допуск", () => game.thunderbolt.hangar.admin()],
+  aces: ["Представить асов", () => game.thunderbolt.radio.aces()],
+  wxbrush: ["Кисть погоды", () => game.thunderbolt.brush.weather()],
+  retline: ["Линия возврата", () => game.thunderbolt.brush.returnLine()]
+};
+export const GM_BAR = Object.keys(GM_ACTIONS);
+const GM_BAR_VERSION = 1;
+
+/** /tb briefing и т.п.: только у ведущего. */
+export function gmFromMacro(act) {
+  if (!game.user.isGM) return ui.notifications.warn("Эта кнопка только для ведущего.");
+  return GM_ACTIONS[act]?.[1]();
+}
+
 export function startActionDrag(ev, actor, act, skill) {
   ev.stopPropagation();
   ev.dataTransfer.setData("text/plain", JSON.stringify({ type: "tb-action", act, skill, actorUuid: actor.uuid, actorName: actor.name }));
@@ -90,16 +107,20 @@ export function registerMacros() {
   Hooks.on("chatMessage", (log, text) => {
     const cmd = parseCommand(text);
     if (!cmd) return;
-    Promise.resolve(actFromMacro(cmd.act, { actor: cmd.actor, skill: cmd.skill })).catch(err => console.error(`${SYSTEM_ID} | /tb ${cmd.act}`, err));
+    Promise.resolve(GM_ACTIONS[cmd.act] ? gmFromMacro(cmd.act) : actFromMacro(cmd.act, { actor: cmd.actor, skill: cmd.skill })).catch(err => console.error(`${SYSTEM_ID} | /tb ${cmd.act}`, err));
     return false;
   });
   Hooks.once("ready", () => {
     let on = true;
     try { on = game.settings.get(SYSTEM_ID, "actionBar"); } catch {}
-    if (!on) return;
-    // макросы заводит только главный ведущий: два ведущих разом создали бы их дважды
-    if (game.user.isGM) { if (game.users.activeGM?.isSelf ?? true) fillHotbars().catch(err => console.warn(`${SYSTEM_ID} | панель макросов`, err)); }
-    else fillHotbar(game.user).catch(err => console.warn(`${SYSTEM_ID} | панель макросов`, err));
+    const warn = err => console.warn(`${SYSTEM_ID} | панель макросов`, err);
+    if (game.user.isGM) {
+      // макросы игроков заводит только главный ведущий (два ведущих разом создали бы их дважды);
+      // свои кнопки каждый ведущий раскладывает себе сам, и они не зависят от настройки макросов игроков
+      const lead = game.users.activeGM?.isSelf ?? true;
+      (on && lead ? fillHotbars() : Promise.resolve()).catch(warn).then(() => fillGmHotbar(game.user)).catch(warn);
+    }
+    else if (on) fillHotbar(game.user).catch(warn);
   });
 }
 
@@ -155,6 +176,39 @@ export async function fillHotbars({ force = false } = {}) {
   let n = 0;
   for (const u of game.users) if (!u.isGM) n += await fillHotbar(u, { macros, force });
   return n;
+}
+
+/** Макросы кнопок ведущего (папка «Ведущий», игрокам не видны). Возвращает { act: macro }. */
+export async function ensureGmMacros() {
+  const found = {};
+  for (const m of game.macros) { const act = m.getFlag(SYSTEM_ID, "gmbar"); if (act && !found[act]) found[act] = m; }
+  if (!game.user.isGM) return found;
+  let folder = game.folders.find(f => f.type === "Macro" && f.getFlag(SYSTEM_ID, "gmbar"));
+  folder ??= await Folder.create({ name: "Ведущий", type: "Macro", color: "#3a2a08", flags: { [SYSTEM_ID]: { gmbar: true } } });
+  const create = [], update = [];
+  for (const act of GM_BAR) {
+    const want = { name: GM_ACTIONS[act][0], type: "chat", img: iconOf(act), command: chatCommand(act),
+      ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE }, folder: folder?.id ?? null };
+    const m = found[act];
+    if (!m) create.push({ ...want, flags: { [SYSTEM_ID]: { gmbar: act } } });
+    else if (m.command !== want.command || m.img !== want.img || m.name !== want.name) update.push({ _id: m.id, ...want, ownership: m.ownership });
+  }
+  if (update.length) await Macro.updateDocuments(update);
+  for (const m of create.length ? await Macro.createDocuments(create) : []) found[m.getFlag(SYSTEM_ID, "gmbar")] = m;
+  return found;
+}
+
+/** Кнопки ведущего в пустые слоты 1–9 его панели (как у игроков: занятый слот не трогаем, кнопка встаёт дальше). */
+export async function fillGmHotbar(user = game.user, { force = false } = {}) {
+  if (!user?.isGM || !user.isSelf) return 0;
+  if (!force && (user.getFlag(SYSTEM_ID, "gmBar") ?? 0) >= GM_BAR_VERSION) return 0;
+  const macros = await ensureGmMacros();
+  if (!GM_BAR.every(a => macros[a])) return 0;
+  const bar = user.hotbar ?? {}, upd = {}, placed = new Set(Object.values(bar)), left = [];
+  for (const act of GM_BAR) if (!placed.has(macros[act].id)) left.push(macros[act].id);
+  for (let slot = 1; slot <= 50 && left.length; slot++) if (!bar[slot] || !game.macros.get(bar[slot])) upd[`hotbar.${slot}`] = left.shift();
+  await user.update({ ...upd, [`flags.${SYSTEM_ID}.gmBar`]: GM_BAR_VERSION });
+  return Object.keys(upd).length;
 }
 
 async function createActionMacro(data, slot) {

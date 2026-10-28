@@ -676,7 +676,10 @@ export async function lockOn(actor, { free = false, phoenix = false, maxDist = n
 async function pickSalvo(actor, w, first, kind) {
   const out = [], code = w.name.split(" · ")[0];
   while (out.length < 3) {
-    const tok = await pickTargetToken(actor, { title: `Залп ${code}: цель ${out.length + 2} из 4 (Esc — хватит)` });
+    const have = [first, ...out].map(x => `<b>${esc(x.name)}</b>`).join(", ");
+    const tok = await pickTargetToken(actor, { title: `Залп ${code}: цель ${out.length + 2} из 4`,
+      hint: `В залпе: ${have}. Щёлкните по следующей цели или нажмите «Готово».`,
+      done: `Готово: ${out.length + 1} ${out.length ? "цели" : "цель"}` });
     if (!tok) break;
     const a = tok.actor;
     if (a === first.actor || out.some(x => x.actor === a)) { ui.notifications.warn(`«${tok.name}» уже в залпе.`); continue; }
@@ -687,6 +690,7 @@ async function pickSalvo(actor, w, first, kind) {
     const { far, problems } = reachProblems(actor, t, w.system.reach);
     if (far) { ui.notifications.warn(`«${tok.name}»: ${problems[0]}`); continue; }
     out.push(t);
+    tok.setTarget?.(true, { releaseOthers: false, groupSelection: true });   // цели залпа видны метками прицела
   }
   return out;
 }

@@ -21,7 +21,7 @@ macros.push(new Doc({ id: "own", name: "Свой", flags: {} }));
 macros.push(new Doc({ id: "oldstall", name: "Сваливание", flags: { "thunderbolt-shtab": { bar: "stall" } } }));   // из прошлой версии: должен удалиться
 Object.assign(globalThis, {
   foundry: { utils: { deepClone: x => structuredClone(x) }, abstract: { TypeDataModel: class {} }, data: { fields: { NumberField: F, StringField: F, BooleanField: F, SchemaField: F, ArrayField: F, HTMLField: F, ObjectField: F } } },
-  CONST: { DOCUMENT_OWNERSHIP_LEVELS: { LIMITED: 1 } },
+  CONST: { DOCUMENT_OWNERSHIP_LEVELS: { NONE: 0, LIMITED: 1 } },
   Hooks: { on() {}, once() {} }, CONFIG: { sounds: {}, specialStatusEffects: { DEFEATED: "dead" } },
   game: { user: gm, users, macros, folders, settings: { get: () => true } },
   ui: { notifications: { warn: m => log.push("WARN " + m) } },
@@ -42,4 +42,17 @@ log.push(`макросов ${macros.length - 1}: ` + macros.slice(1).map(m => `$
 log.push(`p1 ${JSON.stringify(users[1].hotbar)} · p2 ${JSON.stringify(users[2].hotbar)} · gm ${JSON.stringify(gm.hotbar)}`);
 log.push("повторный вход: " + await M.fillHotbars());
 log.push("force: " + await M.fillHotbars({ force: true }) + ` p1 слот 3 ${users[1].hotbar[3]}`);
+// кнопки ведущего: свои слоты 1–9 ведущего, макросы закрыты от игроков, команда /tb … только у ведущего
+gm.hotbar[2] = "own";
+log.push("ведущий: " + await M.fillGmHotbar(gm) + ` · gm ${JSON.stringify(gm.hotbar)}`);
+const gmMacros = macros.filter(m => m.flags?.["thunderbolt-shtab"]?.gmbar);
+log.push(gmMacros.map(m => `${m.name} ${m.command} ${m.img.replace(/^.*\//, "")} доступ ${m.ownership.default}`).join("; "));
+log.push("ведущий повторно: " + await M.fillGmHotbar(gm) + " · игроку: " + await M.fillGmHotbar(users[1]));
+log.push(`/tb briefing → ${JSON.stringify(M.parseCommand("/tb briefing"))}`);
+const opened = [];
+game.thunderbolt = { briefing: { open: () => opened.push("брифинг") }, hangar: { admin: () => opened.push("ангар") }, radio: { aces: () => opened.push("асы") },
+  brush: { weather: () => opened.push("кисть погоды"), returnLine: () => opened.push("линия возврата") } };
+for (const a of M.GM_BAR) M.gmFromMacro(a);
+game.user = users[1]; M.gmFromMacro("briefing"); game.user = gm;
+log.push("открыто: " + opened.join(", "));
 console.log(log.filter(l => !l.startsWith("UPD")).join("\n"));

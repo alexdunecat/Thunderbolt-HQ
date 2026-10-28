@@ -1663,7 +1663,7 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-hangar-pilot .tb-hgx-form p { margin: 0 0 6px; font-size: 12.5px; line-height: 1.45; }
 .tb-hangar-pilot .tb-hgx-quote { padding-left: 8px; border-left: 2px solid var(--tb-line); color: var(--tb-muted); font-style: italic; }
 .tb-hangar-pilot .tb-hgx-role { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--tb-line); }
-.tb-hangar-pilot .tb-hgx-role .move b, .tb-hangar-pilot .tb-hgx-star { color: var(--tb-amber, #e0a030); font-style: normal; }
+.tb-hangar-pilot .tb-hgx-role .move b, .tb-hangar-pilot .tb-hgx-star { color: var(--tb-warn); font-style: normal; }
 /* пульт подвески: станции, как в HUD */
 .tb-hangar-pilot .tb-hg-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; }
 .tb-hangar-pilot .tb-hg-slot { grid-template-columns: auto 1fr auto; grid-template-rows: none; gap: 3px 8px; padding: 6px 8px 7px; border: 1px solid #050807; border-radius: 3px; color: #d9e2dc;
@@ -1749,3 +1749,26 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-hud-plane .tb-hud-move.used { opacity: .35; text-decoration: line-through; }
 .tb-ck-move label em { font-style: normal; font-size: 10px; opacity: .7; margin-left: 4px; }
 .tb-role { margin: 2px 0 6px; }
+
+/* Полоса режима: выбор целей и кисть клеток (module/mode-bar.mjs) */
+.tb-modebar { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; align-items: center; gap: 14px;
+  max-width: min(760px, calc(100vw - 340px)); padding: 8px 10px 8px 14px; background: var(--tb-bg); color: var(--tb-ink);
+  border: 1px solid var(--tb-warn); border-left-width: 4px; box-shadow: 0 6px 24px rgba(0,0,0,.55); font-family: var(--tb-body); }
+.tb-modebar-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tb-modebar-txt b { font-family: var(--tb-data); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--tb-warn); }
+.tb-modebar-txt span { font-size: 13px; color: var(--tb-muted); }
+.tb-modebar-txt span b { font-family: inherit; text-transform: none; letter-spacing: 0; font-size: inherit; color: var(--tb-ink); }
+.tb-modebar-btns { display: flex; gap: 6px; flex: none; }
+.tb-modebar-btns button { width: auto; height: 32px; padding: 0 12px; line-height: 30px; white-space: nowrap; font-family: var(--tb-data); font-size: 12px;
+  background: var(--tb-surface-2); color: var(--tb-ink); border: 1px solid var(--tb-line); border-radius: 0; }
+.tb-modebar-btns button.primary { background: var(--tb-warn); color: var(--tb-accent-ink); border-color: var(--tb-warn); font-weight: bold; }
+.tb-modebar-btns button:hover { box-shadow: 0 0 0 1px var(--tb-warn); }
+
+/* Кисть погоды: выбор вида */
+.tb-wxpick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
+.tb-wxpick button { display: flex; flex-direction: column; align-items: center; gap: 2px; height: auto; padding: 8px 4px; line-height: 1.2; font-size: 12px;
+  background: var(--tb-surface-2); color: var(--tb-ink); border: 1px solid var(--tb-line); border-radius: 0; cursor: pointer; }
+.tb-wxpick button:hover:not(:disabled) { border-color: var(--tb-warn); }
+.tb-wxpick button:disabled { opacity: .45; cursor: default; }
+.tb-wxpick button span { font-size: 20px; }
+.tb-wxpick button small { color: var(--tb-muted); font-size: 10px; }
