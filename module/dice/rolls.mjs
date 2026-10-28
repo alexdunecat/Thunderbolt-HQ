@@ -1,7 +1,7 @@
 /* Броски и чат-карточки: проверки, ракеты, пушка, Break!, Strain, урон, сваливание. */
-import { SYSTEM_ID, TB } from "../config.mjs";
+import { SYSTEM_ID, TB, sysOff, offWhy } from "../config.mjs";
 import { esc, resolveActor } from "../utils.mjs";
-import { tokenOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, stratLift, isAirTarget, inNarrowTunnel, wallBonus, zoneDistance, rangeLabel, isFlying, struckBy, gunVs, sysGunReach, sysStrafe, gunSys } from "../scene.mjs";
+import { tokenOf, altOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, stratLift, isAirTarget, inNarrowTunnel, wallBonus, zoneDistance, rangeLabel, isFlying, struckBy, gunVs, sysGunReach, sysStrafe, gunSys } from "../scene.mjs";
 import { alarmRows, raiseAlarm, surprise, quietAA, markVolley } from "../stealth.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
 import { nemesisAttack, nemesisDefense } from "../nemesis.mjs";
@@ -106,6 +106,8 @@ export function computeCard(c) {
   if (c.dc !== null && c.dc !== undefined) out.success = out.total >= c.dc;   // ничьи: в проверках за пилотом, в атаках за атакующим
   if (c.forceHit && c.dc !== null && c.dc !== undefined) out.success = true;   // «Хватит болтать»: атака посреди монолога
   if (c.forceFail) out.success = false;
+  // HPAA: промах на 1–2 — неконтактный взрыв, 4 урона
+  if (c.wkey === "HPAA" && c.dc !== null && c.dc !== undefined && !out.success && out.total >= c.dc - 2) out.proxHit = true;
   if (c.rolled) {
     out.perk = c.d4 >= (c.perkOn ?? 4);
     out.comp = c.d4 <= (c.compOn ?? 1);
@@ -161,6 +163,10 @@ function renderTunnel(c) {
   </div>`;
 }
 
+const PROX_DMG = 4;
+/** Урон попадания карточки: HPAA неконтактным взрывом — 4, UGB на Perk «×2» — вдвое. */
+const hitDmg = c => (c.proxHit && !c.success ? PROX_DMG : c.dmg ?? 0) * (c.ugbPerk === "double" ? 2 : 1);
+
 export function renderCard(card) {
   if (card.type === "tunnel") return renderTunnel(card);
   if (card.type === "alarm") return renderAlarm(card);
@@ -179,9 +185,11 @@ export function renderCard(card) {
   if (c.type === "break") {
     verdict = `<div class="tb-total">${c.total} ÷ 2 = <b>${c.value}</b> · Evasion ${c.ev} → ${c.applies
       ? `<b class="ok">Evasion ${c.value} до конца раунда</b>` : `<b class="fail">не выше Evasion, остаётся ${c.ev}</b>`}</div>`;
+  } else if (c.type === "rail") {
+    verdict = `<div class="tb-total">Итог <b>${c.total}</b> по воздуху (Aim)${c.line?.some(r => r.gnd) ? ` · <b>${c.total + (c.depShift ?? 0)}</b> по земле и морю (Deploy)` : ""}</div>`;
   } else if (c.dc !== null && c.dc !== undefined) {
     const vs = c.vsLabel ?? "сложности";
-    verdict = `<div class="tb-total">Итог <b>${c.total}</b> против ${vs} ${c.dc} → <b class="${c.success ? "ok" : "fail"}">${c.success ? (c.attack ? "Попадание" : "Успех") : (c.attack ? "Промах" : "Провал")}</b></div>`;
+    verdict = `<div class="tb-total">Итог <b>${c.total}</b> против ${vs} ${c.dc} → <b class="${c.success ? "ok" : "fail"}">${c.success ? (c.attack ? "Попадание" : "Успех") : (c.attack ? "Промах" : "Провал")}</b>${c.proxHit ? ` · <b class="ok">неконтактный взрыв, ${PROX_DMG} урона</b>` : ""}</div>`;
   } else {
     verdict = `<div class="tb-total">Итог <b>${c.total}</b>${c.vsHint ? ` · ${esc(c.vsHint)}` : ""}</div>`;
   }
@@ -194,16 +202,24 @@ export function renderCard(card) {
   }
   else if (c.rolled) {
     const d4 = c.perk && c.comp ? `<div class="tb-d4 perk">d4 = ${c.d4}: <b>Perk</b> и <b class="comp">Complication</b> сразу (по умолчанию +1 и −1)</div>`
+      : c.perk && c.wkey === "UGB" && c.targetUuid ? `<div class="tb-d4 perk">d4 = ${c.d4}: <b>Perk</b> (UGB: двойной урон цели или обычный урон всем соседним)</div>`
       : c.perk ? `<div class="tb-d4 perk">d4 = ${c.d4}: <b>Perk</b> (по умолчанию +1 к следующей проверке)</div>`
       : c.comp ? `<div class="tb-d4 comp">d4 = ${c.d4}: <b>Complication</b> (по умолчанию −1)</div>`
         : `<div class="tb-d4">d4 = ${c.d4}</div>`;
     rows.push(d4);
   }
   for (const n of c.notes ?? []) rows.push(`<div class="tb-note">${n}</div>`);
+  if (c.type === "rail") rows.push(...railRows(c));
+  if (c.ugbPerk) rows.push(`<div class="tb-note">Perk UGB: ${c.ugbPerk === "double" ? "двойной урон основной цели" : "обычный урон всем целям, соседним с основной"}.</div>`);
+  if (c.reattack && !c.resolved) rows.push(`<div class="tb-note">SAAM: промах при удержанном захвате, повторный заход в конце раунда ${String(c.combatKey).split(":")[1]}.</div>`);
+  if (c.lost) rows.push(`<div class="tb-note">SAAM потеряна: ${esc(c.lost)}.</div>`);
   if (c.type === "recover" && c.success) rows.push(`<div class="tb-note">Вернуть <b>${c.regain}</b> Strain.</div>`);
 
   const btn = [];
-  if (c.rolled && c.type !== "eject" && c.perk && !c.perkPassed) btn.push(`<button type="button" data-tb-action="perk-next" class="tb-owner">Perk: +1 к следующей</button>`);
+  // UGB: на Perk вместо +1 к следующей — двойной урон цели или урон по соседним
+  const ugbPerk = c.rolled && c.perk && c.wkey === "UGB" && c.targetUuid;
+  if (ugbPerk && !c.ugbPerk && !c.resolved && !c.dmgApplied) btn.push(`<button type="button" data-tb-action="ugb-perk" data-perk="double" class="tb-owner">Perk: ×2 урона цели</button><button type="button" data-tb-action="ugb-perk" data-perk="splash" class="tb-owner">Perk: урон всем соседним</button>`);
+  if (c.rolled && c.type !== "eject" && c.perk && !c.perkPassed && !ugbPerk) btn.push(`<button type="button" data-tb-action="perk-next" class="tb-owner">Perk: +1 к следующей</button>`);
   if (c.rolled && c.type !== "eject" && c.comp && !c.compPassed) btn.push(`<button type="button" data-tb-action="comp-next" class="tb-owner">Complication: −1 к следующей</button>`);
   if (c.perkPassed) rows.push(`<div class="tb-note">Perk: +1 к следующей проверке, ${esc(c.perkPassed)}.</div>`);
   if (c.compPassed) rows.push(`<div class="tb-note">Complication: −1 к следующей проверке, ${esc(c.compPassed)}.</div>`);
@@ -247,8 +263,8 @@ export function renderCard(card) {
   const queued = c.delayed && c.combatKey && !c.resolved && !c.dmgApplied;
   if (queued) rows.push(`<div class="tb-note tb-queued"><i class="fas fa-hourglass-half"></i> ${c.atTurn ? "Ждёт начала хода цели." : "В очереди залпа конца раунда."}</div>`);
   if (c.resolved) rows.push(`<div class="tb-note">${c.shipOpen && !c.dmgApplied ? "Долетела в конце раунда: урон по системе корабля — кнопкой." : c.atTurn ? "Учтена в начале хода цели." : "Учтена в залпе конца раунда."}</div>`);
-  if (c.dmg && c.targetUuid && !queued && (!c.resolved || c.shipOpen) && (c.success || c.dc === null || c.dc === undefined) && !c.dmgApplied)
-    btn.push(`<button type="button" data-tb-action="damage" class="tb-target-owner"><i class="fas fa-burst"></i> ${c.delayed ? "В конце раунда: " : ""}${c.dmg} урона по «${esc(c.targetName)}»</button>`);
+  if (c.dmg && c.targetUuid && !queued && (!c.resolved || c.shipOpen) && (c.success || c.proxHit || c.dc === null || c.dc === undefined) && !c.dmgApplied)
+    btn.push(`<button type="button" data-tb-action="damage" class="tb-target-owner"><i class="fas fa-burst"></i> ${c.delayed ? "В конце раунда: " : ""}${hitDmg(c)} урона по «${esc(c.targetName)}»</button>`);
   if (c.dmgApplied) rows.push(`<div class="tb-note">${c.autoDmg ? `Попадание: ${c.dmg} урона по «${esc(c.targetName)}» нанесено сразу.` : "Урон нанесён."}</div>`);
 
   return `<div class="tb-card tb-card-${c.type}">
@@ -481,7 +497,7 @@ export async function rollBreak(actor) {
   // в туннеле уходить некуда (кроме Зала и триггера «Это никогда не пригодится»)
   const tun = inNarrowTunnel(tokenOf(actor), actor);
   if (tun && !hasTrigger(actor, "nevercome")) return ui.notifications.warn("В туннеле Break! нельзя: уходить некуда. Можно только в Зале.");
-  if (actor.system.broken === "ma") ui.notifications.info("MAWS сломан: о ракетах узнаёшь, только когда они попадут.");
+  if (sysOff(actor.system, "ma")) ui.notifications.info(`MAWS ${actor.system.jam === "ma" ? "заглушён РЭБ" : "сломан"}: о ракетах узнаёшь, только когда они попадут.`);
   const data = await formDialog("Break!", `
     <div class="form-group"><label>Лидерство союзника</label><input type="number" name="lead" value="0"></div>
     ${commonFields(actor, "dodge")}`);
@@ -527,12 +543,16 @@ const has = v => v !== null && v !== undefined;
 /** Спецоружие подходит к виду цели: противовоздушное только по воздуху, ударное только по земле и морю. */
 /** Подвесное, которое стреляет как пушка: контейнеры (MGP, PLSL) и блок НУР (RCL, только по земле и морю, с боезапасом). */
 export const isGunPod = w => w.system.target === "gun" || w.system.key === "RCL";
-export const weaponFits = (w, kind) => !isGunPod(w) && (w.system.target === kind || w.system.target === "line");
+export const weaponFits = (w, kind) => !isGunPod(w) && w.system.target === kind;
+/** Спецоружие без захвата и без пуска ракетой: EMRG (линия) и ESM (РЭБ). */
+export const isOwnFire = w => ["line", "util"].includes(w?.system.target);
+/** Залповое спецоружие (4AAM, XLAA, XAGM): один захват до 4 целей. */
+export const isSalvo = w => TB.salvoWeapons.includes(w?.system.key);
 
 /** Есть ли у стрелка стандартная ракета против вида цели: у NPC — только при Air-Air / Air-Gnd в листе (у бомбардировщиков Air-Air нет). */
 function stdMissile(actor, kind) {
   const s = actor.system;
-  if (s.broken === "ms") return false;
+  if (sysOff(s, "ms")) return false;
   if (actor.type === "pilot") return true;
   if (s.kind === "air") return has(kind === "air" ? s.stats.aa : s.stats.ag);
   return false;
@@ -544,7 +564,7 @@ export function strikeMeans(actor, kind) {
   if (stdMissile(actor, kind)) out.push("Стандартная ракета");
   if (actor.type === "npc" && s.kind === "ground" && has(air ? s.ground.ga : s.ground.gg)) out.push(air ? "ЗРК" : "G-G");
   if (actor.type === "npc" && s.kind === "ship" && s.systems.some(y => y.value > 0 && has(air ? y.ga : y.gg))) out.push("ракетная система");
-  if (s.broken !== "sw") for (const w of actor.items)
+  if (!sysOff(s, "sw")) for (const w of actor.items)
     if (w.type === "weapon" && weaponFits(w, kind) && weaponReady(w)) out.push(w.name);
   return out;
 }
@@ -554,7 +574,7 @@ function weaponOptions(actor, missile, kind = null) {
   if (missile && (kind ? stdMissile(actor, kind) : stdMissile(actor, "air") || stdMissile(actor, "ground")))
     opts.push(`<option value="">Стандартная ракета (урон ${TB.missileDamage}, ${rangeLabel(TB.range.missile)})</option>`);
   const aim = aimedWeapon(actor)?.id;
-  if (actor.system.broken !== "sw") {
+  if (!sysOff(actor.system, "sw")) {
     for (const w of actor.items.filter(i => i.type === "weapon")) {
       const s = w.system;
       const isGun = isGunPod(w);
@@ -570,7 +590,7 @@ function weaponOptions(actor, missile, kind = null) {
 }
 
 /** У цели-игрока работает MAWS: её владелец услышит сигнал о пуске. */
-const mawsOn = t => !!t?.actor?.hasPlayerOwner && t.actor.system.broken !== "ma";
+const mawsOn = t => !!t?.actor?.hasPlayerOwner && !sysOff(t.actor.system, "ma");
 
 /** Захваченная цель, если её токен ещё на сцене: для Fox Two! без выбранной цели. */
 function lockedTarget(actor) {
@@ -594,18 +614,56 @@ export async function lockOn(actor) {
   if (far) return ui.notifications.warn(`Lock On! невозможен: ${problems[0]}`);
   if (!(await confirmReach(problems, "Lock On!"))) return;
   selectTarget(tok);
-  await actor.update({ "system.lock": t.name, "system.lockUuid": t.uuid });
+  // залповое спецоружие: тот же Lock On берёт ещё до трёх целей в пределах его дальности
+  const sw = sysOff(actor.system, "sw") ? null : actor.items.find(i => i.type === "weapon" && isSalvo(i) && weaponFits(i, kind) && weaponReady(i));
+  const extra = sw ? await pickSalvo(actor, sw, t, kind) : [];
+  await actor.update({ "system.lock": t.name, "system.lockUuid": t.uuid,
+    [`flags.${SYSTEM_ID}.salvo`]: sw ? { weapon: sw.id, list: [{ uuid: t.uuid, name: t.name }, ...extra.map(x => ({ uuid: x.uuid, name: x.name }))] } : null });
   const longNote = dist !== null && dist > TB.range.lockOn && longRange ? ` Захват для ${esc(longRange.name)}.` : "";
+  const salvoNote = extra.length ? ` Залп ${esc(sw.name.split(" · ")[0])}: ещё ${extra.map(x => `<b>${esc(x.name)}</b>`).join(", ")}; захват каждой цели срывается отдельно.` : "";
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
-    content: `<div class="tb-card tb-card-lock"><header class="tb-card-head"><span class="tb-card-who">${esc(actor.name)}</span><span class="tb-card-what">Lock On!</span></header><div class="tb-note">Захват: <b>${esc(t.name)}</b>${dist !== null ? `, ${dist} зон.` : "."}${longNote} Срывается, если цель уйдёт дальше двух зон.</div></div>`,
-    flags: { [SYSTEM_ID]: { rwr: { target: t.uuid, from: actor.name, fromUuid: actor.uuid } } }
+    content: `<div class="tb-card tb-card-lock"><header class="tb-card-head"><span class="tb-card-who">${esc(actor.name)}</span><span class="tb-card-what">Lock On!</span></header><div class="tb-note">Захват: <b>${esc(t.name)}</b>${dist !== null ? `, ${dist} зон.` : "."}${longNote}${salvoNote} Срывается, если цель уйдёт дальше двух зон.</div></div>`,
+    flags: { [SYSTEM_ID]: { rwr: { target: t.uuid, from: actor.name, fromUuid: actor.uuid, also: extra.map(x => x.uuid) } } }
   });
 }
 
+/** Ещё цели для залпа: щелчками, до 4 вместе с первой; Esc — хватит. Каждая — противник того же вида в пределах дальности оружия. */
+async function pickSalvo(actor, w, first, kind) {
+  const out = [], code = w.name.split(" · ")[0];
+  while (out.length < 3) {
+    const tok = await pickTargetToken(actor, { title: `Залп ${code}: цель ${out.length + 2} из 4 (Esc — хватит)` });
+    if (!tok) break;
+    const a = tok.actor;
+    if (a === first.actor || out.some(x => x.actor === a)) { ui.notifications.warn(`«${tok.name}» уже в залпе.`); continue; }
+    if (a.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) { ui.notifications.warn(`«${tok.name}» уже сбит.`); continue; }
+    if (!canFireAt(actor, a)) { ui.notifications.warn(`«${tok.name}» на вашей стороне.`); continue; }
+    const t = describeTarget(a, tok.name, tok);
+    if (targetKind(t) !== kind) { ui.notifications.warn(`${code} бьёт только по ${kind === "air" ? "воздушным" : "наземным и морским"} целям.`); continue; }
+    const { far, problems } = reachProblems(actor, t, w.system.reach);
+    if (far) { ui.notifications.warn(`«${tok.name}»: ${problems[0]}`); continue; }
+    out.push(t);
+  }
+  return out;
+}
+
+/**
+ * Защита цели против ракеты на этот момент с чертой спецоружия (Стрэйнджриал 8.2): QAAM по цели в своей зоне — без Break!,
+ * HVAA — Speed цели вполовину, GPB — Occlusion −2 и туннель не прикрывает. Плюс туннель, «Опять ты!» и боевые триггеры. null — корабль.
+ */
+export function missileDef(shooter, actor, { token = tokenOf(actor), weather = null, wkey = "", close = false } = {}) {
+  const d = defenseWithWeather(actor, weather ?? weatherAt(actor, token), { noBreak: wkey === "QAAM" && close, halfSpeed: wkey === "HVAA" });
+  if (d === null || d === undefined) return null;
+  return d + (wkey === "GPB" ? -2 : wallBonus(token, actor)) + nemesisDefense(shooter, actor) + triggerDefense(shooter, actor);
+}
+/** QAAM: цель в своей зоне в момент пуска. */
+const closeTo = (actor, t) => zoneDistance(tokenOf(actor), t?.token) === 0;
+/** Защита цели t (из describeTarget) против этого спецоружия у стрелка; у кораблей null. */
+const defVs = (actor, t, w) => t && t.kind !== "ship" ? missileDef(actor, t.actor, { token: t.token, weather: t.weather, wkey: w?.system.key ?? "", close: closeTo(actor, t) }) : null;
+
 /** С чем сравнивать атаку: защита цели, Occlusion выбранной системы корабля или (система не выбрана) итог без сравнения. */
-function shipDc(t, aim, dc) {
-  if (aim) return { dc: aim.occ, vsLabel: `Occlusion «${aim.y.name}»`, vsHint: "", sys: aim.i, sysName: aim.y.name };
+function shipDc(t, aim, dc, occCut = 0) {
+  if (aim) return { dc: aim.occ - occCut, vsLabel: `Occlusion «${aim.y.name}»`, vsHint: "", sys: aim.i, sysName: aim.y.name };
   if (t?.kind === "ship") return { dc: null, vsLabel: "защиты", vsHint: "по Occlusion системы" };
   return { dc, vsLabel: "защиты", vsHint: "" };
 }
@@ -620,7 +678,7 @@ const skillSum = (actor, skill) => { try { return sum(skillParts(actor, skill));
  */
 export function foxEstimate(actor, t) {
   const s = actor.system, kind = targetKind(t), air = kind === "air";
-  const w = stdMissile(actor, kind) ? null : s.broken === "sw" ? null : actor.items.find(i => i.type === "weapon" && weaponFits(i, kind) && weaponReady(i)) ?? null;
+  const w = stdMissile(actor, kind) ? null : sysOff(s, "sw") ? null : actor.items.find(i => i.type === "weapon" && weaponFits(i, kind) && weaponReady(i)) ?? null;
   let base = air ? s.aa : s.ag;
   if (actor.type === "npc" && s.kind === "ground") base = (air ? s.ground?.ga : s.ground?.gg) ?? 0;
   const ws = w?.system, wx = weatherAt(actor);
@@ -628,7 +686,7 @@ export function foxEstimate(actor, t) {
   const ct = r => sum(triggerAttack(actor, t.actor, { rolled: r, skill: air ? "aim" : "deploy" }).parts) + sum(nemesisAttack(actor, t.actor, { rolled: r, skill: air ? "aim" : "deploy" }).parts);
   const fox = (base ?? 0) + ((air ? ws?.aa : ws?.ag) ?? 0) + sum(weatherParts(wx, air ? "aa" : "ag")) + common + ct(false);
   const imp = skillSum(actor, air ? "aim" : "deploy") + ((air ? ws?.aim : ws?.dep) ?? 0) + common + ct(true);
-  const dc = t.kind === "ship" || t.defense === null ? null : t.defense + wallBonus(t.token, t.actor) + nemesisDefense(actor, t.actor) + triggerDefense(actor, t.actor);
+  const dc = t.defense === null ? null : defVs(actor, t, w);
   const chance = dc === null ? null : Math.max(0, Math.min(10, 11 - (dc - imp))) / 10;
   return { fox, imp, dc, hit: dc !== null && fox >= dc, chance, weapon: w?.name ?? null };
 }
@@ -650,11 +708,13 @@ export function foxPanel(actor, t, tk) {
   // станции: стандартная ракета и спецоружие, у каждой — по каким целям бьёт и итоги для обеих кнопок
   const stations = [];
   if (kinds.some(k => stdMissile(actor, k))) stations.push({ id: "", code: "MSL", cnt: "∞", dmg: TB.missileDamage, fits: kinds.filter(k => stdMissile(actor, k)), w: null });
-  if (s.broken !== "sw") for (const w of actor.items.filter(i => i.type === "weapon" && !isGunPod(i) && i.system.target !== "util")) {
-    const fits = kinds.filter(k => weaponFits(w, k));
+  // EMRG и ESM без захвата и цели: станция есть при любом виде цели, пуск уходит в своё окно (линия, система)
+  if (!sysOff(s, "sw")) for (const w of actor.items.filter(i => i.type === "weapon" && !isGunPod(i))) {
+    const own = isOwnFire(w);
+    const fits = own ? kinds : kinds.filter(k => weaponFits(w, k));
     if (!fits.length) continue;
     const empty = !weaponReady(w);
-    stations.push({ id: w.id, code: w.name.split(" · ")[0], cnt: w.getFlag?.(SYSTEM_ID, "off") ? "OFF" : w.system.unlimited ? "∞" : String(w.system.ammo.value ?? 0).padStart(2, "0"), dmg: parseInt(w.system.dmg) || 0, fits, w, empty });
+    stations.push({ id: w.id, code: w.name.split(" · ")[0], cnt: w.getFlag?.(SYSTEM_ID, "off") ? "OFF" : w.system.unlimited ? "∞" : String(w.system.ammo.value ?? 0).padStart(2, "0"), dmg: parseInt(w.system.dmg) || 0, fits, w, empty, own, trait: w.system.trait });
   }
   const prev = {};
   for (const st of stations) {
@@ -673,7 +733,9 @@ export function foxPanel(actor, t, tk) {
     }
   }
   const first = stations.find(x => x.id === aimId && !x.empty) ?? stations.find(x => !x.empty) ?? stations[0];
-  const dc = t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) + nemesisDefense(actor, t.actor) + triggerDefense(actor, t.actor) : null;
+  // защита цели против каждой станции: черты QAAM, HVAA и GPB меняют её
+  const dcs = Object.fromEntries(stations.map(st => [st.id, defVs(actor, t, st.w)]));
+  const dc = t && t.kind !== "ship" ? dcs[first?.id ?? ""] ?? defVs(actor, t, null) : null;
   // «Форсированный выстрел»: раз за вылет спецоружием +2 к атаке и урону, потом оно не работает
   const oc = stations.some(x => x.w) ? practicedOvercharge(actor) : null;
   const occ = t?.kind === "ship" ? Object.fromEntries((t.actor.system.systems ?? []).map((y, i) => [i, y.occ])) : null;
@@ -683,20 +745,22 @@ export function foxPanel(actor, t, tk) {
   // первые значения на кнопках сразу в разметке: окно не мигает пустыми табло
   const k0 = first?.fits.includes(kinds[0]) ? kinds[0] : first?.fits[0] ?? kinds[0];
   const p0 = prev[first?.id]?.[k0] ?? { fox: 0, imp: 0 };
-  const need0 = occ ? occ[defaultSys(t.actor)] : dc;
+  const gpbOcc = st => st?.w?.system.key === "GPB" ? 2 : 0;
+  const need0 = occ ? occ[defaultSys(t.actor)] - gpbOcc(first) : dc;
   const hit0 = need0 === null || need0 === undefined ? "" : p0.fox >= need0 ? "ok" : "bad";
   const station = st => `<label class="st ${st.empty ? "empty" : ""} ${st === first ? "aimed" : ""} ${st.fits.includes(k0) ? "" : "off"}" data-fits="${st.fits.join(" ")}" title="${esc(st.w?.name ?? "Стандартная ракета")} · урон ${st.dmg}${st.w ? ` · ${rangeLabel(st.w.system.reach)}` : ""}">
-      <input type="radio" name="weapon" value="${st.id}" ${st === first ? "checked" : ""} ${st.empty ? "disabled" : ""}><i class="st-led"></i><span class="st-name">${esc(st.code)}</span><span class="st-cnt">${st.empty ? "EMPTY" : esc(st.cnt)}</span><b class="st-key">DMG ${st.dmg}</b></label>`;
+      <input type="radio" name="weapon" value="${st.id}" ${st === first ? "checked" : ""} ${st.empty ? "disabled" : ""}><i class="st-led"></i><span class="st-name">${esc(st.code)}</span><span class="st-cnt">${st.empty ? "EMPTY" : esc(st.cnt)}</span>${st.trait ? `<small class="st-trait">${esc(st.trait.tag)}</small>` : ""}<b class="st-key">${st.dmg ? `DMG ${st.dmg}` : "ECM"}</b></label>`;
   const content = `
     <div class="tb-ck-tgt">
       <small>ЦЕЛЬ</small><b>${t ? esc(t.name) : "не выбрана"}</b>
-      ${t ? `<span class="tb-ck-def">${dc !== null ? `DEF ${dc}` : `OCC <b data-ck-occ>${need0 ?? "—"}</b>`}</span>` : `<span class="tb-ck-def muted">итог без сравнения</span>`}
+      ${t ? `<span class="tb-ck-def">${dc !== null ? `DEF <b data-ck-def>${dc}</b>` : `OCC <b data-ck-occ>${need0 ?? "—"}</b>`}</span>` : `<span class="tb-ck-def muted">итог без сравнения</span>`}
       ${t ? `<span class="tb-ck-lamp ${lockOk ? "ok" : "bad"}">${lockOk ? "LOCK" : "NO LOCK"}</span>` : ""}
     </div>
     ${tk ? `<input type="hidden" name="tkind" value="${tk}">` : `<div class="tb-ck-seg"><small>ВИД ЦЕЛИ</small>
       <label><input type="radio" name="tkind" value="air" checked><span>AIR · Aim</span></label>
       <label><input type="radio" name="tkind" value="ground"><span>GND · Deploy</span></label></div>`}
     <div class="tb-ck-stores"><small>STORES</small><div class="tb-ck-st">${stations.map(station).join("")}</div></div>
+    <div class="tb-ck-trait" data-ck-trait ${first?.trait ? "" : "hidden"}>${first?.trait ? `<b>${esc(first.trait.name)}.</b> ${esc(first.trait.text)}` : ""}</div>
     ${t?.kind === "ship" ? schematicHtml(t) : ""}
     <details class="tb-ck-more"><summary>Поправки</summary>
       <div class="form-group"><label>Модификатор</label><input type="number" name="mod" value="0"></div>
@@ -728,10 +792,16 @@ export function foxPanel(actor, t, tk) {
       if (ocBox) { ocBox.disabled = !val("weapon"); if (ocBox.disabled) ocBox.checked = false; }
       const mod = (Number(form.querySelector('[name="mod"]')?.value) || 0) + (ocBox?.checked ? 2 : 0);
       const fox = p.fox + mod, imp = p.imp + mod;
-      const need = occ ? occ[Number(val("sys"))] : dc;
+      const cur = stations.find(x => x.id === val("weapon"));
+      const need = occ ? occ[Number(val("sys"))] - gpbOcc(cur) : dcs[val("weapon")] ?? dc;
       const set = (sel, v) => { const n = form.querySelector(sel); if (n) n.textContent = v; };
       set("[data-ck-fox]", fox); set("[data-ck-imp]", sign(imp)); set("[data-ck-skill]", k === "air" ? "Aim" : "Deploy");
-      set("[data-ck-occ]", need ?? "—");
+      set("[data-ck-occ]", need ?? "—"); set("[data-ck-def]", need ?? "—");
+      // черта выбранной станции; EMRG и ESM — без броска «FOX 2», своё окно
+      const tr = form.querySelector("[data-ck-trait]");
+      if (tr) { tr.hidden = !cur?.trait; tr.innerHTML = cur?.trait ? `<b>${esc(cur.trait.name)}.</b> ${esc(cur.trait.text)}` : ""; }
+      const fb = form.querySelector('[data-pick="fox"]');
+      if (fb && !struck) fb.disabled = !!cur?.own;
       const lamp = form.querySelector("[data-ck-foxhit]");
       if (lamp) { lamp.className = `tb-ck-hit ${need === null || need === undefined ? "" : fox >= need ? "ok" : "bad"}`; lamp.title = need === null || need === undefined ? "" : fox >= need ? "Сейчас хватает до цели" : `Сейчас не хватает ${need - fox}`; }
       const sel = form.querySelector('[name="weapon"]:checked')?.closest(".st");
@@ -815,14 +885,18 @@ function gunPanel(actor, { list, pre, podItems, sys, pod = "" }) {
 }
 
 /** Fox Two!: ракета или спецоружие. Без броска: AA/AG + мод оружия − Speed. Improved: d10 + Aim/Deploy + мод − Speed. */
-export async function fireMissile(actor) {
+export async function fireMissile(actor, { weapon = null } = {}) {
   const s = actor.system;
+  // станция EMRG или ESM на HUD: сразу своё окно, без пульта Fox Two!
+  const direct = weapon ? actor.items.get(weapon) : null;
+  if (isOwnFire(direct)) return fireOwn(actor, direct);
   const t = currentTarget() ?? lockedTarget(actor);
   if (t && !canFireAt(actor, t.actor)) return ui.notifications.warn(`Fox Two!: «${t.name}» на вашей стороне.`);
   // цель известна: в списке только то, что бьёт по её виду, и вид цели не меняется
   const tk = t ? targetKind(t) : null;
   const opts = weaponOptions(actor, true, tk);
-  if (!opts.length) return ui.notifications.warn(tk
+  const own = sysOff(s, "sw") ? [] : actor.items.filter(i => i.type === "weapon" && isOwnFire(i));
+  if (!opts.length && !own.length) return ui.notifications.warn(tk
     ? `Fox Two!: у «${actor.name}» нечем бить по ${tk === "air" ? "воздушной" : "наземной или морской"} цели «${t.name}».`
     : "Ракет нет: система ракет сломана, а спецоружия не осталось.");
   const data = await foxPanel(actor, t, tk);
@@ -837,6 +911,7 @@ export async function fireMissile(actor) {
   const skill = air ? "aim" : "deploy";
   const w = data.weapon ? actor.items.get(data.weapon) : null;
   const ws = w?.system;
+  if (isOwnFire(w)) return fireOwn(actor, w, data);
   // противовоздушное спецоружие не бьёт по земле, ударное не бьёт по воздуху; стандартной ракеты у NPC без Air-Air / Air-Gnd нет
   if (w && !weaponFits(w, air ? "air" : "ground"))
     return ui.notifications.warn(`${w.name} бьёт только по ${ws.target === "air" ? "воздушным" : "наземным и морским"} целям.`);
@@ -851,13 +926,18 @@ export async function fireMissile(actor) {
   const nem = nemesisAttack(actor, t?.actor, { rolled: !!data.improved, skill });
   const ct = triggerAttack(actor, t?.actor, { rolled: !!data.improved, skill });
   const oc = data.overcharge && w ? practicedOvercharge(actor) : null;
+  const ugb = ws?.key === "UGB";
   if (t) {
-    const { problems } = reachProblems(actor, t, ws?.reach ?? TB.range.missile);
-    if (s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
+    // UGB без захвата: сброс по наземной или морской цели на своём участке, с Низкой или Средней
+    const { problems } = reachProblems(actor, t, ugb ? 0 : ws?.reach ?? TB.range.missile);
+    if (ugb && !["low", "med"].includes(altOf(tokenOf(actor), actor))) problems.unshift("UGB сбрасывают только с Низкой или Средней высоты.");
+    if (!ugb && s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
     if (aim) problems.push(...aim.problems);
     problems.push(...nem.problems, ...ct.problems);
     if (!(await confirmReach(problems, "Fox Two!"))) return;
   }
+  // залп: остальные захваченные цели, если основной захват тот же и их захват не сорван
+  const salvo = t && isSalvo(w) ? salvoTargets(actor, w, t) : null;
 
   const speed = s.speed ?? 0;
   const parts = [];
@@ -889,9 +969,19 @@ export async function fireMissile(actor) {
 
   const dmg = (w ? (parseInt(ws.dmg) || 0) : TB.missileDamage) + (oc ? 2 : 0) + ct.dmg;
   const notes = weatherNotes(wx).filter(n => !data.improved || !/A-A/.test(n));
-  if (w?.system.fx) notes.push(esc(w.system.fx));
-  const hv = w?.system.key === "HVAA";
-  const tBroken = t?.actor.system.broken === "ma";
+  // черта спецоружия вместо старого текста эффекта
+  if (ws?.trait) notes.push(`<b>${esc(ws.trait.name)}.</b> ${esc(ws.trait.text)}`);
+  else if (ws?.fx) notes.push(esc(ws.fx));
+  const close = ws?.key === "QAAM" && !!t && closeTo(actor, t);
+  if (close) notes.push(`QAAM в своей зоне: Break! «${esc(t.name)}» против неё не работает.`);
+  if (ws?.key === "GPB" && t?.kind === "ship") notes.push("GPB: Occlusion системы −2.");
+  if (salvo) {
+    if (salvo.list.length) notes.push(`Залп: ещё ${salvo.list.map(x => `${esc(x.name)} (${x.dc !== null ? `защита ${x.dc}` : x.sysName ? `Occlusion «${esc(x.sysName)}» ${x.occ}` : "корабль"})`).join(", ")}. Бросок один, каждая ракета против своей цели.`);
+    if (salvo.lost.length) notes.push(`Захват сорван, ракета не пошла: ${salvo.lost.map(esc).join(", ")}.`);
+  }
+  const hv = ws?.key === "HVAA";
+  // залп бьёт в конце раунда по всем целям сразу
+  const tBroken = !salvo?.list.length && sysOff(t?.actor.system, "ma");
   const key = combatKey();
   const atTurn = (hv || tBroken) && !!key;
   notes.push(atTurn ? `Ракета ударит в начале хода цели${tBroken ? " (у неё сломан MAWS)" : ""}: посчитается сама.`
@@ -899,7 +989,7 @@ export async function fireMissile(actor) {
     : key ? "Ракета долетит в конце раунда: залп посчитается сам, с защитой цели на тот момент."
       : "Ракета долетает в конце раунда. Каждая следующая ракета по той же цели: +1 к атаке самой точной или её урон в сумму.");
   if (t?.kind === "ship" && !aim) notes.push("Корабль: сравните итог с Occlusion выбранной системы.");
-  if (t && wallBonus(t.token, t.actor)) notes.push("Цель в туннеле: стены сбивают ракеты, защита +2.");
+  if (t && wallBonus(t.token, t.actor)) notes.push(ws?.key === "GPB" ? "Цель в туннеле, но GPB укрытие не мешает." : "Цель в туннеле: стены сбивают ракеты, защита +2.");
   const nemDef = t ? nemesisDefense(actor, t.actor) : 0;
   if (nemDef) notes.push(`«Опять ты!»: защита ${esc(t.name)} против Немезиды +${nemDef}.`);
   notes.push(...nem.notes.map(esc), ...ct.notes.map(esc));
@@ -912,7 +1002,8 @@ export async function fireMissile(actor) {
 
   const card = {
     type: "attack", attack: true, label: `Fox Two! ${w ? w.name : "стандартная ракета"}`, rolled: !!data.improved,
-    d10: dice.d10, d4: dice.d4, parts, strain: 0, ...shipDc(t, aim, t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) + nemDef + ctDef : null),
+    d10: dice.d10, d4: dice.d4, parts, strain: 0, ...shipDc(t, aim, defVs(actor, t, w), ws?.key === "GPB" ? 2 : 0),
+    wkey: ws?.key ?? "", close, salvo: salvo?.list.length ? salvo.list.map(({ uuid, name, dc, sys }) => ({ uuid, name, dc, sys })) : null,
     strainable: !!data.improved && canStrain(actor), forceHit: nem.forceHit || ct.forceHit,
     practiced: !!dice.practiced, followOf: dice.follow ?? "", dmg, delayed: atTurn || !(hv || tBroken), atTurn, combatKey: hv || tBroken ? (atTurn ? key : "") : key,
     targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes, maws: mawsOn(t), tkind: air ? "air" : "ground", bomb: ["UGB", "GPB"].includes(ws?.key),
@@ -922,6 +1013,128 @@ export async function fireMissile(actor) {
   await nem.take();
   await ct.take();
   return msg;
+}
+
+/**
+ * Цели залпа (4AAM, XLAA, XAGM) кроме основной: захваченные тем же Lock On, пока основной захват тот же.
+ * Захват каждой срывается отдельно: сбита, ушла со сцены или вне дальности оружия — ракета в неё не идёт.
+ * Возвращает { list: [{ uuid, name, dc, sys, sysName, occ }], lost: [имена] }.
+ */
+function salvoTargets(actor, w, t) {
+  const f = actor.getFlag?.(SYSTEM_ID, "salvo"), out = { list: [], lost: [] };
+  if (!f?.list?.length || f.list[0].uuid !== actor.system.lockUuid || !f.list.some(x => x.uuid === t.uuid)) return out;
+  const kind = targetKind(t), me = tokenOf(actor);
+  for (const e of f.list) {
+    if (e.uuid === t.uuid) continue;
+    const a = resolveActor(e.uuid), tok = tokenOf(a);
+    if (!a || !tok || a.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) { out.lost.push(e.name); continue; }
+    const d = describeTarget(a, e.name, tok), dist = zoneDistance(me, tok);
+    if (targetKind(d) !== kind || (dist !== null && dist > w.system.reach)) { out.lost.push(e.name); continue; }
+    if (d.kind === "ship") {
+      const i = defaultSys(a), y = a.system.systems?.[i];
+      out.list.push({ uuid: e.uuid, name: e.name, dc: null, sys: y ? i : undefined, sysName: y?.name ?? "", occ: y ? y.occ - weakOf(actor, a, i) : null });
+    } else out.list.push({ uuid: e.uuid, name: e.name, dc: defVs(actor, d, w) });
+  }
+  return out;
+}
+
+/** EMRG и ESM: своё окно вместо пуска ракетой. */
+async function fireOwn(actor, w, pre = {}) {
+  if (sysOff(actor.system, "sw")) return ui.notifications.warn(`Спецоружие ${offWhy(actor.system, "sw")}.`);
+  if (!weaponReady(w)) return ui.notifications.warn(`${w.name}: ${w.getFlag?.(SYSTEM_ID, "off") ? "не работает до конца вылета" : "боезапас кончился"}.`);
+  if (w.system.target === "util") { const { fireEsm } = await import("../special-weapons.mjs"); return fireEsm(actor, w); }
+  return fireRail(actor, w, pre);
+}
+
+const DIRS = [[-1, -1, "↖"], [0, -1, "↑"], [1, -1, "↗"], [-1, 0, "←"], null, [1, 0, "→"], [-1, 1, "↙"], [0, 1, "↓"], [1, 1, "↘"]];
+/** Итог EMRG против строки линии: по земле и морю Deploy вместо Aim. */
+const railTotal = (c, r) => c.total + (r.gnd ? c.depShift ?? 0 : 0);
+
+/**
+ * EMRG: без захвата. Линия от самолёта по прямой (сторона или диагональ) до края карты на своей высоте (Низкая — вместе с землёй),
+ * d10 + Aim (по земле и морю Deploy) − Speed. Все на линии, свои тоже, с защитой или Occlusion не выше броска сразу получают урон.
+ */
+async function fireRail(actor, w, pre = {}) {
+  const tok = tokenOf(actor);
+  if (!tok || !canvas?.ready) return ui.notifications.warn(`${w.name}: нужен самолёт на сцене с сеткой.`);
+  const SW = await import("../special-weapons.mjs");
+  const lines = SW.railLines(actor, tok);
+  if (!lines) return ui.notifications.warn(`${w.name}: на сцене без сетки линию не провести.`);
+  const s = actor.system, wx = weatherAt(actor), pr = !!practicedReady(actor), dmg = parseInt(w.system.dmg) || 12;
+  const alt = altOf(tok, actor), code = w.name.split(" · ")[0];
+  const dir = d => {
+    if (!d) return `<div class="tb-rail-me"><b>${esc(code)}</b><small>${esc(TB.altitudes[alt] ?? alt)}</small></div>`;
+    const ln = lines[`${d[0]},${d[1]}`];
+    return `<button type="button" class="tb-rail-dir" data-pick="${d[0]},${d[1]}" title="${esc(ln.units.map(u => u.name).join(", ") || "на линии никого")}"><b>${d[2]}</b><small>${ln.units.length ? `на линии ${ln.units.length}` : "пусто"}</small></button>`;
+  };
+  const content = `
+    <div class="tb-ck-tgt"><small>ЛИНИЯ</small><b>${esc(TB.altitudes[alt] ?? alt)}${alt === "low" ? " и земля" : ""}</b><span class="tb-ck-def">DMG ${dmg}</span></div>
+    <div class="tb-ck-trait"><b>${esc(w.system.trait?.name ?? "Линия")}.</b> ${esc(w.system.trait?.text ?? "")}</div>
+    <div class="tb-rail-grid">${DIRS.map(dir).join("")}</div>
+    <div class="tb-ck-seg">
+      ${pr ? `<label title="Раз за вылет: d10 = 10 и d4 = 4 без броска"><input type="checkbox" name="practiced" ${pre.practiced ? "checked" : ""}><span>МАСТЕРСТВО</span></label>` : ""}
+      ${wx.list.length ? `<label><input type="checkbox" name="storm" ${pre.storm ?? wx.comp2 ? "checked" : ""}><span>УРАГАН 1–2</span></label>` : ""}
+    </div>`;
+  const render = root => root.querySelectorAll(".tb-rail-dir").forEach(b => {
+    b.addEventListener("mouseenter", () => SW.showLine(lines[b.dataset.pick].cells));
+    b.addEventListener("mouseleave", () => SW.showLine(null));
+  });
+  const data = await cockpitDialog(`${code} · ${actor.token?.name ?? actor.name}`, content, { width: 420, render });
+  SW.showLine(null);
+  if (!data) return;
+  const ln = lines[data.pick];
+  if (!ln) return;
+  const air = ln.units.some(u => !u.gnd);
+  if (blocked(actor, air || !ln.units.length ? "aim" : "deploy")) return;
+  if (!data.practiced && !allowRoll(actor)) return;
+  const dice = await rollDice(actor, data.practiced);
+  if (!dice) return;
+  const aimP = skillParts(actor, "aim"), depP = skillParts(actor, "deploy");
+  const parts = [...aimP];
+  if (w.system.aim) parts.push([`мод ${w.name}`, w.system.aim]);
+  parts.push(...await takeNext(actor));
+  if (s.speed) parts.push(["Speed", -s.speed]);
+  if (pre.mod) parts.push(["мод.", pre.mod]);
+  if (!w.system.unlimited) await w.update({ "system.ammo.value": Math.max(0, (w.system.ammo.value ?? 0) - 1) });
+  const arrow = DIRS.find(d => d && `${d[0]},${d[1]}` === data.pick)?.[2] ?? "";
+  const card = {
+    type: "rail", attack: true, label: `${w.name}: линия ${arrow}`, rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: null,
+    strainable: canStrain(actor), practiced: !!dice.practiced, dmg, depShift: sum(depP) + (w.system.dep ?? 0) - sum(aimP) - (w.system.aim ?? 0),
+    line: ln.units.map(u => ({ uuid: u.uuid, name: u.name, vs: u.vs, gnd: u.gnd, ship: u.ship, sys: u.sys, sysName: u.sysName ?? "" })),
+    where: ln.where, notes: [`<b>${esc(w.system.trait?.name ?? "Линия")}.</b> Линия ${arrow} на высоте ${esc(TB.altitudes[alt] ?? alt)}${alt === "low" ? " и по земле" : ""}: ${esc(ln.where || "до края карты")}.`],
+    ...thresholds(actor, "aim", data.storm)
+  };
+  const msg = await postCard(actor, card, dice.rolls);
+  await railHit(msg);
+  return msg;
+}
+
+/** Строки линии EMRG на карточке: кто на линии, итог против его защиты. */
+function railRows(c) {
+  if (!c.line?.length) return [`<div class="tb-note">На линии никого нет.</div>`];
+  return c.line.map(r => {
+    const tot = railTotal(c, r), hit = tot >= r.vs;
+    return `<div class="tb-volley-row ${hit ? "hit" : "miss"}"><b>${esc(r.name)}</b>: ${r.gnd ? "Deploy" : "Aim"} ${tot} против ${r.ship ? `Occlusion «${esc(r.sysName)}»` : r.gnd ? "Occlusion" : "защиты"} ${r.vs} → ${hit ? `<b class="ok">${c.dmg} урона${r.applied ? ", нанесено" : ""}</b>` : `<b class="fail">мимо</b>`}</div>`;
+  });
+}
+
+/** EMRG бьёт сразу: урон по всем, кого итог достал (и после Strain или переброса — по новым). */
+async function railHit(message) {
+  const card = foundry.utils.deepClone(message?.getFlag(SYSTEM_ID, "card") ?? {});
+  if (card.type !== "rail") return;
+  const c = computeCard(card);
+  const due = (card.line ?? []).filter(r => !r.applied && railTotal(c, r) >= r.vs);
+  if (!due.length) return;
+  for (const r of due) r.applied = true;
+  if (message.canUserModify(game.user, "update")) await message.update({ content: renderCard(card), [`flags.${SYSTEM_ID}.card`]: card });
+  const key = combatKey();
+  for (const r of due) {
+    const target = resolveActor(r.uuid), by = target && damageUser(target);
+    if (!by) continue;
+    const hit = { uuid: r.uuid, name: r.name, dmg: card.dmg, source: card.actorName, sourceUuid: card.actorUuid, sys: r.sys, roundKey: key };
+    if (by === game.user.id) await hitTarget(hit, key).catch(err => damageFailed(hit, err));
+    else game.socket.emit(CHANNEL, { type: "hit", to: by, hit });
+  }
 }
 
 /** Guns, Guns, Guns!: d10 + Strafe − Speed против защиты, урон сразу. */
@@ -966,10 +1179,10 @@ export async function fireGuns(actor, { system: sysIndex, pod: podPref = "" } = 
   const s = actor.system;
   const prefItem = podPref ? actor.items.get(podPref) : null;
   if (prefItem && !weaponReady(prefItem)) return ui.notifications.warn(`${prefItem.name}: ${prefItem.getFlag(SYSTEM_ID, "off") ? "выведено из строя до конца вылета" : "боезапас кончился"}.`);
-  if (s.broken === "gu" && (!prefItem || prefItem.system.key === "MGP")) return ui.notifications.warn("Пушка сломана (метка Structure).");
+  if (sysOff(s, "gu") && (!prefItem || prefItem.system.key === "MGP")) return ui.notifications.warn(`Пушка ${offWhy(s, "gu")}.`);
   if (blocked(actor, "strafe")) return;
   // MGP не отдельная станция: он висит на пушке всегда (Gun DMG уже +3, в броске +1)
-  const podItems = s.broken === "sw" ? [] : actor.items.filter(i => i.type === "weapon" && isGunPod(i) && i.system.key !== "MGP" && weaponReady(i));
+  const podItems = sysOff(s, "sw") ? [] : actor.items.filter(i => i.type === "weapon" && isGunPod(i) && i.system.key !== "MGP" && weaponReady(i));
   // цель: противник в зоне досягаемости; если их несколько или есть что выбрать, выбор на пульте
   const sys = s.kind === "ship" && sysIndex !== undefined ? gunSys(actor, s.systems[sysIndex]) : null;
   const { list, why, reach } = gunTargets(actor, podItems, sys);
@@ -979,7 +1192,7 @@ export async function fireGuns(actor, { system: sysIndex, pod: podPref = "" } = 
   const data = await gunPanel(actor, { list, pre, podItems, sys, pod: podItems.some(w => w.id === podPref) ? podPref : "" });
   if (!data) return;
   const podItem = data.pod ? actor.items.get(data.pod) : null;
-  if (!podItem && s.broken === "gu") return ui.notifications.warn("Пушка сломана (метка Structure): стрелять можно только подвесным.");
+  if (!podItem && sysOff(s, "gu")) return ui.notifications.warn(`Пушка ${offWhy(s, "gu")}: стрелять можно только подвесным.`);
   const tIdx = list ? (list.length > 1 ? Number(data.target) || 0 : list.indexOf(pre)) : "p";
   const t = list ? (list.length > 1 ? list[tIdx] : pre) : pre;
   const aim = t?.kind === "ship" && data[`sys_${tIdx}`] !== undefined ? aimAt(actor, t, Number(data[`sys_${tIdx}`])) : null;
@@ -1107,7 +1320,7 @@ export async function fireSam(actor, sysIndex) {
     if (!(await confirmReach(problems, label))) return;
   }
   const parts = [[air ? "G-A" : "G-G", ga ?? 0]];
-  const key = combatKey(), tBroken = t?.actor.system.broken === "ma";
+  const key = combatKey(), tBroken = sysOff(t?.actor.system, "ma");
   const card = {
     type: "attack", attack: true, label, rolled: false, parts, strain: 0,
     // по кораблю и летающему супероружию — против Occlusion системы, а не защиты (у кораблей её нет)
@@ -1127,10 +1340,13 @@ function renderVolley(c) {
   const rows = c.targets.map(r => {
     if (r.ship) return `<div class="tb-volley-row"><b>${esc(r.name)}</b>: ${rk(r.count)}, лучшая ${r.best}. Корабль: сравните с Occlusion системы, урон кнопками на карточках пусков.</div>`;
     if (r.missing) return `<div class="tb-volley-row muted"><b>${esc(r.name)}</b>: цели нет на сцене.</div>`;
+    if (r.splash) return `<div class="tb-volley-row hit"><b>${esc(r.name)}</b>: рядом с целью UGB (${esc(r.source)}) → <b class="ok">${r.dmg} урона</b></div>`;
     const boost = r.boosts ? ` +${r.boosts} от остальных` : "";
-    const verdict = r.hit ? `<b class="ok">Попадание, ${r.dmg} урона</b>${r.added ? ` (сложен урон ${r.added + 1} ракет)` : ""}` : `<b class="fail">Промах</b>`;
+    const verdict = r.prox ? `<b class="ok">HPAA рвётся рядом, ${r.dmg} урона</b>`
+      : r.hit ? `<b class="ok">Попадание, ${r.dmg} урона</b>${r.added ? ` (сложен урон ${r.added + 1} ракет)` : ""}${r.doubled ? " (UGB на Perk: вдвое)" : ""}`
+      : `<b class="fail">Промах</b>${r.again ? `, SAAM держит захват: повторный заход в конце раунда ${r.again}` : ""}`;
     return `<div class="tb-volley-row ${r.hit ? "hit" : "miss"}"><b>${esc(r.name)}</b>: ${rk(r.count)} (${esc(r.shooters)}). Лучшая ${r.best}${boost} против ${r.occ ? "Occlusion" : "защиты"} ${r.defense}${r.broke ? " (с Break!)" : ""} → ${verdict}</div>`;
-  }).join("");
+  }).join("") + (c.lost ?? []).map(l => `<div class="tb-volley-row muted"><b>${esc(l.name)}</b>: SAAM (${esc(l.shooter)}) потеряна, ${esc(l.why)}.</div>`).join("");
   const hits = c.targets.filter(r => r.hit);
   const btn = hits.length && !c.applied
     ? `<div class="tb-actions"><button type="button" data-tb-action="volley-damage" class="tb-gm"><i class="fas fa-burst"></i> Нанести урон: ${hits.map(r => `${esc(r.name)} ${r.dmg}`).join(", ")}</button></div>` : "";
@@ -1142,8 +1358,11 @@ function renderVolley(c) {
 }
 
 /**
- * Конец раунда: все ракеты этого раунда долетают. По каждой цели берётся самая точная ракета,
- * остальные дают +1 к ней, пока не хватит до защиты, а лишние добавляют свой урон.
+ * Конец раунда: все ракеты этого раунда долетают. По каждой цели берётся самая точная ракета (у каждой своя защита цели:
+ * черты QAAM, HVAA, GPB), остальные дают +1 к ней, пока не хватит до защиты, а лишние добавляют свой урон.
+ * Залп (4AAM, XLAA, XAGM) — по ракете в каждую захваченную цель с одним итогом. SAAM без захвата потеряна, а промах
+ * при удержанном захвате заходит ещё раз в конце следующего раунда. HPAA рвётся рядом при промахе на 1–2. UGB на Perk —
+ * вдвое по цели или урон по соседним.
  * Ракеты по цели со сломанным MAWS (и HVAA) ждут начала её хода: target — её uuid, atTurnOf — имя.
  * all — все ракеты этого боя, что ещё в воздухе (бой завершается).
  */
@@ -1151,72 +1370,118 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
   const key = `${combat.id}:${round}`, prefix = `${combat.id}:`;
   const take = c => target ? c.atTurn && c.targetUuid === target && c.combatKey.startsWith(prefix)
     : all ? c.combatKey.startsWith(prefix) : c.combatKey === key && !c.atTurn;
-  const groups = new Map();
+  const groups = new Map(), lost = [], marks = new Map();
+  // правки карточек пусков: одним запросом в конце
+  const mark = (m, patch) => { const x = marks.get(m.id) ?? { m, patch: {} }; Object.assign(x.patch, patch); marks.set(m.id, x); };
   for (const m of game.messages.contents) {
     const c = m.getFlag(SYSTEM_ID, "card");
     if (!c?.delayed || !c.combatKey || c.dmgApplied || c.resolved || !c.targetUuid || !take(c)) continue;
-    // по кораблю ракеты собираются по системам: каждая система — своя цель залпа
-    const g = Number.isInteger(c.sys) ? `${c.targetUuid}#${c.sys}` : c.targetUuid;
-    if (!groups.has(g)) groups.set(g, []);
-    groups.get(g).push({ m, c: computeCard(c) });
+    // SAAM летит по захвату стрелка: захват сорван до удара — ракета потеряна
+    const why = c.wkey === "SAAM" ? saamLost(c, m) : "";
+    if (why) { lost.push({ name: c.targetName, shooter: c.actorName, why }); mark(m, { resolved: true, lost: why }); continue; }
+    const cc = computeCard(c);
+    // по кораблю ракеты собираются по системам: каждая система — своя цель залпа; залп — ракета в каждую захваченную цель
+    for (const t of [{ uuid: c.targetUuid, name: c.targetName, sys: c.sys, primary: true }, ...(c.salvo ?? [])]) {
+      const g = Number.isInteger(t.sys) ? `${t.uuid}#${t.sys}` : t.uuid;
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push({ m, primary: !!t.primary, c: { ...cc, targetUuid: t.uuid, targetName: t.name, sys: t.sys } });
+    }
   }
-  if (!groups.size) return null;
+  if (!groups.size && !lost.length) return null;
   const targets = [];
-  const done = [], shipOpen = new Set();
   for (const [, list] of groups) {
-    list.sort((a, b) => b.c.total - a.c.total);
-    const best = list[0].c;
-    const uuid = best.targetUuid, sys = Number.isInteger(best.sys) ? best.sys : undefined;
+    const first = list[0].c;
+    const uuid = first.targetUuid, sys = Number.isInteger(first.sys) ? first.sys : undefined;
     const shooters = [...new Set(list.map(x => x.c.actorName))].join(", ");
     const actor = resolveActor(uuid);
-    if (!actor) { targets.push({ uuid, name: best.targetName, missing: true }); continue; }
-    const info = describeTarget(actor, best.targetName);
+    if (!actor) { targets.push({ uuid, name: first.targetName, missing: true }); for (const x of list) mark(x.m, { resolved: true }); continue; }
+    const info = describeTarget(actor, first.targetName);
     const y = sys !== undefined ? actor.system.systems?.[sys] : null;
     // корабль без выбранной системы: урон ведущий наносит кнопкой на карточке пуска (она остаётся и после залпа)
     if (info.kind === "ship" && !y) {
-      targets.push({ uuid, name: info.name, ship: true, count: list.length, best: best.total });
-      for (const x of list) shipOpen.add(x.m.id);
-      done.push(...list);
+      targets.push({ uuid, name: info.name, ship: true, count: list.length, best: Math.max(...list.map(x => x.c.total)) });
+      for (const x of list) mark(x.m, x.primary ? { resolved: true, shipOpen: true } : { resolved: true });
       continue;
     }
-    const extra = list.slice(1).map(x => x.c).sort((a, b) => (b.dmg ?? 0) - (a.dmg ?? 0));
-    // корабль: против Occlusion системы на момент залпа; в туннеле стены сбивают ракеты
-    const shooter = resolveActor(best.actorUuid);
-    if (y) { info.defense = y.occ - weakOf(shooter, actor, sys); info.name = `${info.name}: ${y.name}`; }
-    else info.defense += wallBonus(info.token, actor) + nemesisDefense(shooter, actor) + triggerDefense(shooter, actor);
-    const need = Math.max(0, info.defense - best.total);
+    // защита на момент залпа у каждой ракеты своя; корабль — Occlusion системы; в туннеле стены сбивают ракеты
+    for (const x of list) {
+      const sh = resolveActor(x.c.actorUuid);
+      x.def = y ? y.occ - weakOf(sh, actor, sys) - (x.c.wkey === "GPB" ? 2 : 0)
+        : missileDef(sh, actor, { token: info.token, weather: info.weather, wkey: x.c.wkey, close: x.c.close });
+      x.margin = x.c.total - x.def;
+    }
+    list.sort((p, q) => q.margin - p.margin);
+    const best = list[0];
+    if (y) info.name = `${info.name}: ${y.name}`;
+    const extra = list.slice(1).sort((p, q) => (q.c.dmg ?? 0) - (p.c.dmg ?? 0));
+    const need = Math.max(0, -best.margin);
     // «Хватит болтать»: ракета, пущенная посреди монолога, попадает всегда
-    const hit = need <= extra.length || list.some(x => x.c.forceHit);
-    const adders = hit ? extra.slice(0, extra.length - need) : [];
+    let hit = need <= extra.length || list.some(x => x.c.forceHit);
+    const used = hit ? [best, ...extra.slice(0, extra.length - need)] : [];
+    let dmg = used.reduce((n, x) => n + (x.c.dmg ?? 0) * (x.c.ugbPerk === "double" ? 2 : 1), 0);
+    // HPAA: промах на 1–2 — рвётся рядом
+    const prox = hit ? null : list.find(x => x.c.wkey === "HPAA" && x.margin >= -2);
+    if (prox) { hit = true; dmg = PROX_DMG; }
     const ev = actor.system.evasion ?? actor.system.stats?.ev ?? 0;
+    // SAAM: промах при удержанном захвате — один повторный заход в конце следующего раунда, боезапас не тратится
+    const again = !hit && !all ? list.filter(x => x.c.wkey === "SAAM" && !x.c.reattack && x.primary) : [];
+    for (const x of list) mark(x.m, again.includes(x) ? { combatKey: `${combat.id}:${round + 1}`, atTurn: false, reattack: true } : { resolved: true });
     targets.push({
-      uuid, name: info.name, count: list.length, shooters, best: best.total, defense: info.defense, hit, sys, occ: !!y,
-      broke: !y && (actor.system.breakEv ?? -Infinity) > ev,
-      boosts: hit ? need : 0, added: adders.length, dmg: (best.dmg ?? 0) + adders.reduce((s, x) => s + (x.dmg ?? 0), 0),
-      sourceUuid: best.actorUuid, source: best.actorName, shooterUuids: [...new Set(list.map(x => x.c.actorUuid))],
+      uuid, name: info.name, count: list.length, shooters, best: best.c.total, defense: best.def, hit, sys, occ: !!y, prox: !!prox,
+      broke: !y && (actor.system.breakEv ?? -Infinity) > ev && !(best.c.wkey === "QAAM" && best.c.close),
+      boosts: hit && !prox ? need : 0, added: Math.max(0, used.length - 1), dmg, again: again.length ? round + 1 : 0,
+      doubled: used.some(x => x.c.ugbPerk === "double"),
+      sourceUuid: best.c.actorUuid, source: best.c.actorName, shooterUuids: [...new Set(list.map(x => x.c.actorUuid))],
       bomb: list.some(x => x.c.bomb),
       // урон наносит клиент владельца-игрока (у него откроется выбор метки), иначе ведущий
       by: damageUser(actor) ?? game.user.id
     });
-    done.push(...list);
+    // UGB на Perk «по соседним»: обычный урон всем целям рядом с основной
+    for (const x of used.filter(u => u.c.ugbPerk === "splash")) targets.push(...ugbSplash(x.c, actor, info.token));
   }
-  // карточки пусков отмечаются одним запросом
-  const marked = done.map(({ m }) => {
-    const c = foundry.utils.deepClone(m.getFlag(SYSTEM_ID, "card"));
-    c.resolved = true;
-    if (shipOpen.has(m.id)) c.shipOpen = true;
+  const marked = [...marks.values()].map(({ m, patch }) => {
+    const c = Object.assign(foundry.utils.deepClone(m.getFlag(SYSTEM_ID, "card")), patch);
     return { _id: m.id, content: renderCard(c), [`flags.${SYSTEM_ID}.card`]: c };
   });
   if (marked.length) await ChatMessage.updateDocuments(marked);
   // урон по попавшим наносится сам: ракета уже посчитана с защитой цели на этот момент (Break!, Speed, погода)
   const auto = targets.some(r => r.hit);
-  const card = { type: "volley", round, roundKey: key, atTurnOf, targets, applied: auto, auto };
+  const card = { type: "volley", round, roundKey: key, atTurnOf, targets, lost, applied: auto, auto };
   const msg = await ChatMessage.create({ speaker: { alias: "AWACS" }, content: renderVolley(card), flags: { [SYSTEM_ID]: { card } } });
   // сбитые залпом сбиты в раунде залпа, хотя он считается уже на смене раунда (для Тревоги от уничтоженной РЛС)
   markVolley(round);
   try { for (const r of targets.filter(x => x.hit && x.by === game.user.id)) await hitTarget(r, key); }
   finally { markVolley(null); }
   return msg;
+}
+
+/** SAAM: почему ракета потеряна (захват сорван до удара) или "" — захват держится. */
+function saamLost(c, m) {
+  const sh = resolveActor(c.actorUuid);
+  if (!sh || sh.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) return "стрелок сбит";
+  if (sh.system.lockUuid !== c.targetUuid) return "захват переведён или снят";
+  const d = zoneDistance(tokenOf(sh), tokenOf(resolveActor(c.targetUuid)));
+  if (d !== null && d > TB.range.lockHold) return `цель ушла на ${d} зон`;
+  const broke = game.messages.contents.some(x => (x.timestamp ?? 0) > (m.timestamp ?? 0) && x.getFlag(SYSTEM_ID, "card")?.type === "break" && x.getFlag(SYSTEM_ID, "card")?.actorUuid === c.actorUuid);
+  return broke ? "стрелок сделал Break!" : "";
+}
+
+/** UGB на Perk «по соседним»: противники на земле и воде в своей и соседних клетках основной цели получают обычный урон бомбы. */
+function ugbSplash(c, main, mainTok) {
+  if (!mainTok || !canvas?.ready) return [];
+  const shooter = resolveActor(c.actorUuid);
+  const out = [];
+  for (const tok of canvas.tokens.placeables) {
+    const a = tok.actor;
+    if (!a || a === main || !["pilot", "npc"].includes(a.type) || isFlying(a) || a.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) continue;
+    if (shooter && !canFireAt(shooter, a)) continue;
+    const d = zoneDistance(mainTok, tok);
+    if (d === null || d > 1) continue;
+    const sys = a.system.kind === "ship" ? defaultSys(a) : undefined;
+    out.push({ uuid: a.uuid, name: tok.name, hit: true, splash: true, dmg: c.dmg ?? 0, sys: sys >= 0 ? sys : undefined,
+      source: c.actorName, sourceUuid: c.actorUuid, bomb: true, by: damageUser(a) ?? game.user.id });
+  }
+  return out;
 }
 
 /** Нанести урон попадания (залп или пушка); пилоту — сигнал. */
@@ -1261,6 +1526,7 @@ export async function onCardAction(message, action, button) {
       await save();
       if (card.type === "break") await applyBreak(actor, card);
       if (card.instant) await autoHit(message);
+      if (card.type === "rail") await railHit(message);
       return;
     }
     case "break-speed": {
@@ -1366,7 +1632,12 @@ export async function onCardAction(message, action, button) {
       const c = computeCard(card);
       card.dmgApplied = true;
       await save();
-      return target.applyDamage(c.dmg ?? card.dmg, { source: card.actorName, sourceUuid: card.actorUuid, system: card.sys });
+      return target.applyDamage(hitDmg(c), { source: card.actorName, sourceUuid: card.actorUuid, system: card.sys });
+    }
+    case "ugb-perk": {
+      if (!actor?.isOwner || card.ugbPerk || card.resolved) return;
+      card.ugbPerk = button?.dataset.perk === "splash" ? "splash" : "double";
+      return save();
     }
     case "perk-next":
     case "comp-next": {
@@ -1388,6 +1659,7 @@ export async function onCardAction(message, action, button) {
       await save();
       if (card.type === "break") await applyBreak(actor, card);
       if (card.instant) await autoHit(message);
+      if (card.type === "rail") await railHit(message);
       return;
     }
     case "battle-results": {
@@ -1401,7 +1673,7 @@ export async function onCardAction(message, action, button) {
       await save();
       for (const r of card.targets.filter(x => x.hit)) {
         const target = resolveActor(r.uuid);
-        if (target) await target.applyDamage(r.dmg, { source: r.source, sourceUuid: r.sourceUuid, roundKey: card.roundKey });
+        if (target) await target.applyDamage(r.dmg, { source: r.source, sourceUuid: r.sourceUuid, roundKey: card.roundKey, system: r.sys });
       }
       return;
     }

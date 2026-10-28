@@ -2,7 +2,7 @@
    Одна широкая низкая строка: HP, Strain, защита, захват и системы; спидометр; альтиметр; силуэт машины с пилонами;
    кнопки оружия, манёвров и конца хода. Видна в бою, когда самолёт игрока стоит на сцене;
    у ведущего показывает выделенный токен. Сворачивается щелчком по шапке, выключается в настройках клиента. */
-import { SYSTEM_ID, TB } from "./config.mjs";
+import { SYSTEM_ID, TB, sysOff } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
 import { tokenOf, weatherAt, defenseWithWeather, altOf, zoneDistance, isFlying, ceilingOf, flyingBoss, hasRule, ALT_ORDER } from "./scene.mjs";
 import { aimedWeapon, toggleAim, hlSwitch, setHlMode } from "./range.mjs";
@@ -11,7 +11,7 @@ import { combatantOf, spentOf, declaredOf, endTurn } from "./actions.mjs";
 import { runAction, PILOT_BAR } from "./macros.mjs";
 import { lockersOf } from "./rwr.mjs";
 import { vmaxOf, kmhOf } from "./plane-speed.mjs";
-import { ejectNow, weaponReady, isGunPod } from "./dice/rolls.mjs";
+import { ejectNow, weaponReady, isGunPod, isOwnFire } from "./dice/rolls.mjs";
 import { unitKind, unitHtml, onUnitClick, registerUnitHud } from "./unit-hud.mjs";
 import { hudTriggers, useCombatTrigger } from "./combat-triggers.mjs";
 import { adviceRow, runAdvice, showTarget } from "./npc-advice.mjs";
@@ -104,7 +104,7 @@ export function hudData(actor) {
   const aim = aimedWeapon(actor)?.id ?? null;
   const weapons = actor.items.filter(i => i.type === "weapon").map(i => {
     const a = i.system.ammo, max = a.max === null ? null : a.max + (s.ammoBonus?.[i.id] ?? 0);
-    return { id: i.id, name: i.name, ammo: max === null ? "∞" : `${a.value}/${max}`, empty: !weaponReady(i), aimed: i.id === aim };
+    return { id: i.id, name: i.name, ammo: max === null ? "∞" : `${a.value}/${max}`, empty: !weaponReady(i), aimed: i.id === aim, trait: i.system.trait ?? null };
   });
   // альтиметр: доступные ступени (потолок машины, у боссов свои), остальные тусклые
   const ceil = ceilingOf(actor);
@@ -112,7 +112,7 @@ export function hudData(actor) {
   const kmh = kmhOf(actor, s.speed, maxSpeed);
   // повреждения: Structure ломает систему, Grit отключает навык, Doom — машина обречена
   const m = s.markers ?? {};
-  const systems = Object.entries(TB.systems).map(([k, v]) => ({ key: k, label: v.label, hint: v.hint, broken: s.broken === k }));
+  const systems = Object.entries(TB.systems).map(([k, v]) => ({ key: k, label: v.label, hint: v.hint, broken: sysOff(s, k), jam: s.jam === k && s.broken !== k }));
   const grit = m.grit ? (TB.skills[m.gritSkill]?.label ?? m.gritSkill ?? "навык не выбран") : "";
   return {
     name: (pilot && s.callsign) || tok?.name || actor.name, plane: pilot ? s.plane?.name ?? "без самолёта" : TB.npcKinds?.[s.kind] ?? "",
@@ -182,35 +182,35 @@ const at = ([x, y]) => `left:${x}%;top:${y}%`;
 /** Схема машины сверху: силуэт самого токена, на нём пушка, ракеты и пилоны спецоружия (нажимаются) и отметки сломанной системы.
     Картинка обычным <img>: относительный путь в CSS-переменной браузер разрешает от файла стилей, и маска не грузилась. */
 function fighter(d) {
-  const broken = d.systems.find(x => x.broken)?.key;
+  const off = k => d.systems.some(x => x.key === k && x.broken);
   const spw = d.weapons.slice(0, 2);
   const point = (cls, spots, attrs, title, label = "") => spots.map(p => `<a class="tb-hud-pt ${cls}" style="${at(p)}" ${attrs} title="${esc(title)}">${label}</a>`).join("");
   return `<div class="tb-hud-sil">
       ${d.img ? `<img src="${esc(d.img)}" alt="" draggable="false">` : ""}
-      ${point(`gun ${broken === "gu" ? "dead" : ""}`, SPOTS.gu, `data-hud-act="guns"`, "Guns, Guns, Guns!")}
-      ${point(`msl ${d.aimed ? "" : "aimed"} ${broken === "ms" ? "dead" : ""}`, SPOTS.ms, `data-hud-act="missile"`, "Fox Two! стандартной ракетой")}
-      ${spw[0] ? point(`spw ${spw[0].aimed ? "aimed" : ""} ${spw[0].empty ? "empty" : ""} ${broken === "sw" ? "dead" : ""}`, SPOTS.sw, `data-hud-spw="${spw[0].id}"`, `${spw[0].name} ${spw[0].ammo}: выбрать и пустить`) : ""}
-      ${spw[1] ? point(`spw bomb ${spw[1].aimed ? "aimed" : ""} ${spw[1].empty ? "empty" : ""} ${broken === "sw" ? "dead" : ""}`, SPOTS.sw2, `data-hud-spw="${spw[1].id}"`, `${spw[1].name} ${spw[1].ammo}: выбрать и пустить`) : ""}
-      ${broken && ["en", "fl", "ma"].includes(broken) ? point("hit", SPOTS[broken], "", `Сломано: ${TB.systems[broken].label} (${TB.systems[broken].hint})`, "✕") : ""}
+      ${point(`gun ${off("gu") ? "dead" : ""}`, SPOTS.gu, `data-hud-act="guns"`, "Guns, Guns, Guns!")}
+      ${point(`msl ${d.aimed ? "" : "aimed"} ${off("ms") ? "dead" : ""}`, SPOTS.ms, `data-hud-act="missile"`, "Fox Two! стандартной ракетой")}
+      ${spw[0] ? point(`spw ${spw[0].aimed ? "aimed" : ""} ${spw[0].empty ? "empty" : ""} ${off("sw") ? "dead" : ""}`, SPOTS.sw, `data-hud-spw="${spw[0].id}"`, `${spw[0].name} ${spw[0].ammo}: выбрать и пустить`) : ""}
+      ${spw[1] ? point(`spw bomb ${spw[1].aimed ? "aimed" : ""} ${spw[1].empty ? "empty" : ""} ${off("sw") ? "dead" : ""}`, SPOTS.sw2, `data-hud-spw="${spw[1].id}"`, `${spw[1].name} ${spw[1].ammo}: выбрать и пустить`) : ""}
+      ${["en", "fl", "ma"].filter(off).map(k => point("hit", SPOTS[k], "", `${d.systems.find(x => x.key === k).jam ? "Заглушено РЭБ" : "Сломано"}: ${TB.systems[k].label} (${TB.systems[k].hint})`, "✕")).join("")}
     </div>`;
 }
 
 /** Пульт вооружения: станция на каждое оружие — лампа готовности, трафаретное имя, табло остатка, номер на панели макросов.
     Лампа зелёная — готово, жёлтая — выбрано прицелом, красная — система сломана, тёмная — пусто. Нажатие — пуск, как раньше. */
 function weaponButtons(d) {
-  const broken = d.systems.find(x => x.broken)?.key;
   const n = act => PILOT_BAR.indexOf(act) + 1;
   const pad = v => /^\d+$/.test(v) ? v.padStart(2, "0") : v;
-  const station = ({ attrs, cls, code, cnt, key, title }) =>
-    `<button type="button" ${attrs} class="wpn st ${cls}" title="${esc(title)}"><i class="st-led"></i><span class="st-name">${esc(code)}</span><span class="st-cnt">${esc(cnt)}</span>${key ? `<b class="st-key">${key}</b>` : ""}</button>`;
-  const dead = sys => broken === sys;
+  const station = ({ attrs, cls, code, cnt, key, title, tag }) =>
+    `<button type="button" ${attrs} class="wpn st ${cls}" title="${esc(title)}"><i class="st-led"></i><span class="st-name">${esc(code)}</span><span class="st-cnt">${esc(cnt)}</span>${tag ? `<small class="st-trait">${esc(tag)}</small>` : ""}${key ? `<b class="st-key">${key}</b>` : ""}</button>`;
+  const dead = sys => d.systems.some(x => x.key === sys && x.broken);
   return [
     station({ attrs: `data-hud-act="guns"`, cls: dead("gu") ? "dead" : "", code: "GUN", cnt: dead("gu") ? "FAIL" : "RDY", key: n("guns"), title: "Guns, Guns, Guns!" }),
     station({ attrs: `data-hud-act="missile"`, cls: `${d.aimed ? "" : "aimed"} ${dead("ms") ? "dead" : ""}`, code: "FOX 2", cnt: dead("ms") ? "FAIL" : "RDY", key: n("missile"), title: "Fox Two! стандартной ракетой" }),
     ...d.weapons.map(w => {
       const [ammo] = String(w.ammo).split("/");
       return station({ attrs: `data-hud-spw="${w.id}"`, cls: `spw ${w.aimed ? "aimed" : ""} ${w.empty ? "empty" : ""} ${dead("sw") ? "dead" : ""}`,
-        code: w.name.split(" · ")[0], cnt: dead("sw") ? "FAIL" : pad(ammo), title: `${w.name} ${w.ammo}: выбрать и пустить` });
+        code: w.name.split(" · ")[0], cnt: dead("sw") ? "FAIL" : pad(ammo), tag: w.trait?.tag,
+        title: `${w.name} ${w.ammo}: выбрать и пустить${w.trait ? `\n${w.trait.name}. ${w.trait.text}` : ""}` });
     })
   ].join("");
 }
@@ -218,7 +218,7 @@ function weaponButtons(d) {
 /** Системы машины: целые зелёным, сломанная (Structure) красным с подсказкой, что она отключает. */
 function systemsStrip(d) {
   const SHORT = { en: "ДВГ", fl: "ЗКР", ma: "MAWS", ms: "РКТ", sw: "СПО", gu: "ПШК" };
-  return `<div class="tb-hud-sys">${d.systems.map(x => `<span class="${x.broken ? "dead" : ""}" title="${esc(x.label)}: ${x.broken ? `сломано, ${esc(x.hint)}` : "в порядке"}">${SHORT[x.key] ?? x.key}</span>`).join("")}</div>`;
+  return `<div class="tb-hud-sys">${d.systems.map(x => `<span class="${x.broken ? "dead" : ""}${x.jam ? " jam" : ""}" title="${esc(x.label)}: ${x.jam ? `заглушено РЭБ противника, ${esc(x.hint)}` : x.broken ? `сломано, ${esc(x.hint)}` : "в порядке"}">${SHORT[x.key] ?? x.key}</span>`).join("")}</div>`;
 }
 
 /** Ручка катапульты: в полосе DOOM, её не спрятать ни размером панели, ни прокруткой. */
@@ -428,6 +428,8 @@ async function onClick(ev) {
   // НУР и пушечные контейнеры стреляют как пушка: без захвата, сразу пульт Guns с этой станцией
   const spw = d.hudSpw ? actor.items.get(d.hudSpw) : null;
   if (spw && isGunPod(spw)) return runAction(actor, "guns", { pod: spw.id });
+  // EMRG и ESM без захвата: сразу своё окно (линия, система)
+  if (spw && isOwnFire(spw)) return runAction(actor, "missile", { weapon: spw.id });
   // ракеты: стандартная снимает прицел со спецоружия, пилон спецоружия наводит его и сразу открывает пуск
   if (d.hudSpw || d.hudAct === "missile") {
     const aim = aimedWeapon(actor)?.id ?? null, want = d.hudSpw ?? null;

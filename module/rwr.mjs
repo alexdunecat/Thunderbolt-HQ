@@ -25,18 +25,25 @@ function refreshAll() {
   // один проход: кто кого держит и «Общая частота» — один раз на всю сцену, а не на каждый токен
   const by = new Map();
   for (const t of canvas.tokens.placeables) {
-    const u = t.actor?.system?.lockUuid;
-    if (u) { if (!by.has(u)) by.set(u, []); by.get(u).push(t); }
+    for (const u of locksOf(t.actor)) { if (!by.has(u)) by.set(u, []); by.get(u).push(t); }
   }
   const ctx = { by, freq: !game.user.isGM && sharedFreq() };
   for (const t of canvas.tokens.placeables) drawBadge(t, ctx);
+}
+
+/** Кого держит на захвате машина: основная цель и цели залпа (4AAM, XLAA, XAGM), пока основной захват тот же. */
+export function locksOf(actor) {
+  const u = actor?.system?.lockUuid;
+  if (!u) return [];
+  const salvo = actor.getFlag?.(SYSTEM_ID, "salvo");
+  return salvo?.list?.[0]?.uuid === u ? salvo.list.map(x => x.uuid) : [u];
 }
 
 /** Токены, которые держат этот токен на захвате. */
 export function lockersOf(token) {
   const uuid = token.actor?.uuid;
   if (!uuid) return [];
-  return canvas.tokens.placeables.filter(t => t !== token && t.actor?.system?.lockUuid === uuid);
+  return canvas.tokens.placeables.filter(t => t !== token && locksOf(t.actor).includes(uuid));
 }
 
 function drawBadge(token, ctx = null) {
@@ -80,9 +87,10 @@ function alertOwner(message) {
   if (game.user.isGM) return;
   const rwr = message.getFlag(SYSTEM_ID, "rwr");
   const card = message.getFlag(SYSTEM_ID, "card");
-  const uuid = rwr?.target ?? (card?.maws ? card.targetUuid : null);
-  const target = uuid ? resolveActor(uuid) : null;
-  if (!target?.isOwner) return;
+  // залп: сигнал владельцу каждой цели
+  const uuids = rwr ? [rwr.target, ...(rwr.also ?? [])] : card?.maws ? [card.targetUuid, ...(card.salvo ?? []).map(x => x.uuid)] : [];
+  const target = uuids.map(u => u ? resolveActor(u) : null).find(a => a?.isOwner) ?? null;
+  if (!target) return;
   let radio = true;
   try { radio = game.settings.get(SYSTEM_ID, "radioSubtitles"); } catch {}
   if (!radio) {

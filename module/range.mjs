@@ -134,30 +134,16 @@ function shape(token, weapon, block, bounds) {
 
   const s = weapon.system;
   if (s.target === "line") {
-    // рельсовая пушка: линия от самолёта через цель до края карты; без цели — восемь направлений
-    const target = game.user.targets.first() ?? lockedToken(token.actor);
-    const from = token.center;
-    const dirs = target && target !== token ? [[target.center.x - from.x, target.center.y - from.y]]
-      : [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
-    const len = Math.hypot(canvas.dimensions.width, canvas.dimensions.height);
-    for (const [dx, dy] of dirs) {
-      const n = Math.hypot(dx, dy) || 1, step = canvas.grid.size / 6;
-      for (let t = 0; t <= len; t += step) {
-        const o = canvas.grid.getOffset({ x: from.x + dx / n * t, y: from.y + dy / n * t });
-        put(o.i, o.j, target ? WEAPON : FAR);
-      }
-    }
+    // EMRG: линия от самолёта по стороне или диагонали до края карты — восемь направлений, своя клетка не в счёт
+    const o = canvas.grid.getOffset(token.center);
+    for (const [di, dj] of [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]])
+      for (let i = o.i + di, j = o.j + dj; i >= 0 && j >= 0 && i <= bounds.i && j <= bounds.j; i += di, j += dj) put(i, j, FAR);
     return cells;
   }
   const reach = s.reach;
   if (reach >= TB.range.operation) { all(WEAPON); return cells; }
   rings(Math.min(reach, 8), () => WEAPON);
   return cells;
-}
-
-function lockedToken(actor) {
-  const uuid = actor?.system?.lockUuid;
-  return uuid ? canvas.tokens.placeables.find(t => t.actor?.uuid === uuid) ?? null : null;
 }
 
 const MOVE = [null, { color: 0x6cc4ff, alpha: 0.18, border: 0x6cc4ff }, { color: 0x6cc4ff, alpha: 0.11, border: 0x4f8fb8 }, { color: 0x6cc4ff, alpha: 0.06, border: 0x3d6e8c }];

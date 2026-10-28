@@ -209,18 +209,21 @@ export class PilotData extends foundry.abstract.TypeDataModel {
     // «Обходная цепь»: сломанная система снова работает, метка остаётся
     const bypass = actor.getFlag?.(SYSTEM_ID, "ctBypass");
     const broken = this.markers.structure && bypass !== this.markers.sys ? this.markers.sys : "";
+    // РЭБ противника (ESM): система заглушена, пока машина в зоне глушения (флаг ставит и снимает ведущий)
+    this.jam = actor.getFlag?.(SYSTEM_ID, "esm")?.sys ?? "";
+    this.off = new Set([broken, this.jam].filter(Boolean));
     // разреженный воздух стратосферы: Max Speed +1, Evasion −1
     const thin = this.alt === "strat" ? 1 : 0;
-    this.maxSpeed = Math.max(1, ps.spd + sum("maxSpeed") - (broken === "en" ? 1 : 0) + thin);
+    this.maxSpeed = Math.max(1, ps.spd + sum("maxSpeed") - (this.off.has("en") ? 1 : 0) + thin);
     this.hp.max = Math.max(1, ps.hp + sum("hpMax"));
-    this.strain.max = broken === "fl" ? 0 : Math.max(0, (ps.str ?? 0) + sum("strainMax"));
+    this.strain.max = this.off.has("fl") ? 0 : Math.max(0, (ps.str ?? 0) + sum("strainMax"));
     let ev = ps.ev + sum("evasion") - thin;
     if (propKeys.has("swing") && this.speed >= this.maxSpeed) ev += 1;
     if (propKeys.has("terrain") && this.alt === "low") ev += 1;
     this.evasion = ev;
     this.defense = airDefense(this, ev);
     // Machine Gun Pod висит постоянно: Gun DMG +3 (и +1 Strafe в броске Guns), пока спецоружие не сломано Structure
-    const mgp = broken === "sw" ? null : actor.items.find(i => i.type === "weapon" && i.system.key === "MGP" && i.system.ready);
+    const mgp = this.off.has("sw") ? null : actor.items.find(i => i.type === "weapon" && i.system.key === "MGP" && i.system.ready);
     this.mgp = mgp?.id ?? "";
     this.aa = ps.aa + sum("aa"); this.ag = ps.ag + sum("ag"); this.gun = ps.gun + sum("gun") + (mgp ? 3 : 0); this.hardpoints = ps.hard + sum("hardpoints");
     this.planeProps = propKeys;
@@ -265,6 +268,8 @@ export class NpcData extends foundry.abstract.TypeDataModel {
     this.skillBlocked = Object.fromEntries(SKILL_KEYS.map(k => [k, this.markers.grit && this.markers.gritSkill === k]));
     this.markerCount = ["grit", "structure", "doom"].filter(k => this.markers[k]).length;
     this.broken = this.markers.structure ? this.markers.sys : "";
+    this.jam = this.parent?.getFlag?.(SYSTEM_ID, "esm")?.sys ?? "";
+    this.off = new Set([this.broken, this.jam].filter(Boolean));
     if (this.kind === "ship") {
       this.hp.max = this.systems.reduce((s, y) => s + y.hp, 0);
       this.hp.value = this.systems.reduce((s, y) => s + Math.max(0, y.value), 0);
@@ -276,7 +281,7 @@ export class NpcData extends foundry.abstract.TypeDataModel {
     } else {
       // баллистическая ракета идёт по своей траектории: Defense 6 и в стратосфере
       const thin = this.alt === "strat" && !this.props.some(p => p.key === "ballistic") ? 1 : 0;
-      this.maxSpeed = Math.max(1, this.stats.spd - (this.broken === "en" ? 1 : 0) + thin);
+      this.maxSpeed = Math.max(1, this.stats.spd - (this.off.has("en") ? 1 : 0) + thin);
       this.evasion = this.stats.ev - thin;
       this.defense = airDefense(this, this.evasion);
       this.aa = this.stats.aa; this.ag = this.stats.ag; this.gun = this.stats.gun;
@@ -344,6 +349,8 @@ export class WeaponData extends foundry.abstract.TypeDataModel {
   /** Можно стрелять: не выведено из строя и есть боезапас. */
   get ready() { return !this.offline && (this.unlimited || (this.ammo.value ?? 0) > 0); }
   /** Дальность в зонах: 0 своя, 1 соседние, 2 обычная ракета, 99 вся зона операции. */
+  /** Черта спецоружия (Стрэйнджриал 8.2): { name, text } или null. */
+  get trait() { return TB.weaponTraits[this.key] ?? null; }
   get reach() { return this.range ?? TB.weaponRange[this.key] ?? (this.target === "gun" ? TB.range.guns : TB.range.missile); }
 }
 

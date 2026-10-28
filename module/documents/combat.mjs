@@ -164,6 +164,8 @@ async function endRound(combat, round) {
   if (!again) try { const { resolveFates } = await import("../boss-fate.mjs"); await resolveFates(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | гибель целей`, err); }
   // баллистическая ракета: из раунда пуска в стратосферу, после раунда в стратосфере — в космос
   if (!again) try { const { resolveBallistic } = await import("../ballistic.mjs"); await resolveBallistic(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | баллистическая ракета`, err); }
+  // РЭБ (ESM) до конца этого раунда кончилась
+  try { const { endJam } = await import("../special-weapons.mjs"); await endJam(combat, round); } catch (err) { console.error(`${SYSTEM_ID} | РЭБ`, err); }
   const key = `${combat.id}:${round}`;
   // Break!: Speed падает, когда атаки раунда разрешены
   const drops = new Map(), marked = [];

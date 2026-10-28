@@ -2,7 +2,7 @@
    по тому, попадёт ли ракета без броска, и по запретам триггеров («Без опознавательных знаков», «Арьергард»).
    Немезида выбирает своих пилотов. Совет виден строкой СОВЕТ в HUD у ведущего; шаги нажимаются кнопками.
    В начале раунда тот же совет подставляет число действий в заявку NPC. */
-import { SYSTEM_ID, TB } from "./config.mjs";
+import { SYSTEM_ID, TB, sysOff } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
 import { tokenOf, zoneDistance, canFireAt, isFlying, altOf, ALT_ORDER, reachProblems, isAirTarget, flyingBoss, hasRule, ceilingOf } from "./scene.mjs";
 import { describeTarget, foxEstimate, strikeMeans, weaponReady } from "./dice/rolls.mjs";
@@ -42,7 +42,7 @@ function means(actor) {
   return {
     systems,
     missile: k => !systems && strikeMeans(actor, k).length > 0,
-    guns: !systems && s.broken !== "gu" && (s.kind === "air" || (s.kind === "ground" && !!s.ground?.gun)),
+    guns: !systems && !sysOff(s, "gu") && (s.kind === "air" || (s.kind === "ground" && !!s.ground?.gun)),
     longRange: k => actor.items.some(i => i.type === "weapon" && i.system.reach >= TB.range.operation && weaponReady(i) && (i.system.target === k || i.system.target === "line"))
   };
 }

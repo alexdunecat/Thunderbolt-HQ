@@ -160,7 +160,7 @@
           <ul class="tb-list">
             {{#each weapons as |w|}}
             <li class="tb-item" data-item-id="{{w.id}}">
-              <span class="tb-item-name"><a data-chat-item="{{w.id}}" title="В чат">{{w.name}}</a><small>{{#if w.target}}{{w.target}} · {{/if}}урон {{w.dmg}} · <i class="fas fa-ruler-horizontal"></i> {{w.range}}{{#if w.mods}} · {{w.mods}}{{/if}}</small></span>
+              <span class="tb-item-name"><a data-chat-item="{{w.id}}" title="В чат">{{w.name}}</a><small>{{#if w.target}}{{w.target}} · {{/if}}урон {{w.dmg}} · <i class="fas fa-ruler-horizontal"></i> {{w.range}}{{#if w.mods}} · {{w.mods}}{{/if}}</small>{{#if w.trait}}<small class="tb-wpn-trait" title="{{w.trait.text}}"><b>{{w.trait.name}}.</b> {{w.trait.text}}</small>{{/if}}</span>
               {{#if w.offline}}<a class="tb-chip tb-ct-off" data-weapon-on="{{w.id}}" title="«Форсированный выстрел»: не работает до конца вылета. Щелчок: вернуть в строй вручную">OFF</a>{{/if}}
               {{#if w.unlimited}}<span class="tb-ammo">∞</span>{{else}}
               <span class="tb-ammo" {{#if w.bonus}}title="+{{w.bonus}} от триггера"{{/if}}><a data-ammo="{{w.id}}" data-delta="-1">−</a>{{w.ammo}}/{{w.max}}<a data-ammo="{{w.id}}" data-delta="1">+</a></span>{{/if}}

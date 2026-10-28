@@ -57,6 +57,7 @@ import { registerNpcAdvice } from "./npc-advice.mjs";
 import { registerCareerTriggers } from "./career-triggers.mjs";
 import { registerBossFate } from "./boss-fate.mjs";
 import { registerBallistic } from "./ballistic.mjs";
+import { registerSpecialWeapons } from "./special-weapons.mjs";
 
 // триггер выключен или машина сменилась: Max Speed мог упасть
 for (const ev of ["updateItem", "createItem", "deleteItem"])
@@ -174,6 +175,7 @@ Hooks.once("init", () => {
   registerCareerTriggers();
   registerBossFate();
   registerBallistic();
+  registerSpecialWeapons();
   registerMedals();
   registerUndo();
   registerHangar();

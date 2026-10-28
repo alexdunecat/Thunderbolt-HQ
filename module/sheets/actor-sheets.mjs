@@ -37,7 +37,7 @@ function weaponView(w, bonus = 0) {
   if (s.ag !== null) mods.push(`AG ${s.ag >= 0 ? "+" : ""}${s.ag}`);
   if (s.aim !== null) mods.push(`Aim ${s.aim >= 0 ? "+" : ""}${s.aim}`);
   if (s.dep !== null) mods.push(`Deploy ${s.dep >= 0 ? "+" : ""}${s.dep}`);
-  return { id: w.id, name: w.name, img: w.img, key: s.key, dmg: s.dmg, fx: s.fx, mods: mods.join(" · "),
+  return { id: w.id, name: w.name, img: w.img, key: s.key, dmg: s.dmg, fx: s.fx, mods: mods.join(" · "), trait: s.trait,
     unlimited: s.ammo.max === null, ammo: s.ammo.value, offline: s.offline, max: s.ammo.max === null ? null : s.ammo.max + bonus, bonus, target: TB.weaponTargets[s.target] ?? "",
     range: s.target === "util" ? "действует на свою и соседние зоны" : s.target === "line" ? "линия через всю зону операции" : rangeLabel(s.reach) };
 }

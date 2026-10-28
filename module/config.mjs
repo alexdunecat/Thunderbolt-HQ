@@ -2,6 +2,11 @@
 export const SYSTEM_ID = "thunderbolt-shtab";
 export const SYS_PATH = `systems/${SYSTEM_ID}/`;
 
+/** Система машины не работает: сломана меткой Structure или заглушена РЭБ противника (ESM). */
+export const sysOff = (s, key) => !!s && (s.off ? s.off.has(key) : s.broken === key);
+/** Почему система не работает: для предупреждений. */
+export const offWhy = (s, key) => s?.jam === key && s?.broken !== key ? "заглушена РЭБ противника (ESM)" : "сломана (метка Structure)";
+
 export const TB = {
   skills: {
     aim: { label: "Прицел", en: "Aim", hint: "ракеты по воздушным целям" },
@@ -83,6 +88,21 @@ export const TB = {
   topViews: Object.fromEntries(["superSub", "landship", "carrier", "battleship", "cruiser", "destroyer", "frigate", "ship", "sub"]
     .map(k => [`assets/targets/${k}.svg`, `assets/targets/${k}-top.svg`])),
   weaponRange: { RCL: 0, MGP: 0, PLSL: 1, XAGM: 1, "4AAM": 1, ESM: 1, XLAA: 99, LAAM: 99, LACM: 99, EMRG: 99 },
+  /* Черты спецоружия (Стрэйнджриал 8.2): название, трафарет для станции HUD (tag) и строка для карточки пуска. */
+  weaponTraits: {
+    QAAM: { name: "Собачья свалка", tag: "DGF", text: "Цель в своей зоне при пуске: её Break! против этой ракеты не работает, защита Evasion + Speed." },
+    HPAA: { name: "Неконтактный взрыватель", tag: "PROX", text: "Итог меньше защиты на 1–2: ракета рвётся рядом, 4 урона." },
+    HVAA: { name: "От неё не уйти", tag: "HYPR", text: "Бьёт в начале хода цели; Speed цели в защиту только вполовину, вниз." },
+    SAAM: { name: "Ведение (Fox One)", tag: "FOX1", text: "Летит по захвату: захват сорван до удара — ракета потеряна. Промах при удержанном захвате — повторный заход в конце следующего раунда." },
+    GPB: { name: "Бронебойная", tag: "AP", text: "Occlusion цели −2, укрытие туннеля (+2) не спасает." },
+    UGB: { name: "Свободное падение", tag: "DROP", text: "Без захвата: цель на своём участке, сброс с Низкой или Средней. На Perk: двойной урон цели или обычный урон всем соседним." },
+    "4AAM": { name: "Залп", tag: "×4", text: "Lock On берёт до 4 целей; один пуск, 1 Ammo, ракета в каждую, бросок один на всех." },
+    XLAA: { name: "Залп", tag: "×4", text: "Lock On берёт до 4 целей в любой точке зоны операции; один пуск, 1 Ammo, ракета в каждую." },
+    XAGM: { name: "Залп", tag: "×4", text: "Lock On берёт до 4 наземных или морских целей; один пуск, 1 Ammo, ракета в каждую." },
+    EMRG: { name: "Линия", tag: "LINE", text: "Без захвата: линия до края карты на своей высоте, d10 + Aim (по земле Deploy) − Speed; все на линии с защитой не выше броска сразу получают 12." },
+    ESM: { name: "РЭБ", tag: "ECM", text: "Глушит систему из списка Structure у вражеских самолётов и вертолётов в своей и соседних зонах до конца следующего раунда." }
+  },
+  salvoWeapons: ["4AAM", "XLAA", "XAGM"],
   rangeOptions: { "": "по умолчанию для этого оружия", 0: "своя зона", 1: "своя и соседние", 2: "до двух зон", 99: "вся зона операции" },
 
   /* Погода (как в Планшете AWACS). mods: ev, aa, ag, push, spd; alts: на каких высотах действует; comp2: Complication на 1–2. */

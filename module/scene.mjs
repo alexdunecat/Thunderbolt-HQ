@@ -285,11 +285,13 @@ export function weatherParts(w, key) {
 }
 
 /** Защита воздушной цели с погодой: max(Evasion + погода, Break!) + Speed. */
-export function defenseWithWeather(actor, w) {
+export function defenseWithWeather(actor, w, { noBreak = false, halfSpeed = false } = {}) {
   const s = actor.system;
   if (actor.type === "npc" && s.kind !== "air") return s.defense ?? null;
   const ev = (s.evasion ?? s.stats?.ev ?? 0) + (w?.ev ?? 0);
-  return Math.max(ev, s.breakEv ?? -Infinity) + (s.speed ?? 0);
+  // черты спецоружия: QAAM вблизи — Break! не работает, HVAA — Speed цели вполовину, вниз
+  const speed = s.speed ?? 0;
+  return Math.max(ev, noBreak ? -Infinity : s.breakEv ?? -Infinity) + (halfSpeed ? Math.floor(speed / 2) : speed);
 }
 
 /* ---------- вода и суша ---------- */

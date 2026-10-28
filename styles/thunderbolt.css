@@ -1031,6 +1031,7 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 #tb-pilot-hud button.st .st-key { position: absolute; top: -6px; left: -4px; padding: 0 3px; font-family: var(--tb-data); font-size: 9px; line-height: 12px; letter-spacing: 0;
   color: var(--tb-accent-ink); background: var(--tb-accent); border-radius: 2px; }
 #tb-pilot-hud button.st.spw .st-name { color: #ffd77a; }
+#tb-pilot-hud button.st .st-trait, .tb-ck .st .st-trait { position: absolute; left: 6px; bottom: 3px; font-family: var(--tb-data); font-size: 8px; line-height: 12px; letter-spacing: .12em; color: #c99a2e; opacity: .85; pointer-events: none; }
 #tb-pilot-hud button.st.aimed { border-color: #c99a2e; }
 #tb-pilot-hud button.st.aimed .st-led { background: #ffc94a; box-shadow: 0 0 7px #ffc94a; }
 #tb-pilot-hud button.st.empty .st-led { background: #2b2f2d; box-shadow: none; }
@@ -1215,6 +1216,8 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-ck-tgt b { color: #f1f5f2; font-family: var(--tb-display); letter-spacing: .06em; }
 .tb-ck-def { margin-left: auto; padding: 0 6px; font-family: var(--tb-data); font-size: 13px; color: var(--ck-lcd); background: #0b0703; border: 1px solid #000; border-radius: 2px; text-shadow: 0 0 5px rgba(255, 170, 60, .8); }
 .tb-ck-def.muted { color: #6f7b74; text-shadow: none; }
+.tb-ck-trait { margin: 2px 0 6px; padding: 4px 8px; font-size: 11px; line-height: 1.35; color: #e9dcc0; background: #0b0703; border: 1px solid #3a2a12; border-left: 3px solid var(--ck-amber, #ffb547); border-radius: 2px; }
+.tb-ck-trait b { color: var(--ck-amber, #ffb547); letter-spacing: .04em; }
 .tb-ck-lamp { padding: 0 6px; font-family: var(--tb-display); font-size: 10px; letter-spacing: .16em; border: 1px solid #000; border-radius: 2px; }
 .tb-ck-lamp.ok { color: var(--ck-led); background: #07120c; text-shadow: 0 0 5px rgba(94, 240, 143, .8); }
 .tb-ck-lamp.bad { color: #ffd0c8; background: #2a0805; text-shadow: 0 0 6px var(--ck-red); animation: tb-hud-blink .8s steps(2, start) infinite; }
@@ -1711,3 +1714,22 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-strike-alt button.on small { color: #3d2400; }
 .tb-strike-alt .cnt { min-width: 44px; padding: 2px 6px; text-align: center; font-size: 13px; color: #ffb547; background: #0b0703; border: 1px solid #000; text-shadow: 0 0 5px rgba(255, 170, 60, .8); }
 .tb-strike-alt .done { color: var(--tb-accent-ink); background: var(--tb-accent); border-color: var(--tb-accent); font-family: var(--tb-display); font-weight: 700; letter-spacing: .14em; }
+
+/* Черты спецоружия: строка на листе, линия EMRG, выбор системы ESM */
+.tb-wpn-trait { display: block; margin-top: 2px; font-size: 11px; line-height: 1.3; color: var(--tb-muted, #6f7b74); white-space: normal; }
+.tb-wpn-trait b { color: var(--tb-accent, #c99a2e); font-weight: 600; }
+.tb-rail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0 8px; }
+.tb-rail-grid > * { min-height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 3px; }
+.tb-rail-dir { color: #e9dcc0; background: linear-gradient(#262a28, #141716); border: 1px solid #000; cursor: pointer; }
+.tb-rail-dir b { font-size: 22px; line-height: 1; color: #6fd3ff; text-shadow: 0 0 6px rgba(111, 211, 255, .6); }
+.tb-rail-dir small { font-family: var(--tb-data); font-size: 10px; letter-spacing: .08em; color: #b8c2bc; }
+.tb-rail-dir:hover { border-color: #6fd3ff; box-shadow: 0 0 8px rgba(111, 211, 255, .4); }
+.tb-rail-me { color: var(--ck-amber, #ffb547); background: #0b0703; border: 1px dashed #3a2a12; }
+.tb-rail-me b { font-family: var(--tb-data); letter-spacing: .12em; }
+.tb-rail-me small { font-size: 10px; color: #b8a27a; }
+.tb-esm-sys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+.tb-esm-sys button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 6px 8px; text-align: left; color: #e9dcc0; background: linear-gradient(#262a28, #141716); border: 1px solid #000; border-radius: 3px; line-height: 1.2; cursor: pointer; }
+.tb-esm-sys button b { color: var(--ck-amber, #ffb547); letter-spacing: .04em; }
+.tb-esm-sys button small { font-size: 10px; color: #b8c2bc; }
+.tb-esm-sys button:hover { border-color: var(--ck-amber, #ffb547); }
+#tb-pilot-hud .tb-hud-sys span.jam { background: #04141c; color: #bdeeff; text-decoration: none; text-shadow: 0 0 6px #6fd3ff; border-color: #1d5a73; animation: tb-hud-blink 1.2s steps(2, start) infinite; }
