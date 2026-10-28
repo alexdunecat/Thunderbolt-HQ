@@ -1772,3 +1772,10 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-wxpick button:disabled { opacity: .45; cursor: default; }
 .tb-wxpick button span { font-size: 20px; }
 .tb-wxpick button small { color: var(--tb-muted); font-size: 10px; }
+
+/* Пульт: выбор цели на карте, номера одинаковых целей, переключение захват / метка T */
+.tb-ck .tb-ck-mapick { display: inline-flex; align-items: center; gap: 4px; width: auto; height: 20px; margin-left: 8px; padding: 0 8px; line-height: 18px;
+  font-family: var(--tb-data); font-size: 10px; letter-spacing: .06em; background: transparent; color: var(--tb-warn); border: 1px solid var(--tb-warn); border-radius: 0; cursor: pointer; }
+.tb-ck .tb-ck-mapick:hover { background: var(--tb-warn); color: var(--tb-accent-ink); }
+.tb-ck .st-num { display: inline-block; min-width: 16px; margin-right: 5px; padding: 0 3px; font-style: normal; font-weight: bold; text-align: center;
+  background: var(--tb-warn); color: var(--tb-accent-ink); }

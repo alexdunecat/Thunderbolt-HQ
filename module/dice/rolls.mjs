@@ -7,6 +7,7 @@ import { takeNext, passOutcome } from "../squad.mjs";
 import { nemesisAttack, nemesisDefense } from "../nemesis.mjs";
 import { triggerAttack, triggerDefense, triggerBreak, trashComp, coverPart, millionFor, letGo, trig, weakOf, followFor, offerFollow, followOffer, takeFollow } from "../combat-triggers.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
+import { targetMarks } from "../target-marks.mjs";
 import { allowRoll } from "../actions.mjs";
 import { aimedWeapon } from "../range.mjs";
 import { renderGround, renderBreakdown, resolveButton, groundAction, checkBreakdown, practiceFor } from "../downtime.mjs";
@@ -772,7 +773,7 @@ export function foxEstimate(actor, t) {
  * FOX 2 — без броска, итог виден сразу; IMPROVED — d10 + Aim/Deploy. Поправки свёрнуты.
  * Возвращает { pick: "fox" | "improved", weapon, tkind, sys, mod, storm, practiced } или null.
  */
-export function foxPanel(actor, t, tk, { preMove = "" } = {}) {
+export function foxPanel(actor, t, tk, { preMove = "", src = {} } = {}) {
   const s = actor.system;
   const wx = weatherAt(actor);
   const kinds = tk ? [tk] : ["air", "ground"];
@@ -838,7 +839,8 @@ export function foxPanel(actor, t, tk, { preMove = "" } = {}) {
       <input type="radio" name="weapon" value="${st.id}" ${st === first ? "checked" : ""} ${st.empty ? "disabled" : ""}><i class="st-led"></i><span class="st-name">${esc(st.code)}</span><span class="st-cnt">${st.empty ? "EMPTY" : esc(st.cnt)}</span>${st.trait ? `<small class="st-trait">${esc(st.trait.tag)}</small>` : ""}<b class="st-key">${st.dmg ? `DMG ${st.dmg}` : "ECM"}</b></label>`;
   const content = `
     <div class="tb-ck-tgt">
-      <small>ЦЕЛЬ</small><b>${t ? esc(t.name) : "не выбрана"}</b>
+      <small>ЦЕЛЬ${src.from ? ` · ${src.from === "lock" ? "ЗАХВАТ" : "МЕТКА T"}` : ""}</small><b>${t ? esc(t.name) : "не выбрана"}</b>
+      ${src.alt ? `<button type="button" class="tb-ck-mapick" data-pick="swap" title="Стрелять по ${src.from === "lock" ? "цели с меткой T" : "захваченной цели"}"><i class="fas fa-right-left"></i> ${src.from === "lock" ? "МЕТКА T" : "ЗАХВАТ"}: ${esc(src.alt.name)}</button>` : ""}
       ${t ? `<span class="tb-ck-def">${dc !== null ? `DEF <b data-ck-def>${dc}</b>` : `OCC <b data-ck-occ>${need0 ?? "—"}</b>`}</span>` : `<span class="tb-ck-def muted">итог без сравнения</span>`}
       ${t ? `<span class="tb-ck-lamp ${lockOk ? "ok" : "bad"}">${lockOk ? "LOCK" : "NO LOCK"}</span>` : ""}
     </div>
@@ -905,7 +907,9 @@ export function foxPanel(actor, t, tk, { preMove = "" } = {}) {
     root.querySelectorAll(".tb-aim-spot").forEach(n => n.addEventListener("pointerup", () => setTimeout(upd, 0)));
     upd();
   };
-  return cockpitDialog(`Fox Two! · ${actor.token?.name ?? actor.name}`, content, { render, width: t?.kind === "ship" ? 560 : 460 });
+  const marks = targetMarks(t?.token ? [{ token: t.token, label: "" }] : []);
+  return cockpitDialog(`Fox Two! · ${actor.token?.name ?? actor.name}`, content, { render, width: t?.kind === "ship" ? 560 : 460 })
+    .finally(() => marks.destroy());
 }
 
 /** «Форсированный выстрел», если он ещё не использован в этом вылете. */
@@ -939,8 +943,11 @@ function gunPanel(actor, { list, pre, podItems, sys, pod = "" }) {
       + (casRun(actor, x) ? speed : 0) }));
   const first = tg.find(g => g.x === pre) ?? tg[0];
   const chance = (need, b) => `${Math.max(0, Math.min(10, 11 - (need - b))) * 10}%`;
-  const tile = g => `<label class="st tg ${g === first ? "aimed" : ""}" title="${esc(g.x.name)}${g.x.dist ? " · соседняя зона" : ""}">
-      <input type="radio" name="target" value="${g.key}" ${g === first ? "checked" : ""}><i class="st-led"></i><span class="st-name">${g.x.priority ? "★ " : ""}${esc(g.x.name)}</span>
+  // несколько целей: номер плитки совпадает с номером метки на карте (одинаковые машины иначе не различить)
+  const many = tg.length > 1;
+  const hpOf = x => { const h = x.actor?.system?.hp; return h && h.max ? ` · HP ${h.value}/${h.max}` : ""; };
+  const tile = (g, i) => `<label class="st tg ${g === first ? "aimed" : ""}" data-tg="${i}" title="${esc(g.x.name)}${g.x.dist ? " · соседняя зона" : ""}${hpOf(g.x)}${many ? " · номер на карте " + (i + 1) : ""}">
+      <input type="radio" name="target" value="${g.key}" ${g === first ? "checked" : ""}><i class="st-led"></i><span class="st-name">${many ? `<em class="st-num">${i + 1}</em>` : ""}${g.x.priority ? "★ " : ""}${esc(g.x.name)}</span>
       <span class="st-cnt">${g.def !== null ? `DEF ${g.def}` : "OCC"}${g.x.dist ? " · ADJ" : ""}</span>${g.def !== null ? `<b class="st-key" data-ck-pk="${g.key}"></b>` : ""}</label>`;
   const station = st => `<label class="st ${st.id === pick ? "aimed" : ""}" title="урон ${st.dmg}">
       <input type="radio" name="pod" value="${st.id}" ${st.id === pick ? "checked" : ""}><i class="st-led"></i><span class="st-name">${esc(st.code)}</span><span class="st-cnt">${esc(st.cnt)}</span><b class="st-key">DMG ${st.dmg}</b></label>`;
@@ -950,7 +957,7 @@ function gunPanel(actor, { list, pre, podItems, sys, pod = "" }) {
     pr ? `<label title="Раз за вылет: d10 = 10 и d4 = 4 без броска, проверка хода не тратится"><input type="checkbox" name="practiced"><span>МАСТЕРСТВО</span></label>` : "",
     wx.list.length ? `<label title="${wx.list.map(d => esc(d.name)).join(", ")}"><input type="checkbox" name="storm" ${wx.comp2 ? "checked" : ""}><span>УРАГАН 1–2</span></label>` : ""].join("");
   const content = `
-    <div class="tb-ck-stores"><small>ЦЕЛЬ</small><div class="tb-ck-st">${tg.length ? tg.map(tile).join("") : `<span class="tb-ck-def muted">цель не выбрана: итог без сравнения</span>`}</div></div>
+    <div class="tb-ck-stores"><small>ЦЕЛЬ${many && canvas?.ready ? ` <button type="button" class="tb-ck-mapick" data-ck-mapick title="Щёлкнуть по цели на карте"><i class="fas fa-crosshairs"></i> НА КАРТЕ</button>` : ""}</small><div class="tb-ck-st">${tg.length ? tg.map(tile).join("") : `<span class="tb-ck-def muted">цель не выбрана: итог без сравнения</span>`}</div></div>
     ${schemes}
     ${stations.length > 1 ? `<div class="tb-ck-stores"><small>STORES</small><div class="tb-ck-st">${stations.map(station).join("")}</div></div>` : ""}
     ${toggles ? `<div class="tb-ck-seg">${toggles}</div>` : ""}
@@ -970,20 +977,42 @@ function gunPanel(actor, { list, pre, podItems, sys, pod = "" }) {
       root.querySelectorAll(".tb-aim").forEach(n => { n.hidden = n.dataset.aimKey !== g?.key; });
     };
     bindSchematic(root);
-    form.addEventListener("change", upd);
+    marks = targetMarks(tg.map((g, i) => ({ token: g.x.token, label: many ? i + 1 : "" })));
+    const selIdx = () => Math.max(0, tg.findIndex(x => x.key === val("target")));
+    form.addEventListener("change", () => { upd(); marks.select(selIdx()); });
+    form.querySelectorAll("[data-tg]").forEach(n => {
+      n.addEventListener("mouseenter", () => marks.hover(Number(n.dataset.tg)));
+      n.addEventListener("mouseleave", () => marks.hover(null));
+    });
+    root.querySelector("[data-ck-mapick]")?.addEventListener("click", async ev => {
+      ev.preventDefault();
+      const tok = await pickTargetToken(actor, { title: "Guns: цель на карте", hint: "Щёлкните по одной из отмеченных целей." });
+      if (!tok) return;
+      const i = tg.findIndex(g => g.x.token === tok || g.x.token?.id === tok.id);
+      if (i < 0) return ui.notifications.warn(`«${tok.name}» не в досягаемости пушки: выберите одну из отмеченных целей.`);
+      const inp = form.querySelector(`[name="target"][value="${tg[i].key}"]`);
+      if (inp) { inp.checked = true; inp.dispatchEvent(new Event("change", { bubbles: true })); }
+    });
     upd();
+    marks.select(selIdx());
   };
+  let marks = null;
   return cockpitDialog(`Guns, Guns, Guns! · ${actor.token?.name ?? actor.name}`, content, { render, width: schemes ? 560 : 460 })
+    .finally(() => marks?.destroy())
     .then(d => d ? { ...auto, ...d, storm: !!d.storm, follow: !!d.follow, practiced: !!d.practiced, target: d.target ?? auto.target, pod: d.pod ?? "" } : null);
 }
 
 /** Fox Two!: ракета или спецоружие. Без броска: AA/AG + мод оружия − Speed. Improved: d10 + Aim/Deploy + мод − Speed. */
-export async function fireMissile(actor, { weapon = null, preMove = "" } = {}) {
+export async function fireMissile(actor, { weapon = null, preMove = "", useMark = false } = {}) {
   const s = actor.system;
   // станция EMRG или ESM на HUD: сразу своё окно, без пульта Fox Two!
   const direct = weapon ? actor.items.get(weapon) : null;
   if (isOwnFire(direct)) return fireOwn(actor, direct);
-  const t = currentTarget() ?? lockedTarget(actor);
+  // цель — захват этой машины; метка T (общая на все машины ведущего) — только без захвата или по выбору на пульте
+  const locked = lockedTarget(actor), marked = currentTarget();
+  const other = locked && marked && marked.uuid !== locked.uuid ? marked : null;
+  const t = useMark && other ? other : locked ?? marked;
+  const src = { from: t === locked ? "lock" : t ? "mark" : "", alt: useMark && other ? locked : other };
   if (t && !canFireAt(actor, t.actor)) return ui.notifications.warn(`Fox Two!: «${t.name}» на вашей стороне.`);
   // цель известна: в списке только то, что бьёт по её виду, и вид цели не меняется
   const tk = t ? targetKind(t) : null;
@@ -992,8 +1021,9 @@ export async function fireMissile(actor, { weapon = null, preMove = "" } = {}) {
   if (!opts.length && !own.length) return ui.notifications.warn(tk
     ? `Fox Two!: у «${actor.name}» нечем бить по ${tk === "air" ? "воздушной" : "наземной или морской"} цели «${t.name}».`
     : "Ракет нет: система ракет сломана, а спецоружия не осталось.");
-  const data = await foxPanel(actor, t, tk, { preMove });
+  const data = await foxPanel(actor, t, tk, { preMove, src });
   if (!data) return;
+  if (data.pick === "swap") return fireMissile(actor, { weapon, preMove, useMark: !useMark });
   data.improved = data.pick === "improved";
   if (data.practiced) data.improved = true;   // максимум на кубиках бывает только у действия с броском
   if (!data.improved && struckBy(actor)) {
@@ -1416,7 +1446,8 @@ export function initHitSocket() {
 export async function fireSam(actor, sysIndex) {
   const s = actor.system;
   const src = s.kind === "ship" ? s.systems[sysIndex] : s.ground;
-  let t = currentTarget() ?? lockedTarget(actor);
+  // захват этой системы важнее метки T: метка у ведущего одна на все его машины
+  let t = lockedTarget(actor) ?? currentTarget();
   // цели нет: щелчок по токену на карте, как у Lock On!
   if (!t && canvas?.ready && (src?.ga || src?.gg)) {
     const tok = await pickTargetToken(actor, { title: s.kind === "ship" ? `Пуск: ${src?.name}` : "Пуск" });

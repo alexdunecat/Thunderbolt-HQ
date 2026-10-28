@@ -24,7 +24,7 @@ Object.assign(globalThis, {
     // пульт в стиле HUD: плитки-радио, кнопка с data-pick
     cockpit() {
       const c = this.o.content;
-      const tiles = [...c.matchAll(/st-name">([^<]*)<\/span>\s*<span class="st-cnt">([^<]*)/g)].map(m => `${m[1]} [${m[2]}]`);
+      const tiles = [...c.matchAll(/st-name">(.*?)<\/span>\s*<span class="st-cnt">([^<]*)/g)].map(m => `${m[1].replace(/<em class="st-num">(\d+)<\/em>/, "$1·")} [${m[2]}]`);
       log.push("PANEL " + this.o.title + " · " + tiles.join(" | ") + " · " + (c.match(/data-pick="(\w+)"><b>(\w+)/)?.[2] ?? ""));
       const elements = [...c.matchAll(/<input ([^>]*)>/g)].map(m => {
         const at = k => m[1].match(new RegExp(`${k}="([^"]*)"`))?.[1];

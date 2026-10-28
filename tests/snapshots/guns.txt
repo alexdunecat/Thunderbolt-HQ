@@ -1,14 +1,14 @@
 DIALOG Guns, Guns, Guns! · Гроза fields=target,target,target hint=
-PANEL Guns, Guns, Guns! · Гроза · ★ Нейтрал [DEF 5] | МиГ [DEF 5] | Су [DEF 8] · GUNS
+PANEL Guns, Guns, Guns! · Гроза · 1·★ Нейтрал [DEF 5] | 2·МиГ [DEF 5] | 3·Су [DEF 8] · GUNS
 TARGET Су
 CARD1 {"t":"Су","dc":8,"applied":true} sent=[{"type":"hit","to":"gm","hit":{"uuid":"Actor.Су","name":"Су","dmg":3,"source":"Гроза","sourceUuid":"Actor.Гроза","gun":true}}]
 DIALOG Guns, Guns, Guns! · Гроза fields=target,target,target hint=
-PANEL Guns, Guns, Guns! · Гроза · ★ Нейтрал [DEF 5] | МиГ [DEF 5] | Су [DEF 8] · GUNS
+PANEL Guns, Guns, Guns! · Гроза · 1·★ Нейтрал [DEF 5] | 2·МиГ [DEF 5] | 3·Су [DEF 8] · GUNS
 TARGET Нейтрал
 CARD2 {"t":"Нейтрал","dc":5,"applied":false}
 CARD2+strain {"strain":1,"applied":true} sent=2
 DIALOG Guns, Guns, Guns! · МиГ fields=target,target,target,target hint=
-PANEL Guns, Guns, Guns! · МиГ · Ведомый [DEF 5] | Гроза [DEF 5] | Нейтрал [DEF 5] | Союзный [DEF 5] · GUNS
+PANEL Guns, Guns, Guns! · МиГ · 1·Ведомый [DEF 5] | 2·Гроза [DEF 5] | 3·Нейтрал [DEF 5] | 4·Союзный [DEF 5] · GUNS
 TARGET Ведомый
 CARD3 {"t":"Ведомый","applied":true} sent={"type":"hit","to":"pl","hit":{"uuid":"Actor.Ведомый","name":"Ведомый","dmg":3,"source":"МиГ","sourceUuid":"Actor.МиГ","gun":true}}
 LEFT Гроза,Далёкий,Союзный
