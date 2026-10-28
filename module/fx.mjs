@@ -232,7 +232,7 @@ function takeLanding(uuid) {
 
 function drawAir(g, now) {
   for (const [id, e] of air) {
-    if (e.to.destroyed) { air.delete(id); continue; }
+    if (e.to.destroyed || e.to.document?.parent !== canvas.scene) { air.delete(id); continue; }
     const b = P(e.to)(), p = lerp(e.from, b, AIR_AT), col = e.ally ? 0x7fd8ff : 0xff7a5a;
     // пунктир от пуска до цели и мигающая метка ракеты
     const n = Math.max(2, Math.floor(dist(e.from, b) / (gs() * 0.06)));
@@ -253,7 +253,9 @@ function layer() {
   if (!gfx || gfx.destroyed) { gfx = canvas.interface.addChild(new PIXI.Graphics()); gfx.eventMode = "none"; }
   return gfx;
 }
-function add(draw, delay = 0) { items.push({ at: clock + delay, draw }); start(); }
+// предел одновременных частиц: большой залп не должен тормозить карту
+const MAX_ITEMS = 1500;
+function add(draw, delay = 0) { if (items.length >= MAX_ITEMS) return; items.push({ at: clock + delay, draw }); start(); }
 function later(ms, f) { add(t => { if (t < ms) return true; f(); return false; }); }
 function start() {
   const tk = canvas?.app?.ticker;
@@ -264,11 +266,17 @@ function start() {
 function stop() { canvas?.app?.ticker?.remove(tick); ticking = false; }
 function clearAll() {
   items.length = 0; air.clear(); landing.length = 0;
-  if (gfx && !gfx.destroyed) gfx.destroy();
+  try { if (gfx && !gfx.destroyed) gfx.destroy(); } catch { /* слой уже снят вместе со сценой */ }
   gfx = null;
   stop();
 }
+/* Ошибка в обработчике тикера PIXI обрывает весь цикл отрисовки Foundry: карта перестаёт обновляться.
+   Поэтому кадр схемы целиком под try: при сбое схема гаснет, а карта живёт дальше. */
 function tick() {
+  try { frame(); }
+  catch (err) { console.warn(`${SYSTEM_ID} | анимация остановлена`, err); clearAll(); }
+}
+function frame() {
   clock += canvas.app.ticker.deltaMS;
   const g = layer();
   if (!g) return stop();
