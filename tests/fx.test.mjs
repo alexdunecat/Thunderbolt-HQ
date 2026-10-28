@@ -47,6 +47,7 @@ const line = [{ uuid: "G1", vs: 5, gnd: true }, { uuid: "G2", vs: 9, gnd: true }
 show("ковровая", { type: "rail", label: "Ковровая бомбардировка", actorUuid: "B", parts: [["Air-Gnd", 6]], line });
 show("бортовые орудия", { type: "rail", label: "Бортовые орудия", actorUuid: "B", d10: 3, parts: [["Бортовые орудия", 1]], line });
 show("EMRG", { type: "rail", label: "EMRG: линия →", actorUuid: "B", d10: 3, parts: [["Aim", 4]], depShift: 2, line });
+show("EMRG по пустой линии", { type: "rail", label: "EMRG · Electromagnetic Rail Gun: линия ←", actorUuid: "B", d10: 3, parts: [], line: [], end: "0,4" });
 show("Break!", { type: "break", actorUuid: "P" });
 show("удар по площади", { type: "strike", zones: ["3,4|low", "3,4|med", "5,5"] });
 show("залп", { type: "volley", targets: [{ uuid: "T", hit: true, count: 2, shooterUuids: ["A", "B"] }, { uuid: "U", hit: false, broke: true, count: 1, shooterUuids: ["A"] },

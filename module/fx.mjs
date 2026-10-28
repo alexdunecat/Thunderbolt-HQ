@@ -33,7 +33,8 @@ export function planOf(card, compute = c => c) {
     const c = compute(card), rows = (card.line ?? []).map(r => ({ to: r.uuid, hit: RAIL_TOTAL(c, r) >= r.vs }));
     const kind = card.label === "Ковровая бомбардировка" ? "carpet" : card.label === "Бортовые орудия" ? "guns" : "beam";
     if (kind === "guns") return rows.map(r => ({ kind, from: card.actorUuid, ...r, n: 4 }));
-    return rows.length ? [{ kind, from: card.actorUuid, rows }] : [];
+    // линия EMRG: луч до края карты, даже если на линии никого
+    return rows.length || card.end ? [{ kind, from: card.actorUuid, rows, ...(card.end ? { end: card.end } : {}) }] : [];
   }
   if (!card.attack || !card.actorUuid || !card.targetUuid) return [];
   const all = [card.targetUuid, ...(card.salvo ?? []).map(s => s.uuid)];
@@ -131,6 +132,19 @@ function run(step, message, i) {
   if (k === "carpet" || k === "beam") {
     if (!from) return;
     const a = P(from)();
+    if (k === "beam" && step.end) {
+      const [j, r] = String(step.end).split(",").map(Number), size = gs();
+      const tl = canvas.grid.getTopLeftPoint?.({ i: r, j }) ?? { x: j * size, y: r * size };
+      const e = { x: tl.x + size / 2, y: tl.y + size / 2 }, len = dist(a, e) || 1;
+      // луч до дальнего края последней зоны
+      const far = { x: e.x + (e.x - a.x) / len * size / 2, y: e.y + (e.y - a.y) / len * size / 2 };
+      if (seen(from)) { beam(a, far, { color: 0x9fe8ff, delay: 250, width: 0.12, life: 800 }); later(250, () => { boom(a, 0.05); sparks(a, 7, 0.06); }); }
+      step.rows.forEach((x, n) => {
+        const t = tokenFor(x.to);
+        if (t && seen(t) && x.hit) later(300 + n * 40, () => boom(P(t)(), 0.12));
+      });
+      return;
+    }
     step.rows.forEach((r, j) => {
       const t = tokenFor(r.to);
       if (!t || !seen(t)) return;
@@ -395,12 +409,12 @@ function guns(a, b, { hit = null, n = 6, rockets = false, delay = 0 } = {}) {
   if (hit) later(delay + n * 55 + 260, () => { const p = b(); if (p) boom(p, 0.07); });
 }
 
-function beam(a, b, { color = 0x9fe8ff, delay = 0 } = {}) {
+function beam(a, b, { color = 0x9fe8ff, delay = 0, width = 0.05, life = 480 } = {}) {
   if (!a || !b) return;
   add((t, g) => {
-    const k = t / 480;
+    const k = t / life;
     if (k >= 1) return false;
-    g.lineStyle(gs() * 0.05 * (1 - k), color, 0.25 * (1 - k)); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y);
+    g.lineStyle(gs() * width * (1 - k), color, 0.25 * (1 - k)); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y);
     g.lineStyle(Math.max(1, gs() * 0.015 * (1 - k)), 0xffffff, 0.9 * (1 - k)); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y);
     g.lineStyle(0);
   }, delay);

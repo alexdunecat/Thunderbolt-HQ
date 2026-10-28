@@ -81,7 +81,7 @@ export function registerSounds() {
     const rwr = message.getFlag(SYSTEM_ID, "rwr"), card = message.getFlag(SYSTEM_ID, "card");
     if (rwr) { cue("lock", resolveActor(rwr.fromUuid)); cue("locked", resolveActor(rwr.target)); }
     if (card?.maws && card.targetUuid) cue("missile", resolveActor(card.targetUuid));
-    if (card?.attack && card.actorUuid) cue(card.instant ? "guns" : "fire", resolveActor(card.actorUuid));
+    if (card?.attack && card.actorUuid && card.type !== "rail") cue(card.instant ? "guns" : "fire", resolveActor(card.actorUuid));
   });
   Hooks.once("ready", () => {
     game.socket.on(CHANNEL, msg => { if (msg?.type === "sound" && COCKPIT_SOUNDS[msg.key]?.all) cueAll(msg.key); });
@@ -165,7 +165,7 @@ export function playLocal(key) {
 }
 
 // лучи (турель «Аркбёрда», энергетические орудия «Рузвельта») звучат как лазер
-const LASER = /лазер|laser|^Луч:/i, RAIL = /рельс|рейлган|railgun/i;
+const LASER = /лазер|laser|^Луч:/i, RAIL = /рельс|рейлган|rail ?gun|EMRG/i;
 /** Звук выстрела оружия супероружия по его названию: рейлган, лазер или null. */
 export const shotOf = label => (RAIL.test(label ?? "") ? "railgun" : LASER.test(label ?? "") ? "laser" : null);
 /** Общий звук у всех клиентов сразу: здесь и рассылкой остальным. */
@@ -185,6 +185,8 @@ export function battleSounds(card) {
   }
   // удар по площади: выстрел звучит при пуске (strikes.mjs), в конце раунда — взрыв в зонах
   if (card.type === "strike") return cueAll("bomb");
+  // линия EMRG — рейлган, ковровая бомбардировка — бомбы, бортовые орудия AC-130 — пушки; у всех
+  if (card.type === "rail") return cueAll(shotOf(card.label) ?? (card.label === "Ковровая бомбардировка" ? "bomb" : "guns"));
   // выстрел систем супероружия по названию системы (лазерная турель, рельсотроны)
   if (card.attack && card.label) {
     const a = resolveActor(card.actorUuid);

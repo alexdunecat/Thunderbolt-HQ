@@ -12,6 +12,7 @@ Fox Two! вне боя: [{"kind":"launch","from":"A","to":"T","bomb":true,"wait"
 ковровая: [{"kind":"carpet","from":"B","rows":[{"to":"G1","hit":true},{"to":"G2","hit":false}]}]
 бортовые орудия: [{"kind":"guns","from":"B","to":"G1","hit":false,"n":4},{"kind":"guns","from":"B","to":"G2","hit":false,"n":4}]
 EMRG: [{"kind":"beam","from":"B","rows":[{"to":"G1","hit":true},{"to":"G2","hit":true}]}]
+EMRG по пустой линии: [{"kind":"beam","from":"B","rows":[],"end":"0,4"}]
 Break!: [{"kind":"flares","at":"P"}]
 удар по площади: [{"kind":"blast","zones":["3,4|low","3,4|med","5,5"]}]
 залп: [{"kind":"impact","to":"T","from":["A","B"],"count":2,"hit":true,"ship":false,"bomb":false,"broke":false,"prox":false},{"kind":"impact","to":"U","from":["A"],"count":1,"hit":false,"ship":false,"bomb":false,"broke":true,"prox":false},{"kind":"impact","to":"V","from":["A"],"count":1,"hit":false,"ship":false,"bomb":false,"broke":true,"prox":false},{"kind":"impact","to":"S","from":["A"],"count":1,"hit":false,"ship":true,"bomb":false,"broke":false,"prox":false},{"kind":"lost","name":"X"}]
