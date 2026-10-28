@@ -101,15 +101,19 @@
       </div>
       <p class="tb-small tb-muted">«Асы»: представить эскадрилью асов у всех на экране, эмблема, название и девиз.</p>
       <h3>Эскадрильи дуэлянтов <button type="button" class="tb-inline-btn" data-squad-form title="Выделите на сцене токены NPC"><i class="fas fa-users"></i> Собрать из выделенных</button></h3>
-      <label class="tb-ops-done" title="Раскладка эскадрильи дуэлянтов — 4 очка + 1 за каждую пройденную операцию кампании. Крупные корабли-дуэлянты растут так же.">Пройдено операций <input type="number" min="0" data-ops-done value="{{opsDone}}"> <small class="tb-muted">→ раскладка на {{squadBudgetText}}</small></label>
+      <label class="tb-ops-done" title="Эскадрилья самолётов: раскладка от самого опытного пилота −4 (не меньше 4), запас Strain 2 за машину, две метки, тактика; вторая тактика со 2 пройденных операций. Корабли-дуэлянты и летающие крепости: 4 очка + 1 за операцию.">Пройдено операций <input type="number" min="0" data-ops-done value="{{opsDone}}"> <small class="tb-muted">→ корабли и крепости на {{squadBudgetText}}, самолёты от сильнейшего пилота −4</small></label>
       {{#if squads.length}}
       <table class="tb-awacs-table tb-squads">
         <tr><th>Эскадрилья</th>{{#each skillHeads as |h|}}<th title="{{h.label}}">{{h.en}}</th>{{/each}}<th>Очки</th><th></th></tr>
         {{#each squads as |q|}}
         <tr>
-          <td><b>{{q.name}}</b>{{#if q.tag}} · {{q.tag}}{{/if}}<br><small>{{q.members}}</small></td>
+          <td><b>{{q.name}}</b>{{#if q.tag}} · {{q.tag}}{{/if}}<br><small>{{q.members}}</small>
+            {{#if q.air}}<div class="tb-squad-tac"><select data-squad-tac="{{q.name}}" data-slot="0" title="Тактика эскадрильи, раз за вылет">{{#each q.tac1 as |o|}}<option value="{{o.k}}" {{#if o.sel}}selected{{/if}}>{{o.v}}</option>{{/each}}</select>
+              <select data-squad-tac="{{q.name}}" data-slot="1" {{#if q.tac2off}}disabled{{/if}} title="Вторая тактика: с третьей операции (пройдено 2)">{{#each q.tac2 as |o|}}<option value="{{o.k}}" {{#if o.sel}}selected{{/if}}>{{o.v}}</option>{{/each}}</select>
+              {{#if q.pool}}<small title="Запас Strain эскадрильи на этот бой">Strain {{q.pool}}</small>{{/if}}
+              {{#each q.tactics as |t|}}<button type="button" class="tb-inline-btn" data-squad-use="{{q.name}}" data-tactic="{{t.key}}" {{#if t.why}}disabled{{/if}} title="{{t.text}}{{#if t.why}} Сейчас: {{t.why}}.{{/if}}">{{t.name}}{{#if t.used}} ✓{{/if}}</button>{{/each}}</div>{{/if}}</td>
           {{#each q.skills as |sk|}}<td class="tb-num"><input type="number" min="0" data-squad="{{q.name}}" data-squad-key="{{sk.key}}" value="{{sk.value}}"></td>{{/each}}
-          <td class="tb-num {{#if q.over}}low{{/if}}">{{q.used}}/{{@root.squadBudget}}</td>
+          <td class="tb-num {{#if q.over}}low{{/if}}">{{q.used}}/{{q.budget}}</td>
           <td><a data-squad-num="{{q.name}}" title="Обозначение и номера машин"><i class="fas fa-list-ol"></i></a> <a data-squad-talk="{{q.name}}" title="Реплики эскадрильи в эфире"><i class="fas fa-comments"></i></a> <a data-squad-del="{{q.name}}" title="Распустить"><i class="fas fa-trash"></i></a></td>
         </tr>
         {{/each}}

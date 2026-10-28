@@ -1,10 +1,11 @@
 /* Листы пилота и NPC (ActorSheet v1, стабильный API Foundry v12). */
-import { SYSTEM_ID, SYS_PATH, TB, DT, hasProp } from "../config.mjs";
+import { SYSTEM_ID, SYS_PATH, TB, DT, hasProp, airDuelist } from "../config.mjs";
 import { esc } from "../utils.mjs";
 import { weatherAt, defenseWithWeather, tokenOf, zoneDistance, rangeLabel, gunVs, ceilingOf, ALT_ORDER } from "../scene.mjs";
 import { nextMods, dropNext, adjacentOf, breakAdjacent } from "../squad.mjs";
 import { resolveActor } from "../utils.mjs";
-import { squadBudget, pointsText, allSquads, squadLayout, setSquadLayout, squadMembers } from "../squadrons.mjs";
+import { squadBudget, pointsText, allSquads, squadLayout, setSquadLayout, squadMembers, budgetOf, airSquadBudget, isAirSquad, AIR_SQUAD_CUT } from "../squadrons.mjs";
+import { poolOf, tacticsView } from "../duelists.mjs";
 import { runAction, ACTIONS, startActionDrag } from "../macros.mjs";
 import { spendAction, actsSummary, allowAction, endTurn } from "../actions.mjs";
 import { openDossierExchange } from "../dossier-sync.mjs";
@@ -597,10 +598,18 @@ export class NpcSheet extends TBActorSheet {
     ctx.isAce = s.tier === "ace";
     ctx.isConscript = s.tier === "conscript";
     ctx.isDuelist = s.tier === "duelist" && !ctx.isShip;
+    ctx.twoMarkers = airDuelist(this.actor);
+    ctx.markStructure = ctx.isAce || ctx.twoMarkers;
     if (ctx.isDuelist) {
       ctx.squadNames = Object.keys(allSquads());
-      ctx.squadBudget = squadBudget();
+      const air = s.squad ? isAirSquad(s.squad) : airDuelist(this.actor);
+      ctx.squadBudget = s.squad ? budgetOf(s.squad) : air ? airSquadBudget() : squadBudget();
       ctx.squadBudgetText = pointsText(ctx.squadBudget);
+      ctx.squadRule = air ? `самый опытный пилот −${AIR_SQUAD_CUT}, не меньше 4` : "4 + пройденные операции";
+      const pool = poolOf(this.actor);
+      ctx.squadPool = pool ? `${pool.value} из ${pool.max}` : airDuelist(this.actor) && s.squad ? "в бою 2 за каждую машину эскадрильи на сцене" : "";
+      ctx.squadTactics = airDuelist(this.actor) && s.squad ? tacticsView(s.squad) : [];
+      ctx.squadTacticsLabel = ctx.squadTactics.length > 1 ? "Тактики" : "Тактика";
       ctx.squadCount = s.squad ? Math.max(1, squadMembers(s.squad).length) : 0;
       ctx.squadOver = s.squadPoints > ctx.squadBudget;
       ctx.trackerOptions = { face: "лицо", insignia: s.insignia ? "шильдик эскадрильи" : "шильдик (не выбран, будет лицо)" };

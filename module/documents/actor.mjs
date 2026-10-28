@@ -1,5 +1,5 @@
 /* Актёр: пилот в самолёте или NPC. Урон, метки, высота, подготовка к вылету. */
-import { SYSTEM_ID, TB, DT, hasProp, sortieUsed, sortieMark, moveReady, roleOf } from "../config.mjs";
+import { SYSTEM_ID, TB, DT, hasProp, sortieUsed, sortieMark, moveReady, roleOf, airDuelist } from "../config.mjs";
 import * as R from "../dice/rolls.mjs";
 import { esc } from "../utils.mjs";
 import { resetSortie } from "../nemesis.mjs";
@@ -227,11 +227,18 @@ export class TBActor extends Actor {
       return this.#say(`<b>${esc(this.name)}</b>: HP до нуля, но метку в этом раунде уже ставили. Лишний урон сгорает, HP 1.`);
     }
     const full = this.type === "pilot" || this.system.fullMarkers;
+    // дуэлянт именной эскадрильи (Стрэйнджриал 9.1): сначала Structure (систему выбирает ведущий), потом Doom; Grit нет
+    if (airDuelist(this) && !s.markers.structure) {
+      const sys = await this.#duelistSystem();
+      await this.update({ "system.hp.value": s.hp.max, "system.markers.lastRound": key, "system.markers.structure": true, "system.markers.sys": sys });
+      this.#chatter("damaged");
+      return this.#say(`<b>${esc(this.name)}</b> получает метку Structure: сломано «${TB.systems[sys]?.label}» (${TB.systems[sys]?.hint}). HP восстановлен до ${s.hp.max}. Следующая метка — Doom.`);
+    }
     if (!full) {
       // «Пощада»: стрелок может отпустить дуэлянта вместо Doom
       if (await offerMercy(this, sourceUuid)) return;
       await this.update({ "system.hp.value": 0 });
-      return this.markDoom("одна метка у конскриптов и дуэлянтов", opts);
+      return this.markDoom(airDuelist(this) ? "вторая метка дуэлянта" : "одна метка у конскриптов и дуэлянтов", opts);
     }
     // Grit и Structure уже стоят: выбирать нечего, это Doom («Обманный манёвр» ещё может отменить попадание)
     const m = s.markers;
@@ -274,6 +281,8 @@ export class TBActor extends Actor {
     // отметка «сбит» со стрелком раньше статуса: хук статуса иначе поставит её без стрелка
     if (this.type === "pilot") await this.markDown(sourceUuid);
     else await this.#creditKill(sourceUuid);
+    // «За ведомого»: сбитого дуэлянта мстит его эскадрилья
+    if (airDuelist(this)) import("../duelists.mjs").then(m => m.duelistDown(this, sourceUuid)).catch(err => console.warn(`${SYSTEM_ID} | За ведомого`, err));
     await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
     // пилоту: судьбу решает бросок на катапультирование, либо героическая гибель по своему выбору
     // карточку пишем от имени игрока пилота, чтобы кнопки достались ему, даже если урон нанёс ведущий
@@ -287,6 +296,15 @@ export class TBActor extends Actor {
       return R.postCard(this, { type: "doomfate", reason: reason ?? "" }, [], { author: player?.id });
     }
     return this.#say(`<b>${esc(this.name)}</b>: метка <b>Doom</b>${reason ? ` (${esc(reason)})` : ""}. Машина сбита.`);
+  }
+
+  /** Метка Structure дуэлянта: систему выбирает ведущий (у него и идёт урон по NPC). Окно закрыли — Двигатели. */
+  async #duelistSystem() {
+    const opts = Object.entries(TB.systems).map(([k, v]) => `<option value="${k}">${v.label}: ${v.hint}</option>`).join("");
+    const d = await R.formDialog(`${this.token?.name ?? this.name}: метка Structure`, `
+      <p class="tb-hint">Дуэлянт эскадрильи: первая метка Structure, вторая Doom. Какая система сломана?</p>
+      <div class="form-group"><label>Система</label><select name="sys">${opts}</select></div>`, { ok: "Отметить" });
+    return TB.systems[d?.sys] ? d.sys : "en";
   }
 
   /** Окно выбора метки нельзя просто закрыть: попадание уже засчитано, без выбора оно бы пропало. */

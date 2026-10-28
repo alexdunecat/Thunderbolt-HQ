@@ -64,7 +64,9 @@ await S.advanceScales(combat, 4);
 console.log("после раунда:", combat.combatants.map(c => `${c.name}: ${S.scalesOf(c.actor).map(k => `${k}=${S.scaleValue(c.actor, k)}`).join(",")}`).join(" | "));
 for (let r = 5; r < 11; r++) await S.advanceScales(combat, r);
 console.log("ещё 6 раундов:", combat.combatants.map(c => `${c.name}: ${S.scalesOf(c.actor).map(k => `${k}=${S.scaleValue(c.actor, k)}${S.scaleFull(k, S.scaleValue(c.actor, k)) ? "!" : ""}`).join(",")}`).join(" | "));
-console.log("чат:", chat.length, "сообщений;", chat.at(-1)?.match(/<b>[^<]+<\/b>/g)?.slice(0, 2).join(" ") ?? "");
+// перегрев реактора грузит судьбу босса лениво: дождаться её карточки
+await new Promise(r => setTimeout(r, 200));
+console.log("чат:", chat.length, "сообщений;", chat.filter(c => /дошла до конца/.test(c)).at(-1)?.match(/<b>[^<]+<\/b>/g)?.slice(0, 2).join(" ") ?? "");
 combat.combatants = [];
 const html = U.unitHtml(roos);
 console.log("разметка Рузвельта:", (html.match(/tb-sys-tile/g) ?? []).length, "плиток,", (html.match(/data-u-sam/g) ?? []).length, "пусков,", (html.match(/data-u-strike/g) ?? []).length, "ударов");

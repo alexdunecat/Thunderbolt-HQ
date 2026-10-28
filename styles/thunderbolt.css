@@ -422,6 +422,8 @@ body[data-tb-skin="brief"] .thunderbolt .tb-portrait-screen {
 .tb-dialog .tb-pick small { color: #777; }
 /* эскадрильи дуэлянтов */
 .tb-squads input[type="number"] { width: 3.2em; text-align: center; }
+.tb-squads .tb-squad-tac { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 4px; }
+.tb-squads .tb-squad-tac select { width: auto; max-width: 11em; font-size: 0.9em; }
 .tb-inline-btn { display: inline-block; width: auto; line-height: 20px; font-size: 11px; padding: 0 8px; margin-left: 8px; vertical-align: middle; }
 .tb-small.tb-warn { color: var(--tb-warn); font-weight: 600; }
 /* действия листа можно перетащить на панель макросов */

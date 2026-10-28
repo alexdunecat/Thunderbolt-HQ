@@ -1,6 +1,7 @@
 /* Сцена: зоны (клетки сетки), высота токенов, дальность атак и погода. Одна клетка сетки = одна зона. */
 import { SYSTEM_ID, TB, hasProp, roleOf } from "./config.mjs";
 import { esc } from "./utils.mjs";
+import { inWall } from "./duelists.mjs";
 
 export const ALT_ORDER = ["low", "med", "high", "strat"];
 
@@ -301,7 +302,8 @@ export function defenseWithWeather(actor, w, { noBreak = false, halfSpeed = fals
   const ev = (s.evasion ?? s.stats?.ev ?? 0) + (w?.ev ?? 0);
   // черты спецоружия: QAAM вблизи — Break! не работает, HVAA — Speed цели вполовину, вниз
   const speed = s.speed ?? 0;
-  return Math.max(ev, noBreak ? -Infinity : s.breakEv ?? -Infinity) + (halfSpeed ? Math.floor(speed / 2) : speed) + (ecmCover(actor) ? 1 : 0) + (jammerCover(actor) ? 2 : 0);
+  // «Строй» эскадрильи дуэлянтов: Defense +1 до конца раунда
+  return Math.max(ev, noBreak ? -Infinity : s.breakEv ?? -Infinity) + (halfSpeed ? Math.floor(speed / 2) : speed) + (ecmCover(actor) ? 1 : 0) + (jammerCover(actor) ? 2 : 0) + (inWall(actor) ? 1 : 0);
 }
 
 /**

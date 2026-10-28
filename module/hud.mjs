@@ -16,6 +16,7 @@ import { unitKind, unitHtml, onUnitClick, registerUnitHud } from "./unit-hud.mjs
 import { hudTriggers, useCombatTrigger } from "./combat-triggers.mjs";
 import { adviceRow, runAdvice, showTarget } from "./npc-advice.mjs";
 import { hudPlane, planeRowHtml, useMove, useAoa, pickBooster, useDeck } from "./plane-roles.mjs";
+import { poolOf, squadRowHtml, useTactic } from "./duelists.mjs";
 import { aceRowHtml, aceClick } from "./ace-play.mjs";
 import { hudNemesis, isNemesis, pilotsOf, monologue, startMonologue, endMonologue, appear, useTrigger, STATE_TEXT } from "./nemesis.mjs";
 
@@ -39,6 +40,8 @@ export function registerHud() {
   Hooks.on("updateToken", (doc, change) => { if (TOKEN_KEYS.some(k => k in change)) refreshHud(); });
   Hooks.on(`${SYSTEM_ID}.hlMode`, () => refreshHud());
   Hooks.on(`${SYSTEM_ID}.monologue`, () => refreshHud());
+  // запас Strain и тактики эскадрилий дуэлянтов
+  Hooks.on(`${SYSTEM_ID}.squadrons`, () => refreshHud());
   globalThis.window?.addEventListener("resize", () => place());
   registerUnitHud();
 }
@@ -119,7 +122,8 @@ export function hudData(actor) {
   const grit = m.grit ? (TB.skills[m.gritSkill]?.label ?? m.gritSkill ?? "навык не выбран") : "";
   return {
     name: (pilot && s.callsign) || tok?.name || actor.name, plane: pilot ? s.plane?.name ?? "без самолёта" : TB.npcKinds?.[s.kind] ?? "",
-    hp: s.hp, strain: s.strain, speed: s.speed, maxSpeed, kmh, vmax: vmaxOf(actor), mach: (kmh / 1225).toFixed(1),
+    // дуэлянт эскадрильи: вместо своего Strain — запас эскадрильи
+    hp: s.hp, strain: poolOf(actor) ?? s.strain, strainPool: !!poolOf(actor), speed: s.speed, maxSpeed, kmh, vmax: vmaxOf(actor), mach: (kmh / 1225).toFixed(1),
     img: tok?.document?.texture?.src ?? actor.img ?? "", systems, grit, doom: !!m.doom,
     canEject: pilot && !!m.doom && !["ejected", "kia", "mia", "hospital"].includes(s.service?.status),
     alt: TB.altitudes[alt] ?? alt ?? "", altKey: alt, flying, defense: defenseWithWeather(actor, w),
@@ -250,7 +254,7 @@ function html(actor, d, folded) {
     ${folded ? "" : `<div class="tb-hud-grid">
       <div class="tb-hud-col tb-hud-stat">
         <div class="tb-hud-row"><small>HP</small><span class="tb-hud-pips hp ${d.hp.value <= 1 ? "low" : ""}">${pips(d.hp.value, d.hp.max)}</span><span class="tb-hud-num">${d.hp.value}/${d.hp.max}</span></div>
-        ${d.strain?.max ? `<div class="tb-hud-row"><small>STRAIN</small><span class="tb-hud-pips strain">${pips(d.strain.value, d.strain.max)}</span><span class="tb-hud-num">${d.strain.value}/${d.strain.max}</span></div>` : ""}
+        ${d.strain?.max ? `<div class="tb-hud-row"${d.strainPool ? ` title="Запас Strain эскадрильи"` : ""}><small>${d.strainPool ? "ЗАПАС" : "STRAIN"}</small><span class="tb-hud-pips strain">${pips(d.strain.value, d.strain.max)}</span><span class="tb-hud-num">${d.strain.value}/${d.strain.max}</span></div>` : ""}
         <div class="tb-hud-row"><small>DEF</small><span class="tb-hud-def">${d.defense ?? "—"}</span>
           <small class="tb-hud-lbl2">ЗАХВАТ</small>${d.lock ? `<a class="tb-hud-lock ${d.lock.gone ? "gone" : ""}" data-hud-lock title="Показать цель на карте"><i class="fas fa-crosshairs"></i> ${esc(d.lock.name)}${d.lock.dist ? ` · ${d.lock.dist}` : ""}${d.lock.gone ? " · нет на сцене" : ""}</a>` : `<span class="tb-hud-none">нет</span>`}</div>
         <div class="tb-hud-row"><small>СИСТ.</small>${systemsStrip(d)}</div>
@@ -273,6 +277,7 @@ function html(actor, d, folded) {
         <div class="tb-hud-btns tb-hud-acts" title="Действия хода${d.acts?.rolled ? " · бросок уже был" : ""}"><small>ХОД</small>${actBoxes}${d.acts?.rolled ? `<i class="fas fa-dice-d10" title="Бросок за ход уже был"></i>` : ""}${button("end", BUTTONS.end)}</div>
         ${planeRowHtml(d.planeRow)}
         ${actor.type === "npc" ? aceRowHtml(actor) : ""}
+        ${actor.type === "npc" ? squadRowHtml(actor) : ""}
         ${ctRow(d)}
         ${nemRow(d)}
         ${actor.type === "npc" ? adviceRow(actor) : ""}
@@ -393,7 +398,7 @@ async function onClick(ev) {
   const hl = ev.target.closest("[data-hud-hl]");
   if (hl) { ev.preventDefault(); ev.stopPropagation(); return setHlMode(hl.dataset.hudHl); }
   if (dragged && ev.target.closest("header")) { dragged = false; return; }
-  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-ace]");
+  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-tactic], [data-hud-ace]");
   if (!t || !shown) return;
   ev.preventDefault();
   const d = t.dataset, actor = shown;
@@ -418,6 +423,7 @@ async function onClick(ev) {
   if (d.hudAoa !== undefined) return useAoa(actor);
   if (d.hudBooster !== undefined) return pickBooster(actor);
   if (d.hudDeck !== undefined) return useDeck(actor);
+  if (d.hudTactic) return useTactic(actor.system.squad, d.hudTactic, actor);
   if (d.hudAce !== undefined) return aceClick(actor, d.hudAce);
   if (d.hudAdvTarget !== undefined) return showTarget(actor);
   if (d.hudAdv !== undefined) return runAdvice(actor, d.hudAdv);

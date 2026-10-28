@@ -271,7 +271,7 @@ export class NpcData extends foundry.abstract.TypeDataModel {
     };
   }
 
-  /* Конскрипты и дуэлянты: одна метка = Doom. Асы получают метки как пилоты. */
+  /* Конскрипты, корабли-дуэлянты и летающие крепости: одна метка = Doom. Асы получают метки как пилоты, дуэлянты-самолёты — Structure и Doom (actor.mjs). */
   get fullMarkers() { return this.tier === "ace"; }
 
   prepareDerivedData() {

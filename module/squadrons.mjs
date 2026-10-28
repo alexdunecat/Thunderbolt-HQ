@@ -1,13 +1,40 @@
-/* Эскадрильи дуэлянтов: одна раскладка навыков на всю эскадрилью, 4 очка + 1 за каждую пройденную операцию кампании
-   (хоумрул 9, Alex 17.10). Раскладки хранятся в настройке мира по названию эскадрильи; у машины в листе только название. */
-import { SYSTEM_ID, TB } from "./config.mjs";
+/* Эскадрильи дуэлянтов: одна раскладка навыков на всю эскадрилью. Самолёты и вертолёты: от самого опытного пилота кампании −4,
+   не меньше 4 (Стрэйнджриал 9.1, Alex 28.10). Корабли и летающие крепости по-старому: 4 очка + 1 за каждую пройденную операцию (хоумрул 9).
+   Раскладки и тактики хранятся в настройке мира по названию эскадрильи; у машины в листе только название. */
+import { SYSTEM_ID, TB, inCampaign, airDuelist } from "./config.mjs";
 import { esc } from "./utils.mjs";
 
 export const SQUAD_POINTS = 4;
 /** Пройдено операций кампании (настройка мира, ведёт AWACS). */
 export const operationsDone = () => { try { return Math.max(0, Number(game.settings.get(SYSTEM_ID, "operationsDone")) || 0); } catch { return 0; } };
-/** Очков на раскладку эскадрильи сейчас: 4 + пройденные операции. */
+/** Очков на раскладку эскадрильи кораблей и летающих крепостей: 4 + пройденные операции. */
 export const squadBudget = () => SQUAD_POINTS + operationsDone();
+/** Именная эскадрилья самолётов: на столько меньше суммы навыков самого опытного пилота. */
+export const AIR_SQUAD_CUT = 4;
+/** Сумма навыков самого опытного пилота кампании (та же, от которой считается бюджет аса). */
+export function bestPilotPoints(pilots = globalThis.game?.actors?.filter?.(inCampaign) ?? []) {
+  return Math.max(0, ...pilots.map(p => squadPoints(p.system?.skills)));
+}
+/** Очков на раскладку эскадрильи самолётов: сильнейший пилот −4, не меньше 4. */
+export const airSquadBudget = pilots => Math.max(SQUAD_POINTS, bestPilotPoints(pilots) - AIR_SQUAD_CUT);
+/** Эскадрилья самолётов (все её машины — дуэлянты-самолёты; пустая считается такой же). */
+export const isAirSquad = name => squadMembers(name).every(airDuelist);
+/** Бюджет раскладки этой эскадрильи. */
+export const budgetOf = name => (isAirSquad(name) ? airSquadBudget() : squadBudget());
+/** Тактики эскадрильи, что действуют сейчас: первая всегда, вторая с третьей операции (пройдено 2). */
+export function squadTactics(name) {
+  const t = allSquads()[name]?.tactics ?? [];
+  return [t[0], operationsDone() >= 2 ? t[1] : null].filter(k => k && TB.squadTactics[k]).filter((k, i, all) => all.indexOf(k) === i);
+}
+/** Ведущий: тактика эскадрильи в слоте i (0 или 1), "" — снять. */
+export async function setSquadTactic(name, i, key) {
+  if (!game.user.isGM || !name) return;
+  const all = foundry.utils.deepClone(allSquads());
+  const t = [...(all[name]?.tactics ?? ["", ""])];
+  t[i] = TB.squadTactics[key] ? key : "";
+  all[name] = { ...blank(), ...(all[name] ?? {}), tactics: t };
+  return game.settings.set(SYSTEM_ID, "squadrons", all);
+}
 /** «5 очков», «4 очка», «1 очко». */
 export function pointsText(n) {
   const m10 = n % 10, m100 = n % 100;
@@ -20,7 +47,7 @@ const blank = () => Object.fromEntries(KEYS.map(k => [k, 0]));
 
 export function registerSquadronSettings() {
   game.settings.register(SYSTEM_ID, "operationsDone", {
-    name: "Пройдено операций кампании", hint: `Раскладка навыков эскадрилий дуэлянтов (и крупных кораблей-дуэлянтов): ${SQUAD_POINTS} очка + 1 за каждую пройденную операцию. Меняется и в панели AWACS.`,
+    name: "Пройдено операций кампании", hint: `Раскладка навыков кораблей-дуэлянтов и летающих крепостей: ${SQUAD_POINTS} очка + 1 за каждую пройденную операцию. С 2 пройденных у эскадрильи самолётов вторая тактика. Меняется и в панели AWACS.`,
     scope: "world", config: true, type: Number, default: 0,
     onChange: () => {
       for (const a of npcActors()) if (a.sheet?.rendered) a.sheet.render(false);
@@ -90,7 +117,7 @@ export async function squadFromSelection() {
   const names = Object.keys(allSquads());
   const name = await new Promise(resolve => new Dialog({
     title: "Эскадрилья дуэлянтов",
-    content: `<form class="tb-dialog"><p class="tb-hint">Машин выделено: ${tokens.length}. Они станут дуэлянтами с общей раскладкой навыков на ${pointsText(squadBudget())}.</p>
+    content: `<form class="tb-dialog"><p class="tb-hint">Машин выделено: ${tokens.length}. Они станут дуэлянтами с общей раскладкой навыков на ${pointsText(tokens.every(t => t.actor.system.kind === "air") ? airSquadBudget() : squadBudget())}.</p>
       <div class="form-group"><label>Название</label><input type="text" name="squad" list="tb-squad-names" value="${esc(tokens[0].actor.system.squad)}" autofocus></div>
       <datalist id="tb-squad-names">${names.map(n => `<option value="${esc(n)}">`).join("")}</datalist></form>`,
     buttons: {

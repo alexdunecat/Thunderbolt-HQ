@@ -12,6 +12,7 @@ import { cockpitDialog } from "./aim.mjs";
 import { giveNext } from "./squad.mjs";
 import { isNemesisFor } from "./nemesis.mjs";
 import { aceReady, aceUsedPatch, aceMarks, isAce } from "./ace-kit.mjs";
+import { tacticAttack } from "./duelists.mjs";
 
 const CHANNEL = `system.${SYSTEM_ID}`;
 /* Флаги пилота: ctSure — «Один на миллион» (следующий выстрел попадёт), ctFired — уже атаковал в этом вылете,
@@ -299,6 +300,10 @@ export function triggerAttack(attacker, target, { rolled = false, skill = "", gu
       if (rear) out.problems.push(`«${trig(rear, "rearguard")?.name ?? "Арьергард"}»: конскрипты и дуэлянты атакуют только ${callsign(rear)}.`);
     }
   }
+  // тактики эскадрильи дуэлянтов: «Клещи», «За ведомого», «Приманка»
+  const tac = tacticAttack(attacker, ta);
+  out.parts.push(...tac.parts);
+  later.push(...tac.later);
   out.take = async () => { for (const f of later) await f(); };
   return out;
 }

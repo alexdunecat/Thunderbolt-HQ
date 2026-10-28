@@ -10,6 +10,7 @@ import { PASS, isOut } from "./documents/combat.mjs";
 import { landBlocked, climbProblem, ALT_ORDER, tunnelClimbProblem, tunnelMoveProblem, tokenOf, weatherAt, isFlying } from "./scene.mjs";
 import { esc } from "./utils.mjs";
 import { forkChoice } from "./tunnel.mjs";
+import { inWall, carouselFree, carouselMoved } from "./duelists.mjs";
 
 export const ACT_NAMES = {
   lock: "Lock On!", missile: "Fox Two!", guns: "Guns, Guns, Guns!", break: "Break!", recover: "Передышка",
@@ -259,6 +260,12 @@ export function registerActions() {
     const problems = [], acts = [];
     const deck = doc.actor.getFlag?.(SYSTEM_ID, "deck");
     if (deck?.combat === game.combat.id && !gmFree) { ui.notifications.warn(`${doc.name} на палубе «${deck.name}»: сначала взлёт (кнопка ВЗЛЁТ в HUD).`); return false; }
+    // эскадрилья дуэлянтов: в «Строю» не перемещаются до конца раунда, «Карусель» — бесплатный шаг в соседнюю зону
+    if (inWall(doc.actor) && !gmFree) { ui.notifications.warn(`${doc.name} в строю эскадрильи: до конца раунда без Move и Climb / Dive.`); return false; }
+    if (("x" in change || "y" in change) && !("elevation" in change && change.elevation !== doc.elevation) && carouselFree(doc.actor) && zoneStep(doc, change) === 1) {
+      carouselMoved(doc.actor);
+      return;
+    }
     // «Полный газ» (Punch It, раз за вылет): одним Move до 3 зон
     const punch = doc.actor.items?.find?.(i => i.type === "trigger" && i.system.key === "punch" && !i.system.used) ?? null;
     let punchUsed = null, fast = null, dash = false;

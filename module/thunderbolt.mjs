@@ -20,6 +20,7 @@ import { esc } from "./utils.mjs";
 import { initSocket, checkAdjacency, leadership, formUp } from "./squad.mjs";
 import { registerTokenSettings, arrangeSceneTokens } from "./tokens.mjs";
 import { registerSquadronSettings, squadFromSelection } from "./squadrons.mjs";
+import { registerDuelists } from "./duelists.mjs";
 import { registerMacros, actFromMacro, fillHotbars, fillGmHotbar } from "./macros.mjs";
 import { openBrush, pickWeatherBrush } from "./cell-brush.mjs";
 import { registerRwr } from "./rwr.mjs";
@@ -144,6 +145,7 @@ Hooks.once("init", () => {
   Object.assign(CONFIG.fontDefinitions, { "Jura": { editor: true, fonts: [] }, "JetBrains Mono": { editor: true, fonts: [] } });
   registerTokenSettings();
   registerSquadronSettings();
+  registerDuelists();
   registerMacros();
   registerRwr();
   registerRadio();

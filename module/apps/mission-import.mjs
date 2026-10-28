@@ -1,6 +1,6 @@
 /* Импорт миссии из Планшета AWACS (кнопка «JSON» в планшете): сцена с клетками местности, токены NPC и журнал брифинга. */
 import { SYSTEM_ID, SYS_PATH, TB, footprintOf } from "../config.mjs";
-import { squadLayout, setSquadLayout } from "../squadrons.mjs";
+import { squadLayout, setSquadLayout, setSquadTactic } from "../squadrons.mjs";
 import { npcActor } from "../data/catalog-docs.mjs";
 import { esc } from "../utils.mjs";
 import { zonePacker } from "../tokens.mjs";
@@ -369,6 +369,8 @@ export async function importMission(input) {
     if (tier === "duelist") {
       data.system.squad = data.name;
       if (u.skills || !squadLayout(data.name)) await setSquadLayout(data.name, data.system.skills ?? {});
+      // тактика именной эскадрильи из Планшета AWACS (первый слот)
+      if (u.tactic && TB.squadTactics[u.tactic]) await setSquadTactic(data.name, 0, u.tactic);
     }
     data.prototypeToken.disposition = SIDE[u.side] ?? CONST.TOKEN_DISPOSITIONS.HOSTILE;
     data.system.side = ["ally", "player"].includes(u.side) ? "ally" : u.side === "neutral" ? "neutral" : "enemy";

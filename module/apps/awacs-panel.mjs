@@ -17,7 +17,8 @@ import { campaignDate, campaignDateRaw, setCampaignDate, todayDate } from "../ca
 import { lessonDone, lessonReset } from "../career-triggers.mjs";
 import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMarkAt, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
 import { DT } from "../config.mjs";
-import { squadBudget, pointsText, operationsDone, setOperationsDone, allSquads, squadPoints, setSquadLayout, deleteSquad, squadFromSelection, numberSquad } from "../squadrons.mjs";
+import { squadBudget, pointsText, operationsDone, setOperationsDone, allSquads, squadPoints, setSquadLayout, deleteSquad, squadFromSelection, numberSquad, budgetOf, isAirSquad, airSquadBudget, setSquadTactic } from "../squadrons.mjs";
+import { sortieOf, tacticsView, useTactic } from "../duelists.mjs";
 import { openMedals, suggestAwards, offerAwards } from "../medals.mjs";
 import { openHangarAdmin } from "../hangar.mjs";
 import { undo, redo, openUndoLog } from "../undo.mjs";
@@ -120,9 +121,12 @@ export class AwacsPanel extends Application {
       queued = game.messages.contents.slice(-300).filter(m => { const c = m.getFlag(SYSTEM_ID, "card"); return c?.delayed && c.combatKey === key && !c.resolved && !c.dmgApplied; }).length;
     }
     const budget = squadBudget();
+    const tacOpts = (sel, off = false) => [{ k: "", v: off ? "со 2 пройденных операций" : "без тактики", sel: !sel }, ...Object.entries(TB.squadTactics).map(([k, t]) => ({ k, v: t.name, sel: k === sel }))];
     const squads = Object.entries(allSquads()).sort(([a], [b]) => a.localeCompare(b, "ru")).map(([name, l]) => {
-      const used = squadPoints(l);
-      return { name, tag: l.tag ?? "", used, over: used > budget, members: (scene?.tokens ?? []).filter(t => t.actor?.type === "npc" && t.actor.system.tier === "duelist" && t.actor.system.squad === name).map(t => t.name).join(", "),
+      const used = squadPoints(l), air = isAirSquad(name), b = air ? airSquadBudget() : budget, st = air ? sortieOf(name) : null;
+      return { name, tag: l.tag ?? "", used, budget: b, air, over: used > b,
+        pool: st ? `${st.strain.value}/${st.strain.max}` : "", tac1: tacOpts(l.tactics?.[0]), tac2: tacOpts(l.tactics?.[1], operationsDone() < 2), tac2off: operationsDone() < 2,
+        tactics: air && st ? tacticsView(name) : [], members: (scene?.tokens ?? []).filter(t => t.actor?.type === "npc" && t.actor.system.tier === "duelist" && t.actor.system.squad === name).map(t => t.name).join(", "),
         skills: Object.keys(TB.skills).map(k => ({ key: k, value: l[k] ?? 0 })) };
     });
     // в панели только эскадрильи, чьи машины стоят на этой сцене; остальные одной строкой
@@ -241,6 +245,8 @@ export class AwacsPanel extends Application {
     el.querySelector("[data-campaign-date]")?.addEventListener("change", ev => setCampaignDate(ev.target.value));
     on("[data-squad-form]", () => squadFromSelection());
     on("[data-squad-num]", d => numberSquad(d.squadNum));
+    on("[data-squad-use]", d => useTactic(d.squadUse, d.tactic));
+    el.querySelectorAll("[data-squad-tac]").forEach(n => n.addEventListener("change", () => setSquadTactic(n.dataset.squadTac, Number(n.dataset.slot), n.value)));
     on("[data-squad-talk]", d => openSquadChatter(d.squadTalk));
     on("[data-squad-del]", async d => {
       if (await Dialog.confirm({ title: "Распустить эскадрилью", content: `<p>Распустить «${esc(d.squadDel)}»? Машины останутся дуэлянтами со своими навыками.</p>` })) deleteSquad(d.squadDel);

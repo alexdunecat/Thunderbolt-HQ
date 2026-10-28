@@ -14,10 +14,12 @@ import { aimedWeapon } from "../range.mjs";
 import { renderGround, renderBreakdown, resolveButton, groundAction, checkBreakdown, practiceFor } from "../downtime.mjs";
 import { strikeShip } from "../strikes.mjs";
 import { schematicHtml, bindSchematic, aimAt, cockpitDialog, defaultSys } from "../aim.mjs";
+import { poolSquad, poolOf, spendPool, sunOn } from "../duelists.mjs";
 
 const sign = n => (n >= 0 ? "+" : "−") + Math.abs(n);
 /** Strain могут тратить пилоты и асы-NPC. */
-const canStrain = actor => actor.type === "pilot" || (actor.type === "npc" && actor.system.tier === "ace");
+// дуэлянт именной эскадрильи тратит из её запаса (Стрэйнджриал 9.1)
+const canStrain = actor => actor.type === "pilot" || (actor.type === "npc" && actor.system.tier === "ace") || !!poolSquad(actor);
 
 /* ---------- вспомогательное ---------- */
 
@@ -234,7 +236,11 @@ export function renderCard(card) {
   if (c.rolled && !settled && !c.practiced && !c.reroll && !c.resolved && !c.dmgApplied && practiceFor(who, c.skill, c.d10))
     btn.push(`<button type="button" data-tb-action="dt-practice" class="tb-owner" title="Задел «Наработка»: раз за вылет перебросить d10 и взять лучший"><i class="fas fa-rotate"></i> Наработка: перебросить d10</button>`);
   if (c.reroll) rows.push(`<div class="tb-note">Наработка: d10 переброшен (${c.reroll.join(" → ")}), взят лучший.</div>`);
-  if (c.rolled && c.strainable && !c.resolved && !settled) btn.push(`<button type="button" data-tb-action="strain" class="tb-owner"><i class="fas fa-bolt"></i> +1 Strain</button>`);
+  if (c.rolled && c.strainable && !c.resolved && !settled) {
+    // дуэлянт тратит из запаса эскадрильи: на кнопке сколько осталось
+    const pool = poolOf(who);
+    btn.push(`<button type="button" data-tb-action="strain" class="tb-owner"${pool ? ` title="Запас эскадрильи «${esc(poolSquad(who))}»"` : ""}><i class="fas fa-bolt"></i> +1 Strain${pool ? ` · запас ${pool.value}/${pool.max}` : ""}</button>`);
+  }
   if (c.type === "side" && c.success && c.onWin && !c.applied) btn.push(`<button type="button" data-tb-action="side-win" class="tb-owner"><i class="fas fa-door-open"></i> «${esc(c.onWin.name)}» выходит из боя</button>`);
   if (c.type === "side" && c.success && c.onWin && c.applied) rows.push(`<div class="tb-note">«${esc(c.onWin.name)}» выходит из боя.</div>`);
   if (c.type === "side" && !c.success && !c.applied) {
@@ -1101,7 +1107,10 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
   const ws = w?.system;
   if (isOwnFire(w)) return fireOwn(actor, w, data);
   // фирменные приёмы при пуске
-  const ghost = !!data.ghost && moveReady(actor, "ghost");
+  const ghostMove = !!data.ghost && moveReady(actor, "ghost");
+  // «Со стороны солнца» эскадрильи дуэлянтов: в этот раунд ракеты без предупреждения, как «Удар из ниоткуда»
+  const sun = !ghostMove && sunOn(actor);
+  const ghost = ghostMove || sun;
   const shkval = !!data.salvo && moveReady(actor, "salvo");
   if (shkval && w && !ws.unlimited && (ws.ammo.value ?? 0) < 2) return ui.notifications.warn(`«Ракетный шквал»: у ${w.name} меньше 2 Ammo.`);
   // противовоздушное спецоружие не бьёт по земле, ударное не бьёт по воздуху; стандартной ракеты у NPC без Air-Air / Air-Gnd нет
@@ -1177,7 +1186,8 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
   if (asm) notes.push("<b>Противокорабельная ракета.</b> По морской цели в любой точке зоны операции, без захвата, урон 12.");
   if (crs) notes.push("<b>Крылатые ракеты.</b> По наземной цели в любой точке зоны операции, без захвата, урон 7.");
   if (data.improved && skill !== (air ? "aim" : "deploy")) notes.push(`<b>Универсал.</b> Improved Fox Two! с ${esc(TB.skills[skill].en)}: он больше.`);
-  if (ghost) notes.push(`<b>${esc(TB.planeMoves.ghost.name)}.</b> Цель не получает предупреждения о ракете и не может сделать Break! против неё.`);
+  if (ghostMove) notes.push(`<b>${esc(TB.planeMoves.ghost.name)}.</b> Цель не получает предупреждения о ракете и не может сделать Break! против неё.`);
+  if (sun) notes.push(`<b>${esc(TB.squadTactics.sun.name)}.</b> Цель не получает предупреждения о ракете и не может сделать Break! против неё.`);
   if (shkval) notes.push(`<b>${esc(TB.planeMoves.salvo.name)}.</b> Две ракеты по цели: вторая даёт +1 к атаке или свой урон.`);
   else if (ws?.fx) notes.push(esc(ws.fx));
   const close = ws?.key === "QAAM" && !!t && closeTo(actor, t);
@@ -1206,7 +1216,7 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
   if (oc) notes.push(`«${esc(oc.name)}»: +2 к атаке и урону. ${esc(w.name)} больше не работает до конца вылета.`);
 
   if (w && !ws.unlimited) await w.update({ "system.ammo.value": Math.max(0, (ws.ammo.value ?? 0) - (shkval ? 2 : 1)) });
-  if (ghost || shkval) await actor.setFlag(SYSTEM_ID, "sortie", { ...(actor.getFlag(SYSTEM_ID, "sortie") ?? {}), move: sortieMark(actor) });
+  if (ghostMove || shkval) await actor.setFlag(SYSTEM_ID, "sortie", { ...(actor.getFlag(SYSTEM_ID, "sortie") ?? {}), move: sortieMark(actor) });
   if (oc) { await oc.update({ "system.used": true }); await w.setFlag(SYSTEM_ID, "off", true); }
 
   const card = {
@@ -1967,8 +1977,12 @@ export async function onCardAction(message, action, button) {
     case "strain": {
       if (!actor?.isOwner) return;
       if (actor.system.off?.has?.("fl")) return ui.notifications.warn(`Strain 0: закрылки ${actor.system.jam === "fl" ? "заглушены РЭБ" : "сломаны"}.`);
-      if ((actor.system.strain.value ?? 0) <= 0) return ui.notifications.warn("Strain закончился.");
-      await actor.update({ "system.strain.value": actor.system.strain.value - 1 });
+      if (poolSquad(actor)) {
+        if (!(await spendPool(actor, 1))) return ui.notifications.warn(poolOf(actor) ? `Запас Strain эскадрильи «${poolSquad(actor)}» кончился.` : "Запас Strain эскадрильи есть только в идущем бою.");
+      } else {
+        if ((actor.system.strain.value ?? 0) <= 0) return ui.notifications.warn("Strain закончился.");
+        await actor.update({ "system.strain.value": actor.system.strain.value - 1 });
+      }
       card.strain = (card.strain ?? 0) + 1;
       await save();
       if (card.type === "break") await applyBreak(actor, card);
