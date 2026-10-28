@@ -5,9 +5,10 @@ import { sameZoneLock, tokenOf, altOf, weatherAt, weatherParts, defenseWithWeath
 import { alarmRows, raiseAlarm, surprise, quietAA, markVolley } from "../stealth.mjs";
 import { takeNext, passOutcome } from "../squad.mjs";
 import { nemesisAttack, nemesisDefense } from "../nemesis.mjs";
-import { triggerAttack, triggerDefense, triggerBreak, trashComp, coverPart, millionFor, letGo, trig, weakOf, followFor, offerFollow, followOffer, takeFollow } from "../combat-triggers.mjs";
+import { triggerAttack, triggerDefense, triggerBreak, trashComp, coverPart, millionFor, letGo, trig, weakOf, followFor, offerFollow, followOffer, takeFollow, aceRadio } from "../combat-triggers.mjs";
 import { pickTargetToken, selectTarget } from "../pick.mjs";
 import { targetMarks } from "../target-marks.mjs";
+import { aceReady, aceUsedPatch } from "../ace-kit.mjs";
 import { allowRoll } from "../actions.mjs";
 import { aimedWeapon } from "../range.mjs";
 import { renderGround, renderBreakdown, resolveButton, groundAction, checkBreakdown, practiceFor } from "../downtime.mjs";
@@ -212,8 +213,8 @@ export function renderCard(card) {
   for (const n of c.notes ?? []) rows.push(`<div class="tb-note">${n}</div>`);
   if (c.type === "rail") rows.push(...railRows(c));
   if (c.ugbPerk) rows.push(`<div class="tb-note">Perk UGB: ${c.ugbPerk === "double" ? "двойной урон основной цели" : "обычный урон всем целям, соседним с основной"}.</div>`);
-  if (c.reattack && !c.resolved) rows.push(`<div class="tb-note">SAAM: промах при удержанном захвате, повторный заход в конце раунда ${String(c.combatKey).split(":")[1]}.</div>`);
-  if (c.lost) rows.push(`<div class="tb-note">SAAM потеряна: ${esc(c.lost)}.</div>`);
+  if (c.reattack && !c.resolved) rows.push(`<div class="tb-note">${c.aceAgain ? `«${esc(TB.aceTriggers.again.name)}»` : "SAAM"}: промах при удержанном захвате, повторный заход в конце раунда ${String(c.combatKey).split(":")[1]}.</div>`);
+  if (c.lost) rows.push(`<div class="tb-note">${c.aceAgain ? "Повторный заход сорван" : "SAAM потеряна"}: ${esc(c.lost)}.</div>`);
   if (c.type === "recover" && c.success) rows.push(`<div class="tb-note">Вернуть <b>${c.regain}</b> Strain.</div>`);
 
   const btn = [];
@@ -498,7 +499,7 @@ export async function ejectNow(actor, { marked = false } = {}) {
 }
 
 /** Break!: d10 + Dodge (+Strain, +Lead союзника), пополам вверх. */
-export async function rollBreak(actor, { g12 = false } = {}) {
+export async function rollBreak(actor, { g12 = false, instinct = false } = {}) {
   if (g12) return breakG12(actor);
   if (blocked(actor, "dodge")) return;
   // в туннеле уходить некуда (кроме Зала и триггера «Это никогда не пригодится»)
@@ -522,9 +523,11 @@ export async function rollBreak(actor, { g12 = false } = {}) {
   // в разреженном воздухе стратосферы Break! стоит на 1 Speed больше
   const thin = actor.system.alt === "strat" ? 1 : 0;
   const card = {
-    type: "break", label: "Break!", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: null,
+    type: "break", label: instinct ? `Break! · ${TB.aceInstinct.name}` : "Break!", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: null,
     ev: actor.system.evasion ?? actor.system.stats?.ev ?? 0, strainable: canStrain(actor),
-    speedDrop: (tvc ? 1 : 2) + thin, combatKey: combatKey(), practiced: !!dice.practiced, followOf: dice.follow ?? "", ...thresholds(actor, "dodge", data.storm)
+    speedDrop: (tvc ? 1 : 2) + thin, combatKey: combatKey(), practiced: !!dice.practiced, followOf: dice.follow ?? "", ...thresholds(actor, "dodge", data.storm),
+    // «Чутьё аса»: вне хода, действие не тратит и проверкой хода не считается
+    ...(instinct ? { noTurnRoll: true, notes: [`<b>${esc(TB.aceInstinct.name)}.</b> Вне хода: действие не тратится, проверкой хода не считается.`] } : {})
   };
   const msg = await postCard(actor, card, dice.rolls);
   await tb.take();
@@ -1443,11 +1446,11 @@ export function initHitSocket() {
 }
 
 /** Пуск ЗРК или ракета корабельной системы: G-A, Speed 0, без броска. */
-export async function fireSam(actor, sysIndex) {
+export async function fireSam(actor, sysIndex, { target = null, free = false, tag = "" } = {}) {
   const s = actor.system;
   const src = s.kind === "ship" ? s.systems[sysIndex] : s.ground;
-  // захват этой системы важнее метки T: метка у ведущего одна на все его машины
-  let t = lockedTarget(actor) ?? currentTarget();
+  // захват этой системы важнее метки T: метка у ведущего одна на все его машины; target — цель задана («Ловушка» аса)
+  let t = target ? describeTarget(target.actor, target.name, target) : lockedTarget(actor) ?? currentTarget();
   // цели нет: щелчок по токену на карте, как у Lock On!
   if (!t && canvas?.ready && (src?.ga || src?.gg)) {
     const tok = await pickTargetToken(actor, { title: s.kind === "ship" ? `Пуск: ${src?.name}` : "Пуск" });
@@ -1458,11 +1461,11 @@ export async function fireSam(actor, sysIndex) {
   // по воздуху G-A (ЗРК), по земле и морю G-G; без цели — чем система стреляет
   const air = t ? isAirTarget(t) : !!src?.ga;
   const ga = air ? src?.ga : src?.gg;
-  const label = s.kind === "ship" ? `Пуск: ${src?.name}` : air ? "Пуск ЗРК" : "Пуск G-G";
+  const label = (s.kind === "ship" ? `Пуск: ${src?.name}` : air ? "Пуск ЗРК" : "Пуск G-G") + (tag ? ` · ${tag}` : "");
   if (!has(ga)) return ui.notifications.warn(air ? `${label}: по воздуху эта система не стреляет.` : `${label}: по земле и морю нечем, нет G-G${t ? `, а «${t.name}» на земле или на воде` : ""}.`);
   // ЗРК — та же ракета: нужен захват этой цели (Lock On! на листе), дальность ракеты.
   // Системам корабля захват нужен, только если так сказано в описании («Lock On и пуск — два действия»): нижним орудиям — нет
-  const needLock = s.kind !== "ship" || /Lock On/i.test(src?.note ?? "");
+  const needLock = !free && (s.kind !== "ship" || /Lock On/i.test(src?.note ?? ""));
   if (t) {
     const { problems } = reachProblems(actor, t, TB.range.missile);
     if (needLock && s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
@@ -1497,12 +1500,12 @@ function renderVolley(c) {
     const boost = r.boosts ? ` +${r.boosts} от остальных` : "";
     const verdict = r.prox ? `<b class="ok">HPAA рвётся рядом, ${r.dmg} урона</b>`
       : r.hit ? `<b class="ok">Попадание, ${r.dmg} урона</b>${r.added ? ` (сложен урон ${r.added + 1} ракет)` : ""}${r.doubled ? " (UGB на Perk: вдвое)" : ""}`
-      : `<b class="fail">Промах</b>${r.again ? `, SAAM держит захват: повторный заход в конце раунда ${r.again}` : ""}`;
+      : `<b class="fail">Промах</b>${r.again ? `, ${r.keen ? `«${esc(TB.aceTriggers.again.name)}»` : "SAAM держит захват"}: повторный заход в конце раунда ${r.again}` : ""}`;
     const ace = r.aceHit ? ` · <b class="ok">«104:0» (${esc(r.ace.name)}): попадает, ${r.dmg} урона</b>`
       : r.ace && !r.hit ? ` <button type="button" data-tb-action="ace104" data-row="${i}" class="tb-uuid-owner" data-owner="${esc(r.ace.uuid)}" title="${esc(TB.planeMoves.ace104.text)}"><i class="fas fa-crosshairs"></i> 104:0 · ${esc(r.ace.name)}: попадает</button>` : "";
     const cobra = r.dodged ? ` Ещё ${rk(r.dodged)} мимо: «${esc(TB.planeMoves.cobra.name)}».` : "";
     return `<div class="tb-volley-row ${r.hit ? "hit" : "miss"}"><b>${esc(r.name)}</b>: ${rk(r.count)} (${esc(r.shooters)}). Лучшая ${r.best}${boost} против ${r.occ ? "Occlusion" : "защиты"} ${r.defense}${r.broke ? " (с Break!)" : ""} → ${verdict}${ace}${cobra}</div>`;
-  }).join("") + (c.lost ?? []).map(l => `<div class="tb-volley-row muted"><b>${esc(l.name)}</b>: SAAM (${esc(l.shooter)}) потеряна, ${esc(l.why)}.</div>`).join("");
+  }).join("") + (c.lost ?? []).map(l => `<div class="tb-volley-row muted"><b>${esc(l.name)}</b>: ${l.ace ? "повторный заход" : "SAAM"} (${esc(l.shooter)}) ${l.ace ? "сорван" : "потеряна"}, ${esc(l.why)}.</div>`).join("");
   // «Вираж»: захват на промахнувшегося стрелка
   const turns = (c.turns ?? []).map(e => e.locked || e.chosen
     ? `<div class="tb-volley-row"><b>${esc(e.name)}</b>: «Вираж», бесплатный захват на <b>${esc(e.locked || e.chosen)}</b>.</div>`
@@ -1537,8 +1540,8 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
     const c = m.getFlag(SYSTEM_ID, "card");
     if (!c?.delayed || !c.combatKey || c.dmgApplied || c.resolved || !c.targetUuid || !take(c)) continue;
     // SAAM летит по захвату стрелка: захват сорван до удара — ракета потеряна
-    const why = c.wkey === "SAAM" ? saamLost(c, m) : "";
-    if (why) { lost.push({ name: c.targetName, shooter: c.actorName, why }); mark(m, { resolved: true, lost: why }); continue; }
+    const why = c.wkey === "SAAM" ? saamLost(c, m) : c.aceAgain ? aceAgainLost(c) : "";
+    if (why) { lost.push({ name: c.targetName, shooter: c.actorName, why, ...(c.aceAgain ? { ace: true } : {}) }); mark(m, { resolved: true, lost: why }); continue; }
     const cc = computeCard(c);
     // по кораблю ракеты собираются по системам: каждая система — своя цель залпа; залп — ракета в каждую захваченную цель
     for (const t of [{ uuid: c.targetUuid, name: c.targetName, sys: c.sys, primary: true }, ...(c.salvo ?? [])]) {
@@ -1587,12 +1590,21 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
     const aceBy = !hit && short <= 2 && isAirTarget(info) ? list.find(x => { const sh = resolveActor(x.c.actorUuid); return sh && moveReady(sh, "ace104"); }) : null;
     const ev = actor.system.evasion ?? actor.system.stats?.ev ?? 0;
     // SAAM: промах при удержанном захвате — один повторный заход в конце следующего раунда, боезапас не тратится
-    const again = !hit && !all ? list.filter(x => x.c.wkey === "SAAM" && !x.c.reattack && x.primary) : [];
-    for (const x of list) mark(x.m, again.includes(x) ? { combatKey: `${combat.id}:${round + 1}`, atTurn: false, reattack: true } : { resolved: true });
+    // «Не уйдёшь» (триггер аса): так же заходит ещё раз ракета аса, если захват держится; раз за вылет
+    const keen = [];
+    if (!hit && !all) for (const x of list) {
+      if (x.c.wkey === "SAAM" || x.c.reattack || !x.primary) continue;
+      const sh = resolveActor(x.c.actorUuid);
+      if (!aceReady(sh, "again") || keen.some(k => k.sh === sh) || sh.system.lockUuid !== x.c.targetUuid) continue;
+      keen.push({ x, sh });
+    }
+    for (const { sh } of keen) { await sh.update(aceUsedPatch(sh, "again")); aceRadio(sh, "От меня не уйдёшь."); }
+    const again = !hit && !all ? [...list.filter(x => x.c.wkey === "SAAM" && !x.c.reattack && x.primary), ...keen.map(k => k.x)] : [];
+    for (const x of list) mark(x.m, again.includes(x) ? { combatKey: `${combat.id}:${round + 1}`, atTurn: false, reattack: true, ...(keen.some(k => k.x === x) ? { aceAgain: true } : {}) } : { resolved: true });
     targets.push({
       uuid, name: info.name, count: list.length, shooters, best: best.c.total, defense: best.def, hit, sys, occ: !!y, prox: !!prox,
       broke: !y && (actor.system.breakEv ?? -Infinity) > ev && !(best.c.wkey === "QAAM" && best.c.close),
-      boosts: hit && !prox ? need : 0, added: Math.max(0, used.length - 1), dmg, again: again.length ? round + 1 : 0,
+      boosts: hit && !prox ? need : 0, added: Math.max(0, used.length - 1), dmg, again: again.length ? round + 1 : 0, keen: keen.length > 0,
       doubled: used.some(x => x.c.ugbPerk === "double"),
       sourceUuid: best.c.actorUuid, source: best.c.actorName, shooterUuids: [...new Set(list.map(x => x.c.actorUuid))],
       bomb: list.some(x => x.c.bomb), dodged: dodged.length,
@@ -1725,7 +1737,7 @@ export async function refreshStacks() {
 }
 
 /** Бесплатный захват («Вираж»): цель uuid берёт на захват стрелка p. false — этот клиент не может писать актёра. */
-async function freeLock(uuid, p) {
+export async function freeLock(uuid, p) {
   const a = resolveActor(uuid);
   if (!a?.isOwner) return false;
   await a.update({ "system.lock": p.name, "system.lockUuid": p.uuid, [`flags.${SYSTEM_ID}.salvo`]: null, [`flags.${SYSTEM_ID}.phoenix`]: null });
@@ -1748,6 +1760,13 @@ export async function applyAce(message, row) {
   const hit = { uuid: r.uuid, name: r.name, dmg: r.dmg, source: r.ace.name, sourceUuid: r.ace.uuid, sys: r.sys, roundKey: card.roundKey };
   if (r.by === game.user.id) return hitTarget(hit, card.roundKey);
   game.socket.emit(CHANNEL, { type: "hit", to: r.by, hit });
+}
+
+/** «Не уйдёшь»: повторный заход ракеты аса срывается, если захват не держится. */
+function aceAgainLost(c) {
+  const sh = resolveActor(c.actorUuid);
+  if (!sh || sh.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) return "стрелок сбит";
+  return sh.system.lockUuid !== c.targetUuid ? "захват переведён или снят" : "";
 }
 
 /** SAAM: почему ракета потеряна (захват сорван до удара) или "" — захват держится. */

@@ -51,6 +51,9 @@ export function actionProblem(actor, what, { rolled = false, token = null } = {}
   const c = combatantOf(actor, token);
   if (!c) return null;
   const combat = c.parent, name = ACT_NAMES[what] ?? what;
+  // «Последний заход» аса: ход вне очереди после Doom, до трёх действий, одно с броском
+  const lr = lastRunOf(actor);
+  if (lr) return lr.used >= 3 ? `${c.name}: последний заход окончен, три действия сделаны.` : rolled && lr.rolls >= 1 ? `${c.name}: в последнем заходе бросок уже был.` : null;
   if (isOut(c)) return `${c.name} выбыл из боя: действий нет.`;
   if (combat.getFlag(SYSTEM_ID, "ready") !== combat.round) return `${c.name}: сначала заявка действий на этот раунд.`;
   if (combat.combatant?.id !== c.id) return `${c.name}: «${name}» только в свой ход.`;
@@ -59,6 +62,12 @@ export function actionProblem(actor, what, { rolled = false, token = null } = {}
   if (!free && s.used >= n) return n === 0 ? `${c.name}: ход пропущен, действий нет.` : `${c.name}: все заявленные действия (${n}) уже сделаны.`;
   if (rolled && s.rolled && !extraRoll(c, s)) return `${c.name}: бросок за этот ход уже был, а он один.`;
   return null;
+}
+
+/** «Последний заход» аса в этом бою: { combat, used, rolls, list } или null. */
+export function lastRunOf(actor) {
+  const f = actor?.getFlag?.(SYSTEM_ID, "lastRun");
+  return f && f.combat === globalThis.game?.combat?.id ? f : null;
 }
 
 /** Ключ хода бойца: бой, раунд, боец (для отметок «в этот ход»). */
@@ -78,6 +87,8 @@ export function allowAction(actor, what, opts) {
 
 /** Второй бросок за ход (Improved Fox Two! решается уже в окне пуска). */
 export function allowRoll(actor) {
+  const lr = lastRunOf(actor);
+  if (lr) { if (lr.rolls < 1) return true; ui.notifications.warn("В последнем заходе бросок уже был."); return false; }
   const c = combatantOf(actor);
   if (!c || !spentOf(c).rolled || extraRoll(c, spentOf(c))) return true;
   ui.notifications.warn(`${c.name}: бросок за этот ход уже был, а он один.`);
@@ -89,6 +100,11 @@ export function allowRoll(actor) {
  * Move и Climb / Dive открывают бесплатную смену скорости в этот ход.
  */
 export async function spendAction(actor, what, { rolled = false, token = null } = {}) {
+  const lr = lastRunOf(actor);
+  if (lr) {
+    const next = { ...lr, used: lr.used + 1, rolls: lr.rolls + (rolled ? 1 : 0), list: [...(lr.list ?? []), ACT_NAMES[what] ?? what] };
+    return actor.setFlag(SYSTEM_ID, "lastRun", next);
+  }
   const c = combatantOf(actor, token);
   if (!c?.isOwner) return;
   const name = ACT_NAMES[what] ?? what;

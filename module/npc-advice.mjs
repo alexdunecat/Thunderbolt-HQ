@@ -11,6 +11,7 @@ import { isNemesis, pilotsOf } from "./nemesis.mjs";
 import { presetPick, selectTarget } from "./pick.mjs";
 import { combatantOf, declaredOf, spentOf, allowAction, spendAction } from "./actions.mjs";
 import { lineHint } from "./return-line.mjs";
+import { instinctProblem } from "./ace-kit.mjs";
 
 const DEAD = () => CONFIG.specialStatusEffects?.DEFEATED ?? "dead";
 const out = a => !a || a.statuses?.has?.(DEAD()) || a.statuses?.has?.("retreat") || a.statuses?.has?.("inactive") || !!a.system?.markers?.doom;
@@ -105,7 +106,12 @@ export function adviseNpc(actor, token = tokenOf(actor)) {
   const steps = [], notes = [];
   const ground = s.kind === "ground";
   const missiles = incoming(actor);
-  if (missiles && isFlying(actor) && !m.systems)
+  // ас: Break! делает «Чутьём» вне хода, а проверку хода отдаёт атаке с броском
+  const keen = missiles && isFlying(actor) && !m.systems && !instinctProblem(actor);
+  if (keen) {
+    steps.push({ act: "instinct", label: TB.aceInstinct.name, hint: `По нему ${missiles > 1 ? `летят ${missiles} ракеты` : "летит ракета"}: Break! вне хода, действие не тратится` });
+    notes.push("Чутьё аса закрывает ракеты: проверку хода отдать атаке с броском (Improved Fox Two! или Guns).");
+  } else if (missiles && isFlying(actor) && !m.systems)
     steps.push({ act: "break", label: "Break!", hint: `По нему ${missiles > 1 ? `летят ${missiles} ракеты` : "летит ракета"}: Dodge против неё` });
   const list = candidates(actor, token);
   const c = list.find(x => !x.ban.length) ?? null;
@@ -145,7 +151,7 @@ export function adviseNpc(actor, token = tokenOf(actor)) {
   const line = lineHint(actor, token.document);
   if (line) notes.push(`${line.charAt(0).toUpperCase()}${line.slice(1)}.`);
   const others = list.filter(x => x !== c && !x.ban.length).slice(0, 3).map(x => `${x.token.name} (${x.dist === null ? "?" : zones(x.dist)})`);
-  const declare = Math.max(1, Math.min(3, steps.length));
+  const declare = Math.max(1, Math.min(3, steps.filter(x => x.act !== "instinct").length));
   return {
     target: { name, uuid: c.actor.uuid, tokenId: c.token.id, dist: c.dist, defense: c.info.defense, why: c.why, est: c.est },
     steps, declare, notes, others
@@ -176,9 +182,10 @@ export async function runAdvice(actor, i) {
   const step = a?.steps?.[Number(i)];
   if (!step) return;
   const target = a.target ? canvas.tokens.get(a.target.tokenId) : null;
-  if (target && step.act !== "break") selectTarget(target);
+  if (target && step.act !== "break" && step.act !== "instinct") selectTarget(target);
   const { runAction } = await import("./macros.mjs");
   switch (step.act) {
+    case "instinct": { const { aceInstinct } = await import("./ace-play.mjs"); return aceInstinct(actor); }
     case "break": case "missile": case "guns": return runAction(actor, step.act);
     case "lock": presetPick(target); return runAction(actor, "lock");
     case "sam": {

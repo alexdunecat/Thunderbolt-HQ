@@ -60,6 +60,7 @@ import { registerBossFate } from "./boss-fate.mjs";
 import { registerBallistic } from "./ballistic.mjs";
 import { registerSpecialWeapons } from "./special-weapons.mjs";
 import { registerPlaneRoles } from "./plane-roles.mjs";
+import { registerAcePlay } from "./ace-play.mjs";
 
 // триггер выключен или машина сменилась: Max Speed мог упасть
 for (const ev of ["updateItem", "createItem", "deleteItem"])
@@ -179,6 +180,7 @@ Hooks.once("init", () => {
   registerBallistic();
   registerSpecialWeapons();
   registerPlaneRoles();
+  registerAcePlay();
   registerMedals();
   registerUndo();
   registerHangar();

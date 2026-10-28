@@ -18,6 +18,8 @@ import { openHangar, hangarState, inBattle } from "../hangar.mjs";
 import { CT, ctView, useCombatTrigger } from "../combat-triggers.mjs";
 import { NEM, STATE_TEXT, nemTriggers, trigState, metOf, useTrigger, appear, monologue, startMonologue, endMonologue, fxOf, clearFx } from "../nemesis.mjs";
 import { sheetPlane, useMove, useAoa } from "../plane-roles.mjs";
+import { aceBudget, aceSlots, PLANE_STR, PLANE_STRAIN_DEFAULT, ACE_STRAIN_EXTRA } from "../ace-kit.mjs";
+import { aceState, aceClick, addAceWeapons } from "../ace-play.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -619,6 +621,19 @@ export class NpcSheet extends TBActorSheet {
     ctx.statusOptions = TB.status;
     ctx.fate = fateOf(s.status);
     ctx.pilotBio = true;
+    // ас в полную силу (Стрэйнджриал 9.5): бюджет навыков, Strain машины + 5, триггеры
+    if (ctx.isAce && !ctx.isShip) {
+      const st = aceState(this.actor), budget = aceBudget(), chosen = new Set(s.aceTriggers ?? []);
+      ctx.ace = {
+        budget, points: s.squadPoints, over: s.squadPoints > budget, under: s.squadPoints < budget,
+        planeStrain: s.planeStrain, autoStrain: PLANE_STR.get(s.key) ?? PLANE_STRAIN_DEFAULT, extra: ACE_STRAIN_EXTRA,
+        slots: aceSlots(this.actor), chosen: chosen.size, slotsOver: chosen.size > aceSlots(this.actor),
+        instinct: st?.instinct, gm: game.user.isGM, sig: (s.sig ?? []).join(", "),
+        sigMissing: (s.sig ?? []).some(k => !this.actor.items.some(i => i.type === "weapon" && i.system.key === k)),
+        triggers: Object.entries(TB.aceTriggers).map(([key, t]) => ({ key, ...t, on: chosen.has(key), used: !!st?.triggers.find(x => x.key === key)?.used, auto: t.how === "auto" })),
+        lastRun: st?.lastRun, marks: st?.marks ?? {}
+      };
+    }
     // Немезида: ведущему кнопки «Появление» и «Монолог», что сейчас на ней висит от триггеров пилотов
     if (s.nemesis) {
       const f = fxOf(this.actor);
@@ -657,6 +672,16 @@ export class NpcSheet extends TBActorSheet {
     });
     // Немезида: появление, монолог и снятие отметок триггеров (ведущий)
     const click = (sel, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); fn(n.dataset); }));
+    // ас: выбор триггеров, «Чутьё аса», задействовать триггер, штатное спецоружие
+    el.querySelectorAll("[data-ace-pick]").forEach(n => n.addEventListener("change", ev => {
+      ev.stopPropagation();
+      const set = new Set(this.actor.system.aceTriggers ?? []);
+      ev.currentTarget.checked ? set.add(n.dataset.acePick) : set.delete(n.dataset.acePick);
+      this.actor.update({ "system.aceTriggers": Object.keys(TB.aceTriggers).filter(k => set.has(k)) });
+    }));
+    click("[data-ace-use]", d => aceClick(this.actor, d.aceUse));
+    click("[data-ace-sig]", () => addAceWeapons(this.actor).then(k => ui.notifications.info(k.length ? `На лист: ${k.join(", ")}.` : "Штатное спецоружие уже на листе.")));
+    click("[data-ace-clear]", d => this.actor.update({ [`flags.${SYSTEM_ID}.aceFx.-=${d.aceClear}`]: null }));
     click("[data-nem-appear]", () => appear(this.actor));
     click("[data-nem-mono]", () => monologue()?.uuid === this.actor.uuid ? endMonologue() : startMonologue(this.actor));
     click("[data-nem-clear]", d => clearFx(this.actor, d.nemClear));

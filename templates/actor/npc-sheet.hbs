@@ -51,10 +51,10 @@
           </div>
           <div class="tb-row"><label>Высота <select name="system.alt">{{selectOptions altOptions selected=system.alt}}</select></label>{{#if ceiling}} <small class="tb-muted" title="Потолок машины: выше она не поднимается">потолок: {{ceiling}}</small>{{/if}}</div>
           <table class="tb-stats tb-edit">
-            <tr><th>Max Speed</th><th>Evasion</th><th>Air-Air</th><th>Air-Gnd</th><th>Gun DMG</th>{{#if isAce}}<th>Max Strain</th>{{/if}}</tr>
+            <tr><th>Max Speed</th><th>Evasion</th><th>Air-Air</th><th>Air-Gnd</th><th>Gun DMG</th>{{#if isAce}}<th>Strain машины</th>{{/if}}</tr>
             <tr><td><input type="number" name="system.stats.spd" value="{{system.stats.spd}}"></td><td><input type="number" name="system.stats.ev" value="{{system.stats.ev}}"></td>
               <td><input type="number" name="system.stats.aa" value="{{system.stats.aa}}"></td><td><input type="number" name="system.stats.ag" value="{{system.stats.ag}}"></td>
-              <td><input type="number" name="system.stats.gun" value="{{system.stats.gun}}"></td>{{#if isAce}}<td><input type="number" name="system.stats.str" value="{{system.stats.str}}"></td>{{/if}}</tr>
+              <td><input type="number" name="system.stats.gun" value="{{system.stats.gun}}"></td>{{#if isAce}}<td title="Strain машины: пусто — из справочника ({{ace.autoStrain}}). Max Strain аса = Strain машины + {{ace.extra}}"><input type="number" name="system.stats.str" value="{{system.stats.str}}" placeholder="{{ace.autoStrain}}"></td>{{/if}}</tr>
           </table>
         </fieldset>
         <fieldset class="tb-box">
@@ -70,9 +70,26 @@
           <p class="tb-small {{#if squadOver}}tb-warn{{else}}tb-muted{{/if}}">{{#if system.squad}}Раскладка общая для эскадрильи «{{system.squad}}» ({{squadCount}} маш.): {{system.squadPoints}} из {{squadBudget}} очков. Правка здесь меняет её у всех машин эскадрильи.{{else}}Дуэлянты: одна раскладка на {{squadBudgetText}} на всю эскадрилью (4 + пройденные операции). Впишите название, и раскладка станет общей. Сейчас {{system.squadPoints}} из {{squadBudget}}.{{/if}}</p>
           {{else}}
           <ol class="tb-skills compact">{{#each skills as |sk|}}<li class="tb-skill {{#if sk.blocked}}blocked{{/if}}"><a class="tb-roll" data-roll-skill="{{sk.key}}"><i class="fas fa-dice-d10"></i></a><span class="tb-skill-name"><b>{{sk.label}}</b> <small>{{sk.en}}</small></span><input type="number" name="system.skills.{{sk.key}}" value="{{sk.value}}" min="0" max="10"></li>{{/each}}</ol>
-          <p class="tb-small tb-muted">Ас: полный лист, может иметь Strain, триггеры и спецоружие.</p>
+          {{#if ace}}<p class="tb-small {{#if ace.over}}tb-warn{{else if ace.under}}tb-warn{{else}}tb-muted{{/if}}" title="Самый опытный пилот кампании + 2 (Стрэйнджриал 9.5). Раскладку задаёт AWACS.">Навыки: {{ace.points}} из {{ace.budget}}{{#if ace.over}} — перерасход{{else if ace.under}} — недобор{{/if}}. Max Strain {{system.strain.max}} = Strain машины {{ace.planeStrain}} + {{ace.extra}}.</p>
+          <div class="tb-row"><label title="Для триггера «Звено»: ведомые — асы и дуэлянты с тем же названием">Эскадрилья <input type="text" name="system.squad" value="{{system.squad}}" placeholder="название"></label></div>{{/if}}
           {{/if}}
         </fieldset>
+        {{#if ace}}
+        <fieldset class="tb-box tb-ace-box">
+          <legend>Ас: чутьё и триггеры</legend>
+          <p class="tb-small"><button type="button" class="tb-ace-instinct {{#unless ace.instinct.ready}}used{{/unless}}" data-ace-use="instinct" title="{{ace.instinct.why}}"><i class="fas fa-person-falling"></i> Чутьё аса: Break! вне хода{{#if ace.instinct.incoming}} · ракет: {{ace.instinct.incoming}}{{/if}}</button>
+            <span class="tb-muted">Раз в раунд, когда по асу пущена ракета; нужен рабочий MAWS.</span></p>
+          {{#if ace.sig}}<p class="tb-small tb-muted">Штатное спецоружие машины: {{ace.sig}}.{{#if ace.sigMissing}} <a data-ace-sig><i class="fas fa-plus"></i> поставить на лист</a>{{/if}}</p>{{/if}}
+          <p class="tb-small {{#if ace.slotsOver}}tb-warn{{else}}tb-muted{{/if}}">Триггеры: {{ace.chosen}} из {{ace.slots}} (2 + пройденные операции{{#if system.nemesis}}, Немезида +1{{/if}}). Каждый раз за вылет.</p>
+          <ul class="tb-ace-trigs">{{#each ace.triggers as |t|}}<li class="{{#if t.on}}on{{/if}} {{#if t.used}}used{{/if}}">
+            <label title="{{t.text}}"><input type="checkbox" data-ace-pick="{{t.key}}" {{#if t.on}}checked{{/if}} {{#unless @root.ace.gm}}disabled{{/unless}}> <b>{{t.name}}</b></label>
+            <span class="tb-muted">{{t.text}}</span>
+            {{#if t.on}}{{#if t.used}}<em>было</em>{{else if t.auto}}<em>сам</em>{{else if @root.ace.gm}}<a data-ace-use="{{t.key}}"><i class="fas fa-bolt"></i> задействовать</a>{{/if}}{{/if}}</li>{{/each}}</ul>
+          {{#if ace.marks.prey}}<p class="tb-small">Добыча: <b>{{ace.marks.prey.name}}</b> <a data-ace-clear="prey" title="Снять">×</a></p>{{/if}}
+          {{#if ace.marks.remember}}<p class="tb-small">Я тебя помню: <b>{{ace.marks.remember.name}}</b> (+2) <a data-ace-clear="remember" title="Снять">×</a></p>{{/if}}
+          {{#if ace.lastRun}}<p class="tb-small tb-warn">Последний заход: сделано {{ace.lastRun.used}} из 3.</p>{{/if}}
+        </fieldset>
+        {{/if}}
       </div>
       <div class="tb-lock-strip {{#if lockInfo}}on{{/if}}"><i class="fas fa-crosshairs"></i> Захват: {{#if lockInfo}}<a data-act="lock-focus" title="Показать цель на сцене"><b>{{lockInfo.name}}</b></a>{{#if lockInfo.dist}} <span class="tb-muted">({{lockInfo.dist}})</span>{{/if}}{{#if lockInfo.gone}} <span class="tb-warn">цели нет на сцене</span>{{/if}} <a data-act="lock" class="tb-lock-change" title="Навестись на другую цель: это действие Lock On!"><i class="fas fa-arrows-rotate"></i> сменить</a> <a data-act="unlock" title="Снять захват"><i class="fas fa-xmark"></i> снять</a>{{else}}<span class="tb-muted">нет</span>{{/if}}</div>
       <div class="tb-actions-bar">

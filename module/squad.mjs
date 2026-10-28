@@ -3,6 +3,7 @@
 import { SYSTEM_ID } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
 import { tokenOf, zoneDistance } from "./scene.mjs";
+import { preyedBy } from "./ace-kit.mjs";
 
 const CHANNEL = `system.${SYSTEM_ID}`;
 const NEXT = "next", ADJ = "adjacent";
@@ -42,10 +43,14 @@ export async function takeNext(actor) {
   const list = nextMods(actor);
   if (!list.length || !actor.isOwner) return [];
   await actor.unsetFlag(SYSTEM_ID, NEXT);
-  const out = list.map(m => [m.label, m.value]);
+  // «Добыча» аса: пока ас держит пилота на захвате, Lead ему не помогает (бонус сгорает)
+  const hunter = preyedBy(actor);
+  const lost = hunter ? list.filter(m => /^Lead\b/.test(m.label ?? "")) : [];
+  if (lost.length) ui.notifications.info(`${actor.name}: добыча «${hunter.token?.name ?? hunter.name}», Lead не действует.`);
+  const out = list.filter(m => !lost.includes(m)).map(m => [m.label, m.value]);
   // «Скажи, что делать»: после Поворота ещё +1 к броску, где союзник даёт Lead
   const tell = actor.items?.find?.(i => i.type === "trigger" && i.system.key === "tellme");
-  if (tell && actor.system.twist && list.some(m => /^Lead\b/.test(m.label ?? ""))) out.push([tell.name, 1]);
+  if (tell && actor.system.twist && out.some(([l]) => /^Lead\b/.test(l ?? ""))) out.push([tell.name, 1]);
   return out;
 }
 
@@ -104,7 +109,7 @@ export async function leadership(actor) {
   const adj = new Set(actor.getFlag(SYSTEM_ID, ADJ) ?? []);
   const target = game.user.targets.first()?.actor;
   const rows = allies(actor).map(a => ({ actor: a.actor, label: a.actor.name, checked: adj.has(a.actor.uuid) || a.actor === target,
-    hint: adj.has(a.actor.uuid) ? "вплотную" : a.sameZone ? "в вашей зоне" : "" }));
+    hint: preyedBy(a.actor) ? "добыча аса: Lead не действует" : adj.has(a.actor.uuid) ? "вплотную" : a.sameZone ? "в вашей зоне" : "" }));
   if (!rows.length) return ui.notifications.info("Других пилотов нет.");
   const chosen = await pickDialog("Leadership: совет или приказ", `Кто послушал, прибавит ваш Lead (+${lead}) к следующему броску. Подходит и для «Сомкнуть строй».`, rows, "Приказать");
   if (!chosen?.length) return;

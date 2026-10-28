@@ -16,6 +16,7 @@ import { unitKind, unitHtml, onUnitClick, registerUnitHud } from "./unit-hud.mjs
 import { hudTriggers, useCombatTrigger } from "./combat-triggers.mjs";
 import { adviceRow, runAdvice, showTarget } from "./npc-advice.mjs";
 import { hudPlane, planeRowHtml, useMove, useAoa } from "./plane-roles.mjs";
+import { aceRowHtml, aceClick } from "./ace-play.mjs";
 import { hudNemesis, isNemesis, pilotsOf, monologue, startMonologue, endMonologue, appear, useTrigger, STATE_TEXT } from "./nemesis.mjs";
 
 const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, POS_KEY = `${SYSTEM_ID}.hudPos`;
@@ -271,6 +272,7 @@ function html(actor, d, folded) {
         <div class="tb-hud-btns"><small>МАНЁВР</small>${moves}</div>
         <div class="tb-hud-btns tb-hud-acts" title="Действия хода${d.acts?.rolled ? " · бросок уже был" : ""}"><small>ХОД</small>${actBoxes}${d.acts?.rolled ? `<i class="fas fa-dice-d10" title="Бросок за ход уже был"></i>` : ""}${button("end", BUTTONS.end)}</div>
         ${planeRowHtml(d.planeRow)}
+        ${actor.type === "npc" ? aceRowHtml(actor) : ""}
         ${ctRow(d)}
         ${nemRow(d)}
         ${actor.type === "npc" ? adviceRow(actor) : ""}
@@ -391,7 +393,7 @@ async function onClick(ev) {
   const hl = ev.target.closest("[data-hud-hl]");
   if (hl) { ev.preventDefault(); ev.stopPropagation(); return setHlMode(hl.dataset.hudHl); }
   if (dragged && ev.target.closest("header")) { dragged = false; return; }
-  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa]");
+  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-ace]");
   if (!t || !shown) return;
   ev.preventDefault();
   const d = t.dataset, actor = shown;
@@ -414,6 +416,7 @@ async function onClick(ev) {
   if (d.hudCtrig) return useCombatTrigger(actor, actor.items.get(d.hudCtrig));
   if (d.hudMove !== undefined) return useMove(actor);
   if (d.hudAoa !== undefined) return useAoa(actor);
+  if (d.hudAce !== undefined) return aceClick(actor, d.hudAce);
   if (d.hudAdvTarget !== undefined) return showTarget(actor);
   if (d.hudAdv !== undefined) return runAdvice(actor, d.hudAdv);
   if (d.hudAppear !== undefined) return appear(actor);

@@ -1,6 +1,7 @@
 /* Модели данных (TypeDataModel) для пилота, NPC, самолёта, спецоружия и триггера. */
 import { SYSTEM_ID, TB, DT } from "../config.mjs";
 import { squadLayout, squadPoints } from "../squadrons.mjs";
+import { acePlaneStrain, ACE_STRAIN_EXTRA } from "../ace-kit.mjs";
 
 const f = foundry.data.fields;
 const int = (initial = 0, opts = {}) => new f.NumberField({ required: true, nullable: false, integer: true, initial, ...opts });
@@ -256,6 +257,7 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       })),
       props: named(), rules: named(),
       sig: new f.ArrayField(new f.StringField()),
+      aceTriggers: new f.ArrayField(new f.StringField()),   // триггеры аса (TB.aceTriggers), Стрэйнджриал 9.5
       desc: str(), service: str(),
       insignia: str(), artwork: str(),
       // личное дело аса или дуэлянта; Немезида — личный враг одного из пилотов (nemesisOf — id актёра пилота)
@@ -300,7 +302,9 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       this.defense = airDefense(this, this.evasion);
       this.aa = this.stats.aa === null ? null : this.stats.aa + (this.aoa ? 1 : 0); this.ag = this.stats.ag; this.gun = this.stats.gun;
       if (this.aoa) for (const k of ["aim", "dodge", "push"]) this.skillTotal[k] += 1;
-      this.strain.max = this.tier === "ace" ? (this.stats.str ?? 0) : 0;
+      // ас: Strain машины + 5 (поле листа «Strain машины» переопределяет справочник)
+      this.planeStrain = this.tier === "ace" ? acePlaneStrain(this) : null;
+      this.strain.max = this.tier === "ace" ? this.planeStrain + ACE_STRAIN_EXTRA : 0;
     }
     // триггеры пилотов против Немезиды до конца вылета: «Знаю эту машину» (−1 к Evasion, Max Speed или A-A), «Я тоже в это верил» (Complication 1–2)
     const nf = this.nemesis ? this.parent?.getFlag?.(SYSTEM_ID, "nemFx") ?? {} : {};

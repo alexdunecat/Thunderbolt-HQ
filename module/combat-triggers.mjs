@@ -11,6 +11,7 @@ import { sideOf, tokenOf, zoneDistance, ALT_ORDER, hasRule } from "./scene.mjs";
 import { cockpitDialog } from "./aim.mjs";
 import { giveNext } from "./squad.mjs";
 import { isNemesisFor } from "./nemesis.mjs";
+import { aceReady, aceUsedPatch, aceMarks, isAce } from "./ace-kit.mjs";
 
 const CHANNEL = `system.${SYSTEM_ID}`;
 /* Флаги пилота: ctSure — «Один на миллион» (следующий выстрел попадёт), ctFired — уже атаковал в этом вылете,
@@ -273,6 +274,19 @@ export function triggerAttack(attacker, target, { rolled = false, skill = "", gu
       if (rolled && guard && same(ta.system?.lockUuid, resolveActor(guard.uuid))) out.parts.push([`${trig(attacker, "byside")?.name ?? "Рядом с тобой"}: защита ${guard.name}`, 1]);
       if (rolled && skill === "deploy" && trig(attacker, "divebomb") && thisTurn(flag(attacker, F.dove))) out.parts.push([trig(attacker, "divebomb").name, 2]);
     }
+  }
+  // триггеры аса (Стрэйнджриал 9.5): «Удар в спину» и «Я тебя помню»
+  if (isAce(attacker) && ta?.type === "pilot" && enemies(attacker, ta)) {
+    const lockOn = ta.system?.lockUuid;
+    if (aceReady(attacker, "back") && lockOn && !same(lockOn, attacker)) {
+      out.parts.push([TB.aceTriggers.back.name, 2]);
+      later.push(async () => {
+        await attacker.update(aceUsedPatch(attacker, "back"));
+        await aceRadio(attacker, `${callsign(ta)}, ты смотришь не туда.`);
+      });
+    }
+    const rem = aceMarks(attacker).remember;
+    if (rem && same(rem.uuid, ta)) out.parts.push([`${TB.aceTriggers.remember.name}: ${rem.name}`, 2]);
   }
   // враги: «Без опознавательных знаков» и «Арьергард» запрещают выбирать цель (ведущий может разрешить)
   if (attacker.type === "npc" && ta?.type === "pilot" && enemies(attacker, ta)) {
@@ -846,4 +860,9 @@ export function hudTriggers(pilot) {
     if (chip) chips.push(chip);
   }
   return trigs.length || chips.length ? { trig: trigs, chips } : null;
+}
+
+/** Строка аса в эфир (радиожурнал и субтитры), без озвучки. */
+export function aceRadio(ace, text) {
+  return globalThis.game?.thunderbolt?.radio?.send?.({ speaker: ace.token?.name ?? ace.name, text, side: ace.system?.side === "ally" ? "ally" : "enemy" });
 }

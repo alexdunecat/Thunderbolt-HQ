@@ -93,7 +93,7 @@ export class TBActor extends Actor {
   rollStall() { return R.rollStall(this); }
   fireMissile(opts) { return R.fireMissile(this, opts); }
   fireGuns(opts) { return R.fireGuns(this, opts); }
-  fireSam(i) { return R.fireSam(this, i); }
+  fireSam(i, opts) { return R.fireSam(this, i, opts); }
   lockOn(opts) { return R.lockOn(this, opts); }
 
   /* ---------- высота ---------- */

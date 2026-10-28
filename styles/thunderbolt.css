@@ -1779,3 +1779,13 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-ck .tb-ck-mapick:hover { background: var(--tb-warn); color: var(--tb-accent-ink); }
 .tb-ck .st-num { display: inline-block; min-width: 16px; margin-right: 5px; padding: 0 3px; font-style: normal; font-weight: bold; text-align: center;
   background: var(--tb-warn); color: var(--tb-accent-ink); }
+
+/* Лист аса: чутьё и триггеры (Стрэйнджриал 9.5) */
+.tb-ace-box .tb-ace-instinct { width: auto; display: inline-flex; gap: 6px; align-items: center; padding: 0 10px; height: 26px; line-height: 24px; }
+.tb-ace-box .tb-ace-instinct.used { opacity: .5; }
+.tb-ace-trigs { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 4px; }
+.tb-ace-trigs li { display: grid; grid-template-columns: 170px 1fr auto; gap: 8px; align-items: baseline; font-size: 12px; padding: 2px 0; border-bottom: 1px dashed var(--tb-line); }
+.tb-ace-trigs li:not(.on) > span { opacity: .6; }
+.tb-ace-trigs li.used b { text-decoration: line-through; }
+.tb-ace-trigs em { font-style: normal; color: var(--tb-muted); font-size: 11px; }
+.tb-ace-trigs a { color: var(--tb-warn); white-space: nowrap; }
