@@ -152,6 +152,21 @@ export function zonePacker(scene) {
   };
 }
 
+/** Свободные места в зоне токена, кроме его собственного: левые верхние углы документа (манёвр автопилота в своей зоне). */
+export function freeSlots(doc) {
+  const scene = doc?.parent;
+  if (!squareScene(scene) || !ours(doc)) return [];
+  const fp = fpOf(doc), look = cellLook(fp), gs = scene.grid.size, c = center(doc, gs);
+  const z = zoneOf(scene, c), cs = gs / CELLS, me = blockAt(scene, c, fp), taken = takenOnScene(scene, doc.id), [w, h] = fp;
+  const out = [];
+  for (let j = 0; j + h <= CELLS; j++) for (let i = 0; i + w <= CELLS; i++) {
+    const b = { zx: z.x, zy: z.y, i, j, w, h };
+    if ((i === me.i && j === me.j) || cellKeys(b).some(k => taken.has(k))) continue;
+    out.push(topLeft({ x: z.x + (i + w / 2) * cs, y: z.y + (j + h / 2) * cs }, look, gs));
+  }
+  return out;
+}
+
 function onPreCreate(doc, data, options) {
   if (options.tbKeep || !ours(doc)) return;
   const scene = doc.parent, real = footprintOf(doc.actor?.system), fp = real ?? ONE, look = cellLook(fp);

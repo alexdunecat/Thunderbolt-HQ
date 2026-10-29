@@ -139,3 +139,13 @@ await wait(300);
 log.push("  " + A.actsSummary(g).label + " | " + A.actsSummary(g).list);
 cG.setFlag = slow;
 console.log("--- быстро подряд\n" + log.join("\n"));
+// в бою одни автопилоты: раунд проходит сам один раз и встаёт на последнем, а не крутится без конца
+log.length = 0;
+const cb2 = new TBCombat(); cb2.id = "C2"; game.combat = cb2;
+const auto = (id) => { const a = mkA(id, "npc", { kind: "air", grp: "fighter" }, false); a.getFlag = (s, k) => (k === "autopilot" ? { on: true } : undefined); a.statuses = new Set(); return a; };
+for (const a of [auto("Хорнет"), auto("Игл")]) cb2.combatants.set("c" + a.id, { id: "c" + a.id, name: a.name, actor: a, initiative: null, isOwner: true, defeated: false, parent: cb2, flags: {}, getFlag(sc, k) { return this.flags[sc]?.[k]; }, async setFlag(sc, k, v) { setp(this.flags, sc + '.' + k, v); }, async update(u) { Object.assign(this, u); } });
+await cb2.startCombat(); await wait(300);
+log.push("lone auto: round " + cb2.round + " turn " + cb2.turn + " " + cb2.turns.map(c => `${c.name}:${c.initiative}`).join(" "));
+await cb2.nextTurn(); await wait(300);
+log.push("after GM click: round " + cb2.round + " turn " + cb2.turn);
+console.log("--- одни автопилоты\n" + log.join("\n"));

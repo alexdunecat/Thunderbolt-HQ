@@ -8,7 +8,7 @@
    Ход: машина в очереди после всех (заявка «авто»), действия идут одно за другим с паузой, чтобы на карте было видно поворот,
    ход, захват и пуск. Ракеты автопилота бьют залпом следующего раунда: цель успевает Break!. Пушка бьёт сразу.
    Ведущему в чат (шёпотом) — сводка хода; на токене у ведущего значок АП, у выделенного — маршрут на сетке. */
-import { SYSTEM_ID, TB } from "./config.mjs";
+import { SYSTEM_ID, TB, sysOff, hasProp } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
 
 /* ---------- приказ ---------- */
@@ -49,10 +49,11 @@ export function orderLine(order) {
 /**
  * Следующее действие машины на автопилоте.
  * v (что видно с её места): { flying, systems, incoming, broke, hurt, lock, nearest,
- *   cands: [{ uuid, dist, canMissile, canGuns, lockRange, fire, needAlt, blocked, noLock, locksMe, onPath }] — по убыванию ценности,
- *   goal: null | { kind: "target", uuid, dist, want, altStep } | { kind: "cell", reached }, next, away } (next, away — клетки шага или null).
+ *   cands: [{ uuid, dist, canMissile, canGuns, gunReach, gunship, lockRange, fire, needAlt, blocked, noLock, locksMe, onPath }] — по убыванию ценности,
+ *   goal: null | { kind: "target", uuid, dist, want, altStep } | { kind: "cell", reached }, next, away (клетки шага или null),
+ *   rail: null | { uuids } (линия EMRG с врагами и без своих), carpet: null | { uuids } (наземка противника под бомбардировщиком) }.
  * failed — UUID целей, по которым это действие в этот ход уже не вышло.
- * Возвращает { act: break | fire | guns | lock | climb | dive | move, uuid?, cell?, why } или null (ход окончен).
+ * Возвращает { act: break | rail | carpet | fire | guns | gunship | lock | climb | dive | move, uuid?, cell?, why } или null (ход окончен).
  */
 export function chooseStep(order, v, failed = new Set()) {
   const task = order.taskNow ?? order.task, manner = order.manner;
@@ -65,11 +66,16 @@ export function chooseStep(order, v, failed = new Set()) {
     else if (manner === "push") pool = pool.filter(c => c.uuid === goalUuid || c.dist === 0 || c.locksMe || c.onPath);
   }
   pool = [...pool.filter(c => c.uuid === goalUuid), ...pool.filter(c => c.uuid !== goalUuid)];
+  // по площади — только если там есть кого бить по характеру приказа
+  const worth = area => !!area?.uuids?.some(u => pool.some(c => c.uuid === u));
+  if (worth(v.rail)) return { act: "rail", why: "линия" };
+  if (worth(v.carpet)) return { act: "carpet", why: "ковёр" };
   for (const c of pool) {
     if (c.dist === null) continue;
     const locked = c.noLock || v.lock === c.uuid;
     if (c.canMissile && locked && c.dist <= c.fire && !c.blocked) return { act: "fire", uuid: c.uuid, why: "пуск" };
-    if (c.canGuns && c.dist === 0) return { act: "guns", uuid: c.uuid, why: "пушка" };
+    if (c.canGuns && c.dist <= (c.gunReach ?? 0)) return { act: "guns", uuid: c.uuid, why: "пушка" };
+    if (c.gunship) return { act: "gunship", uuid: c.uuid, why: "бортовые орудия" };
     if (c.canMissile && !locked && c.dist <= c.lockRange) {
       if (c.needAlt) return { act: c.needAlt > 0 ? "climb" : "dive", uuid: c.uuid, why: "высота для захвата" };
       if (!c.blocked) return { act: "lock", uuid: c.uuid, why: "захват" };
@@ -150,10 +156,36 @@ function incoming(actor) {
 }
 
 /** Ракетная система корабля или босса против цели этого вида: { i, lock } или null. */
-function sysFor(actor, kind) {
+function sysFor(actor, kind, used = new Set()) {
   const list = actor.system.systems ?? [];
-  const i = list.findIndex(y => (y.value ?? 0) > 0 && Number.isFinite(kind === "air" ? y.ga : y.gg) && (kind === "air" ? y.ga : y.gg) !== null);
-  return i < 0 ? null : { i, lock: /Lock On/i.test(list[i].note ?? "") };
+  const ok = list.map((y, i) => i).filter(i => (list[i].value ?? 0) > 0 && Number.isFinite(kind === "air" ? list[i].ga : list[i].gg));
+  const i = ok.find(i => !used.has(i)) ?? ok[0];
+  return i === undefined ? null : { i, lock: /Lock On/i.test(list[i].note ?? "") };
+}
+
+/** Пушечная система корабля или босса против цели этого вида на dist зон: { i, reach } (сначала не стрелявшая в этот ход, потом сильнейшая) или null. */
+function gunFor(S, actor, kind, dist, used = new Set()) {
+  if (dist === null) return null;
+  const opts = (actor.system.systems ?? []).map((y, i) => ({ y: S.gunSys(actor, y), i }))
+    .filter(o => (o.y.value ?? 0) > 0 && (o.y.gun ?? 0) > 0 && [kind, "any"].includes(S.gunVs(actor, o.y)) && dist <= S.sysGunReach(o.y))
+    .sort((a, b) => (used.has(a.i) - used.has(b.i)) || b.y.gun - a.y.gun);
+  return opts.length ? { i: opts[0].i, reach: S.sysGunReach(opts[0].y) } : null;
+}
+
+/** Лучшая линия EMRG: больше всего врагов (цель задачи — с запасом), своих на линии нет. { id, pick, uuids } или null. */
+async function railFor(S, R, actor, token, goalUuid) {
+  if (sysOff(actor.system, "sw")) return null;
+  const w = actor.items.find(i => i.type === "weapon" && i.system.target === "line" && R.weaponReady(i));
+  if (!w) return null;
+  const SW = await import("./special-weapons.mjs");
+  let best = null;
+  for (const [pick, ln] of Object.entries(SW.railLines(actor, token) ?? {})) {
+    const foes = ln.units.filter(u => { const a = resolveActor(u.uuid); return a && !gone(a) && S.canFireAt(actor, a); });
+    if (!foes.length || foes.length < ln.units.length) continue;
+    const score = foes.length + (foes.some(u => u.uuid === goalUuid) ? 2 : 0);
+    if (!best || score > best.score) best = { id: w.id, pick, uuids: foes.map(u => u.uuid), score };
+  }
+  return best;
 }
 
 async function viewOf(actor, token, order, state) {
@@ -187,8 +219,11 @@ async function viewOf(actor, token, order, state) {
     goalCell = [c.col, c.row];
   }
   const next = goalCell ? stepToward(here, goalCell, allowed) : null;
+  const used = state.used ?? new Set();
+  const gunshipAt = hasProp(actor, "gunship") ? new Set(R.groundTargets(actor, 1)) : new Set();
   const cands = list.map(x => {
-    const air = x.kind === "air", sp = systems ? sysFor(actor, x.kind) : null;
+    const air = x.kind === "air", sp = systems ? sysFor(actor, x.kind, used) : null;
+    const gs = systems ? gunFor(S, actor, x.kind, x.dist, used) : null;
     const lockRange = R.lockRangeOf(actor, x.kind).range;
     // высота мешает захвату: шаг Climb / Dive к цели (как в совете на ход)
     let needAlt = 0, blocked = false;
@@ -206,9 +241,12 @@ async function viewOf(actor, token, order, state) {
     const lockedOn = x.actor.system?.lockUuid ? resolveActor(x.actor.system.lockUuid) : null;
     return {
       uuid: x.actor.uuid, dist: x.dist, tok: x.token,
-      canMissile: systems ? !!sp : !!x.canMissile, canGuns: !systems && !!x.canGuns, sys: sp?.i ?? null,
+      // корабль: ракетная система уже стреляла в этот ход, а пушка ещё нет — сначала пушка
+      canMissile: systems ? !!sp && (!used.has(sp.i) || !gs || used.has(gs.i)) : !!x.canMissile, canGuns: systems ? !!gs : !!x.canGuns, sys: sp?.i ?? null,
+      gunSys: gs?.i ?? null, gunReach: gs?.reach ?? TB.range.guns, gunship: gunshipAt.has(x.actor.uuid),
       noLock: systems ? !!sp && !sp.lock : false,
-      lockRange, fire: TB.range.missile, needAlt, blocked,
+      // спецоружие бьёт дальше стандартной ракеты: дальность того, что пойдёт в пуск
+      lockRange, fire: !systems && R.autoWeapon(actor, x.kind, x.dist) ? Math.max(x.dist ?? 0, TB.range.missile) : TB.range.missile, needAlt, blocked,
       locksMe: !!lockedOn && (lockedOn === actor || lockedOn.uuid === actor.uuid),
       onPath: !!next && !!c && c.col === next[0] && c.row === next[1]
     };
@@ -227,7 +265,10 @@ async function viewOf(actor, token, order, state) {
   } else if (taskNowV === "route") goal = { kind: "cell", reached: !goalCell || (goalCell[0] === here[0] && goalCell[1] === here[1]) };
   const foes = cands.map(c => { const k = S.cellOf(c.tok); return k ? [k.col, k.row] : null; }).filter(Boolean);
   const hp = s.hp ?? {};
+  const rail = used.has("rail") ? null : await railFor(S, R, actor, token, goal?.uuid ?? null);
+  const carpet = !used.has("carpet") && hasProp(actor, "carpet") ? { uuids: R.groundTargets(actor, 0) } : null;
   return {
+    rail, carpet: carpet?.uuids.length ? carpet : null,
     flying: S.isFlying(actor), systems, incoming: incoming(actor), broke: state.broke, lock: s.lockUuid || null,
     hurt: !!s.markers?.structure || (hp.max > 1 && hp.value <= Math.ceil(hp.max / 2)),
     nearest: cands.length ? Math.min(...cands.map(c => c.dist ?? 99)) : null,
@@ -240,7 +281,11 @@ async function viewOf(actor, token, order, state) {
 /** Пауза между действиями (доля): чтобы на карте было видно каждое; тесты ставят 0. */
 export const pace = { k: 1 };
 const wait = ms => new Promise(r => setTimeout(r, ms * pace.k));
-const ACT = { break: "Break!", fire: "Fox Two!", guns: "Guns", lock: "Lock On!", climb: "Climb", dive: "Dive", move: "Move" };
+const ACT = { break: "Break!", fire: "Fox Two!", guns: "Guns", lock: "Lock On!", climb: "Climb", dive: "Dive", move: "Move", rail: "EMRG", carpet: "Ковровая бомбардировка", gunship: "Бортовые орудия" };
+/** Действия, у которых результат — карточка: пустой ответ значит, что не вышло. */
+const SHOTS = new Set(["break", "fire", "guns", "gunship", "rail", "carpet"]);
+/** Перед этими действиями самолёт перестраивается в своей зоне: заход на цель, уход от ракеты. */
+const JINK = new Set(["break", "lock", "fire", "guns", "gunship", "rail", "carpet"]);
 
 /** Ход машины на автопилоте (клиент ведущего). Возвращает строки сводки. */
 export async function runAutopilot(actor, token = null) {
@@ -248,7 +293,7 @@ export async function runAutopilot(actor, token = null) {
   token ??= S.tokenOf(actor);
   let order = orderOf(actor);
   if (!order || !token || token.document.hidden || gone(actor) || !canvas?.ready) return [];
-  const state = { broke: false }, failed = new Set(), log = [];
+  const state = { broke: false, used: new Set(), side: 1 }, failed = new Set(), log = [];
   for (let i = 0; i < Math.max(1, Math.min(3, order.acts)); i++) {
     // маршрут: дошёл до точки — следующая
     if (order.task === "route" && order.step < order.route.length) {
@@ -264,21 +309,31 @@ export async function runAutopilot(actor, token = null) {
     if (!step) break;
     const c = step.uuid ? v.cands.find(x => x.uuid === step.uuid) : null;
     const name = c?.tok?.name ?? "";
+    // самолёт не стоит на месте: перед выстрелом заходит на цель по своей зоне, от ракеты уходит в дальний угол
+    if (JINK.has(step.act) && !v.systems && (v.flying || step.act === "guns")) await jink(token, c?.tok ?? null, state, step.act === "break");
     let res = null;
     switch (step.act) {
       case "break": res = await R.autoBreak(actor); state.broke = true; break;
       case "lock": res = await R.autoLock(actor, c.tok); break;
-      case "fire": res = await R.autoFox(actor, c.tok, { sys: c.sys }); break;
-      case "guns": res = await R.autoGuns(actor, c.tok); break;
+      case "fire": res = await R.autoFox(actor, c.tok, { sys: c.sys }); if (c.sys !== null) state.used.add(c.sys); break;
+      case "guns":
+        res = c.gunSys !== null ? await R.autoSysGun(actor, c.tok, c.gunSys) : await R.autoGuns(actor, c.tok);
+        if (c.gunSys !== null) state.used.add(c.gunSys);
+        break;
+      case "gunship": res = await R.autoGunship(actor, c.tok); break;
+      case "rail": res = await R.autoRail(actor, actor.items.get(v.rail.id), v.rail.pick); state.used.add("rail"); break;
+      case "carpet": res = await R.autoCarpet(actor); state.used.add("carpet"); break;
       case "climb": case "dive": res = await climb(actor, token, step.act === "climb" ? 1 : -1); break;
       case "move": res = await move(token, v.here, step.cell); break;
     }
-    const what = step.act === "fire" && actor.system.kind !== "air" ? "Пуск" : ACT[step.act];
+    if (!res && SHOTS.has(step.act)) res = "не прошло";
+    const card = typeof res === "object" ? res?.getFlag?.(SYSTEM_ID, "card") : null;
+    const what = card?.label && step.act !== "break" ? card.label : step.act === "fire" && actor.system.kind !== "air" ? "Пуск" : ACT[step.act];
     // строка — почему не вышло: эту цель (или этот шаг) больше не пробуем, действие не тратится один раз
     if (typeof res === "string") {
       if (step.uuid) failed.add(step.uuid);
       log.push(`${what}${name ? ` «${name}»` : ""}: не вышло (${res})`);
-      if (!step.uuid || failed.size > 4) break;
+      if ((!step.uuid && !["rail", "carpet"].includes(step.act)) || failed.size > 4) break;
       i -= 1;
       continue;
     }
@@ -287,6 +342,30 @@ export async function runAutopilot(actor, token = null) {
   }
   await summary(actor, token, order, log);
   return log;
+}
+
+/**
+ * Манёвр в своей зоне (по правилам бесплатно): на свободное место сбоку от цели — заход по кругу, раз в одну сторону, раз в другую;
+ * evade — в самое дальнее место (Break!). Курс токен берёт сам по движению.
+ */
+async function jink(token, target, state, evade = false) {
+  const { freeSlots } = await import("./tokens.mjs");
+  const doc = token.document, slots = freeSlots(doc);
+  if (!slots.length) return;
+  const gs = canvas.grid.size, hw = (doc.width * gs) / 2, hh = (doc.height * gs) / 2;
+  const c0 = { x: doc.x + hw, y: doc.y + hh }, tc = target?.center;
+  const u = tc ? { x: tc.x - c0.x, y: tc.y - c0.y } : null, ul = u ? Math.hypot(u.x, u.y) : 0;
+  state.side = -(state.side ?? 1);
+  let best = null;
+  for (const p of slots) {
+    const d = { x: p.x + hw - c0.x, y: p.y + hh - c0.y }, len = Math.hypot(d.x, d.y) || 1;
+    // поперёк линии на цель, чуть к ней; без цели и от ракеты — подальше
+    const score = evade || ul < 1 ? len
+      : ((d.x * -u.y + d.y * u.x) * state.side) / (ul * len) + (0.3 * (d.x * u.x + d.y * u.y)) / (ul * len);
+    if (!best || score > best.score) best = { p, score };
+  }
+  await doc.update({ x: best.p.x, y: best.p.y }, { tbAuto: true });
+  await wait(450);
 }
 
 async function move(token, from, to) {

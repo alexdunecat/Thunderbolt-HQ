@@ -1319,20 +1319,26 @@ async function fireRail(actor, w, pre = {}) {
   if (!data.practiced && !allowRoll(actor)) return;
   const dice = await rollDice(actor, data.practiced);
   if (!dice) return;
+  return railShot(actor, w, ln, data.pick, dice, { alt, mod: pre.mod, storm: data.storm });
+}
+
+/** Выстрел EMRG по выбранной линии: карточка и урон сразу. */
+async function railShot(actor, w, ln, pick, dice, { alt, mod = 0, storm = false } = {}) {
+  const s = actor.system, dmg = parseInt(w.system.dmg) || 12;
   const aimP = skillParts(actor, "aim"), depP = skillParts(actor, "deploy");
   const parts = [...aimP];
   if (w.system.aim) parts.push([`мод ${w.name}`, w.system.aim]);
   parts.push(...await takeNext(actor));
   if (s.speed) parts.push(["Speed", -s.speed]);
-  if (pre.mod) parts.push(["мод.", pre.mod]);
+  if (mod) parts.push(["мод.", mod]);
   if (!w.system.unlimited) await w.update({ "system.ammo.value": Math.max(0, (w.system.ammo.value ?? 0) - 1) });
-  const arrow = DIRS.find(d => d && `${d[0]},${d[1]}` === data.pick)?.[2] ?? "";
+  const arrow = DIRS.find(d => d && `${d[0]},${d[1]}` === pick)?.[2] ?? "";
   const card = {
     type: "rail", attack: true, shotKey: combatKey(), label: `${w.name}: линия ${arrow}`, rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: null,
     strainable: canStrain(actor), practiced: !!dice.practiced, dmg, depShift: sum(depP) + (w.system.dep ?? 0) - sum(aimP) - (w.system.aim ?? 0),
     line: ln.units.map(u => ({ uuid: u.uuid, name: u.name, vs: u.vs, gnd: u.gnd, ship: u.ship, sys: u.sys, sysName: u.sysName ?? "" })),
     where: ln.where, end: ln.cells.at(-1) ?? null, notes: [`<b>${esc(w.system.trait?.name ?? "Линия")}.</b> Линия ${arrow} на высоте ${esc(TB.altitudes[alt] ?? alt)}${alt === "low" ? " и по земле" : ""}: ${esc(ln.where || "до края карты")}.`],
-    ...thresholds(actor, "aim", data.storm)
+    ...thresholds(actor, "aim", storm)
   };
   const msg = await postCard(actor, card, dice.rolls);
   await railHit(msg);
@@ -1412,6 +1418,10 @@ export async function fireGunship(actor) {
   if (!allowRoll(actor)) return;
   const dice = await rollDice(actor, false);
   if (!dice) return;
+  return gunshipShot(actor, rows, dice);
+}
+
+async function gunshipShot(actor, rows, dice) {
   const hard = rows[0].hard;
   const card = {
     type: "rail", attack: true, shotKey: combatKey(), label: "Бортовые орудия", rolled: true, d10: dice.d10, d4: dice.d4, parts: [["Бортовые орудия", 1], ...await takeNext(actor)],
@@ -1672,9 +1682,25 @@ export async function autoLock(actor, tok) {
   return null;
 }
 
+/** Спецоружие ракетой для автопилота против цели этого вида на dist зон: самое сильное готовое (без EMRG, ESM и UGB) или null. */
+export function autoWeapon(actor, kind, dist = 0) {
+  if (sysOff(actor.system, "sw")) return null;
+  const list = actor.items.filter(w => w.type === "weapon" && weaponFits(w, kind) && weaponReady(w) && !isOwnFire(w) && w.system.key !== "UGB"
+    && (w.system.reach ?? TB.range.missile) >= (dist ?? 0));
+  return list.sort((a, b) => (parseInt(b.system.dmg) || 0) - (parseInt(a.system.dmg) || 0))[0] ?? null;
+}
+
+/** Система корабля-цели для автопилота: та, что выбрал бы пульт, если по ней можно бить; иначе null. */
+function autoAim(actor, t, opts) {
+  if (t.kind !== "ship") return null;
+  const aim = aimAt(actor, t, defaultSys(t.actor), opts);
+  return aim && !aim.problems.length ? aim : null;
+}
+
 /**
- * Fox Two! автопилота по захваченному токену: стандартная ракета без броска (Air-Air или Air-Gnd − Speed), ЗРК наземной цели
- * или ракетная система корабля. Ракета бьёт залпом следующего раунда. Возвращает сообщение или почему нельзя (строка).
+ * Fox Two! автопилота по захваченному токену: спецоружие, если есть готовое под цель, иначе стандартная ракета, без броска
+ * (Air-Air или Air-Gnd + мод оружия − Speed); ЗРК наземной цели или ракетная система корабля. Ракета бьёт залпом следующего раунда.
+ * Возвращает сообщение или почему нельзя (строка).
  */
 export async function autoFox(actor, tok, { sys = null } = {}) {
   const t = describeTarget(tok.actor, tok.name, tok), air = targetKind(t) === "air", s = actor.system;
@@ -1684,24 +1710,105 @@ export async function autoFox(actor, tok, { sys = null } = {}) {
     return m ?? "пуск не прошёл";
   }
   if (s.lockUuid !== t.uuid) return "нет захвата";
-  if (!stdMissile(actor, air ? "air" : "ground")) return "нет ракет";
-  const { problems } = reachProblems(actor, t, TB.range.missile, { strike: true });
+  const w = autoWeapon(actor, air ? "air" : "ground", zoneDistance(tokenOf(actor), tok)), ws = w?.system;
+  if (!w && !stdMissile(actor, air ? "air" : "ground")) return "нет ракет";
+  const { problems } = reachProblems(actor, t, ws?.reach ?? TB.range.missile, { strike: true });
   problems.push(...nemesisAttack(actor, t.actor).problems, ...triggerAttack(actor, t.actor).problems);
   if (problems.length) return problems[0];
-  const parts = [[air ? "Air-Air" : "Air-Gnd", (air ? s.aa : s.ag) ?? 0], ...weatherParts(weatherAt(actor), air ? "aa" : "ag")];
+  const parts = [[air ? "Air-Air" : "Air-Gnd", (air ? s.aa : s.ag) ?? 0]];
+  const m = air ? ws?.aa : ws?.ag;
+  if (m) parts.push([`мод ${w.name}`, m]);
+  parts.push(...weatherParts(weatherAt(actor), air ? "aa" : "ag"));
   const sead = air ? null : seadPart(actor, t);
   if (sead) parts.push(sead);
   const cue = awacsCue(actor);
   if (cue) parts.push(cue);
+  const aim = autoAim(actor, t, { missile: true });
+  if (aim) parts.push(...aim.parts);
   if (s.speed) parts.push(["Speed", -s.speed]);
-  const hard = hardened(t);
+  const hard = !w && hardened(t);
+  const notes = [...(hard ? [HARD_NOTE] : [])];
+  if (ws?.trait) notes.push(`<b>${esc(ws.trait.name)}.</b> ${esc(ws.trait.text)}`);
+  else if (ws?.fx) notes.push(esc(ws.fx));
+  notes.push(AUTO_NOTE);
+  if (w && !ws.unlimited) await w.update({ "system.ammo.value": Math.max(0, (ws.ammo.value ?? 0) - 1) });
   const card = {
-    type: "attack", attack: true, label: "Fox Two! стандартная ракета", rolled: false, d10: null, d4: null, parts, strain: 0, ...shipDc(t, null, defVs(actor, t, null)),
-    wkey: "", close: false, ghost: false, shotKey: key, salvo: null, strainable: false, dmg: hard ? Math.floor(TB.missileDamage / 2) : TB.missileDamage,
-    delayed: true, atTurn: false, combatKey: key, targetUuid: t.uuid, targetName: t.name, maws: mawsOn(t), tkind: air ? "air" : "ground", bomb: false,
-    notes: [...(hard ? [HARD_NOTE] : []), AUTO_NOTE]
+    type: "attack", attack: true, label: `Fox Two! ${w ? w.name : "стандартная ракета"}`, rolled: false, d10: null, d4: null, parts, strain: 0,
+    ...shipDc(t, aim, defVs(actor, t, w), ws?.key === "GPB" ? 2 : 0),
+    wkey: ws?.key ?? "", close: ws?.key === "QAAM" && closeTo(actor, t), ghost: false, shotKey: key, salvo: null, strainable: false,
+    dmg: w ? (parseInt(ws.dmg) || 0) : hard ? Math.floor(TB.missileDamage / 2) : TB.missileDamage,
+    delayed: true, atTurn: false, combatKey: key, targetUuid: t.uuid, targetName: t.name, maws: mawsOn(t), tkind: air ? "air" : "ground", bomb: ws?.key === "GPB",
+    notes
   };
   return postCard(actor, card);
+}
+
+/**
+ * Огонь системы корабля или босса автопилотом (артустановка, ЗАК, луч): d10 + Strafe системы против защиты цели,
+ * по кораблю — против Occlusion его системы. Урон сразу. Возвращает сообщение или почему нельзя.
+ */
+export async function autoSysGun(actor, tok, i) {
+  const y0 = actor.system.systems?.[i];
+  if (!y0 || (y0.value ?? 0) <= 0 || !((y0.gun ?? 0) > 0 || isBeamSys(actor, y0))) return "система не стреляет";
+  const y = gunSys(actor, y0), t = describeTarget(tok.actor, tok.name, tok);
+  const vs = gunVs(actor, y);
+  if (vs === "air" && !isAirTarget(t)) return "зенитное орудие не бьёт по земле и морю";
+  if (vs === "ground" && isAirTarget(t)) return "по воздуху это орудие не стреляет";
+  const aim = autoAim(actor, t);
+  if (t.kind === "ship" && !aim) return "нет системы цели";
+  const { problems } = reachProblems(actor, t, sysGunReach(y));
+  const quiet = isAirTarget(t) ? quietAA(actor) : null;
+  if (quiet) problems.push(quiet);
+  problems.push(...nemesisAttack(actor, t.actor).problems, ...triggerAttack(actor, t.actor).problems);
+  if (problems.length) return problems[0];
+  const dice = await rollDice(actor, false, { turnRoll: false });
+  if (!dice) return "бросок не прошёл";
+  const parts = [[y.beam ? "Луч" : "Пушка", sysStrafe(actor, y)], ...(aim?.parts ?? [])];
+  const gun = y.gun ?? 0;
+  const card = {
+    type: "attack", attack: true, label: `${y.beam ? "Луч" : "Огонь"}: ${y.name}`, rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, shotKey: combatKey(),
+    ...shipDc(t, aim, t.kind !== "ship" ? t.defense + nemesisDefense(actor, t.actor) + triggerDefense(actor, t.actor) : null), strainable: false, practiced: false,
+    dmg: hardened(t) ? Math.floor(gun / 2) : gun, delayed: false, instant: true, targetUuid: t.uuid, targetName: t.name,
+    notes: [...(hardened(t) ? [HARD_NOTE] : []), "Огонь автопилота."], ...thresholds(actor, "strafe")
+  };
+  const msg = await postCard(actor, card, dice.rolls);
+  await revealAmbush(actor);
+  await autoHit(msg);
+  return msg;
+}
+const isBeamSys = (actor, y) => !!gunSys(actor, y)?.beam;
+
+/** Наземные цели противника не дальше dist участков: UUID (ковёр, бортовые орудия). */
+export const groundTargets = (actor, dist) => (groundRows(actor, dist) ?? []).map(r => r.uuid);
+
+/** «Ковровая бомбардировка» автопилотом: если под бомбардировщиком есть наземка противника. */
+export async function autoCarpet(actor) {
+  if (!hasProp(actor, "carpet")) return "нет ковровой бомбардировки";
+  if (!groundRows(actor, 0)?.length) return "внизу нет наземных целей";
+  return (await fireCarpet(actor)) ?? "сброс не прошёл";
+}
+
+/** «Бортовые орудия» AC-130 автопилотом по токену: наземная цель противника в своём или соседнем участке. */
+export async function autoGunship(actor, tok) {
+  if (!hasProp(actor, "gunship")) return "нет бортовых орудий";
+  const rows = groundRows(actor, 1, tok);
+  if (!rows?.length) return "не наземная цель рядом";
+  const dice = await rollDice(actor, false, { turnRoll: false });
+  if (!dice) return "бросок не прошёл";
+  return gunshipShot(actor, rows, dice);
+}
+
+/** EMRG автопилотом по готовой линии pick («dx,dy»). */
+export async function autoRail(actor, w, pick) {
+  if (sysOff(actor.system, "sw") || !w || !weaponReady(w)) return "спецоружие не готово";
+  const tok = tokenOf(actor), SW = await import("../special-weapons.mjs");
+  const ln = tok ? SW.railLines(actor, tok)?.[pick] : null;
+  if (!ln) return "линии нет";
+  const air = ln.units.some(u => !u.gnd);
+  if (blocked(actor, air || !ln.units.length ? "aim" : "deploy")) return "навык под меткой";
+  const dice = await rollDice(actor, false, { turnRoll: false });
+  if (!dice) return "бросок не прошёл";
+  return railShot(actor, w, ln, pick, dice, { alt: altOf(tok, actor) });
 }
 
 /** Guns автопилота по токену в своей зоне: d10 + Strafe − Speed против защиты, урон сразу. Самолёты и наземная техника NPC. */
@@ -1713,6 +1820,9 @@ export async function autoGuns(actor, tok) {
   if (blocked(actor, "strafe")) return "навык под меткой";
   const t = describeTarget(tok.actor, tok.name, tok);
   if (t.kind === "ship" || t.defense === null || t.defense === undefined) return "по кораблю пушкой не бьёт";
+  const vs = gunVs(actor, null);
+  if (vs === "air" && !isAirTarget(t)) return "зенитное орудие не бьёт по земле и морю";
+  if (vs === "ground" && isAirTarget(t)) return "по воздуху это орудие не стреляет";
   const { problems } = reachProblems(actor, t, TB.range.guns);
   problems.push(...nemesisAttack(actor, t.actor).problems, ...triggerAttack(actor, t.actor).problems);
   if (problems.length) return problems[0];

@@ -152,7 +152,13 @@ async function turnStart(combat) {
     if (c.getFlag(SYSTEM_ID, "autoDone") === combat.round) return;
     await c.setFlag(SYSTEM_ID, "autoDone", combat.round);
     try { await runAutopilot(a, c.token?.object ?? null); } catch (err) { console.error(`${SYSTEM_ID} | автопилот`, err); }
-    if (combat.combatant?.id === c.id) return combat.nextTurn();
+    if (combat.combatant?.id !== c.id) return;
+    // одни автопилоты: последний не крутит раунд сам, иначе раунды идут без конца и бой не закрыть
+    const live = acting(combat).some(x => !(x.initiative >= AUTO && autopilotOn(x.actor)));
+    const ids = new Set(acting(combat).map(x => x.id));
+    const later = combat.turns.slice(combat.turn + 1).some(x => ids.has(x.id));
+    if (live || later) return combat.nextTurn();
+    ui.notifications.info("В бою только машины на автопилоте: следующий раунд — по кнопке «Следующий ход».");
     return;
   }
   await resolveVolley(combat, { target: a.uuid, atTurnOf: combat.combatant.name });

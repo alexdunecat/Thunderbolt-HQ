@@ -13,11 +13,11 @@ let seq = 0;
 Object.assign(globalThis, {
   foundry: { utils: { deepClone: x => structuredClone(x), mergeObject: Object.assign, getProperty: getp, hasProperty: (o, p) => getp(o, p) !== undefined, setProperty: setp }, abstract: { TypeDataModel: class {} },
     data: { fields: { NumberField: F, StringField: F, BooleanField: F, SchemaField: F, ArrayField: F, HTMLField: F, ObjectField: F } } },
-  CONST: { DOCUMENT_OWNERSHIP_LEVELS: { LIMITED: 1 }, GRID_TYPES: { GRIDLESS: 0 } },
+  CONST: { DOCUMENT_OWNERSHIP_LEVELS: { LIMITED: 1 }, GRID_TYPES: { GRIDLESS: 0, SQUARE: 1 } },
   Hooks: { on() {}, once() {}, callAll() {} }, CONFIG: { sounds: {}, specialStatusEffects: { DEFEATED: "dead" } },
   game: { user: { id: "gm", isGM: true }, users: Object.assign([{ id: "gm", isGM: true, active: true }], { activeGM: { isSelf: true, id: "gm" } }), macros: [], folders: [], messages: { contents: messages }, combat,
     settings: { get: (ns, k) => ({ threats: [], squadrons: {}, squadSortie: {} })[k] ?? null, register() {} }, actors: [], socket: { emit() {} } },
-  ui: { notifications: { warn: m => log.push("warn " + m), info() {} } },
+  ui: { notifications: { warn: m => log.push("warn " + m), error: m => log.push("error " + m), info() {} } },
   ChatMessage: { create: async d => { const c = d.flags?.["thunderbolt-shtab"]?.card; const m = { id: "m" + (++seq), ...d, getFlag: (s, k) => d.flags?.[s]?.[k], canUserModify: () => true, update: async () => {} };
     messages.push(m); log.push("  чат: " + (c ? `${c.label ?? c.type} → ${c.targetName ?? ""}${c.combatKey ? ` [${c.combatKey}]` : ""}${c.instant ? ` итог ${c.d10 + c.parts.reduce((s, p) => s + p[1], 0)} против ${c.dc}` : ""}` : d.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 140))); return m; },
     getSpeaker: () => ({}), getWhisperRecipients: () => [] },
@@ -25,9 +25,9 @@ Object.assign(globalThis, {
   Actor: class {}, Item: class {}, Combat: class {}, Application: class {}, FormApplication: class {}, ActorSheet: class {}, Dialog: class {}, fromUuidSync: u => byUuid[u] ?? null
 });
 Number.isNumeric = n => typeof n === "number" && Number.isFinite(n);
-const scene = { id: "S", getFlag: () => null, tokens: [] };
+const scene = { id: "S", getFlag: () => null, tokens: [], grid: { size: 100, type: 1 } };
 globalThis.canvas = { ready: true, scene, dimensions: { sceneRect: { x: 0, y: 0, width: 1000, height: 1000 } },
-  grid: { type: 1, size: 100, getOffset: p => ({ i: Math.floor(p.y / 100), j: Math.floor(p.x / 100) }), measurePath: ([a, b]) => ({ spaces: Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) / 100 }) },
+  grid: { type: 1, size: 100, getTopLeftPoint: p => ({ x: Math.floor(p.x / 100) * 100, y: Math.floor(p.y / 100) * 100 }), getOffset: p => ({ i: Math.floor(p.y / 100), j: Math.floor(p.x / 100) }), measurePath: ([a, b]) => ({ spaces: Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) / 100 }) },
   tokens: { placeables: [], controlled: [], get: id => canvas.tokens.placeables.find(t => t.id === id) } };
 const byUuid = {};
 const packs = JSON.parse(fs.readFileSync(R + "/tests/fixtures/npcs.json", "utf8"));
@@ -35,16 +35,17 @@ const ELEV = { low: 1, med: 2, high: 3, strat: 4 };
 const place = (a, col, row, alt = "med") => {
   const t = { id: "T" + a.uuid, name: a.name, actor: a, center: { x: col * 100 + 50, y: row * 100 + 50 } };
   t.document = { parent: scene, x: col * 100 + 30, y: row * 100 + 30, width: 0.5, height: 0.5, hidden: false, elevation: ELEV[alt] ?? 0, rotation: 0, object: t, actor: a, getFlag: () => null,
-    async update(ch) { if ("x" in ch) { const dx = ch.x - this.x, dy = ch.y - this.y; this.x = ch.x; this.y = ch.y; t.center = { x: t.center.x + dx, y: t.center.y + dy }; }
+    async update(ch, o = {}) { if ("x" in ch && o.tbAuto && Math.floor((ch.x + 25) / 100) === Math.floor(t.center.x / 100) && Math.floor((ch.y + 25) / 100) === Math.floor(t.center.y / 100)) log.push(`  манёвр в зоне: ${this.x},${this.y} → ${ch.x},${ch.y}`);
+      if ("x" in ch) { const dx = ch.x - this.x, dy = ch.y - this.y; this.x = ch.x; this.y = ch.y; t.center = { x: t.center.x + dx, y: t.center.y + dy }; }
       if ("elevation" in ch) { this.elevation = ch.elevation; a.system.alt = Object.keys(ELEV).find(k => ELEV[k] === ch.elevation); } return this; } };
   a.system.alt = alt;
   a.getActiveTokens = () => [t];
-  canvas.tokens.placeables.push(t); scene.tokens.push(t);
+  canvas.tokens.placeables.push(t); scene.tokens.push(t.document);
   byUuid[a.uuid] = a;
   return t;
 };
 const base = (d, extra = {}) => ({ statuses: new Set(), items: [], flags: {}, isOwner: true, getFlag(s, k) { return this.flags[k]; }, async setFlag(s, k, v) { this.flags[k] = v; },
-  async update(ch) { for (const [k, v] of Object.entries(ch)) if (k.startsWith("system.")) setp(this, k, v); return this; }, testUserPermission: () => false, ...d, ...extra });
+  async update(ch) { for (const [k, v] of Object.entries(ch)) if (k.startsWith("system.")) setp(this, k, v); return this; }, testUserPermission: () => false, async applyDamage(n) { log.push(`  урон ${this.name}: ${n}`); }, ...d, ...extra });
 const npc = (key, name, col, row, o = {}) => {
   const d = structuredClone(packs[key]), s = d.system;
   Object.assign(s, { side: "enemy", tier: "conscript", lockUuid: "", markers: {}, skills: { aim: 1, deploy: 1, dodge: 1, strafe: 1, lead: 0, push: 0 }, skillTotal: { aim: 1, deploy: 1, dodge: 1, strafe: 1, lead: 0, push: 0 }, ...o.sys });
@@ -91,4 +92,47 @@ const truck = npc("t80u", "Колонна", 0, 8, { sys: { side: "ally" } });
 truck.flags.autopilot = { on: true, task: "route", manner: "rush", acts: 2, after: "hold", route: ["1,8", "3,8"], step: 0 };
 await run("колонна, маршрут напролом", truck);
 await run("колонна, второй раунд", truck);
+
+// дальше каждая сцена с чистого листа
+const clear = () => { canvas.tokens.placeables.length = 0; scene.tokens.length = 0; };
+const at = a => { const d = a.getActiveTokens()[0].document; return `${d.x},${d.y}`; };
+const weapon = (key, o = {}) => ({ id: "W" + key, type: "weapon", name: key, flags: {}, getFlag: () => null,
+  system: { key, target: "air", ammo: { value: 2, max: 2 }, reach: 1, dmg: "4", aa: 2, ...o }, async update(ch) { for (const [k, v] of Object.entries(ch)) setp(this, k, v); } });
+// ас с QAAM в собачьей свалке: захват уже есть, перед пуском — заход сбоку по своей зоне; второй пуск с другой стороны
+clear();
+const raven = pilot("Ворон", 4, 3);
+const ace = npc("f15c", "Ас", 3, 3, { sys: { tier: "ace" } });
+const kit = (...ws) => Object.assign(ws, { get: id => ws.find(w => w.id === id) });
+ace.items = kit(weapon("QAAM", { ammo: { value: 4, max: 4 } }));
+ace.system.lockUuid = raven.uuid;
+ace.flags.autopilot = { on: true, task: "hunt", manner: "careful", acts: 2, after: "hold", route: [], step: 0 };
+log.push("ас до хода: место " + at(ace));
+await run("ас, спецоружие", ace);
+log.push("  место " + at(ace) + ", QAAM осталось " + ace.items[0].system.ammo.value);
+// крейсер держит позицию: пилот над ним — ЗРК, потом артустановка (ракетная система уже стреляла)
+clear();
+const kirov = npc("kirov", "Киров", 6, 6);
+kirov.system.systems = kirov.system.systems.map(y => ({ ...y, value: y.value ?? y.hp }));
+const viper = pilot("Гадюка", 6, 6);
+kirov.flags.autopilot = { on: true, task: "hold", manner: "careful", acts: 2, after: "hold", route: [], step: 0 };
+await run("крейсер, ракета и пушка", kirov);
+// бомбардировщик с ковровой бомбардировкой над колонной союзников
+clear();
+const col1 = npc("t80u", "Колонна-1", 2, 7, { sys: { side: "ally" } }), col2 = npc("t80u", "Колонна-2", 2, 7, { sys: { side: "ally" } });
+const bomber = npc("f15c", "Бомбардировщик", 2, 7, { alt: "low", sys: { props: [{ key: "carpet", name: "Ковровая бомбардировка" }] } });
+bomber.flags.autopilot = { on: true, task: "hunt", manner: "push", acts: 1, after: "hold", route: [], step: 0 };
+await run("бомбардировщик, ковёр", bomber);
+// AC-130: бортовые орудия по танку в соседней зоне
+clear();
+const tank2 = npc("t80u", "Танк союзников", 5, 8, { sys: { side: "ally" } });
+const spectre = npc("f15c", "AC-130", 4, 8, { alt: "low", sys: { props: [{ key: "gunship", name: "Бортовые орудия" }], aa: null, ag: null, stats: {} } });
+spectre.flags.autopilot = { on: true, task: "hunt", manner: "push", acts: 1, after: "hold", route: [], step: 0 };
+await run("AC-130, бортовые орудия", spectre);
+// EMRG: линия по двум пилотам, своих на ней нет
+clear();
+const a1 = pilot("Альфа", 5, 1), a2 = pilot("Браво", 7, 1);
+const rail = npc("f15c", "Рельсотрон", 2, 1, { sys: { tier: "ace" } });
+rail.items = kit(weapon("EMRG", { target: "line", dmg: "12", ammo: { value: 4, max: 4 } }));
+rail.flags.autopilot = { on: true, task: "hunt", manner: "careful", acts: 1, after: "hold", route: [], step: 0 };
+await run("EMRG по линии", rail);
 console.log(log.join("\n"));

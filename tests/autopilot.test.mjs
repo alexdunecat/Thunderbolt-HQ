@@ -45,3 +45,10 @@ show("держать позицию", o("hold", "push"), base({ cands: [cand("M"
 show("корабль: система без захвата", o("hunt", "push"), base({ flying: false, systems: true, incoming: 2, cands: [cand("P", 2, { noLock: true })] }));
 console.log("задача после:", A.taskNow(o("attack", "push", { target: "HQ", after: "hunt" }), { targetGone: true }), A.taskNow(o("route", "push", { route: ["1,1"], step: 1 })), A.taskNow(o("route", "push", { route: ["1,1"], step: 0 })));
 console.log("приказ:", A.orderLine(o("attack", "push", { targetName: "Штаб" })), "|", A.orderLine(o("hold", "careful", { acts: 1 })));
+// спецоружие и системы
+show("EMRG: на линии враг из пула", o("hunt", "careful"), base({ rail: { uuids: ["M"] }, cands: [cand("M", 3)] }));
+show("EMRG напролом: цели задачи на линии нет", o("attack", "rush", { target: "HQ" }), base({ rail: { uuids: ["M"] }, cands: [cand("M", 1), cand("HQ", 3)], goal: { kind: "target", uuid: "HQ", dist: 3, want: 1 }, next: [1, 0] }));
+show("ковёр по наземке внизу", o("hunt", "push"), base({ carpet: { uuids: ["T"] }, cands: [cand("T", 0, { canMissile: false, canGuns: false })] }));
+show("корабль: пушка по соседней зоне", o("hold", "careful"), base({ flying: false, systems: true, cands: [cand("P", 1, { canMissile: false, canGuns: true, gunReach: 1 })] }));
+show("корабль: пушка не достаёт", o("hold", "careful"), base({ flying: false, systems: true, cands: [cand("P", 1, { canMissile: false, canGuns: true, gunReach: 0 })] }));
+show("AC-130: бортовые орудия", o("hunt", "push"), base({ cands: [cand("T", 1, { canMissile: false, canGuns: false, gunship: true })] }));
