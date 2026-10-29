@@ -15,10 +15,10 @@ const SIDE = {
   player: CONST.TOKEN_DISPOSITIONS.FRIENDLY, neutral: CONST.TOKEN_DISPOSITIONS.NEUTRAL
 };
 
-let CATALOG = null;
+/** Каталог машин и NPC: тот же, что у ангара (одна загрузка на клиент). */
 export async function catalog() {
-  if (!CATALOG) CATALOG = await (await fetch(SYS_PATH + "data/catalog.json")).json();
-  return CATALOG;
+  const { hangarCatalog } = await import("../hangar.mjs");
+  return hangarCatalog();
 }
 
 const MAP = SYS_PATH + "assets/map/";

@@ -14,13 +14,13 @@ const EMPTY = { open: false, planes: [], weapons: [] };
 const KIND = { book: "книга", hb: "Штаб", op: "опытное" };
 
 let CAT = null;
-/** Каталог машин и спецоружия (data/catalog.json). */
+/** Каталог машин и спецоружия (data/catalog.json): грузится один раз, одновременные вызовы ждут одной загрузки. */
 export async function hangarCatalog() {
-  if (!CAT) CAT = await (await fetch(SYS_PATH + "data/catalog.json")).json();
+  CAT ??= fetch(SYS_PATH + "data/catalog.json").then(r => r.json()).catch(err => { CAT = null; throw err; });
   return CAT;
 }
 /** Для проверок без Foundry. */
-export function setHangarCatalog(cat) { CAT = cat; }
+export function setHangarCatalog(cat) { CAT = Promise.resolve(cat); }
 
 export function registerHangar() {
   game.settings.register(SYSTEM_ID, "hangar", { scope: "world", config: false, type: Object, default: EMPTY, onChange: () => refresh() });

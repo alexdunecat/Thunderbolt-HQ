@@ -15,8 +15,8 @@ const same = (u, a) => !!u && !!a && (u === a.uuid || u === a.actor?.uuid);
 export function registerDuelists() {
   game.settings.register(SYSTEM_ID, KEY, { scope: "world", config: false, type: Object, default: {},
     onChange: () => Hooks.callAll(`${SYSTEM_ID}.squadrons`) });
-  // запас Strain выставляется в начале боя: потом сбитые машины его уже не уменьшают
-  Hooks.on("combatStart", combat => { if (isLead()) startSortie(combat).catch(err => console.error(`${SYSTEM_ID} | запас эскадрилий`, err)); });
+  // запас Strain выставляется в начале боя: потом сбитые машины его уже не уменьшают; combatStart приходит только тому, кто начал бой
+  Hooks.on("combatStart", combat => { if (game.user.isGM) startSortie(combat).catch(err => console.error(`${SYSTEM_ID} | запас эскадрилий`, err)); });
 }
 
 /* ---------- состав и состояние вылета ---------- */

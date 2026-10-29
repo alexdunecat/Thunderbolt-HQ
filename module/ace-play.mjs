@@ -50,9 +50,10 @@ export async function aceInstinct(actor) {
 
 /** Ракеты, летящие в этого аса в этом раунде (ещё не долетели). */
 export function missilesAt(actor) {
-  return game.messages.contents.filter(m => {
+  // ракеты в воздухе — из недавних карточек; лист аса перерисовывается часто, весь чат не перебираем
+  return game.messages.contents.slice(-300).filter(m => {
     const c = m.getFlag(SYSTEM_ID, "card");
-    return c?.delayed && !c.resolved && !c.dmgApplied && c.targetUuid && resolveActor(c.targetUuid) === actor;
+    return c?.delayed && !c.resolved && !c.dmgApplied && c.targetUuid && (c.targetUuid === actor.uuid || resolveActor(c.targetUuid) === actor);
   }).length;
 }
 

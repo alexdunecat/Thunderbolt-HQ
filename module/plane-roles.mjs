@@ -306,8 +306,9 @@ export function registerPlaneRoles() {
     }
   });
   // «Взлёт по тревоге»: асы-NPC на перехватчиках начинают бой на Max Speed (пилотам Speed ставит «К вылету»)
+  // combatStart приходит только тому, кто начал бой (может быть и не главный ведущий)
   Hooks.on("combatStart", combat => {
-    if (!isLead()) return;
+    if (!game.user.isGM) return;
     for (const c of combat.combatants) {
       const a = c.actor;
       if (a?.type === "npc" && roleOf(a) === "icpt" && a.system.speed < a.system.maxSpeed) a.update({ "system.speed": a.system.maxSpeed }, { tbFree: true }).catch(() => null);

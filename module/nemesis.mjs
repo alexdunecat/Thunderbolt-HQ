@@ -123,6 +123,7 @@ export function appearLine(npc, who) {
   return `${cap(to)}внимание! В районе «${name}». Это твоя Немезида.`;
 }
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const appearing = new Set();
 
 /**
  * Немезида появилась: заставка как у асов (эмблема, имя, NEMESIS, чей враг) и реплика AWACS, отметка у её пилотов
@@ -130,7 +131,13 @@ const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
  */
 export async function appear(npc, { auto = false } = {}) {
   if (!game.user.isGM || !isNemesis(npc)) return null;
-  if (auto && fxOf(npc).seen) return null;
+  // токен вышел на сцену и тут же начался бой: второе появление, пока первое пишет флаги, не нужно
+  if (auto && (fxOf(npc).seen || appearing.has(npc.uuid))) return null;
+  appearing.add(npc.uuid);
+  try { return await announce(npc); } finally { appearing.delete(npc.uuid); }
+}
+
+async function announce(npc) {
   const pilots = pilotsOf(npc), name = nameOf(npc), who = pilots.map(callsign).join(", ");
   for (const p of pilots) if (!metOf(p)) await p.setFlag(SYSTEM_ID, MET, { uuid: npc.uuid, name });
   await setFx(npc, { seen: true });

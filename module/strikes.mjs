@@ -433,12 +433,14 @@ export async function resolveStrikes(combat, round) {
   const { damageUser, hitTarget } = await import("./dice/rolls.mjs");
   for (const s of due) {
     const S = STRIKES[s.kind] ?? STRIKES.custom;
-    const rolls = {};
-    if (s.attack !== null && s.attack !== undefined) for (const u of units) rolls[u.uuid] = (await new Roll("1d10").evaluate()).total;
     // сам взрывающийся или падающий корабль в своей зоне урона не получает: он уничтожен целиком
     const self = s.destroy ?? (s.kind === "reactor" ? s.sourceUuid : null);
     const start = startOf(s);
     const here = units.filter(u => u.uuid !== self).map(u => ({ ...u, start: start.get(u.uuid) ?? null }));
+    // d10 — только тем, кто в зоне удара и бросает (не всей сцене)
+    const rolls = {};
+    if (s.attack !== null && s.attack !== undefined)
+      for (const h of strikeHits(s, here)) if (h.roll !== undefined) rolls[h.uuid] = (await new Roll("1d10").evaluate()).total;
     const hits = strikeHits(s, here, rolls);
     const key = `${combat.id}:${round}`;
     const rows = hits.map(h => {
@@ -478,6 +480,8 @@ export async function strikeShip(message, uuid) {
   if (!ship) return;
   // кнопка одна на корабль: после нажатия на карточке остаётся отметка
   const btn = new RegExp(`<button[^>]*data-uuid="${uuid.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"[^>]*>[\\s\\S]*?</button>`);
+  // второй щелчок до перерисовки: кнопки уже нет — урон второй раз не идёт
+  if (!btn.test(message.content)) return;
   await message.update({ content: message.content.replace(btn, `<span class="tb-small">${esc(row.name)}: отмечено</span>`) });
   await ship.applyDamage(row.dmg, { source: card.label, one: row.dmg >= 99 });
 }
