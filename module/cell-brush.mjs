@@ -31,7 +31,8 @@ export function openBrush(brush) {
   const what = brush.kind === "ret" ? "линия возврата" : `${TB.weather[brush.id].ico} ${TB.weather[brush.id].name}`;
   const mb = showModeBar({ title: `Кисть: ${what}`, text: "Щёлкайте или ведите по клеткам: поставить или снять.",
     buttons: [
-      ...(brush.kind === "wx" ? [{ label: "Другая погода", icon: "fa-cloud", onClick: () => { finish(); pickWeatherBrush(); } }] : []),
+      ...(brush.kind === "wx" ? [{ label: "Другая погода", icon: "fa-cloud", onClick: () => { finish(); pickWeatherBrush(); } },
+        { label: "Движение фронта", icon: "fa-wind", onClick: () => import("./weather-front.mjs").then(m => m.frontDialog(scene)) }] : []),
       { label: "Готово", icon: "fa-check", primary: true, onClick: () => finish() }
     ] });
 
@@ -104,8 +105,8 @@ export function pickWeatherBrush() {
     : `<button type="button" data-wx="${id}"><span>${d.ico}</span>${esc(d.name)}${count(id) ? `<small>${count(id)} кл.</small>` : ""}</button>`).join("");
   const dlg = new Dialog({
     title: "Кисть погоды",
-    content: `<div class="tb-dialog tb-wxpick">${list}</div><p class="tb-hint">Погода ложится на клетки сцены; над всей сценой её включают в AWACS.</p>`,
-    buttons: { close: { label: "Закрыть" } },
+    content: `<div class="tb-dialog tb-wxpick">${list}</div><p class="tb-hint">Погода ложится на клетки сцены; над всей сценой её включают в AWACS. «Движение фронта» сдвигает нарисованное на клетку раз в несколько раундов.</p>`,
+    buttons: { front: { label: "Движение фронта", icon: `<i class="fas fa-wind"></i>`, callback: () => import("./weather-front.mjs").then(m => m.frontDialog(scene)) }, close: { label: "Закрыть" } },
     render: html => html.find("[data-wx]").on("click", ev => { dlg.close(); openBrush({ kind: "wx", id: ev.currentTarget.dataset.wx }); })
   }, { width: 420 });
   dlg.render(true);

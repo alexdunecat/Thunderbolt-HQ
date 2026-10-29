@@ -30,6 +30,8 @@ export const MANNERS = {
   careful: { name: "Осторожно", hint: "Уходит Break! от ракет, бьёт всё, что достаёт, раненым отходит от врага." }
 };
 export const AFTER = { hold: "Держать позицию", hunt: "Свободная охота" };
+/** Приказы ведомому от ведущего (кнопки в HUD пилота): атаковать его цель, прикрывать его, свободная охота. Пусто — по обстановке. */
+export const WING_ORDERS = { attack: "Атакуй мою цель", cover: "Прикрой меня", free: "Свободная охота" };
 /** Стиль боя: чем бьёт и на какой дистанции держится. «По типу машины»: истребитель — ракетчик, штурмовик и вертолёт — пушкарь, остальные — смешанный. */
 export const STYLES = {
   auto: { name: "По типу машины", short: "" },
@@ -67,6 +69,8 @@ export const isPlayerUnit = actor => actor?.type === "pilot" || !!actor?.hasPlay
 /** Задача сейчас: цель сбита или маршрут пройден — то, что в приказе «после». */
 export function taskNow(order, { targetGone = false } = {}) {
   if (withTarget(order.task) && (targetGone || !order.target)) return order.after;
+  // ведомый на свободной охоте: отпущен от ведущего
+  if (order.task === "wing" && order.wingOrder === "free") return "hunt";
   if (isRoute(order.task) && order.task !== "patrol" && order.step >= order.route.length) return order.after;
   return order.task;
 }
@@ -74,7 +78,7 @@ export function taskNow(order, { targetGone = false } = {}) {
 /** Строка приказа для сводки и подсказок. */
 export function orderLine(order) {
   if (!order) return "";
-  const t = withTarget(order.task) ? `${{ escort: "охранять", wing: "ведомый у" }[order.task] ?? "атаковать"} «${order.targetName || "цель"}»`
+  const t = withTarget(order.task) ? `${{ escort: "охранять", wing: "ведомый у" }[order.task] ?? "атаковать"} «${order.targetName || "цель"}»${order.task === "wing" && WING_ORDERS[order.wingOrder] ? ` (${WING_ORDERS[order.wingOrder].toLowerCase()})` : ""}`
     : isRoute(order.task) ? `${{ advance: "наступление на", patrol: "патруль" }[order.task] ?? "маршрут"} ${order.route.length ? order.route.map(cellLabel).join(" → ") : "не задан"}`
       : TASKS[order.task].toLowerCase();
   const style = STYLES[order.style]?.short, pref = PREFS[order.prefer] && !["auto", undefined].includes(order.prefer) ? `цели: ${PREFS[order.prefer].toLowerCase()}` : "";
@@ -112,10 +116,16 @@ export function chooseStep(order, v, failed = new Set()) {
   // охрана: сначала те, кто угрожает охраняемому; «Напролом» — только они, «Прорыв» — ещё кто рядом и кто держит на захвате.
   // ведомый так же, но первой — цель ведущего
   if (isGuard(task)) {
-    const key = c => c.threat || c.lead;
-    if (manner === "rush") pool = pool.filter(key);
+    let wo = task === "wing" ? order.wingOrder : "";
+    // у ведущего пока нет цели: по обстановке
+    if (wo === "attack" && !pool.some(c => c.lead)) wo = "";
+    // «Атакуй мою цель»: только цель ведущего, пока она есть; «Прикрой меня»: только те, кто угрожает ведущему или самому ведомому
+    const key = wo === "attack" ? c => c.lead : wo === "cover" ? c => c.threat || c.locksMe : c => c.threat || c.lead;
+    if (wo === "attack" || wo === "cover") pool = pool.filter(key);
+    else if (manner === "rush") pool = pool.filter(key);
     else if (manner === "push") pool = pool.filter(c => key(c) || c.dist === 0 || c.locksMe);
-    pool = [...pool.filter(c => c.lead), ...pool.filter(c => !c.lead && c.threat), ...pool.filter(c => !key(c))];
+    pool = wo === "cover" ? [...pool.filter(c => c.threat), ...pool.filter(c => !c.threat)]
+      : [...pool.filter(c => c.lead), ...pool.filter(c => !c.lead && c.threat), ...pool.filter(c => !key(c))];
   }
   // машины игроков — самый низкий приоритет: пока на карте есть кого ещё бить, их не трогает (кроме цели, которую ведущий назначил сам)
   const ordered = task === "attack" ? goalUuid : null;
@@ -699,6 +709,55 @@ function highlight(route) {
   });
 }
 
+/* ---------- приказы ведомым от ведущего (HUD пилота) ---------- */
+
+const WING_CHANNEL = `system.${SYSTEM_ID}`;
+const WING_REPLY = {
+  attack: { yes: "Понял, работаю по твоей цели.", none: "Понял. Захвати цель, и я на неё." },
+  cover: { yes: "Понял, прикрываю. Твой хвост на мне." },
+  free: { yes: "Понял, ухожу на свободную охоту." },
+  "": { yes: "Понял, действую по обстановке." }
+};
+
+/** Ведомые этого ведущего на сцене: токены на автопилоте с задачей «Ведомый» за ним. */
+export function wingmenOf(leader, tokens = canvas?.tokens?.placeables ?? []) {
+  if (!leader) return [];
+  return tokens.filter(t => {
+    const o = orderOf(t.actor);
+    return o?.task === "wing" && o.target === leader.uuid && !gone(t.actor) && !t.document?.hidden;
+  });
+}
+
+/** Текущий приказ ведомым: общий для всех или "" (по обстановке, или у ведомых разные). */
+export function wingOrderOf(leader, tokens) {
+  const os = wingmenOf(leader, tokens).map(t => orderOf(t.actor).wingOrder ?? "");
+  return os.length && os.every(o => o === os[0]) ? os[0] : "";
+}
+
+/** Ведущий отдаёт приказ своим ведомым. Повторный щелчок по тому же — снова по обстановке. Игрок — через ведущего игры. */
+export async function giveWingOrder(leader, kind) {
+  if (!leader?.isOwner) return;
+  if (!(kind in WING_ORDERS) && kind !== "") return;
+  if (!wingmenOf(leader).length) return ui.notifications.warn("Ведомых на автопилоте за вами нет: ведущий игры назначает их кнопкой с роботом, задача «Ведомый».");
+  const next = wingOrderOf(leader) === kind ? "" : kind;
+  if (game.user.isGM) return applyWingOrder(leader.uuid, next);
+  if (!game.users.activeGM) return ui.notifications.warn("Ведущего игры нет в сети: приказ ведомому передаёт он.");
+  game.socket.emit(WING_CHANNEL, { type: "wingOrder", leader: leader.uuid, kind: next, user: game.user.id });
+}
+
+async function applyWingOrder(leaderUuid, kind, userId = game.user.id) {
+  const leader = resolveActor(leaderUuid), user = game.users.get(userId);
+  if (!leader || !(user?.isGM || leader.testUserPermission?.(user, "OWNER"))) return;
+  const list = wingmenOf(leader);
+  if (!list.length) return;
+  for (const t of list) await t.actor.setFlag(SYSTEM_ID, "autopilot", { ...t.actor.getFlag(SYSTEM_ID, "autopilot"), wingOrder: kind });
+  const r = WING_REPLY[kind] ?? WING_REPLY[""];
+  const text = kind === "attack" && !targetsOf(leader).size ? r.none : r.yes;
+  const { sendRadio } = await import("./radio.mjs");
+  const who = list.map(t => t.name).join(", "), lead = leader.system?.callsign || leader.token?.name || leader.name;
+  await sendRadio({ speaker: who, text: `${lead}, ${text.charAt(0).toLowerCase()}${text.slice(1)}`, side: leader.type === "pilot" ? "ally" : leader.system?.side ?? "ally" });
+}
+
 /* ---------- меню токена, значок и маршрут выделенного ---------- */
 
 export function registerAutopilot() {
@@ -720,7 +779,14 @@ export function registerAutopilot() {
     col.append(b);
   });
   Hooks.on("refreshToken", (t, flags) => { if (!flags || flags.refreshState || flags.redraw || flags.refreshSize) badge(t); });
-  for (const ev of ["updateActor", "updateActorDelta"]) Hooks.on(ev, () => refreshSoon());
+  for (const ev of ["updateActor", "updateActorDelta"]) Hooks.on(ev, (doc, change) => {
+    refreshSoon();
+    // приказ ведомым сменился: кнопки в HUD ведущего
+    if (foundry.utils.hasProperty(change, `flags.${SYSTEM_ID}.autopilot`)) import("./hud.mjs").then(m => m.refreshHud()).catch(() => null);
+  });
+  Hooks.once("ready", () => game.socket?.on(WING_CHANNEL, msg => {
+    if (msg?.type === "wingOrder" && game.user.isGM && game.users.activeGM?.isSelf) applyWingOrder(msg.leader, msg.kind ?? "", msg.user).catch(err => console.error(`${SYSTEM_ID} | ведомый`, err));
+  }));
   Hooks.on("canvasReady", () => refreshSoon());
   Hooks.on("controlToken", (t, on) => {
     if (!game.user.isGM) return;

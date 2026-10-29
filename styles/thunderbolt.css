@@ -1341,6 +1341,8 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 #tb-pilot-hud .tb-hud-nemchip { padding: 0 5px; font-size: 10px; line-height: 20px; color: #ffb8a8; border: 1px solid #5a1b14; border-radius: 2px; background: #1a0604; }
 #tb-pilot-hud .tb-hud-btns button.tb-hud-nemtrig { flex: 0 0 auto; line-height: 20px; color: #ffd0c8; background: #3a0c07; border: 1px solid #ff4a3a; border-radius: 2px; box-shadow: none; }
 #tb-pilot-hud .tb-hud-btns button.tb-hud-nemtrig.on, #tb-pilot-hud .tb-hud-btns button.tb-hud-nemtrig:hover { background: #ff4a3a; color: #1a0604; }
+#tb-pilot-hud .tb-hud-btns button.tb-hud-wingbtn { flex: 0 0 auto; line-height: 20px; color: #cdefff; background: #08202c; border: 1px solid #7fd8ff; border-radius: 2px; box-shadow: none; }
+#tb-pilot-hud .tb-hud-btns button.tb-hud-wingbtn.on, #tb-pilot-hud .tb-hud-btns button.tb-hud-wingbtn:hover { background: #7fd8ff; color: #07141a; }
 /* панель монолога: у всех, кнопки ответа у пилотов Немезиды */
 #tb-monologue { position: fixed; top: 150px; left: 50%; transform: translateX(-50%); z-index: 72; display: flex; flex-direction: column; gap: 6px; min-width: 320px; max-width: min(92vw, 640px);
   padding: 8px 12px 10px; color: #f4fbf8; background: rgba(8, 4, 4, .86); border: 1px solid #ff4a3a; box-shadow: 0 0 14px rgba(255, 74, 58, .45); font-family: "Jura", "Exo 2", system-ui, sans-serif; }

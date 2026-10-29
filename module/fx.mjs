@@ -79,11 +79,24 @@ const marked = c => inAir(c) && !c.fx;
 
 const on = () => { try { return game.settings.get(SYSTEM_ID, "fxOn") !== false; } catch { return true; } };
 
+/** Повреждённая машина на карте: метка Doom — горит, метка Structure — дымит, иначе null. */
+export function burnOf(actor) {
+  const m = actor?.system?.markers;
+  if (!m || !["pilot", "npc"].includes(actor.type)) return null;
+  return m.doom ? "fire" : m.structure ? "smoke" : null;
+}
+
 export function registerFx() {
   game.settings.register(SYSTEM_ID, "fxOn", {
     name: "Анимация ракет и попаданий", hint: "Схема боя на карте: ракеты с дымным следом, трассеры, лучи, ловушки, взрывы и сбитые машины. Только у себя.",
     scope: "client", config: true, type: Boolean, default: true, onChange: v => { if (!v) clearAll(); else syncAir(); }
   });
+  game.settings.register(SYSTEM_ID, "fxBurn", {
+    name: "Дым и огонь у повреждённых", hint: "Машина с меткой Structure тянет за собой дымный след, с меткой Doom горит. Только у себя, вместе с анимацией.",
+    scope: "client", config: true, type: Boolean, default: true
+  });
+  // unref: в проверках под Node таймер не держит процесс
+  Hooks.once("ready", () => setInterval(() => { try { burnTick(); } catch (err) { console.warn(`${SYSTEM_ID} | дым`, err); } }, BURN_MS)?.unref?.());
   Hooks.on("createChatMessage", (m, options) => { if (!options?.tbUndo) onCard(m).catch(err => { console.warn(`${SYSTEM_ID} | анимация`, err); report(`ошибка: ${err?.message ?? err}`); }); });
   // отчёты игроков ведущему: почему у них не нарисовалось (консоль игрока ведущему не видна)
   Hooks.once("ready", () => game.socket?.on(CHANNEL, msg => {
@@ -316,6 +329,27 @@ function drawAir(g, now) {
     g.lineStyle(0);
     const pulse = 0.6 + 0.4 * Math.sin(now / 180);
     dart(g, p, Math.atan2(b.y - p.y, b.x - p.x), gs() * 0.07, col, pulse);
+  }
+}
+
+/* ---------- дым и огонь повреждённых: клубы остаются на месте, поэтому за летящей машиной тянется след ---------- */
+
+const BURN_MS = 140;
+const burnOn = () => { try { return on() && game.settings.get(SYSTEM_ID, "fxBurn") !== false; } catch { return true; } };
+function burnTick() {
+  if (!canvas?.ready || !burnOn() || document.hidden) return;
+  // частиц и так много (большой залп): дым подождёт
+  if (items.length > MAX_ITEMS * 0.6) return;
+  for (const t of canvas.tokens?.placeables ?? []) {
+    const kind = burnOf(t.actor);
+    if (!kind || t.document.hidden || !seen(t)) continue;
+    const c = t.center, w = (t.w ?? gs()) * 0.18;
+    const at = { x: c.x + rnd(-w, w), y: c.y + rnd(-w, w) };
+    // дым тянет немного вверх, как ветром
+    puff(at, { r: 0.02, life: 1900, color: kind === "fire" ? 0x3a3a3a : 0x8a8a8a, alpha: kind === "fire" ? 0.55 : 0.4, grow: 2.4, vx: rnd(-4, 4), vy: -rnd(6, 14) });
+    if (kind === "fire") {
+      puff({ x: c.x + rnd(-w, w), y: c.y + rnd(-w, w) }, { r: 0.016, life: 420, color: Math.random() < 0.5 ? 0xff7a1a : 0xffc23a, alpha: 0.85, grow: 0.8, vy: -rnd(8, 18) });
+    }
   }
 }
 

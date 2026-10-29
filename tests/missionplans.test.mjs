@@ -31,3 +31,17 @@ const plan = MI.unitPlans(units, byUnit, (cells, route) => AP.formationRoutes(ce
 for (const [uuid, o] of plan.orders) console.log("приказ", uuid.split(".")[3], o.task, o.manner, o.acts, o.targetName || "-", JSON.stringify(o.route));
 for (const [uuid, a] of plan.arrive) console.log("выход", uuid.split(".")[3], JSON.stringify(a));
 for (const p of plan.problems) console.log("замечание:", p);
+// события по ходу боя
+const ev = MI.missionEvents([
+  { round: 2, speaker: "AWACS", side: "ally", text: "Внимание, с севера подходят бомбардировщики." },
+  { after: "u4", speaker: "Стрикс-1", side: "enemy", text: "Колонна потеряна! Всем бортам на перехват!", caution: true },
+  { after: "u0", text: "Нет такой машины" }, { round: 3, text: "   " }, { speaker: "", side: "x", text: "Без раунда" }
+], byUnit);
+for (const e of ev.events) console.log("событие", JSON.stringify(e));
+for (const p of ev.problems) console.log("замечание:", p);
+const ME = await import(R + "/module/mission-events.mjs");
+const gone = new Set();
+for (const [round, fired] of [[1, []], [2, []], [2, [0, 2]], [3, [0, 2]]]) {
+  if (round === 3) gone.add("Scene.S.Token.u41.Actor.x");
+  console.log(`пора в раунде ${round} (уже ${JSON.stringify(fired)}):`, JSON.stringify(ME.dueEvents(ev.events, round, fired, u => gone.has(u))));
+}

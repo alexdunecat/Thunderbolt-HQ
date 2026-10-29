@@ -345,7 +345,26 @@ export function unitPlans(units, byUnit, formation = null) {
   return out;
 }
 
-async function applyPlans(scene, units, created) {
+/**
+ * События по ходу боя из Планшета: { round } или { after: id строки } → { round } или { after: uuid первой её машины, afterName }.
+ * Пустые реплики пропускаются; машины нет на карте — событие пропадает с предупреждением.
+ */
+export function missionEvents(events, byUnit) {
+  const out = { events: [], problems: [] };
+  for (const e of events ?? []) {
+    const text = String(e?.text ?? "").trim();
+    if (!text) continue;
+    const base = { text, speaker: String(e.speaker ?? "").trim() || "AWACS", side: ["ally", "enemy", "neutral"].includes(e.side) ? e.side : "ally", caution: !!e.caution };
+    if (e.after !== undefined) {
+      const t = byUnit.get(e.after)?.[0];
+      if (!t) { out.problems.push(`Событие «${text.slice(0, 40)}»: машины, после которой оно звучит, нет на карте.`); continue; }
+      out.events.push({ ...base, after: t.uuid, afterName: t.name });
+    } else out.events.push({ ...base, round: Math.max(1, Number(e.round) || 1) });
+  }
+  return out;
+}
+
+async function applyPlans(scene, units, created, events = []) {
   const byUnit = new Map(), gs = scene.grid?.size ?? S;
   for (const d of created) {
     const id = d.getFlag?.(SYSTEM_ID, "unitId");
@@ -359,7 +378,9 @@ async function applyPlans(scene, units, created) {
   const rows = plan.arrive.map(([uuid, a]) => ({ _id: docOf(uuid).id, ...(a ? { [`flags.${SYSTEM_ID}.arrive`]: a } : { hidden: false }) }));
   if (rows.length) await scene.updateEmbeddedDocuments("Token", rows, { tbKeep: true });
   for (const [uuid, order] of plan.orders) await docOf(uuid)?.actor?.setFlag(SYSTEM_ID, "autopilot", order);
-  return { orders: plan.orders.length, arrive: plan.arrive.filter(([, a]) => a).length, problems: plan.problems };
+  const ev = missionEvents(events, byUnit);
+  if (ev.events.length) await scene.setFlag(SYSTEM_ID, "events", ev.events);
+  return { orders: plan.orders.length, arrive: plan.arrive.filter(([, a]) => a).length, events: ev.events.length, problems: [...plan.problems, ...ev.problems] };
 }
 
 export async function importMission(input) {
@@ -443,7 +464,7 @@ export async function importMission(input) {
   }
   if (drawings.length) await scene.createEmbeddedDocuments("Drawing", drawings);
   const created = tokens.length ? await scene.createEmbeddedDocuments("Token", tokens, { tbKeep: true }) : [];
-  const plans = await applyPlans(scene, m.units ?? [], created);
+  const plans = await applyPlans(scene, m.units ?? [], created, m.events ?? []);
 
   // ---- журнал ----
   const p = s => s ? `<p>${esc(s).replace(/\n/g, "<br>")}</p>` : "";
@@ -462,7 +483,7 @@ export async function importMission(input) {
   // стелс-миссия: шкала Тревоги на 8, 6 или 4 деления
   const alarm = [4, 6, 8].includes(Number(m.alarm)) ? Number(m.alarm) : 0;
   if (alarm) await (await import("../stealth.mjs")).setupAlarm(alarm);
-  ui.notifications.info(`Миссия «${title}» импортирована: сцена, ${tokens.length} токенов, журнал брифинга${alarm ? `, шкала Тревоги на ${alarm}` : ""}${plans.orders ? `, приказов автопилота ${plans.orders}` : ""}${plans.arrive ? `, подкреплений ${plans.arrive}` : ""}.`);
+  ui.notifications.info(`Миссия «${title}» импортирована: сцена, ${tokens.length} токенов, журнал брифинга${alarm ? `, шкала Тревоги на ${alarm}` : ""}${plans.orders ? `, приказов автопилота ${plans.orders}` : ""}${plans.arrive ? `, подкреплений ${plans.arrive}` : ""}${plans.events ? `, событий ${plans.events}` : ""}.`);
   for (const w of plans.problems) ui.notifications.warn(`Импорт миссии: ${w}`);
   return { scene, journal, folder };
 }

@@ -83,4 +83,16 @@ show("патруль: дальний враг — дальше по маршру
 show("патруль: подошёл вплотную — захват", o("patrol", "push", { route: ["5,0"] }), base({ cands: [cand("M", 1)], goal: { kind: "target", uuid: "M", dist: 1, want: 1 }, next: [1, 0] }));
 show("ведомый: сначала цель ведущего", o("wing", "push", { target: "L" }), esc({ lock: "N", cands: [cand("N", 0, { threat: true }), cand("T", 1, { lead: true })] }));
 show("ведомый напролом: только цель ведущего и угрозы", o("wing", "rush", { target: "L" }), esc({ cands: [cand("N", 0)] }));
+show("ведомый «Атакуй мою цель»: только цель ведущего", o("wing", "careful", { target: "L", wingOrder: "attack" }), esc({ lock: "N", cands: [cand("N", 0, { threat: true }), cand("X", 0), cand("T", 1, { lead: true })] }));
+show("ведомый «Атакуй мою цель», у ведущего нет цели: по обстановке", o("wing", "push", { target: "L", wingOrder: "attack" }), esc({ lock: "N", cands: [cand("N", 0, { threat: true }), cand("T", 1)] }));
+show("ведомый «Прикрой меня»: только угрозы, цель ведущего не трогает", o("wing", "careful", { target: "L", wingOrder: "cover" }), esc({ cands: [cand("T", 0, { lead: true }), cand("N", 1, { threat: true })] }));
+show("ведомый «Прикрой меня», угроз нет: держится рядом", o("wing", "careful", { target: "L", wingOrder: "cover" }), esc({ cands: [cand("T", 0, { lead: true })] }));
+console.log("ведомый «Свободная охота»: задача", A.taskNow({ task: "wing", target: "L", wingOrder: "free", after: "hold" }), "| без приказа:", A.taskNow({ task: "wing", target: "L", after: "hold" }));
 console.log("строки:", A.orderLine({ task: "patrol", manner: "careful", acts: 2, route: [] }), "|", A.orderLine({ task: "wing", manner: "push", acts: 0, route: [], targetName: "Гроза" }));
+{
+  const lead = { uuid: "Actor.L" };
+  const wt = (name, f, extra = {}) => ({ name, document: { hidden: false }, actor: { type: "npc", statuses: new Set(), system: { markers: {} }, getFlag: () => f, ...extra } });
+  const ts = [wt("Ведомый-1", { on: true, task: "wing", target: "Actor.L", wingOrder: "cover" }), wt("Ведомый-2", { on: true, task: "wing", target: "Actor.L", wingOrder: "cover" }),
+    wt("Чужой", { on: true, task: "wing", target: "Actor.X" }), wt("Выключен", { on: false, task: "wing", target: "Actor.L" }), wt("Сбит", { on: true, task: "wing", target: "Actor.L" }, { system: { markers: { doom: true } } })];
+  console.log("ведомые ведущего:", A.wingmenOf(lead, ts).map(t => t.name).join(", "), "| общий приказ:", A.wingOrderOf(lead, ts), "| разные:", JSON.stringify(A.wingOrderOf(lead, [ts[0], wt("Ведомый-3", { on: true, task: "wing", target: "Actor.L" })])));
+}

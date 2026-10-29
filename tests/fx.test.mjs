@@ -66,3 +66,5 @@ showW("босс: рельсотрон", { type: "attack", attack: true, instant:
 showW("самолёт: пушка", { type: "attack", attack: true, instant: true, label: "Guns, Guns, Guns!", actorUuid: "JET", targetUuid: "T", d10: 9, parts: [], dc: 5 });
 showW("танк: G-G в бою", { type: "attack", attack: true, label: "Пуск G-G", fx: "shell", actorUuid: "TANK", targetUuid: "T", delayed: true, combatKey: "C:1", parts: [] });
 showW("залп: снаряд и ракета", { type: "volley", targets: [{ uuid: "T", hit: true, count: 2, shooterUuids: ["TANK", "JET"], fx: { TANK: "shell" } }] });
+console.log("дым и огонь:", [["цел", {}], ["Grit", { grit: true }], ["Structure", { structure: true }], ["Doom", { structure: true, doom: true }]]
+  .map(([n, m]) => `${n} ${Fx.burnOf({ type: "npc", system: { markers: m } }) ?? "—"}`).join(", "), "· штаб без меток:", Fx.burnOf({ type: "staff", system: {} }) ?? "—");

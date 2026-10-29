@@ -18,6 +18,7 @@ import { adviceRow, runAdvice, showTarget } from "./npc-advice.mjs";
 import { hudPlane, planeRowHtml, useMove, useAoa, pickBooster, useDeck } from "./plane-roles.mjs";
 import { poolOf, squadRowHtml, useTactic } from "./duelists.mjs";
 import { aceRowHtml, aceClick } from "./ace-play.mjs";
+import { wingmenOf, wingOrderOf, giveWingOrder, WING_ORDERS } from "./autopilot.mjs";
 import { hudNemesis, isNemesis, pilotsOf, monologue, startMonologue, endMonologue, appear, useTrigger, STATE_TEXT } from "./nemesis.mjs";
 
 const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, POS_KEY = `${SYSTEM_ID}.hudPos`;
@@ -138,6 +139,8 @@ export function hudData(actor) {
     ct: pilot ? hudTriggers(actor) : null,
     // роль машины, лампы свойств, Angle of Attack Limiter и фирменный приём
     planeRow: hudPlane(actor),
+    // ведомые на автопилоте за этой машиной: приказы им
+    wing: hudWing(actor),
     nemSelf: !pilot && isNemesis(actor) && game.user.isGM
       ? { side: s.side === "ally" || s.side === "neutral" ? s.side : "enemy", who: pilotsOf(actor).map(p => p.system.callsign || p.name).join(", "), talking: monologue()?.uuid === actor.uuid } : null
   };
@@ -152,6 +155,18 @@ function ctRow(d) {
 }
 
 /** Строка Немезиды в HUD. */
+function hudWing(actor) {
+  const list = wingmenOf(actor);
+  return list.length ? { names: list.map(t => t.name), order: wingOrderOf(actor) } : null;
+}
+
+const WING_ICON = { attack: "fa-crosshairs", cover: "fa-shield-halved", free: "fa-paper-plane" };
+function wingRow(d) {
+  if (!d.wing) return "";
+  return `<div class="tb-hud-btns tb-hud-wing"><small title="Ведомые: ${esc(d.wing.names.join(", "))}">WING</small>
+    ${Object.entries(WING_ORDERS).map(([k, label]) => `<button type="button" class="tb-hud-wingbtn ${d.wing.order === k ? "on" : ""}" data-hud-wing="${k}" title="${esc(label)}${d.wing.order === k ? ": ещё раз — по обстановке" : ""}"><i class="fas ${WING_ICON[k]}"></i> ${esc(label)}</button>`).join("")}</div>`;
+}
+
 function nemRow(d) {
   if (d.nem) {
     const n = d.nem;
@@ -279,6 +294,7 @@ function html(actor, d, folded) {
         ${actor.type === "npc" ? aceRowHtml(actor) : ""}
         ${actor.type === "npc" ? squadRowHtml(actor) : ""}
         ${ctRow(d)}
+        ${wingRow(d)}
         ${nemRow(d)}
         ${actor.type === "npc" ? adviceRow(actor) : ""}
       </div>
@@ -398,7 +414,7 @@ async function onClick(ev) {
   const hl = ev.target.closest("[data-hud-hl]");
   if (hl) { ev.preventDefault(); ev.stopPropagation(); return setHlMode(hl.dataset.hudHl); }
   if (dragged && ev.target.closest("header")) { dragged = false; return; }
-  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-tactic], [data-hud-ace]");
+  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-tactic], [data-hud-ace], [data-hud-wing]");
   if (!t || !shown) return;
   ev.preventDefault();
   const d = t.dataset, actor = shown;
@@ -423,6 +439,7 @@ async function onClick(ev) {
   if (d.hudAoa !== undefined) return useAoa(actor);
   if (d.hudBooster !== undefined) return pickBooster(actor);
   if (d.hudDeck !== undefined) return useDeck(actor);
+  if (d.hudWing) return giveWingOrder(actor, d.hudWing);
   if (d.hudTactic) return useTactic(actor.system.squad, d.hudTactic, actor);
   if (d.hudAce !== undefined) return aceClick(actor, d.hudAce);
   if (d.hudAdvTarget !== undefined) return showTarget(actor);
