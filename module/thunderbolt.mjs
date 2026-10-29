@@ -46,6 +46,7 @@ import { openDossierExchange, importDossier, exportDossier } from "./dossier-syn
 import { registerMapInfo } from "./mapinfo.mjs";
 import { registerRotate } from "./rotate.mjs";
 import { registerFx } from "./fx.mjs";
+import { registerAutopilot } from "./autopilot.mjs";
 import { registerInsignia } from "./insignia.mjs";
 import { registerSideColor } from "./sidecolor.mjs";
 import { registerLosses } from "./losses.mjs";
@@ -173,6 +174,7 @@ Hooks.once("init", () => {
   registerMapInfo();
   registerRotate();
   registerFx();
+  registerAutopilot();
   registerAltitude();
   registerInsignia();
   registerSideColor();

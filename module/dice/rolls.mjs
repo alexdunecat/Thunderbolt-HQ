@@ -673,6 +673,22 @@ function lockedTarget(actor) {
   return a ? describeTarget(a, actor.system.lock) : null;
 }
 
+/**
+ * Дальность Lock On! по цели этого вида: своя и соседняя зона; дальнобойное спецоружие — вся зона операции,
+ * «Мощный радар» тяжёлого истребителя по воздуху и ЗРК большой дальности — 2 зоны, ЗРК малой дальности — только своя.
+ */
+export function lockRangeOf(actor, kind) {
+  const longRange = actor.items.find(i => i.type === "weapon" && weaponFits(i, kind) && i.system.reach >= TB.range.operation && weaponReady(i)) ?? null;
+  let range = longRange ? TB.range.operation : TB.range.lockOn;
+  // «Мощный радар» тяжёлого истребителя: воздушная цель на 2 зоны; «Феникс» F-14: в любой точке зоны операции
+  const radar = kind === "air" && roleOf(actor) === "heavy" && range < 2;
+  if (radar) range = 2;
+  // ЗРК большой дальности: захват на две зоны; малой: только своя зона (Стрэйнджриал 9.3)
+  if (hasRule(actor, "longsam") && range < 2) range = 2;
+  if (hasRule(actor, "shortsam")) range = 0;
+  return { range, longRange, radar };
+}
+
 /** Lock On!: цель выбирается щелчком по токену; захват в своей или соседней зоне (дальнобойное спецоружие — в любой точке зоны операции). */
 export async function lockOn(actor, { free = false, phoenix = false, maxDist = null, label = "" } = {}) {
   const tok = await pickTargetToken(actor, { title: label ? `Lock On! · ${label}` : "Lock On!" });
@@ -683,14 +699,7 @@ export async function lockOn(actor, { free = false, phoenix = false, maxDist = n
   const kind = targetKind(t);
   if (!strikeMeans(actor, kind).length)
     return ui.notifications.warn(`Lock On! невозможен: у «${actor.name}» нечем бить по ${kind === "air" ? "воздушным" : "наземным и морским"} целям.`);
-  const longRange = actor.items.find(i => i.type === "weapon" && weaponFits(i, kind) && i.system.reach >= TB.range.operation && weaponReady(i));
-  let range = longRange ? TB.range.operation : TB.range.lockOn;
-  // «Мощный радар» тяжёлого истребителя: воздушная цель на 2 зоны; «Феникс» F-14: в любой точке зоны операции
-  const radar = kind === "air" && roleOf(actor) === "heavy" && range < 2;
-  if (radar) range = 2;
-  // ЗРК большой дальности: захват на две зоны; малой: только своя зона (Стрэйнджриал 9.3)
-  if (hasRule(actor, "longsam") && range < 2) range = 2;
-  if (hasRule(actor, "shortsam")) range = 0;
+  let { range, longRange, radar } = lockRangeOf(actor, kind);
   const fenix = phoenix && kind === "air";
   if (phoenix && !fenix) return ui.notifications.warn("«Феникс»: захват в любой точке зоны операции только по воздушной цели.");
   if (fenix) range = TB.range.operation;
@@ -1581,7 +1590,7 @@ export function initHitSocket() {
 }
 
 /** Пуск ЗРК или ракета корабельной системы: G-A, Speed 0, без броска. */
-export async function fireSam(actor, sysIndex, { target = null, free = false, tag = "" } = {}) {
+export async function fireSam(actor, sysIndex, { target = null, free = false, tag = "", key: forceKey = "", auto = false } = {}) {
   const s = actor.system;
   const src = s.kind === "ship" ? s.systems[sysIndex] : s.ground;
   // захват этой системы важнее метки T: метка у ведущего одна на все его машины; target — цель задана («Ловушка» аса)
@@ -1607,6 +1616,8 @@ export async function fireSam(actor, sysIndex, { target = null, free = false, ta
     const quiet = quietAA(actor);
     if (quiet && air) problems.unshift(quiet);
     problems.push(...nemesisAttack(actor, t.actor).problems, ...triggerAttack(actor, t.actor).problems);
+    // автопилот окон не открывает: что-то мешает — пуска нет
+    if (auto && problems.length) return null;
     if (!(await confirmReach(problems, label))) return;
   }
   const parts = [[air ? "G-A" : "G-G", ga ?? 0]];
@@ -1616,17 +1627,129 @@ export async function fireSam(actor, sysIndex, { target = null, free = false, ta
   if (aw) parts.push(aw);
   // «Батарея»: урон +1 за каждое целое орудие сверх первого (счётчик на панели цели)
   const guns = hasRule(actor, "battery") ? Math.max(1, actor.getFlag(SYSTEM_ID, "unit")?.guns ?? 3) : 1;
-  const key = combatKey(), tBroken = sysOff(t?.actor.system, "ma");
+  const key = forceKey || combatKey(), tBroken = sysOff(t?.actor.system, "ma");
   const card = {
     type: "attack", attack: true, label, rolled: false, parts, strain: 0,
     // по кораблю и летающему супероружию — против Occlusion системы, а не защиты (у кораблей её нет)
     ...shipDc(t, null, t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) + nemesisDefense(actor, t.actor) + triggerDefense(actor, t.actor) : null),
     dmg: (hardened(t) ? Math.floor(TB.missileDamage / 2) : TB.missileDamage) + guns - 1, delayed: true, atTurn: tBroken && !!key, combatKey: key, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", maws: mawsOn(t),
     notes: [...(hardened(t) ? [HARD_NOTE] : []), ...(guns > 1 ? [`Батарея: орудий ${guns}, урон +${guns - 1}.`] : []), tBroken ? (key ? "Ракета ударит в начале хода цели (у неё сломан MAWS): посчитается сама." : "Попадает в начале хода цели: у неё сломан MAWS.")
-      : key ? "Ракета долетит в конце раунда: залп посчитается сам." : "Ракета долетает в конце раунда."]
+      : forceKey ? AUTO_NOTE : key ? "Ракета долетит в конце раунда: залп посчитается сам." : "Ракета долетает в конце раунда."]
   };
   await revealAmbush(actor);
   return postCard(actor, card);
+}
+
+/* ---------- автопилот: те же действия без окон ---------- */
+
+const AUTO_NOTE = "Пуск автопилота в конце раунда: ракета долетит в конце следующего раунда, цель успеет Break!.";
+
+/** Ключ следующего раунда: ракеты автопилота, пущенные в конце раунда, бьют залпом следующего. */
+export function nextRoundKey() {
+  const c = game.combat;
+  return c?.started ? `${c.id}:${c.round + 1}` : "";
+}
+
+/** Lock On! автопилота по токену: без окон. Возвращает null или почему нельзя. */
+export async function autoLock(actor, tok) {
+  if (!tok?.actor || tok.actor.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) return "цель сбита";
+  if (!canFireAt(actor, tok.actor)) return "своя сторона";
+  const t = describeTarget(tok.actor, tok.name, tok), kind = targetKind(t);
+  if (!strikeMeans(actor, kind).length) return "нечем бить";
+  const { range } = lockRangeOf(actor, kind);
+  const { dist, problems } = reachProblems(actor, t, range, { strike: true });
+  if (problems.length) return problems[0];
+  const same = dist ? sameZoneLock(t.actor, t.token) : "";
+  if (same) return same;
+  const guard = dist > 1 ? escortCover(t.actor, t.token) : "";
+  if (guard) return `ордер (${guard} рядом)`;
+  await actor.update({ "system.lock": t.name, "system.lockUuid": t.uuid, [`flags.${SYSTEM_ID}.salvo`]: null, [`flags.${SYSTEM_ID}.phoenix`]: null });
+  await ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="tb-card tb-card-lock"><header class="tb-card-head"><span class="tb-card-who">${esc(actor.name)}</span><span class="tb-card-what">Lock On!</span></header><div class="tb-note">Захват: <b>${esc(t.name)}</b>${dist !== null ? `, ${dist} зон.` : "."} Срывается, если цель уйдёт дальше двух зон.</div></div>`,
+    flags: { [SYSTEM_ID]: { rwr: { target: t.uuid, from: actor.name, fromUuid: actor.uuid, also: [] } } }
+  });
+  return null;
+}
+
+/**
+ * Fox Two! автопилота по захваченному токену: стандартная ракета без броска (Air-Air или Air-Gnd − Speed), ЗРК наземной цели
+ * или ракетная система корабля. Ракета бьёт залпом следующего раунда. Возвращает сообщение или почему нельзя (строка).
+ */
+export async function autoFox(actor, tok, { sys = null } = {}) {
+  const t = describeTarget(tok.actor, tok.name, tok), air = targetKind(t) === "air", s = actor.system;
+  const key = nextRoundKey();
+  if (actor.type === "npc" && (s.kind === "ground" || s.kind === "ship")) {
+    const m = await fireSam(actor, sys ?? undefined, { target: tok, key, auto: true });
+    return m ?? "пуск не прошёл";
+  }
+  if (s.lockUuid !== t.uuid) return "нет захвата";
+  if (!stdMissile(actor, air ? "air" : "ground")) return "нет ракет";
+  const { problems } = reachProblems(actor, t, TB.range.missile, { strike: true });
+  problems.push(...nemesisAttack(actor, t.actor).problems, ...triggerAttack(actor, t.actor).problems);
+  if (problems.length) return problems[0];
+  const parts = [[air ? "Air-Air" : "Air-Gnd", (air ? s.aa : s.ag) ?? 0], ...weatherParts(weatherAt(actor), air ? "aa" : "ag")];
+  const sead = air ? null : seadPart(actor, t);
+  if (sead) parts.push(sead);
+  const cue = awacsCue(actor);
+  if (cue) parts.push(cue);
+  if (s.speed) parts.push(["Speed", -s.speed]);
+  const hard = hardened(t);
+  const card = {
+    type: "attack", attack: true, label: "Fox Two! стандартная ракета", rolled: false, d10: null, d4: null, parts, strain: 0, ...shipDc(t, null, defVs(actor, t, null)),
+    wkey: "", close: false, ghost: false, shotKey: key, salvo: null, strainable: false, dmg: hard ? Math.floor(TB.missileDamage / 2) : TB.missileDamage,
+    delayed: true, atTurn: false, combatKey: key, targetUuid: t.uuid, targetName: t.name, maws: mawsOn(t), tkind: air ? "air" : "ground", bomb: false,
+    notes: [...(hard ? [HARD_NOTE] : []), AUTO_NOTE]
+  };
+  return postCard(actor, card);
+}
+
+/** Guns автопилота по токену в своей зоне: d10 + Strafe − Speed против защиты, урон сразу. Самолёты и наземная техника NPC. */
+export async function autoGuns(actor, tok) {
+  const s = actor.system;
+  if (sysOff(s, "gu")) return "пушка сломана";
+  if (s.kind === "ship") return "корабль бьёт системами";
+  if (s.kind === "ground" && !has(s.ground?.gun)) return "пушки нет";
+  if (blocked(actor, "strafe")) return "навык под меткой";
+  const t = describeTarget(tok.actor, tok.name, tok);
+  if (t.kind === "ship" || t.defense === null || t.defense === undefined) return "по кораблю пушкой не бьёт";
+  const { problems } = reachProblems(actor, t, TB.range.guns);
+  problems.push(...nemesisAttack(actor, t.actor).problems, ...triggerAttack(actor, t.actor).problems);
+  if (problems.length) return problems[0];
+  const dice = await rollDice(actor, false, { turnRoll: false });
+  if (!dice) return "бросок не прошёл";
+  const ground = s.kind === "ground";
+  const parts = ground ? [["Пушка", s.ground.strafe ?? 0]] : skillParts(actor, "strafe", "Пушка");
+  const speed = ground ? 0 : (s.speed ?? 0);
+  if (speed) parts.push(["Speed", -speed]);
+  const gun = ground ? s.ground.gun ?? 0 : s.gun ?? 0;
+  const card = {
+    type: "attack", attack: true, label: "Guns, Guns, Guns!", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, shotKey: combatKey(),
+    dc: t.defense + nemesisDefense(actor, t.actor) + triggerDefense(actor, t.actor), strainable: false, practiced: false,
+    dmg: hardened(t) ? Math.floor(gun / 2) : gun, delayed: false, instant: true, targetUuid: t.uuid, targetName: t.name,
+    notes: [...(hardened(t) ? [HARD_NOTE] : []), "Очередь автопилота."], ...thresholds(actor, "strafe")
+  };
+  const msg = await postCard(actor, card, dice.rolls);
+  await autoHit(msg);
+  return msg;
+}
+
+/** Break! автопилота: Dodge с броском, без окна; защита от ракет этого раунда. */
+export async function autoBreak(actor) {
+  if (blocked(actor, "dodge")) return "навык под меткой";
+  if (inNarrowTunnel(tokenOf(actor), actor) && !hasTrigger(actor, "nevercome")) return "в туннеле";
+  const dice = await rollDice(actor, false, { turnRoll: false });
+  if (!dice) return "бросок не прошёл";
+  const parts = skillParts(actor, "dodge", "Уклонение");
+  const tvc = actor.system.planeProps?.has?.("tvc") || actor.system.props?.some?.(p => p.key === "tvc");
+  const card = {
+    type: "break", label: "Break!", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: null,
+    ev: actor.system.evasion ?? actor.system.stats?.ev ?? 0, strainable: false,
+    speedDrop: (tvc ? 1 : 2) + (actor.system.alt === "strat" ? 1 : 0), combatKey: combatKey(), ...thresholds(actor, "dodge")
+  };
+  const msg = await postCard(actor, card, dice.rolls);
+  await applyBreak(actor, card);
+  return msg;
 }
 
 /* ---------- залп конца раунда ---------- */

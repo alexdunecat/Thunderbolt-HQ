@@ -6,7 +6,7 @@
    и Climb / Dive больше чем на ступень. Ведущий может переставить токен в обход правил, перетаскивая его с Shift.
    Move и Climb / Dive засчитываются в момент перемещения, и двигавший видит об этом сообщение. */
 import { SYSTEM_ID, TB, hasProp } from "./config.mjs";
-import { PASS, isOut } from "./documents/combat.mjs";
+import { PASS, AUTO, isOut } from "./documents/combat.mjs";
 import { landBlocked, climbProblem, ALT_ORDER, tunnelClimbProblem, tunnelMoveProblem, tokenOf, weatherAt, isFlying } from "./scene.mjs";
 import { esc } from "./utils.mjs";
 import { forkChoice } from "./tunnel.mjs";
@@ -33,6 +33,7 @@ export function declaredOf(c) {
   const v = c?.initiative;
   if (typeof v !== "number") return null;
   if (v === PASS) return 0;
+  if (v >= AUTO) return 3;
   return (v > PASS ? v - PASS : v) + (wsoActive(c.actor) ? 1 : 0);
 }
 
@@ -251,7 +252,8 @@ export function registerActions() {
   // Move и Climb / Dive проверяются и засчитываются ещё до перемещения: только этот хук точно знает, откуда шёл токен
   Hooks.on("preUpdateToken", (doc, change, options) => {
     // tbSync: токен подтягивается к уже сменённой на листе высоте, Climb / Dive засчитан там
-    if (options.tbKeep || options.tbSync || !doc.actor) return;
+    // tbAuto: ход автопилота в конце раунда, он сам выбирает только допустимые шаги
+    if (options.tbKeep || options.tbSync || options.tbAuto || !doc.actor) return;
     if (forkChoice(doc, change)) { foundry.utils.setProperty(change, `flags.${SYSTEM_ID}.tunnelFork`, null); return; }
     const moving = "x" in change || "y" in change || "elevation" in change;
     if (!moving || !game.combat?.started) return;

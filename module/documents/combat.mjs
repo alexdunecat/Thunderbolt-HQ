@@ -12,11 +12,14 @@ import { clearLosses, lossLine } from "../losses.mjs";
 import { resolveStrikes } from "../strikes.mjs";
 import { advanceScales } from "../scales.mjs";
 import { esc } from "../utils.mjs";
+import { autopilotOn, runAutopilot } from "../autopilot.mjs";
 
 /** Значение инициативы: 1–3 заявлено действий, PASS пропуск, PASS + n отложил ход с n действиями. */
 export const PASS = 10;
+/** Автопилот: заявки нет, ход в самом конце раунда (после пропусков), действует сам. */
+export const AUTO = 20;
 const isPass = v => v === PASS;
-const delayedBy = v => (v > PASS ? v - PASS : 0);
+const delayedBy = v => (v > PASS && v < AUTO ? v - PASS : 0);
 
 /** Здание или объект: в заявке не участвует. */
 export const passive = actor => actor?.type === "npc" && actor.system.grp === "obj";
@@ -34,6 +37,7 @@ const flag = (combat, k) => combat.getFlag(SYSTEM_ID, k);
 export function declareLabel(v) {
   if (!Number.isNumeric(v)) return "";
   if (isPass(v)) return "пас";
+  if (v >= AUTO) return "авто";
   if (delayedBy(v)) return `${delayedBy(v)}↓`;
   return String(v);
 }
@@ -106,6 +110,9 @@ async function beginRound(combat) {
   for (const c of stunned) await c.actor.unsetFlag(SYSTEM_ID, "stupor");
   out.push(...stunned);
   if (out.length) await combat.updateEmbeddedDocuments("Combatant", out.map(c => ({ _id: c.id, initiative: PASS })));
+  // машины на автопилоте не заявляются: ходят сами в конце раунда
+  const auto = acting(combat).filter(c => npcSide(c) && !declared(c) && autopilotOn(c.actor) && !c.token?.hidden);
+  if (auto.length) await combat.updateEmbeddedDocuments("Combatant", auto.map(c => ({ _id: c.id, initiative: AUTO })));
   const npcs = acting(combat).filter(c => npcSide(c) && !declared(c));
   if (!npcs.length) return markNpcDone(combat);
   await combat.rollInitiative(npcs.map(c => c.id), { updateTurn: false });
@@ -139,6 +146,15 @@ async function turnStart(combat) {
   if (!a || flag(combat, "ready") !== combat.round) return;
   // сбитый или отступивший ход не делает
   if (isOut(combat.combatant) || passive(a)) return combat.nextTurn();
+  // автопилот: ход сам, без ведущего, и очередь дальше (последний — конец раунда)
+  if (combat.combatant.initiative >= AUTO && autopilotOn(a)) {
+    const c = combat.combatant;
+    if (c.getFlag(SYSTEM_ID, "autoDone") === combat.round) return;
+    await c.setFlag(SYSTEM_ID, "autoDone", combat.round);
+    try { await runAutopilot(a, c.token?.object ?? null); } catch (err) { console.error(`${SYSTEM_ID} | автопилот`, err); }
+    if (combat.combatant?.id === c.id) return combat.nextTurn();
+    return;
+  }
   await resolveVolley(combat, { target: a.uuid, atTurnOf: combat.combatant.name });
   // сваливание: Speed ≤ 0 в начале хода — бросок сам у владельца (повтор после провала), если прошлый не разобран
   if (a.system.speed <= 0 && !pendingStall(a))
