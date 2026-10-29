@@ -1638,8 +1638,11 @@ export async function fireSam(actor, sysIndex, { target = null, free = false, ta
   // «Батарея»: урон +1 за каждое целое орудие сверх первого (счётчик на панели цели)
   const guns = hasRule(actor, "battery") ? Math.max(1, actor.getFlag(SYSTEM_ID, "unit")?.guns ?? 3) : 1;
   const key = forceKey || combatKey(), tBroken = sysOff(t?.actor.system, "ma");
+  // как рисовать выстрел: танк и БМП — снаряд, артиллерия и главный калибр корабля — навесом, остальное — ракета
+  const fx = s.kind === "ship" ? (/калибр|артуст|оруди|cannon/i.test(src?.name ?? "") ? "arty" : "")
+    : s.kind === "ground" && !air && s.key !== "tel" ? (s.grp === "art" ? "arty" : s.grp === "ad" ? "" : "shell") : "";
   const card = {
-    type: "attack", attack: true, label, rolled: false, parts, strain: 0,
+    type: "attack", attack: true, label, rolled: false, parts, strain: 0, ...(fx ? { fx } : {}),
     // по кораблю и летающему супероружию — против Occlusion системы, а не защиты (у кораблей её нет)
     ...shipDc(t, null, t && t.kind !== "ship" ? t.defense + wallBonus(t.token, t.actor) + nemesisDefense(actor, t.actor) + triggerDefense(actor, t.actor) : null),
     dmg: (hardened(t) ? Math.floor(TB.missileDamage / 2) : TB.missileDamage) + guns - 1, delayed: true, atTurn: tBroken && !!key, combatKey: key, targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", maws: mawsOn(t),
@@ -1982,6 +1985,7 @@ export async function resolveVolley(combat, { round = combat.round, target = nul
       boosts: hit && !prox ? need : 0, added: Math.max(0, used.length - 1), dmg, again: again.length ? round + 1 : 0, keen: keen.length > 0,
       doubled: used.some(x => x.c.ugbPerk === "double"),
       sourceUuid: best.c.actorUuid, source: best.c.actorName, shooterUuids: [...new Set(list.map(x => x.c.actorUuid))],
+      fx: Object.fromEntries(list.filter(x => x.c.fx).map(x => [x.c.actorUuid, x.c.fx])),
       bomb: list.some(x => x.c.bomb), dodged: dodged.length,
       ace: aceBy ? { uuid: aceBy.c.actorUuid, name: aceBy.c.actorName, dmg: best.c.dmg ?? TB.missileDamage } : null,
       // урон наносит клиент владельца-игрока (у него откроется выбор метки), иначе ведущий

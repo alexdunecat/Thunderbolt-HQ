@@ -2,6 +2,8 @@
    поэтому сокет не нужен: пуск Fox Two! или ЗРК — ракета уходит к цели и висит в воздухе меткой с пунктиром до залпа;
    залп конца раунда — ракеты доходят: попадание взрывается, промах проходит мимо (с ловушками, если цель делала Break!).
    Пушка, НУР и лазер бьют сразу; линия EMRG и рельсотрон — луч; ковровая бомбардировка — бомбы; удар по площади — взрывы в зонах;
+   рисунок выстрела по стрелку: танк и БМП бьют снарядом (вспышка у ствола, снаряд летит в залпе), артиллерия и главный калибр
+   корабля — навесом, артустановки кораблей и пушка танка — снарядами, зенитки, ЗАК и самолёты — очередью трассеров;
    сбитая машина — большой взрыв с дымом. Выключается у себя в настройках («Анимация ракет и попаданий»).
    Невидимое для игрока (скрытый токен, вне обзора) не рисуется: схема не выдаёт засаду. */
 import { SYSTEM_ID } from "./config.mjs";
@@ -15,7 +17,25 @@ const RAIL_TOTAL = (c, r) => c.total + (r.gnd ? c.depShift ?? 0 : 0);
  * Что нарисовать по карточке. compute — computeCard из rolls.mjs (итог и успех броска).
  * Возвращает список шагов: { kind, from, to, hit, ... } (from, to — UUID актёров) или [].
  */
-export function planOf(card, compute = c => c) {
+/** Зенитные стволы: очередь трассеров, а не снаряды. */
+const AA_GUN = /зенит|ЗАК|CIWS|автомат|Кортик|Шилка|Тунгуска/i;
+
+/**
+ * Рисунок мгновенного выстрела по карточке и стрелку w ({ type, kind, grp } или null):
+ * beam (лазер, луч), rail (рельсотрон), rockets (НУР), cannon (снаряды: танк, артустановка корабля), guns (очередь).
+ */
+export function shotStyle(card, w) {
+  const label = card?.label ?? "";
+  if (/рельс|rail ?gun/i.test(label)) return "rail";
+  if (/лазер|луч/i.test(label)) return "beam";
+  if (/НУР/.test(label)) return "rockets";
+  if (w?.type === "npc" && w.kind === "ship") return /^Огонь:/.test(label) && !AA_GUN.test(label) ? "cannon" : "guns";
+  if (w?.type === "npc" && w.kind === "ground") return w.grp === "armor" ? "cannon" : "guns";
+  return "guns";
+}
+const whoOf = uuid => { try { const a = resolveActor(uuid); return a ? { type: a.type, kind: a.system?.kind, grp: a.system?.grp } : null; } catch { return null; } };
+
+export function planOf(card, compute = c => c, who = whoOf) {
   if (!card) return [];
   if (card.type === "break" && card.actorUuid) return [{ kind: "flares", at: card.actorUuid }];
   if (card.type === "strike") return card.zones?.length ? [{ kind: "blast", zones: card.zones }] : [];
@@ -24,15 +44,15 @@ export function planOf(card, compute = c => c) {
     for (const r of card.targets ?? []) {
       if (r.missing || !r.uuid) continue;
       out.push({ kind: "impact", to: r.uuid, from: r.shooterUuids ?? (r.sourceUuid ? [r.sourceUuid] : []), count: r.count ?? 1,
-        hit: !!r.hit && !r.cobra, ship: !!r.ship, bomb: !!r.bomb, broke: !!r.broke || !!r.cobra, prox: !!r.prox });
+        hit: !!r.hit && !r.cobra, ship: !!r.ship, bomb: !!r.bomb, broke: !!r.broke || !!r.cobra, prox: !!r.prox, ...(r.fx && Object.keys(r.fx).length ? { fx: r.fx } : {}) });
     }
     for (const l of card.lost ?? []) out.push({ kind: "lost", name: l.name });
     return out;
   }
   if (card.type === "rail" && card.actorUuid) {
     const c = compute(card), rows = (card.line ?? []).map(r => ({ to: r.uuid, hit: RAIL_TOTAL(c, r) >= r.vs }));
-    const kind = card.label === "Ковровая бомбардировка" ? "carpet" : card.label === "Бортовые орудия" ? "guns" : "beam";
-    if (kind === "guns") return rows.map(r => ({ kind, from: card.actorUuid, ...r, n: 4 }));
+    const kind = card.label === "Ковровая бомбардировка" ? "carpet" : card.label === "Бортовые орудия" ? "gunship" : "beam";
+    if (kind === "gunship") return rows.map(r => ({ kind, from: card.actorUuid, ...r }));
     // линия EMRG: луч до края карты, даже если на линии никого
     return rows.length || card.end ? [{ kind, from: card.actorUuid, rows, ...(card.end ? { end: card.end } : {}) }] : [];
   }
@@ -40,17 +60,20 @@ export function planOf(card, compute = c => c) {
   const all = [card.targetUuid, ...(card.salvo ?? []).map(s => s.uuid)];
   if (card.instant) {
     const c = compute(card), known = card.dc !== null && card.dc !== undefined;
-    const kind = /лазер|луч/i.test(card.label ?? "") ? "beam" : /НУР/.test(card.label ?? "") ? "rockets" : "guns";
+    const w = who(card.actorUuid), style = shotStyle(card, w);
     const hit = known ? !!c.success : null;
-    if (kind === "beam") return [{ kind, from: card.actorUuid, rows: [{ to: card.targetUuid, hit }] }];
-    return [{ kind, from: card.actorUuid, to: card.targetUuid, hit, n: kind === "rockets" ? 4 : 6 }];
+    if (style === "beam" || style === "rail") return [{ kind: "beam", from: card.actorUuid, rows: [{ to: card.targetUuid, hit }], ...(style === "rail" ? { rail: true } : {}) }];
+    if (style === "cannon") return [{ kind: "cannon", from: card.actorUuid, to: card.targetUuid, hit, n: w?.kind === "ship" ? 2 : 1, big: w?.kind === "ship" }];
+    return [{ kind: style, from: card.actorUuid, to: card.targetUuid, hit, n: style === "rockets" ? 4 : 6 }];
   }
-  // ракета (Fox Two!, ЗРК, корабль): в бою висит до залпа, вне боя долетает и рвётся
-  return all.map(to => ({ kind: "launch", from: card.actorUuid, to, bomb: !!card.bomb, wait: !!card.combatKey }));
+  // ракета (Fox Two!, ЗРК, корабль): в бою висит до залпа, вне боя долетает и рвётся; снаряд танка и навес артиллерии — вспышка у ствола
+  return all.map(to => ({ kind: "launch", from: card.actorUuid, to, bomb: !!card.bomb, wait: !!card.combatKey, ...(card.fx ? { fx: card.fx } : {}) }));
 }
 
 /** Ракета ещё в воздухе: карточка пуска, которую залп не посчитал. */
 export const inAir = c => !!(c?.delayed && c.combatKey && c.targetUuid && !c.resolved && !c.dmgApplied && !c.lost);
+/** Висит ли в воздухе меткой: снаряд и навес до залпа не рисуются, они летят в залпе. */
+const marked = c => inAir(c) && !c.fx;
 
 /* ---------- настройки и хуки ---------- */
 
@@ -149,7 +172,8 @@ function run(step, message, i) {
       const t = tokenFor(r.to);
       if (!t || !seen(t)) return;
       if (k === "carpet") return bomb(a, P(t), { hit: r.hit, delay: 120 + j * 160 });
-      beam(seen(from) ? a : origin(null, t), P(t)(), { color: 0x9fe8ff, delay: 250 + j * 40 });
+      if (step.rail && seen(from)) later(250, () => { boom(a, 0.05); sparks(a, 6, 0.06); });
+      beam(seen(from) ? a : origin(null, t), P(t)(), step.rail ? { color: 0x9fe8ff, delay: 250 + j * 40, width: 0.11, life: 700 } : { color: 0x9fe8ff, delay: 250 + j * 40 });
       if (r.hit) later(320 + j * 40, () => boom(P(t)(), 0.11));
       else if (r.hit === null) later(320, () => sparks(P(t)()));
     });
@@ -159,6 +183,21 @@ function run(step, message, i) {
   if (!to || !seen(to)) return;
   const a = origin(from, to);
   if (k === "guns" || k === "rockets") return guns(a, P(to), { hit: step.hit, n: step.n, rockets: k === "rockets", delay: 250 });
+  if (k === "cannon") {
+    for (let n = 0; n < step.n; n++) shell(a, P(to), { hit: step.hit, delay: 250 + n * 220, size: step.big ? 0.11 : 0.08, flash: seen(from ?? to) && !!from });
+    return;
+  }
+  // AC-130: очередь мелкого калибра и снаряд 105 мм
+  if (k === "gunship") {
+    guns(a, P(to), { hit: step.hit, n: 4, delay: 200 });
+    shell(a, P(to), { hit: step.hit, delay: 520, size: 0.1, flash: false });
+    return;
+  }
+  if (k === "launch" && step.fx) {
+    // снаряд в бою: вспышка у ствола, а сам он летит в залпе конца раунда; вне боя долетает сразу
+    if (step.wait) { if (from && seen(from)) muzzle(a, Math.atan2(P(to)().y - a.y, P(to)().x - a.x), 250 + i * 120, step.fx === "arty" ? 0.09 : 0.06); return; }
+    return shell(a, P(to), { hit: null, delay: 250 + i * 120, arc: step.fx === "arty" ? 0.18 : 0, size: 0.1 });
+  }
   if (k === "launch") {
     const ally = ours(step.from);
     // пуск в бою: ракета уходит на 70 % пути и висит до залпа; вне боя долетает и рвётся
@@ -175,9 +214,17 @@ function impact(step) {
   const to = tokenFor(step.to);
   if (!to || !seen(to)) return;
   const tp = P(to);
+  // снаряды и навес летят от стрелков целиком; ракеты — от своих меток в воздухе
+  const fx = step.fx ?? {}, shooters = step.from.filter(u => fx[u]), rockets = step.from.filter(u => !fx[u]);
+  shooters.forEach((u, j) => {
+    const o = origin(tokenFor(u), to), arc = fx[u] === "arty" ? 0.18 : 0;
+    if (tokenFor(u) && seen(tokenFor(u))) muzzle(o, Math.atan2(tp().y - o.y, tp().x - o.x), j * 160, arc ? 0.09 : 0.06);
+    shell(o, tp, { hit: step.hit || step.ship ? true : false, delay: j * 160 + 60, arc, size: arc ? 0.12 : 0.09, flash: false });
+  });
+  if (!rockets.length) return;
   const starts = takeLanding(step.to);
-  while (starts.length < Math.min(step.count, 6)) {
-    const sh = tokenFor(step.from[starts.length % Math.max(1, step.from.length)]);
+  while (starts.length < Math.max(1, Math.min(step.count - shooters.length, 6))) {
+    const sh = tokenFor(rockets[starts.length % rockets.length]);
     const o = origin(sh, to), p = tp();
     starts.push(p ? lerp(o, p, AIR_AT) : o);
   }
@@ -205,7 +252,7 @@ function syncAir() {
   const want = new Map();
   if (on()) for (const m of game.messages?.contents ?? []) {
     const c = m.getFlag?.(SYSTEM_ID, "card");
-    if (!inAir(c) || !game.combat || !String(c.combatKey).startsWith(`${game.combat.id}:`)) continue;
+    if (!marked(c) || !game.combat || !String(c.combatKey).startsWith(`${game.combat.id}:`)) continue;
     const to = tokenFor(c.targetUuid), sh = tokenFor(c.actorUuid);
     if (!to || !seen(to)) continue;
     // ракета ещё летит от стрелка (анимация пуска): метку ставит она сама
@@ -415,6 +462,49 @@ function guns(a, b, { hit = null, n = 6, rockets = false, delay = 0 } = {}) {
     }, delay + i * 55);
   }
   if (hit) later(delay + n * 55 + 260, () => { const p = b(); if (p) boom(p, 0.07); });
+}
+
+/** Вспышка у ствола и клуб дыма: выстрел пушки или орудия. */
+function muzzle(p, ang, delay = 0, size = 0.06) {
+  if (!p) return;
+  const R = gs() * size, f = { x: p.x + Math.cos(ang) * R * 0.8, y: p.y + Math.sin(ang) * R * 0.8 };
+  add((t, g) => {
+    if (t > 160) return false;
+    const k = t / 160;
+    g.beginFill(0xfff4c8, 0.95 * (1 - k)); g.drawCircle(f.x, f.y, R * (0.5 + 0.5 * k)); g.endFill();
+    g.beginFill(0xffa040, 0.7 * (1 - k)); g.drawCircle(f.x + Math.cos(ang) * R * 0.5, f.y + Math.sin(ang) * R * 0.5, R * 0.35); g.endFill();
+  }, delay);
+  for (let i = 0; i < 3; i++) puff(f, { r: size * 0.35, life: 900, color: 0x8a8a8a, alpha: 0.4, grow: 1.8, vx: Math.cos(ang) * gs() * 0.06, vy: Math.sin(ang) * gs() * 0.06 - gs() * 0.02, delay: delay + 60 + i * 40 });
+}
+
+/** Пыль от промаха снаряда: земля, без огня. */
+function dust(p) {
+  for (let i = 0; i < 5; i++) puff({ x: p.x + rnd(-4, 4), y: p.y + rnd(-4, 4) }, { r: 0.025, life: 1100, color: 0x8a7a60, alpha: 0.5, grow: 1.6, vy: -gs() * 0.03, delay: i * 40 });
+}
+
+/**
+ * Снаряд от a к b (b — функция точки): яркая точка с коротким хвостом, быстро и по прямой; arc — навес (артиллерия).
+ * hit: true — разрыв, false — пыль рядом, null — исход неизвестен (разрыв поменьше).
+ */
+function shell(a, b, { hit = true, delay = 0, arc = 0, size = 0.09, flash = true } = {}) {
+  const B0 = b();
+  if (!a || !B0) return;
+  const len = dist(a, B0), dur = arc ? Math.min(1700, 650 + (len / gs()) * 240) : Math.min(420, 120 + (len / gs()) * 70);
+  const off = hit === false ? { x: rnd(-1, 1) * gs() * 0.16, y: rnd(-1, 1) * gs() * 0.16 } : { x: 0, y: 0 };
+  if (flash) muzzle(a, Math.atan2(B0.y - a.y, B0.x - a.x), delay, arc ? 0.09 : 0.06);
+  const at = (B, k) => { const p = lerp(a, B, k); if (arc) p.y -= arc * len * 4 * k * (1 - k); return p; };
+  let last = null;
+  add((t, g) => {
+    const Bb = b() ?? B0, B = { x: Bb.x + off.x, y: Bb.y + off.y }, k = Math.min(1, t / dur);
+    const p = at(B, k), q = at(B, Math.max(0, k - (arc ? 0.04 : 0.1)));
+    g.lineStyle(Math.max(1.5, gs() * 0.016), 0xffb850, 0.9); g.moveTo(q.x, q.y); g.lineTo(p.x, p.y); g.lineStyle(0);
+    g.beginFill(0xfff0c0, 1); g.drawCircle(p.x, p.y, gs() * (arc ? 0.016 + 0.012 * Math.sin(Math.PI * k) : 0.014)); g.endFill();
+    if (arc && (!last || dist(last, p) > gs() * 0.04)) { puff(p, { r: 0.006, life: 450, alpha: 0.3 }); last = p; }
+    if (k < 1) return true;
+    if (hit === false) dust(B);
+    else boom(B, hit === null ? size * 0.7 : size);
+    return false;
+  }, delay);
 }
 
 function beam(a, b, { color = 0x9fe8ff, delay = 0, width = 0.05, life = 480 } = {}) {

@@ -13,15 +13,41 @@ import { esc, resolveActor } from "./utils.mjs";
 
 /* ---------- приказ ---------- */
 
-export const TASKS = { hunt: "Свободная охота", attack: "Атаковать цель", route: "Маршрут", hold: "Держать позицию" };
+export const TASKS = { hunt: "Свободная охота", advance: "Наступление", attack: "Атаковать цель", route: "Маршрут", hold: "Держать позицию" };
+/** Задачи с путём по зонам: маршрут (точно по клеткам) и наступление (общее направление, каждая машина держит своё место в строю). */
+export const isRoute = task => task === "route" || task === "advance";
 export const MANNERS = {
   rush: { name: "Напролом", hint: "Только задача: по другим не стреляет, от ракет не уходит." },
   push: { name: "Прорыв", hint: "Идёт к задаче и бьёт тех, кто мешает: в своей зоне, на следующем шаге пути и кто держит его на захвате." },
   careful: { name: "Осторожно", hint: "Уходит Break! от ракет, бьёт всё, что достаёт, раненым отходит от врага." }
 };
 export const AFTER = { hold: "Держать позицию", hunt: "Свободная охота" };
+/** Стиль боя: чем бьёт и на какой дистанции держится. «По типу машины»: истребитель — ракетчик, штурмовик и вертолёт — пушкарь, остальные — смешанный. */
+export const STYLES = {
+  auto: { name: "По типу машины", short: "" },
+  missile: { name: "Ракетчик: держит дистанцию, бьёт ракетами", short: "ракетчик" },
+  guns: { name: "Пушкарь: сближается и бьёт пушкой", short: "пушкарь" },
+  mixed: { name: "Смешанный: ракеты издали, пушка вблизи", short: "смешанный" },
+  random: { name: "Случайно: у каждой машины свой", short: "" }
+};
+/** Какие цели первыми. «По типу машины»: истребитель и ПВО — воздух, штурмовик, бомбардировщик, вертолёт, танк и артиллерия — земля. */
+export const PREFS = { auto: "По типу машины", air: "Воздух", ground: "Земля и море", any: "Любые" };
 
-const BLANK = { on: true, task: "hunt", manner: "push", target: "", targetName: "", route: [], step: 0, acts: 2, after: "hold" };
+/** Стиль боя машины w ({ kind, grp }) по приказу. */
+export function styleOf(order, w) {
+  if (["missile", "guns", "mixed"].includes(order?.style)) return order.style;
+  if (w?.kind === "air") return w.grp === "fighter" ? "missile" : ["attack", "heli"].includes(w.grp) ? "guns" : "mixed";
+  return "mixed";
+}
+/** Предпочтение целей машины w по приказу: air, ground или any. */
+export function preferOf(order, w) {
+  if (["air", "ground", "any"].includes(order?.prefer)) return order.prefer;
+  if (w?.kind === "air") return w.grp === "fighter" ? "air" : ["attack", "heavy", "heli"].includes(w.grp) ? "ground" : "any";
+  if (w?.kind === "ground") return w.grp === "ad" ? "air" : ["armor", "art"].includes(w.grp) ? "ground" : "any";
+  return "any";
+}
+
+const BLANK = { on: true, task: "hunt", manner: "push", target: "", targetName: "", route: [], step: 0, acts: 0, after: "hold", style: "auto", prefer: "auto" };
 export const orderOf = actor => {
   const f = actor?.getFlag?.(SYSTEM_ID, "autopilot");
   return f?.on ? { ...BLANK, ...f, route: [...(f.route ?? [])] } : null;
@@ -31,7 +57,7 @@ export const autopilotOn = actor => actor?.type === "npc" && !!orderOf(actor);
 /** Задача сейчас: цель сбита или маршрут пройден — то, что в приказе «после». */
 export function taskNow(order, { targetGone = false } = {}) {
   if (order.task === "attack" && (targetGone || !order.target)) return order.after;
-  if (order.task === "route" && order.step >= order.route.length) return order.after;
+  if (isRoute(order.task) && order.step >= order.route.length) return order.after;
   return order.task;
 }
 
@@ -39,9 +65,10 @@ export function taskNow(order, { targetGone = false } = {}) {
 export function orderLine(order) {
   if (!order) return "";
   const t = order.task === "attack" ? `атаковать «${order.targetName || "цель"}»`
-    : order.task === "route" ? `маршрут ${order.route.length ? order.route.map(cellLabel).join(" → ") : "не задан"}`
+    : isRoute(order.task) ? `${order.task === "advance" ? "наступление на" : "маршрут"} ${order.route.length ? order.route.map(cellLabel).join(" → ") : "не задан"}`
       : TASKS[order.task].toLowerCase();
-  return `${t}, ${MANNERS[order.manner]?.name.toLowerCase() ?? ""}, ${order.acts} д.`;
+  const style = STYLES[order.style]?.short, pref = PREFS[order.prefer] && !["auto", undefined].includes(order.prefer) ? `цели: ${PREFS[order.prefer].toLowerCase()}` : "";
+  return [t, MANNERS[order.manner]?.name.toLowerCase() ?? "", style, pref, order.acts ? `${order.acts} д.` : "действия по совету"].filter(Boolean).join(", ");
 }
 
 /* ---------- выбор шага (чистая часть, тесты) ---------- */
@@ -49,7 +76,8 @@ export function orderLine(order) {
 /**
  * Следующее действие машины на автопилоте.
  * v (что видно с её места): { flying, systems, incoming, broke, hurt, lock, nearest,
- *   cands: [{ uuid, dist, canMissile, canGuns, gunReach, gunship, lockRange, fire, needAlt, blocked, noLock, locksMe, onPath }] — по убыванию ценности,
+ *   style: missile | guns | mixed (по умолчанию missile),
+ *   cands: [{ uuid, dist, canMissile, canGuns, gunReach, gunnable, gunship, lockRange, fire, needAlt, blocked, noLock, locksMe, onPath }] — по убыванию ценности,
  *   goal: null | { kind: "target", uuid, dist, want, altStep } | { kind: "cell", reached }, next, away (клетки шага или null),
  *   rail: null | { uuids } (линия EMRG с врагами и без своих), carpet: null | { uuids } (наземка противника под бомбардировщиком) }.
  * failed — UUID целей, по которым это действие в этот ход уже не вышло.
@@ -59,9 +87,11 @@ export function chooseStep(order, v, failed = new Set()) {
   const task = order.taskNow ?? order.task, manner = order.manner;
   if (v.flying && !v.systems && v.incoming > 0 && !v.broke && manner !== "rush") return { act: "break", why: "уход от ракеты" };
   if (manner === "careful" && v.hurt && v.nearest !== null && v.nearest <= 1 && v.away) return { act: "move", cell: v.away, why: "отход: повреждён" };
+  // прорыв держит темп: последнее действие хода — шаг вперёд, если за ход ещё не сдвинулся
+  if (v.mustMove && v.next) return { act: "move", cell: v.next, why: "держит темп" };
   const goalUuid = v.goal?.kind === "target" ? v.goal.uuid : null;
   let pool = v.cands.filter(c => !failed.has(c.uuid));
-  if (task === "attack" || task === "route") {
+  if (task === "attack" || isRoute(task)) {
     if (manner === "rush") pool = pool.filter(c => c.uuid === goalUuid);
     else if (manner === "push") pool = pool.filter(c => c.uuid === goalUuid || c.dist === 0 || c.locksMe || c.onPath);
   }
@@ -70,9 +100,13 @@ export function chooseStep(order, v, failed = new Set()) {
   const worth = area => !!area?.uuids?.some(u => pool.some(c => c.uuid === u));
   if (worth(v.rail)) return { act: "rail", why: "линия" };
   if (worth(v.carpet)) return { act: "carpet", why: "ковёр" };
+  const style = v.style ?? "missile";
   for (const c of pool) {
     if (c.dist === null) continue;
     const locked = c.noLock || v.lock === c.uuid;
+    // смешанный и пушкарь вблизи бьют пушкой; пушкарь по цели, которую пушка достанет, ракеты не тратит — сближается
+    if (style !== "missile" && c.canGuns && c.dist <= (c.gunReach ?? 0) && c.gunFresh !== false) return { act: "guns", uuid: c.uuid, why: "пушка" };
+    if (style === "guns" && c.gunnable) continue;
     if (c.canMissile && locked && c.dist <= c.fire && !c.blocked) return { act: "fire", uuid: c.uuid, why: "пуск" };
     if (c.canGuns && c.dist <= (c.gunReach ?? 0)) return { act: "guns", uuid: c.uuid, why: "пушка" };
     if (c.gunship) return { act: "gunship", uuid: c.uuid, why: "бортовые орудия" };
@@ -95,8 +129,11 @@ export function chooseStep(order, v, failed = new Set()) {
   return null;
 }
 
-/** Шаг в соседнюю клетку (8 направлений) к цели: ближе по Чебышёву, при равенстве — по прямой. allowed(c, r) — можно ли туда. */
-export function stepToward([c0, r0], [c1, r1], allowed = () => true) {
+/**
+ * Шаг в соседнюю клетку (8 направлений) к цели: ближе по Чебышёву, при равенстве — по прямой.
+ * allowed(c, r) — можно ли туда; cost(c, r) — надбавка к пути (теснота: свои в зоне), чтобы машины не сбивались в кучу.
+ */
+export function stepToward([c0, r0], [c1, r1], allowed = () => true, cost = () => 0) {
   if (c0 === c1 && r0 === r1) return null;
   const cheb = (c, r) => Math.max(Math.abs(c1 - c), Math.abs(r1 - r));
   const now = cheb(c0, r0);
@@ -104,7 +141,7 @@ export function stepToward([c0, r0], [c1, r1], allowed = () => true) {
   for (const dc of [-1, 0, 1]) for (const dr of [-1, 0, 1]) {
     if (!dc && !dr) continue;
     const c = c0 + dc, r = r0 + dr;
-    const d = cheb(c, r), e = Math.hypot(c1 - c, r1 - r);
+    const d = cheb(c, r), e = Math.hypot(c1 - c, r1 - r) + cost(c, r);
     if (d >= now || !allowed(c, r)) continue;
     if (!best || d < best.d || (d === best.d && e < best.e)) best = { c, r, d, e };
   }
@@ -206,19 +243,30 @@ async function viewOf(actor, token, order, state) {
     const info = R.describeTarget(tgt, tgtTok.name, tgtTok), kind = S.isAirTarget(info) ? "air" : "ground", dist = S.zoneDistance(token, tgtTok);
     list.unshift({ token: tgtTok, actor: tgt, info, kind, dist, canMissile: R.strikeMeans(actor, kind).length > 0, canGuns: dist === 0 && !systems, score: 0 });
   }
+  // предпочтение целей: подходящие по виду первыми (порядок совета внутри сохраняется)
+  const w = { kind: s.kind, grp: s.grp }, pref = preferOf(order, w), style = styleOf(order, w);
+  if (pref !== "any") list.sort((a, b) => (b.kind === pref) - (a.kind === pref));
+  const gunsVs = systems ? null : S.gunVs(actor, null), gunsOk = !systems && !sysOff(s, "gu") && ((s.kind === "ground" ? s.ground?.gun : s.gun) ?? 0) > 0;
   const taskNowV = taskNow(order, { targetGone: order.task === "attack" && !tgtTok });
   // клетка следующего шага пути: нужна, чтобы «Прорыв» знал, кто мешает
   let goal = null, goalCell = null;
   if (taskNowV === "attack" && tgtTok) {
     const c = S.cellOf(tgtTok);
     goalCell = [c.col, c.row];
-  } else if (taskNowV === "route") {
+  } else if (isRoute(taskNowV)) {
     goalCell = parseCell(order.route[order.step]);
   } else if (taskNowV === "hunt" && list.length) {
     const c = S.cellOf(list[0].token);
     goalCell = [c.col, c.row];
   }
-  const next = goalCell ? stepToward(here, goalCell, allowed) : null;
+  // теснота: сколько своих уже в зоне (кроме самой машины)
+  const crowd = new Map();
+  for (const t of canvas.tokens?.placeables ?? []) {
+    if (t === token || !t.actor || gone(t.actor) || S.canFireAt(actor, t.actor)) continue;
+    const k = S.cellOf(t);
+    if (k) crowd.set(`${k.col},${k.row}`, (crowd.get(`${k.col},${k.row}`) ?? 0) + 1);
+  }
+  const next = goalCell ? stepToward(here, goalCell, allowed, (c, r) => 0.35 * (crowd.get(`${c},${r}`) ?? 0)) : null;
   const used = state.used ?? new Set();
   const gunshipAt = hasProp(actor, "gunship") ? new Set(R.groundTargets(actor, 1)) : new Set();
   const cands = list.map(x => {
@@ -243,7 +291,8 @@ async function viewOf(actor, token, order, state) {
       uuid: x.actor.uuid, dist: x.dist, tok: x.token,
       // корабль: ракетная система уже стреляла в этот ход, а пушка ещё нет — сначала пушка
       canMissile: systems ? !!sp && (!used.has(sp.i) || !gs || used.has(gs.i)) : !!x.canMissile, canGuns: systems ? !!gs : !!x.canGuns, sys: sp?.i ?? null,
-      gunSys: gs?.i ?? null, gunReach: gs?.reach ?? TB.range.guns, gunship: gunshipAt.has(x.actor.uuid),
+      gunSys: gs?.i ?? null, gunReach: gs?.reach ?? TB.range.guns, gunship: gunshipAt.has(x.actor.uuid), gunFresh: !gs || !used.has(gs.i),
+      gunnable: gunsOk && x.info.kind !== "ship" && x.info.defense !== null && x.info.defense !== undefined && [x.kind, "any"].includes(gunsVs),
       noLock: systems ? !!sp && !sp.lock : false,
       // спецоружие бьёт дальше стандартной ракеты: дальность того, что пойдёт в пуск
       lockRange, fire: !systems && R.autoWeapon(actor, x.kind, x.dist) ? Math.max(x.dist ?? 0, TB.range.missile) : TB.range.missile, needAlt, blocked,
@@ -253,7 +302,7 @@ async function viewOf(actor, token, order, state) {
   });
   if (taskNowV === "attack" && tgtTok) {
     const d = S.zoneDistance(token, tgtTok), x = cands.find(c => c.uuid === tgt.uuid);
-    const want = x?.canMissile ? Math.min(x.lockRange, TB.range.missile) : 0;
+    const want = x?.canMissile && !(style === "guns" && x.gunnable) ? Math.min(x.lockRange, TB.range.missile) : 0;
     const tc = S.cellOf(tgtTok);
     const sameCell = tc.col === here[0] && tc.row === here[1];
     const altStep = sameCell && S.isFlying(actor) && S.isAirTarget(R.describeTarget(tgt, tgtTok.name, tgtTok))
@@ -261,14 +310,15 @@ async function viewOf(actor, token, order, state) {
     goal = { kind: "target", uuid: tgt.uuid, dist: d, want, altStep };
   } else if (taskNowV === "hunt" && list.length) {
     const x = cands[0];
-    goal = { kind: "target", uuid: x.uuid, dist: x.dist, want: x.canMissile ? Math.min(x.lockRange, TB.range.missile) : 0, altStep: 0 };
-  } else if (taskNowV === "route") goal = { kind: "cell", reached: !goalCell || (goalCell[0] === here[0] && goalCell[1] === here[1]) };
+    goal = { kind: "target", uuid: x.uuid, dist: x.dist, want: x.canMissile && !(style === "guns" && x.gunnable) ? Math.min(x.lockRange, TB.range.missile) : 0, altStep: 0 };
+  } else if (isRoute(taskNowV)) goal = { kind: "cell", reached: !goalCell || (goalCell[0] === here[0] && goalCell[1] === here[1]) };
   const foes = cands.map(c => { const k = S.cellOf(c.tok); return k ? [k.col, k.row] : null; }).filter(Boolean);
   const hp = s.hp ?? {};
   const rail = used.has("rail") ? null : await railFor(S, R, actor, token, goal?.uuid ?? null);
   const carpet = !used.has("carpet") && hasProp(actor, "carpet") ? { uuids: R.groundTargets(actor, 0) } : null;
   return {
-    rail, carpet: carpet?.uuids.length ? carpet : null,
+    rail, carpet: carpet?.uuids.length ? carpet : null, style,
+    mustMove: isRoute(taskNowV) && order.manner === "push" && !state.moved && state.left === 1,
     flying: S.isFlying(actor), systems, incoming: incoming(actor), broke: state.broke, lock: s.lockUuid || null,
     hurt: !!s.markers?.structure || (hp.max > 1 && hp.value <= Math.ceil(hp.max / 2)),
     nearest: cands.length ? Math.min(...cands.map(c => c.dist ?? 99)) : null,
@@ -293,10 +343,12 @@ export async function runAutopilot(actor, token = null) {
   token ??= S.tokenOf(actor);
   let order = orderOf(actor);
   if (!order || !token || token.document.hidden || gone(actor) || !canvas?.ready) return [];
-  const state = { broke: false, used: new Set(), side: 1 }, failed = new Set(), log = [];
-  for (let i = 0; i < Math.max(1, Math.min(3, order.acts)); i++) {
+  const state = { broke: false, used: new Set(), side: 1, moved: false, left: 0 }, failed = new Set(), log = [];
+  const acts = order.acts ? Math.max(1, Math.min(3, order.acts)) : await adviceActs(actor, token, order);
+  for (let i = 0; i < acts; i++) {
+    state.left = acts - i;
     // маршрут: дошёл до точки — следующая
-    if (order.task === "route" && order.step < order.route.length) {
+    if (isRoute(order.task) && order.step < order.route.length) {
       const k = S.cellOf(token);
       if (k && cellKey([k.col, k.row]) === order.route[order.step]) {
         order.step += 1;
@@ -324,7 +376,7 @@ export async function runAutopilot(actor, token = null) {
       case "rail": res = await R.autoRail(actor, actor.items.get(v.rail.id), v.rail.pick); state.used.add("rail"); break;
       case "carpet": res = await R.autoCarpet(actor); state.used.add("carpet"); break;
       case "climb": case "dive": res = await climb(actor, token, step.act === "climb" ? 1 : -1); break;
-      case "move": res = await move(token, v.here, step.cell); break;
+      case "move": res = await move(token, v.here, step.cell); if (!res) state.moved = true; break;
     }
     if (!res && SHOTS.has(step.act)) res = "не прошло";
     const card = typeof res === "object" ? res?.getFlag?.(SYSTEM_ID, "card") : null;
@@ -368,6 +420,28 @@ async function jink(token, target, state, evade = false) {
   await wait(450);
 }
 
+/** Действий за ход по совету на ход NPC (как в заявке ведущего); на пути — не меньше двух: шаг и выстрел. */
+async function adviceActs(actor, token, order) {
+  let n = null;
+  try { n = (await import("./npc-advice.mjs")).adviseNpc(actor, token)?.declare ?? null; } catch { n = null; }
+  n = Number.isInteger(n) && n >= 1 && n <= 3 ? n : 2;
+  return isRoute(taskNow(order)) && n < 2 ? 2 : n;
+}
+
+/**
+ * Наступление строем: путь группы (клетки) для каждой машины сдвигается на её место относительно середины группы.
+ * cells — клетки машин [[c, r]], route — общий путь ["c,r"], bounds — края сцены { c0, r0, c1, r1 } или null.
+ */
+export function formationRoutes(cells, route, bounds = null) {
+  if (!cells.length) return [];
+  const mc = Math.round(cells.reduce((s, [c]) => s + c, 0) / cells.length), mr = Math.round(cells.reduce((s, [, r]) => s + r, 0) / cells.length);
+  const clamp = (v, a, b) => (bounds ? Math.max(a, Math.min(b, v)) : v);
+  return cells.map(([c, r]) => route.map(k => {
+    const [rc, rr] = parseCell(k);
+    return `${clamp(rc + c - mc, bounds?.c0, bounds?.c1)},${clamp(rr + r - mr, bounds?.r0, bounds?.r1)}`;
+  }));
+}
+
 async function move(token, from, to) {
   const doc = token.document, gs = canvas.grid.size;
   const r = await doc.update({ x: doc.x + (to[0] - from[0]) * gs, y: doc.y + (to[1] - from[1]) * gs }, { tbAuto: true });
@@ -408,18 +482,23 @@ export async function orderDialog(tokens) {
     <div class="form-group"><label>Задача</label><select name="task">${opt(TASKS, o.task)}</select></div>
     <div class="form-group tb-ap-target"><label>Цель</label><input type="hidden" name="target" value="${esc(o.target)}"><input type="hidden" name="targetName" value="${esc(o.targetName)}">
       <span class="tb-ap-tname">${esc(o.targetName || "не выбрана")}</span> <button type="button" data-ap-pick><i class="fas fa-crosshairs"></i> На карте</button></div>
-    <div class="form-group tb-ap-route"><label>Маршрут</label><input type="hidden" name="route" value="${esc(o.route.join(";"))}">
+    <div class="form-group tb-ap-route"><label class="tb-ap-rlabel">Маршрут</label><input type="hidden" name="route" value="${esc(o.route.join(";"))}">
       <span class="tb-ap-rname">${esc(o.route.length ? o.route.map(cellLabel).join(" → ") : "не задан")}</span> <button type="button" data-ap-route><i class="fas fa-route"></i> Проложить</button></div>
     <div class="form-group"><label>Характер</label><select name="manner">${opt(MANNERS, o.manner)}</select></div>
     <p class="tb-hint tb-ap-mhint">${esc(MANNERS[o.manner].hint)}</p>
-    <div class="form-group"><label>Действий за раунд</label><select name="acts">${[1, 2, 3].map(n => `<option value="${n}" ${n === o.acts ? "selected" : ""}>${n}</option>`).join("")}</select></div>
+    <p class="tb-hint tb-ap-advhint">Наступление: щёлкните, куда идти группе (можно несколько точек). Каждая машина держит своё место в строю и бьёт по пути по характеру приказа.</p>
+    <div class="form-group"><label>Стиль боя</label><select name="style">${opt(STYLES, o.style)}</select></div>
+    <div class="form-group"><label>Цели первыми</label><select name="prefer">${opt(PREFS, o.prefer)}</select></div>
+    <div class="form-group"><label>Действий за раунд</label><select name="acts"><option value="0" ${!o.acts ? "selected" : ""}>По совету на ход</option>${[1, 2, 3].map(n => `<option value="${n}" ${n === o.acts ? "selected" : ""}>${n}</option>`).join("")}</select></div>
     <div class="form-group"><label>Когда цель сбита или маршрут пройден</label><select name="after">${opt(AFTER, o.after)}</select></div>`;
   const render = root => {
     const f = root.querySelector("form");
     const show = () => {
       const task = f.task.value;
       root.querySelector(".tb-ap-target").style.display = task === "attack" ? "" : "none";
-      root.querySelector(".tb-ap-route").style.display = task === "route" ? "" : "none";
+      root.querySelector(".tb-ap-route").style.display = isRoute(task) ? "" : "none";
+      root.querySelector(".tb-ap-advhint").style.display = task === "advance" ? "" : "none";
+      root.querySelector(".tb-ap-rlabel").textContent = task === "advance" ? "Направление" : "Маршрут";
       root.querySelector(".tb-ap-mhint").textContent = MANNERS[f.manner.value].hint;
     };
     f.task.addEventListener("change", show);
@@ -443,10 +522,16 @@ export async function orderDialog(tokens) {
   if (!data) return;
   if (data.task === "attack" && !data.target) ui.notifications.warn("Автопилот: цель задачи не выбрана, пока машины в свободной охоте.");
   const order = {
-    on: !!data.on, task: data.task === "attack" && !data.target ? "hunt" : data.task, manner: data.manner, acts: Number(data.acts) || 2, after: data.after,
-    target: data.target, targetName: data.targetName, route: data.route ? data.route.split(";").filter(Boolean) : [], step: 0
+    on: !!data.on, task: data.task === "attack" && !data.target ? "hunt" : data.task, manner: data.manner, acts: Number(data.acts) || 0, after: data.after,
+    target: data.target, targetName: data.targetName, route: data.route ? data.route.split(";").filter(Boolean) : [], step: 0,
+    style: STYLES[data.style] ? data.style : "auto", prefer: PREFS[data.prefer] ? data.prefer : "auto"
   };
-  for (const t of tokens) await t.actor.setFlag(SYSTEM_ID, "autopilot", order);
+  // случайный стиль: у каждой машины свой, раз и до нового приказа
+  const pickStyle = () => (order.style === "random" ? ["missile", "guns", "mixed"][Math.floor(Math.random() * 3)] : order.style);
+  // наступление: у каждой машины свой путь — общий, сдвинутый на её место в строю
+  const S = await import("./scene.mjs");
+  const routes = order.task === "advance" ? formationRoutes(tokens.map(t => { const k = S.cellOf(t); return k ? [k.col, k.row] : [0, 0]; }), order.route, bounds()) : null;
+  for (const [n, t] of tokens.entries()) await t.actor.setFlag(SYSTEM_ID, "autopilot", { ...order, style: pickStyle(), ...(routes ? { route: routes[n] } : {}) });
   ui.notifications.info(order.on ? `Автопилот: ${names} — ${orderLine(order)}.` : `Автопилот выключен: ${names}.`);
 }
 
@@ -529,7 +614,7 @@ export function registerAutopilot() {
   Hooks.on("controlToken", (t, on) => {
     if (!game.user.isGM) return;
     const o = on ? orderOf(t.actor) : null;
-    highlight(o?.task === "route" ? o.route.slice(o.step) : null);
+    highlight(isRoute(o?.task) ? o.route.slice(o.step) : null);
   });
 }
 let timer = null;

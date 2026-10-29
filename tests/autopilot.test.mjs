@@ -52,3 +52,18 @@ show("ковёр по наземке внизу", o("hunt", "push"), base({ carp
 show("корабль: пушка по соседней зоне", o("hold", "careful"), base({ flying: false, systems: true, cands: [cand("P", 1, { canMissile: false, canGuns: true, gunReach: 1 })] }));
 show("корабль: пушка не достаёт", o("hold", "careful"), base({ flying: false, systems: true, cands: [cand("P", 1, { canMissile: false, canGuns: true, gunReach: 0 })] }));
 show("AC-130: бортовые орудия", o("hunt", "push"), base({ cands: [cand("T", 1, { canMissile: false, canGuns: false, gunship: true })] }));
+// наступление строем и темп
+console.log("строй:", JSON.stringify(A.formationRoutes([[2, 5], [3, 5], [2, 6]], ["8,5", "9,2"], { c0: 0, r0: 0, c1: 9, r1: 9 })));
+console.log("теснота:", JSON.stringify(A.stepToward([0, 0], [3, 0], () => true)), JSON.stringify(A.stepToward([0, 0], [3, 0], () => true, (c, r) => (c === 1 && r === 0 ? 2 : 0))));
+console.log("строка:", A.orderLine({ task: "advance", manner: "push", acts: 0, route: [] }));
+show("наступление: последний ход — шаг", o("advance", "push", { route: ["5,0"] }), base({ mustMove: true, next: [1, 0], lock: "M", cands: [cand("M", 1)], goal: { kind: "cell", reached: false } }));
+show("наступление: стрельба, пока есть действия", o("advance", "push", { route: ["5,0"] }), base({ next: [1, 0], lock: "M", cands: [cand("M", 0)], goal: { kind: "cell", reached: false } }));
+// стиль боя и предпочтение целей
+const W = (kind, grp) => ({ kind, grp });
+console.log("стиль:", ["fighter", "attack", "heli", "multi", "heavy"].map(g => A.styleOf({ style: "auto" }, W("air", g))).join(" "), A.styleOf({ style: "guns" }, W("air", "fighter")), A.styleOf({}, W("ground", "armor")));
+console.log("цели:", ["fighter", "attack", "heavy", "multi"].map(g => A.preferOf({ prefer: "auto" }, W("air", g))).join(" "), ["ad", "armor", "art", "obj"].map(g => A.preferOf({}, W("ground", g))).join(" "), A.preferOf({}, W("ship", "sea")), A.preferOf({ prefer: "air" }, W("air", "attack")));
+console.log("строка со стилем:", A.orderLine({ task: "hunt", manner: "careful", acts: 2, route: [], style: "guns", prefer: "ground" }));
+show("пушкарь: сближается вместо ракеты", o("hunt", "push"), base({ style: "guns", lock: "M", cands: [cand("M", 1, { gunnable: true })], goal: { kind: "target", uuid: "M", dist: 1, want: 0 }, next: [1, 0] }));
+show("пушкарь: по кораблю ракетой", o("hunt", "push"), base({ style: "guns", lock: "S", cands: [cand("S", 1, { gunnable: false })] }));
+show("смешанный: вблизи пушка", o("hunt", "push"), base({ style: "mixed", lock: "M", cands: [cand("M", 0, { gunnable: true })] }));
+show("ракетчик: вблизи всё равно ракета", o("hunt", "push"), base({ style: "missile", lock: "M", cands: [cand("M", 0, { gunnable: true })] }));

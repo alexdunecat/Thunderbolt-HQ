@@ -55,3 +55,14 @@ show("залп", { type: "volley", targets: [{ uuid: "T", hit: true, count: 2, s
 show("проверка", { type: "check", actorUuid: "A", parts: [] });
 console.log("в воздухе:", [{ delayed: true, combatKey: "C:1", targetUuid: "T" }, { delayed: true, combatKey: "C:1", targetUuid: "T", resolved: true },
   { delayed: true, combatKey: "", targetUuid: "T" }, { delayed: true, combatKey: "C:1", targetUuid: "T", lost: "захват сорван" }].map(Fx.inAir).join(" "));
+// рисунок выстрела по стрелку
+const W = { TANK: { type: "npc", kind: "ground", grp: "armor" }, ZSU: { type: "npc", kind: "ground", grp: "ad" }, SHIP: { type: "npc", kind: "ship", grp: "sea" }, JET: { type: "npc", kind: "air", grp: "fighter" } };
+const showW = (n, card) => console.log(n + ":", JSON.stringify(Fx.planOf(card, sum, u => W[u] ?? null)));
+showW("танк: пушка", { type: "attack", attack: true, instant: true, label: "Guns, Guns, Guns!", actorUuid: "TANK", targetUuid: "T", d10: 9, parts: [], dc: 5 });
+showW("зенитка: очередь", { type: "attack", attack: true, instant: true, label: "Guns, Guns, Guns!", actorUuid: "ZSU", targetUuid: "T", d10: 2, parts: [], dc: 5 });
+showW("корабль: артустановка", { type: "attack", attack: true, instant: true, label: "Огонь: Артустановка АК-130", actorUuid: "SHIP", targetUuid: "T", d10: 9, parts: [], dc: 5 });
+showW("корабль: ЗАК", { type: "attack", attack: true, instant: true, label: "Огонь: Носовой ЗАК", actorUuid: "SHIP", targetUuid: "T", d10: 9, parts: [], dc: 5 });
+showW("босс: рельсотрон", { type: "attack", attack: true, instant: true, label: "Огонь: Рельсотроны №1", actorUuid: "SHIP", targetUuid: "T", d10: 9, parts: [], dc: 5 });
+showW("самолёт: пушка", { type: "attack", attack: true, instant: true, label: "Guns, Guns, Guns!", actorUuid: "JET", targetUuid: "T", d10: 9, parts: [], dc: 5 });
+showW("танк: G-G в бою", { type: "attack", attack: true, label: "Пуск G-G", fx: "shell", actorUuid: "TANK", targetUuid: "T", delayed: true, combatKey: "C:1", parts: [] });
+showW("залп: снаряд и ракета", { type: "volley", targets: [{ uuid: "T", hit: true, count: 2, shooterUuids: ["TANK", "JET"], fx: { TANK: "shell" } }] });

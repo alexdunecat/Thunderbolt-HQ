@@ -135,4 +135,20 @@ const rail = npc("f15c", "Рельсотрон", 2, 1, { sys: { tier: "ace" } })
 rail.items = kit(weapon("EMRG", { target: "line", dmg: "12", ammo: { value: 4, max: 4 } }));
 rail.flags.autopilot = { on: true, task: "hunt", manner: "careful", acts: 1, after: "hold", route: [], step: 0 };
 await run("EMRG по линии", rail);
+// наступление строем, действия по совету: звено идёт на восток, по пути бьёт, последним действием держит темп
+clear();
+const foe = pilot("Цель", 4, 5);
+const lead = npc("f15c", "Звено-1", 1, 4), wing = npc("f15c", "Звено-2", 1, 6);
+const routes = AP.formationRoutes([[1, 4], [1, 6]], ["8,5"]);
+for (const [n, a] of [lead, wing].entries()) a.flags.autopilot = { on: true, task: "advance", manner: "push", acts: 0, after: "hold", route: routes[n], step: 0 };
+log.push("пути строя: " + JSON.stringify(routes));
+await run("наступление, ведущий", lead);
+await run("наступление, ведомый", wing);
+await run("наступление, ведущий, второй раунд", lead);
+// штурмовик по типу машины: цели на земле первыми, пушкарь — сближается и бьёт пушкой, а не ракетой по истребителю рядом
+clear();
+const jet = pilot("Истребитель", 3, 2), armor = npc("t80u", "Танк", 5, 2, { sys: { side: "ally" } });
+const hog = npc("f15c", "Штурмовик", 4, 2, { alt: "low", sys: { grp: "attack" } });
+hog.flags.autopilot = { on: true, task: "hunt", manner: "careful", acts: 2, after: "hold", route: [], step: 0 };
+await run("штурмовик, по типу машины", hog);
 console.log(log.join("\n"));
