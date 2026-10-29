@@ -82,7 +82,8 @@ export function publicMission(m, cat = {}) {
   (m?.units ?? []).forEach((u, i) => {
     const ref = cat.alias?.[u?.ref] ?? u?.ref, entry = byKey.get(ref) ?? null, k = unitKind(ref, u ?? {}, entry);
     const c = Number(u?.c), r = Number(u?.r);
-    if (k === "hidden" || !inside(c, r)) return;
+    // подкрепление, что выйдет позже, игрокам на брифинге не показывается
+    if (k === "hidden" || !inside(c, r) || Number(u?.arrive?.round) > 0 || u?.arrive?.after) return;
     let id = String(u.id ?? `u${i}`);
     if (seen.has(id)) id = `${id}_${i}`;
     seen.add(id);

@@ -310,6 +310,58 @@ export function openImportDialog() {
   }, { width: 560, classes: ["dialog", "thunderbolt"] }).render(true);
 }
 
+/**
+ * Приказы автопилота (поле ap строки Планшета) и выход подкреплением (поле arrive) для токенов миссии.
+ * units — строки Планшета, byUnit — Map id строки → [{ uuid, name, cell: [c, r] }] её токенов.
+ * Цель приказа и машина «после кого выйти» — первая машина указанной строки.
+ * Возвращает { orders: [[uuid, приказ]], arrive: [[uuid, отметка]], problems: [строки] }. Наступление строем считает formation(cells, route).
+ */
+export function unitPlans(units, byUnit, formation = null) {
+  const out = { orders: [], arrive: [], problems: [] };
+  const TASKS = ["hunt", "patrol", "route", "advance", "attack", "escort", "wing", "hold"];
+  const first = id => byUnit.get(id)?.[0] ?? null;
+  for (const u of units) {
+    const docs = byUnit.get(u.id) ?? [];
+    if (!docs.length) continue;
+    const label = u.name || u.ref;
+    if (u.arrive?.round > 0 || u.arrive?.after) {
+      const after = u.arrive.after ? first(u.arrive.after) : null;
+      if (u.arrive.after && !after) out.problems.push(`«${label}»: машины, после которой выходить, нет на карте — выйдет сразу.`);
+      const a = u.arrive.round > 0 ? { round: Number(u.arrive.round) } : after ? { after: after.uuid, afterName: after.name } : null;
+      for (const d of docs) out.arrive.push([d.uuid, a]);
+    }
+    const ap = u.ap;
+    if (!ap?.task || !TASKS.includes(ap.task)) continue;
+    const route = (ap.route ?? []).filter(k => /^\d+,\d+$/.test(k));
+    const withT = ["attack", "escort", "wing"].includes(ap.task), t = withT ? first(ap.target) : null;
+    let task = ap.task;
+    if (withT && !t) { task = ap.task === "attack" ? "hunt" : "hold"; out.problems.push(`«${label}»: цели приказа нет на карте — ${task === "hunt" ? "свободная охота" : "держать позицию"}.`); }
+    if (["patrol", "route", "advance"].includes(task) && !route.length) { task = "hold"; out.problems.push(`«${label}»: маршрут не задан — держать позицию.`); }
+    const base = { on: true, task, manner: ["rush", "push", "careful"].includes(ap.manner) ? ap.manner : "push", acts: Math.max(0, Math.min(3, Number(ap.acts) || 0)),
+      after: "hold", target: t?.uuid ?? "", targetName: t?.name ?? "", route, step: 0, style: "auto", prefer: "auto" };
+    const routes = task === "advance" && formation && docs.length > 1 ? formation(docs.map(d => d.cell), route) : null;
+    docs.forEach((d, i) => out.orders.push([d.uuid, { ...base, route: routes?.[i] ?? route }]));
+  }
+  return out;
+}
+
+async function applyPlans(scene, units, created) {
+  const byUnit = new Map(), gs = scene.grid?.size ?? S;
+  for (const d of created) {
+    const id = d.getFlag?.(SYSTEM_ID, "unitId");
+    if (!id) continue;
+    const cell = [Math.floor((d.x + (d.width * gs) / 2) / gs), Math.floor((d.y + (d.height * gs) / 2) / gs)];
+    byUnit.set(id, [...(byUnit.get(id) ?? []), { uuid: d.actor?.uuid, name: d.name, cell, doc: d }]);
+  }
+  const { formationRoutes } = await import("../autopilot.mjs");
+  const plan = unitPlans(units, byUnit, (cells, route) => formationRoutes(cells, route, { c0: 0, r0: 0, c1: Math.ceil(scene.width / gs) - 1, r1: Math.ceil(scene.height / gs) - 1 }));
+  const docOf = uuid => created.find(d => d.actor?.uuid === uuid);
+  const rows = plan.arrive.map(([uuid, a]) => ({ _id: docOf(uuid).id, ...(a ? { [`flags.${SYSTEM_ID}.arrive`]: a } : { hidden: false }) }));
+  if (rows.length) await scene.updateEmbeddedDocuments("Token", rows, { tbKeep: true });
+  for (const [uuid, order] of plan.orders) await docOf(uuid)?.actor?.setFlag(SYSTEM_ID, "autopilot", order);
+  return { orders: plan.orders.length, arrive: plan.arrive.filter(([, a]) => a).length, problems: plan.problems };
+}
+
 export async function importMission(input) {
   if (!game.user.isGM) throw new Error("импорт доступен только ведущему");
   const m = typeof input === "string" ? JSON.parse(input) : input;
@@ -381,14 +433,17 @@ export async function importMission(input) {
     for (let i = 0; i < count; i++) {
       // каждая машина — на свободные места своей зоны, большая цель — на блок мест
       const spot = pack(fp, u.c, u.r);
+      // строка Планшета — во флаге токена: по ней ставятся приказ автопилота и выход подкреплением
       const td = await actor.getTokenDocument({ ...spot, texture: { ...actor.prototypeToken.texture.toObject(), ...spot.texture }, elevation,
-        name: count > 1 ? `${actor.name} ${i + 1}` : actor.name });
+        name: count > 1 ? `${actor.name} ${i + 1}` : actor.name, hidden: !!(u.arrive?.round || u.arrive?.after), flags: { [SYSTEM_ID]: { unitId: u.id ?? "" } } });
       tokens.push(td.toObject());
     }
-    roster.push({ u, name: actor.name, where, what: `${entry.name} · ${TB.tiers[tier] ?? tier}${count > 1 ? ` ×${count}` : ""}` });
+    const later = u.arrive?.round > 0 ? ` · появится в раунде ${u.arrive.round}` : u.arrive?.after ? " · подкрепление" : "";
+    roster.push({ u, name: actor.name, where, what: `${entry.name} · ${TB.tiers[tier] ?? tier}${count > 1 ? ` ×${count}` : ""}${u.ap?.task ? " · автопилот" : ""}${later}` });
   }
   if (drawings.length) await scene.createEmbeddedDocuments("Drawing", drawings);
-  if (tokens.length) await scene.createEmbeddedDocuments("Token", tokens, { tbKeep: true });
+  const created = tokens.length ? await scene.createEmbeddedDocuments("Token", tokens, { tbKeep: true }) : [];
+  const plans = await applyPlans(scene, m.units ?? [], created);
 
   // ---- журнал ----
   const p = s => s ? `<p>${esc(s).replace(/\n/g, "<br>")}</p>` : "";
@@ -407,6 +462,7 @@ export async function importMission(input) {
   // стелс-миссия: шкала Тревоги на 8, 6 или 4 деления
   const alarm = [4, 6, 8].includes(Number(m.alarm)) ? Number(m.alarm) : 0;
   if (alarm) await (await import("../stealth.mjs")).setupAlarm(alarm);
-  ui.notifications.info(`Миссия «${title}» импортирована: сцена, ${tokens.length} токенов, журнал брифинга${alarm ? `, шкала Тревоги на ${alarm}` : ""}.`);
+  ui.notifications.info(`Миссия «${title}» импортирована: сцена, ${tokens.length} токенов, журнал брифинга${alarm ? `, шкала Тревоги на ${alarm}` : ""}${plans.orders ? `, приказов автопилота ${plans.orders}` : ""}${plans.arrive ? `, подкреплений ${plans.arrive}` : ""}.`);
+  for (const w of plans.problems) ui.notifications.warn(`Импорт миссии: ${w}`);
   return { scene, journal, folder };
 }

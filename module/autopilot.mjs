@@ -10,14 +10,20 @@
    Ведущему в чат (шёпотом) — сводка хода; на токене у ведущего значок АП, у выделенного — маршрут на сетке. */
 import { SYSTEM_ID, TB, sysOff, hasProp } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
+import { COL_LETTERS } from "./briefing.mjs";
 
 /* ---------- приказ ---------- */
 
-export const TASKS = { hunt: "Свободная охота", advance: "Наступление", attack: "Атаковать цель", escort: "Охранять", route: "Маршрут", hold: "Держать позицию" };
-/** Задачи с целью, выбранной на карте: атаковать её или охранять. */
-const withTarget = task => task === "attack" || task === "escort";
-/** Задачи с путём по зонам: маршрут (точно по клеткам) и наступление (общее направление, каждая машина держит своё место в строю). */
-export const isRoute = task => task === "route" || task === "advance";
+export const TASKS = { hunt: "Свободная охота", advance: "Наступление", attack: "Атаковать цель", escort: "Охранять", wing: "Ведомый", patrol: "Патруль", route: "Маршрут", hold: "Держать позицию" };
+/** Задачи с машиной, выбранной на карте: атаковать её, охранять или держаться за ней ведомым. */
+const withTarget = task => task === "attack" || task === "escort" || task === "wing";
+/** Охрана и ведомый: держатся не дальше соседней с этой машиной зоны. */
+const isGuard = task => task === "escort" || task === "wing";
+/** Задачи с путём по зонам: маршрут (точно по клеткам), наступление (общее направление, каждая машина держит своё место в строю)
+    и патруль (маршрут по кругу). */
+export const isRoute = task => task === "route" || task === "advance" || task === "patrol";
+/** Патруль бросается на тех, кто подошёл не дальше этого (зон), и возвращается на маршрут, когда рядом никого. */
+export const PATROL_REACH = 1;
 export const MANNERS = {
   rush: { name: "Напролом", hint: "Только задача: по другим не стреляет, от ракет не уходит." },
   push: { name: "Прорыв", hint: "Идёт к задаче и бьёт тех, кто мешает: в своей зоне, на следующем шаге пути и кто держит его на захвате." },
@@ -61,15 +67,15 @@ export const isPlayerUnit = actor => actor?.type === "pilot" || !!actor?.hasPlay
 /** Задача сейчас: цель сбита или маршрут пройден — то, что в приказе «после». */
 export function taskNow(order, { targetGone = false } = {}) {
   if (withTarget(order.task) && (targetGone || !order.target)) return order.after;
-  if (isRoute(order.task) && order.step >= order.route.length) return order.after;
+  if (isRoute(order.task) && order.task !== "patrol" && order.step >= order.route.length) return order.after;
   return order.task;
 }
 
 /** Строка приказа для сводки и подсказок. */
 export function orderLine(order) {
   if (!order) return "";
-  const t = withTarget(order.task) ? `${order.task === "escort" ? "охранять" : "атаковать"} «${order.targetName || "цель"}»`
-    : isRoute(order.task) ? `${order.task === "advance" ? "наступление на" : "маршрут"} ${order.route.length ? order.route.map(cellLabel).join(" → ") : "не задан"}`
+  const t = withTarget(order.task) ? `${{ escort: "охранять", wing: "ведомый у" }[order.task] ?? "атаковать"} «${order.targetName || "цель"}»`
+    : isRoute(order.task) ? `${{ advance: "наступление на", patrol: "патруль" }[order.task] ?? "маршрут"} ${order.route.length ? order.route.map(cellLabel).join(" → ") : "не задан"}`
       : TASKS[order.task].toLowerCase();
   const style = STYLES[order.style]?.short, pref = PREFS[order.prefer] && !["auto", undefined].includes(order.prefer) ? `цели: ${PREFS[order.prefer].toLowerCase()}` : "";
   return [t, MANNERS[order.manner]?.name.toLowerCase() ?? "", style, pref, order.acts ? `${order.acts} д.` : "действия по совету"].filter(Boolean).join(", ");
@@ -80,7 +86,8 @@ export function orderLine(order) {
 /**
  * Следующее действие машины на автопилоте.
  * v (что видно с её места): { flying, systems, incoming, broke, hurt, lock, nearest,
- *   style: missile | guns | mixed (по умолчанию missile); охрана: у кандидатов threat (бьёт или держит на захвате охраняемого, рядом с ним),
+ *   style: missile | guns | mixed (по умолчанию missile); охрана и ведомый: у кандидатов threat (бьёт или держит на захвате охраняемого, рядом с ним),
+ *   lead (цель ведущего: на захвате у него или его ракеты летят в неё — ведомый бьёт её первой),
  *   goal { kind: "escort", far, icpt } — далеко ли от охраняемого и шаг на перехват угрозы, не отходя от него дальше соседней зоны,
  *   cands: [{ uuid, player, dist, canMissile, canGuns, gunReach, gunnable, gunship, lockRange, fire, needAlt, blocked, noLock, locksMe, onPath }] — по убыванию ценности,
  *   goal: null | { kind: "target", uuid, dist, want, altStep } | { kind: "cell", reached }, next, away (клетки шага или null),
@@ -96,18 +103,23 @@ export function chooseStep(order, v, failed = new Set()) {
   if (v.mustMove && v.next) return { act: "move", cell: v.next, why: "держит темп" };
   const goalUuid = v.goal?.kind === "target" ? v.goal.uuid : null;
   let pool = v.cands.filter(c => !failed.has(c.uuid));
-  if (task === "attack" || isRoute(task)) {
+  // патруль: только те, кто подошёл вплотную или держит его на захвате, и та, на кого он уже бросился
+  if (task === "patrol") pool = pool.filter(c => (c.dist !== null && c.dist <= PATROL_REACH) || c.locksMe || c.uuid === goalUuid);
+  else if (task === "attack" || isRoute(task)) {
     if (manner === "rush") pool = pool.filter(c => c.uuid === goalUuid);
     else if (manner === "push") pool = pool.filter(c => c.uuid === goalUuid || c.dist === 0 || c.locksMe || c.onPath);
   }
-  // охрана: сначала те, кто угрожает охраняемому; «Напролом» — только они, «Прорыв» — ещё кто рядом и кто держит на захвате
-  if (task === "escort") {
-    if (manner === "rush") pool = pool.filter(c => c.threat);
-    else if (manner === "push") pool = pool.filter(c => c.threat || c.dist === 0 || c.locksMe);
-    pool = [...pool.filter(c => c.threat), ...pool.filter(c => !c.threat)];
+  // охрана: сначала те, кто угрожает охраняемому; «Напролом» — только они, «Прорыв» — ещё кто рядом и кто держит на захвате.
+  // ведомый так же, но первой — цель ведущего
+  if (isGuard(task)) {
+    const key = c => c.threat || c.lead;
+    if (manner === "rush") pool = pool.filter(key);
+    else if (manner === "push") pool = pool.filter(c => key(c) || c.dist === 0 || c.locksMe);
+    pool = [...pool.filter(c => c.lead), ...pool.filter(c => !c.lead && c.threat), ...pool.filter(c => !key(c))];
   }
   // машины игроков — самый низкий приоритет: пока на карте есть кого ещё бить, их не трогает (кроме цели, которую ведущий назначил сам)
-  if (v.cands.some(c => !c.player && !failed.has(c.uuid))) pool = pool.filter(c => !c.player || c.uuid === goalUuid);
+  const ordered = task === "attack" ? goalUuid : null;
+  if (v.cands.some(c => !c.player && !failed.has(c.uuid))) pool = pool.filter(c => !c.player || c.uuid === ordered);
   pool = [...pool.filter(c => c.uuid === goalUuid), ...pool.filter(c => c.uuid !== goalUuid)];
   // по площади — только если там есть кого бить по характеру приказа, и не одних игроков
   const worth = area => !!area?.uuids?.some(u => pool.some(c => c.uuid === u && !c.player));
@@ -191,7 +203,8 @@ const parseCell = k => String(k).split(",").map(Number);
 function cellLabel(k) {
   try {
     const [c, r] = parseCell(k), b = bounds();
-    return b ? `${"АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЭЮЯ"[c - b.c0] ?? "?"}${r - b.r0 + 1}` : k;
+    // буквы те же, что на карте миссии и в брифинге (без З и Й)
+    return b ? `${COL_LETTERS[c - b.c0] ?? "?"}${r - b.r0 + 1}` : k;
   } catch { return k; }
 }
 function bounds() {
@@ -217,6 +230,17 @@ function shootersAt(uuid) {
   for (const m of (game.messages?.contents ?? []).slice(-300)) {
     const card = m.getFlag?.(SYSTEM_ID, "card");
     if (card?.delayed && card.targetUuid === uuid && String(card.combatKey).startsWith(`${c.id}:`) && !card.resolved && !card.dmgApplied) out.add(card.actorUuid);
+  }
+  return out;
+}
+
+/** Цели машины: кого держит на захвате и в кого летят её ракеты этого боя (UUID). */
+function targetsOf(actor) {
+  const out = new Set(actor.system?.lockUuid ? [actor.system.lockUuid] : []), c = game.combat;
+  if (!c?.started) return out;
+  for (const m of (game.messages?.contents ?? []).slice(-300)) {
+    const card = m.getFlag?.(SYSTEM_ID, "card");
+    if (card?.delayed && card.actorUuid === actor.uuid && card.targetUuid && String(card.combatKey).startsWith(`${c.id}:`) && !card.resolved && !card.dmgApplied) out.add(card.targetUuid);
   }
   return out;
 }
@@ -281,12 +305,20 @@ async function viewOf(actor, token, order, state) {
   const gunsVs = systems ? null : S.gunVs(actor, null), gunsOk = !systems && !sysOff(s, "gu") && ((s.kind === "ground" ? s.ground?.gun : s.gun) ?? 0) > 0;
   const taskNowV = taskNow(order, { targetGone: withTarget(order.task) && !tgtTok });
   // охрана: кто бьёт охраняемого (ракеты в воздухе по нему) или держит его на захвате, и кто рядом с ним
-  const ward = taskNowV === "escort" && tgtTok ? tgtTok : null;
+  const ward = isGuard(taskNowV) && tgtTok ? tgtTok : null;
   const wardFoes = ward ? shootersAt(tgt.uuid) : new Set();
+  // ведомый: цель ведущего — кого он держит на захвате и в кого летят его ракеты
+  const leadTargets = taskNowV === "wing" && ward ? targetsOf(tgt) : new Set();
+  // патруль: бросается на ближайшего, кто подошёл вплотную (игроков — только если больше некого)
+  const others = list.some(x => !isPlayerUnit(x.actor));
+  const near = taskNowV === "patrol" ? list.filter(x => x.dist !== null && x.dist <= PATROL_REACH && (!others || !isPlayerUnit(x.actor))).sort((a, b) => a.dist - b.dist)[0] ?? null : null;
   // клетка следующего шага пути: нужна, чтобы «Прорыв» знал, кто мешает
   let goal = null, goalCell = null;
-  if ((taskNowV === "attack" || taskNowV === "escort") && tgtTok) {
+  if ((taskNowV === "attack" || isGuard(taskNowV)) && tgtTok) {
     const c = S.cellOf(tgtTok);
+    goalCell = [c.col, c.row];
+  } else if (near) {
+    const c = S.cellOf(near.token);
     goalCell = [c.col, c.row];
   } else if (isRoute(taskNowV)) {
     goalCell = parseCell(order.route[order.step]);
@@ -335,6 +367,7 @@ async function viewOf(actor, token, order, state) {
       lockRange, fire: noLock ? lockRange : !systems && R.autoWeapon(actor, x.kind, x.dist) ? Math.max(x.dist ?? 0, TB.range.missile) : TB.range.missile, needAlt, blocked,
       locksMe: !!lockedOn && (lockedOn === actor || lockedOn.uuid === actor.uuid),
       threat: !!ward && ((!!lockedOn && (lockedOn === tgt || lockedOn.uuid === tgt.uuid)) || wardFoes.has(x.actor.uuid) || (S.zoneDistance(x.token, ward) ?? 99) <= 1),
+      lead: leadTargets.has(x.actor.uuid),
       onPath: !!next && !!c && c.col === next[0] && c.row === next[1]
     };
   });
@@ -346,14 +379,14 @@ async function viewOf(actor, token, order, state) {
     const altStep = sameCell && S.isFlying(actor) && S.isAirTarget(R.describeTarget(tgt, tgtTok.name, tgtTok))
       ? Math.sign(S.ALT_ORDER.indexOf(S.altOf(tgtTok, tgt)) - S.ALT_ORDER.indexOf(S.altOf(token, actor))) : 0;
     goal = { kind: "target", uuid: tgt.uuid, dist: d, want, altStep };
-  } else if (taskNowV === "hunt" && list.length) {
-    const x = cands[0];
+  } else if ((taskNowV === "hunt" && list.length) || near) {
+    const x = near ? cands.find(c => c.uuid === near.actor.uuid) : cands[0];
     goal = { kind: "target", uuid: x.uuid, dist: x.dist, want: x.canMissile && !(style === "guns" && x.gunnable) ? Math.min(x.lockRange, TB.range.missile) : 0, altStep: 0 };
   } else if (ward) {
     // перехват: шаг к ближайшей угрозе вне досягаемости, если он не уводит дальше соседней с охраняемым зоны
     const cheb = ([c1, r1], [c2, r2]) => Math.max(Math.abs(c1 - c2), Math.abs(r1 - r2));
     const far = cheb(here, goalCell) > 1;
-    const th = cands.filter(c => c.threat && c.dist !== null && c.dist > Math.max(c.canMissile ? c.lockRange : 0, c.gunReach ?? 0)).sort((a, b) => a.dist - b.dist)[0];
+    const th = cands.filter(c => (c.threat || c.lead) && c.dist !== null && c.dist > Math.max(c.canMissile ? c.lockRange : 0, c.gunReach ?? 0)).sort((a, b) => a.dist - b.dist)[0];
     const tc = th ? S.cellOf(th.tok) : null;
     const icpt = tc && !far ? stepToward(here, [tc.col, tc.row], (c, r) => allowed(c, r) && cheb([c, r], goalCell) <= 1) : null;
     goal = { kind: "escort", far, icpt };
@@ -397,7 +430,8 @@ export async function runAutopilot(actor, token = null) {
     if (isRoute(order.task) && order.step < order.route.length) {
       const k = S.cellOf(token);
       if (k && cellKey([k.col, k.row]) === order.route[order.step]) {
-        order.step += 1;
+        // патруль идёт по кругу: после последней точки — снова первая
+        order.step = order.task === "patrol" && order.step + 1 >= order.route.length ? 0 : order.step + 1;
         await actor.setFlag(SYSTEM_ID, "autopilot", { ...actor.getFlag(SYSTEM_ID, "autopilot"), step: order.step });
       }
     }
@@ -555,6 +589,8 @@ export async function orderDialog(tokens) {
       <span class="tb-ap-rname">${esc(o.route.length ? o.route.map(cellLabel).join(" → ") : "не задан")}</span> <button type="button" data-ap-route><i class="fas fa-route"></i> Проложить</button></div>
     <div class="form-group"><label>Характер</label><select name="manner">${opt(MANNERS, o.manner)}</select></div>
     <p class="tb-hint tb-ap-mhint">${esc(MANNERS[o.manner].hint)}</p>
+    <p class="tb-hint tb-ap-pathint">Патруль: машина ходит по маршруту по кругу и бросается на всё, что подошло в соседнюю зону или взяло её на захват; рядом никого — снова на маршрут.</p>
+    <p class="tb-hint tb-ap-winghint">Ведомый: держится не дальше соседней с ведущим зоны (ведущим может быть и пилот игрока), первой бьёт его цель — кого он держит на захвате и в кого пустил ракеты, потом тех, кто угрожает ему.</p>
     <p class="tb-hint tb-ap-advhint">Наступление: щёлкните, куда идти группе (можно несколько точек). Каждая машина держит своё место в строю и бьёт по пути по характеру приказа.</p>
     <div class="form-group"><label>Стиль боя</label><select name="style">${opt(STYLES, o.style)}</select></div>
     <div class="form-group"><label>Цели первыми</label><select name="prefer">${opt(PREFS, o.prefer)}</select></div>
@@ -565,9 +601,11 @@ export async function orderDialog(tokens) {
     const show = () => {
       const task = f.task.value;
       root.querySelector(".tb-ap-target").style.display = withTarget(task) ? "" : "none";
-      root.querySelector(".tb-ap-tlabel").textContent = task === "escort" ? "Кого охранять" : "Цель";
+      root.querySelector(".tb-ap-tlabel").textContent = { escort: "Кого охранять", wing: "Ведущий" }[task] ?? "Цель";
       root.querySelector(".tb-ap-route").style.display = isRoute(task) ? "" : "none";
       root.querySelector(".tb-ap-advhint").style.display = task === "advance" ? "" : "none";
+      root.querySelector(".tb-ap-pathint").style.display = task === "patrol" ? "" : "none";
+      root.querySelector(".tb-ap-winghint").style.display = task === "wing" ? "" : "none";
       root.querySelector(".tb-ap-rlabel").textContent = task === "advance" ? "Направление" : "Маршрут";
       root.querySelector(".tb-ap-mhint").textContent = MANNERS[f.manner.value].hint;
     };
@@ -576,9 +614,10 @@ export async function orderDialog(tokens) {
     show();
     root.querySelector("[data-ap-pick]").addEventListener("click", async () => {
       const { pickTargetToken } = await import("./pick.mjs");
-      const t = await pickTargetToken(tokens[0].actor, f.task.value === "escort"
-        ? { title: "Автопилот: кого охранять", hint: "Щёлкните по токену машины, которую охранять." }
-        : { title: "Автопилот: цель", hint: "Щёлкните по токену цели задачи." });
+      const t = await pickTargetToken(tokens[0].actor, {
+        escort: { title: "Автопилот: кого охранять", hint: "Щёлкните по токену машины, которую охранять." },
+        wing: { title: "Автопилот: ведущий", hint: "Щёлкните по токену ведущего звена." }
+      }[f.task.value] ?? { title: "Автопилот: цель", hint: "Щёлкните по токену цели задачи." });
       if (!t) return;
       f.target.value = t.actor.uuid; f.targetName.value = t.name;
       root.querySelector(".tb-ap-tname").textContent = t.name;
@@ -592,9 +631,9 @@ export async function orderDialog(tokens) {
   };
   const data = await formDialog("Автопилот: приказ", content, { ok: "Отдать приказ", width: 460, render });
   if (!data) return;
-  if (withTarget(data.task) && !data.target) ui.notifications.warn(data.task === "escort" ? "Автопилот: не выбрано, кого охранять, пока машины держат позицию." : "Автопилот: цель задачи не выбрана, пока машины в свободной охоте.");
+  if (withTarget(data.task) && !data.target) ui.notifications.warn(isGuard(data.task) ? `Автопилот: не выбрано, ${data.task === "wing" ? "за кем идти ведомым" : "кого охранять"}, пока машины держат позицию.` : "Автопилот: цель задачи не выбрана, пока машины в свободной охоте.");
   const order = {
-    on: !!data.on, task: withTarget(data.task) && !data.target ? (data.task === "escort" ? "hold" : "hunt") : data.task, manner: data.manner, acts: Number(data.acts) || 0, after: data.after,
+    on: !!data.on, task: withTarget(data.task) && !data.target ? (isGuard(data.task) ? "hold" : "hunt") : data.task, manner: data.manner, acts: Number(data.acts) || 0, after: data.after,
     target: data.target, targetName: data.targetName, route: data.route ? data.route.split(";").filter(Boolean) : [], step: 0,
     style: STYLES[data.style] ? data.style : "auto", prefer: PREFS[data.prefer] ? data.prefer : "auto"
   };

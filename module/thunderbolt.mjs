@@ -47,6 +47,7 @@ import { registerMapInfo } from "./mapinfo.mjs";
 import { registerRotate } from "./rotate.mjs";
 import { registerFx } from "./fx.mjs";
 import { registerAutopilot } from "./autopilot.mjs";
+import { registerReinforce } from "./reinforce.mjs";
 import { registerInsignia } from "./insignia.mjs";
 import { registerSideColor } from "./sidecolor.mjs";
 import { registerLosses } from "./losses.mjs";
@@ -175,6 +176,7 @@ Hooks.once("init", () => {
   registerRotate();
   registerFx();
   registerAutopilot();
+  registerReinforce();
   registerAltitude();
   registerInsignia();
   registerSideColor();

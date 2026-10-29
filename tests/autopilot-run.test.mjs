@@ -194,4 +194,25 @@ log.push("сваливание на автопилоте:");
 await Rr.rollStall(saver);
 const stall = messages.at(-1).getFlag("thunderbolt-shtab", "card");
 log.push(`  карточка разобрана: ${stall.applied}, Speed ${saver.system.speed}, высота ${saver.system.alt}`);
+// патруль по кругу: две точки, после второй — снова первая; враг подошёл в соседнюю зону — бросается на него
+clear();
+const pat = npc("f15c", "Патруль", 1, 1);
+pat.flags.autopilot = { on: true, task: "patrol", manner: "careful", acts: 2, after: "hold", route: ["2,1", "3,1"], step: 0 };
+await run("патруль, круг 1", pat);
+await run("патруль, круг 2", pat);
+log.push(`  точка маршрута: ${pat.flags.autopilot.step}`);
+const intruder = ally("Нарушитель", 4, 2);
+await run("патруль, нарушитель рядом", pat);
+// ведомый у пилота игрока: держится рядом, бьёт того, кого ведущий держит на захвате, а не ближнего
+clear();
+const leadP = pilot("Ведущий", 2, 5), bandit = npc("f15c", "Бандит", 2, 4), closer = npc("f15c", "Ближний", 2, 6);
+leadP.system.lockUuid = bandit.uuid;
+const wingAp = ally("Ведомый", 1, 5);
+wingAp.flags.autopilot = { on: true, task: "wing", manner: "push", acts: 3, after: "hold", route: [], step: 0, target: leadP.uuid, targetName: "Ведущий" };
+await run("ведомый у игрока", wingAp);
+// ведущий ушёл вперёд: ведомый догоняет
+for (const d of [leadP.getActiveTokens()[0]]) { d.document.x += 400; d.center = { x: d.center.x + 400, y: d.center.y }; }
+leadP.system.lockUuid = "";
+bandit.getActiveTokens()[0].document.hidden = true; closer.getActiveTokens()[0].document.hidden = true;
+await run("ведомый догоняет", wingAp);
 console.log(log.join("\n"));

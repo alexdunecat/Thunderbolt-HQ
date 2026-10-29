@@ -78,3 +78,9 @@ console.log("строка охраны:", A.orderLine({ task: "escort", manner: 
 show("игрок рядом, другой враг далеко — к врагу", o("hunt", "push"), base({ cands: [cand("P", 0, { player: true }), cand("M", 3)], goal: { kind: "target", uuid: "M", dist: 3, want: 1 }, next: [1, 0] }));
 show("остались одни игроки — бьёт игрока", o("hunt", "push"), base({ lock: "P", cands: [cand("P", 1, { player: true })] }));
 show("EMRG: на линии одни игроки — не стреляет", o("hunt", "careful"), base({ rail: { uuids: ["P"] }, cands: [cand("P", 3, { player: true }), cand("M", 3)], goal: { kind: "target", uuid: "M", dist: 3, want: 1 }, next: [1, 0] }));
+// патруль и ведомый
+show("патруль: дальний враг — дальше по маршруту", o("patrol", "push", { route: ["5,0"] }), base({ lock: "M", cands: [cand("M", 2)], goal: { kind: "cell", reached: false }, next: [1, 0] }));
+show("патруль: подошёл вплотную — захват", o("patrol", "push", { route: ["5,0"] }), base({ cands: [cand("M", 1)], goal: { kind: "target", uuid: "M", dist: 1, want: 1 }, next: [1, 0] }));
+show("ведомый: сначала цель ведущего", o("wing", "push", { target: "L" }), esc({ lock: "N", cands: [cand("N", 0, { threat: true }), cand("T", 1, { lead: true })] }));
+show("ведомый напролом: только цель ведущего и угрозы", o("wing", "rush", { target: "L" }), esc({ cands: [cand("N", 0)] }));
+console.log("строки:", A.orderLine({ task: "patrol", manner: "careful", acts: 2, route: [] }), "|", A.orderLine({ task: "wing", manner: "push", acts: 0, route: [], targetName: "Гроза" }));

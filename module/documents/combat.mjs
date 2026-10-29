@@ -13,6 +13,7 @@ import { resolveStrikes } from "../strikes.mjs";
 import { advanceScales } from "../scales.mjs";
 import { esc } from "../utils.mjs";
 import { autopilotOn, runAutopilot, pace } from "../autopilot.mjs";
+import { releaseArrivals, waiting, arriveOf } from "../reinforce.mjs";
 
 /** Значение инициативы: 1–3 заявлено действий, PASS пропуск, PASS + n отложил ход с n действиями. */
 export const PASS = 10;
@@ -24,10 +25,10 @@ const delayedBy = v => (v > PASS && v < AUTO ? v - PASS : 0);
 /** Здание или объект: в заявке не участвует. */
 export const passive = actor => actor?.type === "npc" && actor.system.grp === "obj";
 const npcSide = c => !c.actor?.hasPlayerOwner;
-/** Выбыл: сбит (знак X), отступил, перевооружается за линией возврата, неактивен (игрока нет) или помечен побеждённым в трекере. Заявки не делает, ход пропускается. */
+/** Выбыл: сбит (знак X), отступил, перевооружается за линией возврата, неактивен (игрока нет), ждёт выхода подкреплением или помечен побеждённым в трекере. Заявки не делает, ход пропускается. */
 export const isOut = c => !!c?.defeated || !!c?.actor?.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)
   || !!c?.actor?.statuses?.has("retreat") || c?.actor?.getFlag?.(SYSTEM_ID, "down")?.combat === c?.parent?.id
-  || c?.actor?.getFlag?.(SYSTEM_ID, "rearm")?.combat === c?.parent?.id || !!c?.actor?.statuses?.has("inactive");
+  || c?.actor?.getFlag?.(SYSTEM_ID, "rearm")?.combat === c?.parent?.id || !!c?.actor?.statuses?.has("inactive") || waiting(c?.token);
 const acting = combat => combat.combatants.filter(c => !passive(c.actor) && !isOut(c));
 const declared = c => Number.isNumeric(c.initiative);
 const leadGM = () => (game.users.activeGM ?? game.users.find(u => u.isGM && u.active))?.id === game.user.id;
@@ -103,6 +104,8 @@ async function declareDialog(combat, list) {
 
 /** Начало раунда: ведущему форма заявки за NPC. Если NPC нет, сразу очередь игроков. */
 async function beginRound(combat) {
+  // подкрепления этого раунда выходят до заявок и заявляются как все
+  try { await releaseArrivals(combat); } catch (err) { console.error(`${SYSTEM_ID} | подкрепление`, err); }
   // сбитые, что ещё висят на поле до конца раунда, и отступившие пасуют сами
   const out = combat.combatants.filter(c => isOut(c) && !passive(c.actor) && c.initiative !== PASS);
   // срыв «Ступор»: пилот пропускает следующий ход целиком
@@ -200,11 +203,14 @@ const teamOf = actor => (actor?.type === "pilot" ? "ally" : ["ally", "enemy"].in
 
 /** Почему автобой встаёт (или ""): не осталось противников, за раунд ничего не произошло и ракет в воздухе нет, игра на паузе. */
 function autoStop(combat) {
-  const teams = new Set(combat.combatants.filter(c => !isOut(c)).map(c => teamOf(c.actor)).filter(Boolean));
+  // подкрепление, что ещё выйдет, тоже сторона: бой ждёт его
+  const later = (combat.scene ?? canvas?.scene)?.tokens?.filter?.(d => waiting(d)) ?? [];
+  const teams = new Set([...combat.combatants.filter(c => !isOut(c)).map(c => teamOf(c.actor)), ...later.map(d => teamOf(d.actor))].filter(Boolean));
   if (teams.size < 2) return "противников не осталось";
+  const soon = later.some(d => Number(arriveOf(d)?.round) === combat.round + 1);
   const keys = [`${combat.id}:${combat.round}`, `${combat.id}:${combat.round + 1}`];
   const inAir = (game.messages?.contents ?? []).slice(-300).some(m => { const k = m.getFlag?.(SYSTEM_ID, "card"); return k?.delayed && keys.includes(k.combatKey) && !k.resolved && !k.dmgApplied; });
-  if (!autoRounds.get(combat.id)?.acted && !inAir) return "за раунд ничего не произошло";
+  if (!autoRounds.get(combat.id)?.acted && !inAir && !soon) return "за раунд ничего не произошло";
   if (game.paused) return "игра на паузе";
   return "";
 }
