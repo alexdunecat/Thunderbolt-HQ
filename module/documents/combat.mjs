@@ -12,7 +12,7 @@ import { clearLosses, lossLine } from "../losses.mjs";
 import { resolveStrikes } from "../strikes.mjs";
 import { advanceScales } from "../scales.mjs";
 import { esc } from "../utils.mjs";
-import { autopilotOn, runAutopilot } from "../autopilot.mjs";
+import { autopilotOn, runAutopilot, pace } from "../autopilot.mjs";
 
 /** Значение инициативы: 1–3 заявлено действий, PASS пропуск, PASS + n отложил ход с n действиями. */
 export const PASS = 10;
@@ -129,15 +129,16 @@ async function checkDeclared(combat) {
   if (list.filter(npcSide).every(declared)) await markNpcDone(combat);
   if (!list.length || !list.every(declared) || flag(combat, "ready") === combat.round) return;
   // если очередь уже на первом, Foundry выкинет turn из изменения и хук не начнёт ход: начинаем сами
-  const already = combat.turn === 0;
-  await combat.update({ turn: 0, [`flags.${SYSTEM_ID}.ready`]: combat.round });
-  if (already) await turnStart(combat);
+  const already = combat.turn === 0, round = combat.round;
+  await combat.update({ turn: 0, [`flags.${SYSTEM_ID}.ready`]: round });
+  // порядок ходов в чат до первого хода: у автопилота первый ход сразу и может докрутить раунд до конца
   const order = combat.turns.filter(c => !passive(c.actor) && !isOut(c))
     .map((c, i) => `${i + 1}. ${esc(c.name)} · ${declareLabel(c.initiative)}`).join("<br>");
   await ChatMessage.create({
     speaker: { alias: "AWACS" },
-    content: `<div class="tb-card tb-card-round"><header class="tb-card-head"><span class="tb-card-what">Раунд ${combat.round}: порядок ходов</span></header><div class="tb-note">${order}</div></div>`
+    content: `<div class="tb-card tb-card-round"><header class="tb-card-head"><span class="tb-card-what">Раунд ${round}: порядок ходов</span></header><div class="tb-note">${order}</div></div>`
   });
+  if (already) await turnStart(combat);
 }
 
 /** Начало хода: ракеты по цели со сломанным MAWS (и HVAA) бьют сейчас. */
@@ -151,20 +152,48 @@ async function turnStart(combat) {
     const c = combat.combatant;
     if (c.getFlag(SYSTEM_ID, "autoDone") === combat.round) return;
     await c.setFlag(SYSTEM_ID, "autoDone", combat.round);
-    try { await runAutopilot(a, c.token?.object ?? null); } catch (err) { console.error(`${SYSTEM_ID} | автопилот`, err); }
+    let lines = [];
+    const round0 = combat.round;
+    try { lines = await runAutopilot(a, c.token?.object ?? null); } catch (err) { console.error(`${SYSTEM_ID} | автопилот`, err); }
+    const rec = autoRounds.get(combat.id);
+    const acted = (lines ?? []).some(l => !/не вышло/.test(l));
+    if (rec?.round === combat.round) rec.acted ||= acted;
+    else autoRounds.set(combat.id, { round: combat.round, acted });
     if (combat.combatant?.id !== c.id) return;
-    // одни автопилоты: последний не крутит раунд сам, иначе раунды идут без конца и бой не закрыть
     const live = acting(combat).some(x => !(x.initiative >= AUTO && autopilotOn(x.actor)));
     const ids = new Set(acting(combat).map(x => x.id));
     const later = combat.turns.slice(combat.turn + 1).some(x => ids.has(x.id));
     if (live || later) return combat.nextTurn();
-    ui.notifications.info("В бою только машины на автопилоте: следующий раунд — по кнопке «Следующий ход».");
+    // одни автопилоты — автобой: раунд за раундом сам, пока есть противники и что-то происходит
+    const why = autoStop(combat);
+    if (!why) {
+      // пауза перед концом раунда: на карте видно последний выстрел, потом залп
+      await new Promise(r => setTimeout(r, 1200 * pace.k));
+      if (combat.combatant?.id === c.id && combat.round === round0) return combat.nextTurn();
+      return;
+    }
+    ui.notifications.info(`Автобой остановлен: ${why}. Следующий раунд — по кнопке «Следующий ход».`);
     return;
   }
   await resolveVolley(combat, { target: a.uuid, atTurnOf: combat.combatant.name });
   // сваливание: Speed ≤ 0 в начале хода — бросок сам у владельца (повтор после провала), если прошлый не разобран
   if (a.system.speed <= 0 && !pendingStall(a))
     await a.update({ [`flags.${SYSTEM_ID}.stallTurn`]: `${combat.round}.${combat.turn}` }, { tbStallBy: ownerOf(a), tbStallTurn: true, tbFree: true });
+}
+
+/** Автобой: было ли в этом раунде у машин на автопилоте хоть одно действие (по бою). */
+const autoRounds = new Map();
+const teamOf = actor => (actor?.type === "pilot" ? "ally" : ["ally", "enemy"].includes(actor?.system?.side) ? actor.system.side : actor?.system?.side ? "" : "enemy");
+
+/** Почему автобой встаёт (или ""): не осталось противников, за раунд ничего не произошло и ракет в воздухе нет, игра на паузе. */
+function autoStop(combat) {
+  const teams = new Set(combat.combatants.filter(c => !isOut(c)).map(c => teamOf(c.actor)).filter(Boolean));
+  if (teams.size < 2) return "противников не осталось";
+  const keys = [`${combat.id}:${combat.round}`, `${combat.id}:${combat.round + 1}`];
+  const inAir = (game.messages?.contents ?? []).slice(-300).some(m => { const k = m.getFlag?.(SYSTEM_ID, "card"); return k?.delayed && keys.includes(k.combatKey) && !k.resolved && !k.dmgApplied; });
+  if (!autoRounds.get(combat.id)?.acted && !inAir) return "за раунд ничего не произошло";
+  if (game.paused) return "игра на паузе";
+  return "";
 }
 
 /** Есть ли в чате неразобранная карточка сваливания этой машины (кнопку «Выровняться» или «Потерять высоту» ещё не нажали). */
