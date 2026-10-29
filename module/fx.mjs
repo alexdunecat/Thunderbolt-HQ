@@ -84,7 +84,16 @@ export function registerFx() {
     name: "Анимация ракет и попаданий", hint: "Схема боя на карте: ракеты с дымным следом, трассеры, лучи, ловушки, взрывы и сбитые машины. Только у себя.",
     scope: "client", config: true, type: Boolean, default: true, onChange: v => { if (!v) clearAll(); else syncAir(); }
   });
-  Hooks.on("createChatMessage", (m, options) => { if (!options?.tbUndo) onCard(m).catch(err => console.warn(`${SYSTEM_ID} | анимация`, err)); });
+  Hooks.on("createChatMessage", (m, options) => { if (!options?.tbUndo) onCard(m).catch(err => { console.warn(`${SYSTEM_ID} | анимация`, err); report(`ошибка: ${err?.message ?? err}`); }); });
+  // отчёты игроков ведущему: почему у них не нарисовалось (консоль игрока ведущему не видна)
+  Hooks.once("ready", () => game.socket?.on(CHANNEL, msg => {
+    if (msg?.type !== "fxReport" || !game.user.isGM || !game.users.activeGM?.isSelf) return;
+    const k = `${msg.user}|${msg.reason}`;
+    if (heard.has(k)) return;
+    heard.add(k);
+    console.warn(`${SYSTEM_ID} | анимация у игрока «${msg.user}»: ${msg.reason}`);
+    ui.notifications.warn(`Анимация у игрока «${msg.user}»: ${msg.reason}`);
+  }));
   for (const ev of ["updateChatMessage", "deleteChatMessage"]) Hooks.on(ev, () => syncSoon());
   Hooks.on("updateCombat", () => syncSoon());
   Hooks.on("deleteCombat", () => syncSoon());
@@ -97,6 +106,15 @@ export function registerFx() {
   });
 }
 
+const CHANNEL = `system.${SYSTEM_ID}`;
+const sent = new Set(), heard = new Set();
+/** Игрок: сказать ведущему (раз за сессию на причину), почему анимация не нарисовалась. */
+function report(reason) {
+  if (game.user?.isGM || sent.has(reason)) return;
+  sent.add(reason);
+  try { game.socket?.emit(CHANNEL, { type: "fxReport", user: game.user?.name ?? "?", reason }); } catch { /* без связи — только консоль */ }
+}
+
 async function onCard(message) {
   const card = message.getFlag?.(SYSTEM_ID, "card");
   if (!card) return;
@@ -106,10 +124,17 @@ async function onCard(message) {
     const me = tokenFor(card.actorUuid), t = first ? tokenFor(first) : null;
     if (me && t) { const { faceToken } = await import("./rotate.mjs"); faceToken(me, t).catch(() => null); }
   }
-  if (!on() || !canvas?.ready) return;
+  if (!on()) return report("анимация выключена у себя в настройках («Анимация ракет и попаданий»)");
+  if (!canvas?.ready) return report("карта не открыта");
   const { computeCard } = await import("./dice/rolls.mjs");
   const plan = planOf(card, computeCard);
   if (!plan.length) return;
+  // у игрока: цель не нашлась на открытой сцене или не видна — сказать ведущему, чтобы было видно, почему пусто
+  if (!game.user.isGM) {
+    const uuid = plan[0].to ?? plan[0].at ?? plan[0].rows?.[0]?.to ?? null, t = uuid ? tokenFor(uuid) : null;
+    if (uuid && !t) report(resolveActor(uuid) ? "цель не на открытой сцене (игрок смотрит другую сцену?)" : "не удалось найти машину по карточке");
+    else if (t && !seen(t)) report(`токен «${t.name}» не виден игроку (скрыт: ${!!t.document.hidden}, зрение токенов на сцене: ${!!canvas.visibility?.tokenVision})`);
+  }
   playPlan(plan, message, card.type === "volley");
 }
 
@@ -129,7 +154,7 @@ function tokenFor(uuid) {
   return t && !t.destroyed && t.document?.parent === canvas.scene ? t : null;
 }
 /** Игрок видит токен: не скрыт и в обзоре. */
-const seen = t => game.user.isGM || (!t.document.hidden && t.visible !== false);
+const seen = t => game.user.isGM || (!t.document.hidden && (t.visible !== false || !canvas.visibility?.tokenVision));
 const P = t => () => (!t || t.destroyed ? null : { x: t.center.x, y: t.center.y });
 /** Угол от точки a на точку b (b нет — 0). */
 const toward = (a, b) => (b ? Math.atan2(b.y - a.y, b.x - a.x) : 0);
@@ -324,7 +349,7 @@ function clearAll() {
    Поэтому кадр схемы целиком под try: при сбое схема гаснет, а карта живёт дальше. */
 function tick() {
   try { frame(); }
-  catch (err) { console.warn(`${SYSTEM_ID} | анимация остановлена`, err); clearAll(); }
+  catch (err) { console.warn(`${SYSTEM_ID} | анимация остановлена`, err); report(`анимация остановлена: ${err?.message ?? err}`); clearAll(); }
 }
 function frame() {
   clock += canvas.app.ticker.deltaMS;
