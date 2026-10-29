@@ -283,7 +283,7 @@ export function renderCard(card) {
   if (c.resolved) rows.push(`<div class="tb-note">${c.shipOpen && !c.dmgApplied ? "Долетела в конце раунда: урон по системе корабля — кнопкой." : c.atTurn ? "Учтена в начале хода цели." : "Учтена в залпе конца раунда."}</div>`);
   if (c.dmg && c.targetUuid && !queued && (!c.resolved || c.shipOpen) && (c.success || c.proxHit || c.dc === null || c.dc === undefined) && !c.dmgApplied)
     btn.push(`<button type="button" data-tb-action="damage" class="tb-target-owner"><i class="fas fa-burst"></i> ${c.delayed ? "В конце раунда: " : ""}${hitDmg(c)} урона по «${esc(c.targetName)}»</button>`);
-  if (c.dmgApplied) rows.push(`<div class="tb-note">${c.autoDmg ? `Попадание: ${c.dmg} урона по «${esc(c.targetName)}» нанесено сразу.` : "Урон нанесён."}</div>`);
+  if (c.dmgApplied) rows.push(`<div class="tb-note">${c.autoDmg ? `Попадание: ${hitDmg(c)} урона по «${esc(c.targetName)}» нанесено сразу.` : "Урон нанесён."}</div>`);
 
   return `<div class="tb-card tb-card-${c.type}">
     <header class="tb-card-head"><span class="tb-card-who">${esc(c.actorName)}</span><span class="tb-card-what">${esc(c.label)}</span></header>
@@ -439,7 +439,6 @@ export async function rollRecover(actor) {
   return postCard(actor, card, dice.rolls);
 }
 
-/** Сваливание: Push против 7. */
 /** Сваливается ли машина при Speed ≤ 0: летит, не висит (VTOL, вертолёт) и не стоит на палубе авианосца в этом бою. */
 export function stalls(actor) {
   const flying = actor.type === "pilot" || actor.system.kind === "air";
@@ -448,6 +447,7 @@ export function stalls(actor) {
   return actor.system.speed <= 0 && flying && !hover && !deck;
 }
 
+/** Сваливание: Push против 7. */
 export async function rollStall(actor) {
   // Push под Grit: выровняться нечем, проверка проваливается сама (как другие обязательные проверки)
   if (actor.system.skillBlocked?.push) return autoStall(actor, await postCard(actor, {
@@ -617,14 +617,13 @@ async function applyBreak(actor, card) {
 /** Спецоружие готово: не выведено из строя («Форсированный выстрел») и есть боезапас. */
 export const weaponReady = w => w.system.ready ?? (!w.getFlag?.(SYSTEM_ID, "off") && (w.system.ammo?.max === null || (w.system.ammo?.value ?? 0) > 0));
 
-/** Вид цели для оружия: воздушная или наземная/морская. */
 /** Вид цели для ракет: воздушная — самолёты и летающие боссы (Аркбёрд, SOLG, воздушные крейсеры и линкоры), иначе наземная или морская. */
 const targetKind = t => (isAirTarget(t) ? "air" : "ground");
 const has = v => v !== null && v !== undefined;
 
-/** Спецоружие подходит к виду цели: противовоздушное только по воздуху, ударное только по земле и морю. */
 /** Подвесное, которое стреляет как пушка: контейнеры (MGP, PLSL) и блок НУР (RCL, только по земле и морю, с боезапасом). */
 export const isGunPod = w => w.system.target === "gun" || w.system.key === "RCL";
+/** Спецоружие подходит к виду цели: противовоздушное только по воздуху, ударное только по земле и морю. */
 export const weaponFits = (w, kind) => !isGunPod(w) && w.system.target === kind;
 /** Спецоружие без захвата и без пуска ракетой: EMRG (линия) и ESM (РЭБ). */
 export const isOwnFire = w => ["line", "util"].includes(w?.system.target);
@@ -1455,7 +1454,6 @@ async function gunshipShot(actor, rows, dice) {
   return msg;
 }
 
-/** Guns, Guns, Guns!: d10 + Strafe − Speed против защиты, урон сразу. */
 /** Дальность пушки: бортовая — своя зона, контейнер — по своей дальности. */
 const gunReach = pod => pod?.system.reach ?? TB.range.guns;
 /** Пушки корабля: выбранная система или все целые системы с пушкой. */
@@ -1897,20 +1895,25 @@ export async function autoBreak(actor) {
 
 /** Карточка залпа: по строке на цель и одна кнопка урона для ведущего. */
 function renderVolley(c) {
-  const rk = n => `${n} ${n % 10 === 1 && n % 100 !== 11 ? "ракета" : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? "ракеты" : "ракет"}`;
+  // снаряды G-G танков, БМП и орудий считаются как ракеты, но называются снарядами
+  const rk = (n, shell = false) => { const w = shell ? ["снаряд", "снаряда", "снарядов"] : ["ракета", "ракеты", "ракет"];
+    return `${n} ${n % 10 === 1 && n % 100 !== 11 ? w[0] : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? w[1] : w[2]}`; };
   const rows = c.targets.map((r, i) => {
+    const shell = !!r.shooterUuids?.length && r.shooterUuids.every(u => r.fx?.[u]);
     if (r.cobra) return `<div class="tb-volley-row miss"><b>${esc(r.name)}</b>: ${rk(r.count)} (${esc(r.shooters)}) → <b class="fail">мимо: «${esc(TB.planeMoves.cobra.name)}»</b></div>`;
     if (r.ship) return `<div class="tb-volley-row"><b>${esc(r.name)}</b>: ${rk(r.count)}, лучшая ${r.best}. Корабль: сравните с Occlusion системы, урон кнопками на карточках пусков.</div>`;
     if (r.missing) return `<div class="tb-volley-row muted"><b>${esc(r.name)}</b>: цели нет на сцене.</div>`;
     if (r.splash) return `<div class="tb-volley-row hit"><b>${esc(r.name)}</b>: рядом с целью UGB (${esc(r.source)}) → <b class="ok">${r.dmg} урона</b></div>`;
     const boost = r.boosts ? ` +${r.boosts} от остальных` : "";
+    // книга, «Firing Multiple Missiles»: каждая следующая даёт +1 самой точной или свой урон, но не то и другое
+    const spent = r.hit && r.boosts ? ` · ${r.boosts === 1 ? "одна ушла" : `${r.boosts} ушли`} на +${r.boosts} к точности, ${r.boosts === 1 ? "её" : "их"} урон не считается` : "";
     const verdict = r.prox ? `<b class="ok">HPAA рвётся рядом, ${r.dmg} урона</b>`
-      : r.hit ? `<b class="ok">Попадание, ${r.dmg} урона</b>${r.added ? ` (сложен урон ${r.added + 1} ракет)` : ""}${r.doubled ? " (UGB на Perk: вдвое)" : ""}`
+      : r.hit ? `<b class="ok">Попадание, ${r.dmg} урона</b>${r.added ? ` (сложен урон ${rk(r.added + 1, shell)})` : ""}${r.doubled ? " (UGB на Perk: вдвое)" : ""}${spent}`
       : `<b class="fail">Промах</b>${r.again ? `, ${r.keen ? `«${esc(TB.aceTriggers.again.name)}»` : "SAAM держит захват"}: повторный заход в конце раунда ${r.again}` : ""}`;
     const ace = r.aceHit ? ` · <b class="ok">«104:0» (${esc(r.ace.name)}): попадает, ${r.dmg} урона</b>`
       : r.ace && !r.hit ? ` <button type="button" data-tb-action="ace104" data-row="${i}" class="tb-uuid-owner" data-owner="${esc(r.ace.uuid)}" title="${esc(TB.planeMoves.ace104.text)}"><i class="fas fa-crosshairs"></i> 104:0 · ${esc(r.ace.name)}: попадает</button>` : "";
     const cobra = r.dodged ? ` Ещё ${rk(r.dodged)} мимо: «${esc(TB.planeMoves.cobra.name)}».` : "";
-    return `<div class="tb-volley-row ${r.hit ? "hit" : "miss"}"><b>${esc(r.name)}</b>: ${rk(r.count)} (${esc(r.shooters)}). Лучшая ${r.best}${boost} против ${r.occ ? "Occlusion" : "защиты"} ${r.defense}${r.broke ? " (с Break!)" : ""} → ${verdict}${ace}${cobra}</div>`;
+    return `<div class="tb-volley-row ${r.hit ? "hit" : "miss"}"><b>${esc(r.name)}</b>: ${rk(r.count, shell)} (${esc(r.shooters)}). Лучшая ${r.best}${boost} против ${r.occ ? "Occlusion" : "защиты"} ${r.defense}${r.broke ? " (с Break!)" : ""} → ${verdict}${ace}${cobra}</div>`;
   }).join("") + (c.lost ?? []).map(l => `<div class="tb-volley-row muted"><b>${esc(l.name)}</b>: ${l.ace ? "повторный заход" : "SAAM"} (${esc(l.shooter)}) ${l.ace ? "сорван" : "потеряна"}, ${esc(l.why)}.</div>`).join("");
   // «Вираж»: захват на промахнувшегося стрелка
   const turns = (c.turns ?? []).map(e => e.locked || e.chosen
@@ -2108,10 +2111,10 @@ export function volleyForecast(card) {
 function stackRow(c) {
   const f = c.stack;
   if (!f) return "";
-  const rk = f.n === 2 ? "2 ракеты" : f.n < 5 ? `${f.n} ракеты` : `${f.n} ракет`;
+  const rk = `${f.n} ${c.fx ? (f.n < 5 ? "снаряда" : "снарядов") : f.n < 5 ? "ракеты" : "ракет"}`;
   const verdict = f.prox ? `<b class="ok">HPAA рвётся рядом, ${f.dmg} урона</b>`
     : f.hit ? `<b class="ok">попадут, ${f.dmg} урона</b>` : `<b class="fail">пока мимо, не хватает ${f.short}</b>`;
-  return `<div class="tb-note tb-stack"><i class="fas fa-layer-group"></i> Залп по «${esc(c.targetName)}»: ${rk}. Лучшая ${f.best}${f.boost ? ` +${f.boost} от остальных` : ""} против ${f.def} → ${verdict}. Каждая ещё ракета по этой цели: +1.</div>`;
+  return `<div class="tb-note tb-stack"><i class="fas fa-layer-group"></i> Залп по «${esc(c.targetName)}»: ${rk}. Лучшая ${f.best}${f.boost ? ` +${f.boost} от остальных` : ""} против ${f.def} → ${verdict}. Каждый следующий выстрел по этой цели: +1 к самому точному или свой урон.</div>`;
 }
 
 /** Ведущий: после пуска или Strain пересчитать прогноз залпа на всех карточках ракет по той же цели. */
@@ -2183,7 +2186,7 @@ function saamLost(c, m) {
   if (sh.system.lockUuid !== c.targetUuid) return "захват переведён или снят";
   const d = zoneDistance(tokenOf(sh), tokenOf(resolveActor(c.targetUuid)));
   if (d !== null && d > TB.range.lockHold) return `цель ушла на ${d} зон`;
-  const broke = game.messages.contents.some(x => (x.timestamp ?? 0) > (m.timestamp ?? 0) && x.getFlag(SYSTEM_ID, "card")?.type === "break" && x.getFlag(SYSTEM_ID, "card")?.actorUuid === c.actorUuid);
+  const broke = game.messages.contents.slice(-300).some(x => (x.timestamp ?? 0) > (m.timestamp ?? 0) && x.getFlag(SYSTEM_ID, "card")?.type === "break" && x.getFlag(SYSTEM_ID, "card")?.actorUuid === c.actorUuid);
   return broke ? "стрелок сделал Break!" : "";
 }
 
@@ -2256,13 +2259,13 @@ export async function onCardAction(message, action, button) {
       return;
     }
     case "break-speed": {
-      if (!actor?.isOwner) return;
+      if (!actor?.isOwner || card.speedApplied) return;
       card.speedApplied = true;
       await save();
       return actor.update({ "system.speed": actor.system.speed - card.speedDrop }, { tbFree: true });
     }
     case "recover": {
-      if (!actor?.isOwner) return;
+      if (!actor?.isOwner || card.applied) return;
       const c = computeCard(card);
       card.applied = true;
       await save();
@@ -2340,12 +2343,12 @@ export async function onCardAction(message, action, button) {
       return actor.applyDamage(card.failDmg, { source: card.label });
     }
     case "stall-ok": {
-      if (!actor?.isOwner) return;
+      if (!actor?.isOwner || card.applied) return;
       card.applied = true; await save();
       return actor.update({ "system.speed": 1 }, { tbFree: true });
     }
     case "stall-fail": {
-      if (!actor?.isOwner) return;
+      if (!actor?.isOwner || card.applied) return;
       card.applied = true; await save();
       if (actor.system.alt === "low") return actor.markDoom("Сваливание на Низкой");
       const down = { strat: "high", high: "med", med: "low" }[actor.system.alt] ?? "low";

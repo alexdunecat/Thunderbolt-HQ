@@ -134,12 +134,12 @@ export function zoneDistance(a, b) {
     const p = cellsOf(a), q = cellsOf(b);
     if (!p || !q) return null;
     dh = Math.max(0, p.c0 - q.c1, q.c0 - p.c1, p.r0 - q.r1, q.r0 - p.r1);
+  } else if (canvas.grid.isHexagonal) {
+    dh = Math.round(canvas.grid.measurePath([a.center, b.center]).spaces);
   } else {
-    try { dh = Math.round(canvas.grid.measurePath([a.center, b.center]).spaces); }
-    catch {
-      const p = cellOf(a), q = cellOf(b);
-      dh = Math.max(Math.abs(p.col - q.col), Math.abs(p.row - q.row));
-    }
+    // квадратная сетка: восемь соседей, как у Move (actions.mjs), при любой настройке диагоналей Foundry
+    const p = cellOf(a), q = cellOf(b);
+    dh = Math.max(Math.abs(p.col - q.col), Math.abs(p.row - q.row));
   }
   const da = isAir(a.actor) && isAir(b.actor) ? Math.abs(ALT_ORDER.indexOf(altOf(a)) - ALT_ORDER.indexOf(altOf(b))) : 0;
   return Math.max(dh, da);

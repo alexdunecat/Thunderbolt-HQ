@@ -171,6 +171,8 @@ async function turnStart(combat) {
     if (rec?.round === combat.round) rec.acted ||= acted;
     else autoRounds.set(combat.id, { round: combat.round, acted });
     if (combat.combatant?.id !== c.id) return;
+    // выцелил игрока — автопилот снят: ход остаётся ведущему, автобой встаёт
+    if (!autopilotOn(a)) return;
     const live = acting(combat).some(x => !isAuto(x));
     const ids = new Set(acting(combat).map(x => x.id));
     const later = combat.turns.slice(combat.turn + 1).some(x => ids.has(x.id));

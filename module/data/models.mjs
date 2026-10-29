@@ -373,9 +373,9 @@ export class WeaponData extends foundry.abstract.TypeDataModel {
   get offline() { return !!this.parent?.getFlag?.(SYSTEM_ID, "off"); }
   /** Можно стрелять: не выведено из строя и есть боезапас. */
   get ready() { return !this.offline && (this.unlimited || (this.ammo.value ?? 0) > 0); }
-  /** Дальность в зонах: 0 своя, 1 соседние, 2 обычная ракета, 99 вся зона операции. */
   /** Черта спецоружия (Стрэйнджриал 8.2): { name, text } или null. */
   get trait() { return TB.weaponTraits[this.key] ?? null; }
+  /** Дальность в зонах: 0 своя, 1 соседние, 2 обычная ракета, 99 вся зона операции. */
   get reach() { return this.range ?? TB.weaponRange[this.key] ?? (this.target === "gun" ? TB.range.guns : TB.range.missile); }
 }
 

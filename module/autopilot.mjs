@@ -55,6 +55,8 @@ export const orderOf = actor => {
   return f?.on ? { ...BLANK, ...f, route: [...(f.route ?? [])] } : null;
 };
 export const autopilotOn = actor => actor?.type === "npc" && !!orderOf(actor);
+/** Машина игрока (пилот или то, чем владеет игрок): для автопилота — последняя цель, а выцелил её — автопилот снимается. */
+export const isPlayerUnit = actor => actor?.type === "pilot" || !!actor?.hasPlayerOwner;
 
 /** Задача сейчас: цель сбита или маршрут пройден — то, что в приказе «после». */
 export function taskNow(order, { targetGone = false } = {}) {
@@ -80,7 +82,7 @@ export function orderLine(order) {
  * v (что видно с её места): { flying, systems, incoming, broke, hurt, lock, nearest,
  *   style: missile | guns | mixed (по умолчанию missile); охрана: у кандидатов threat (бьёт или держит на захвате охраняемого, рядом с ним),
  *   goal { kind: "escort", far, icpt } — далеко ли от охраняемого и шаг на перехват угрозы, не отходя от него дальше соседней зоны,
- *   cands: [{ uuid, dist, canMissile, canGuns, gunReach, gunnable, gunship, lockRange, fire, needAlt, blocked, noLock, locksMe, onPath }] — по убыванию ценности,
+ *   cands: [{ uuid, player, dist, canMissile, canGuns, gunReach, gunnable, gunship, lockRange, fire, needAlt, blocked, noLock, locksMe, onPath }] — по убыванию ценности,
  *   goal: null | { kind: "target", uuid, dist, want, altStep } | { kind: "cell", reached }, next, away (клетки шага или null),
  *   rail: null | { uuids } (линия EMRG с врагами и без своих), carpet: null | { uuids } (наземка противника под бомбардировщиком) }.
  * failed — UUID целей, по которым это действие в этот ход уже не вышло.
@@ -104,9 +106,11 @@ export function chooseStep(order, v, failed = new Set()) {
     else if (manner === "push") pool = pool.filter(c => c.threat || c.dist === 0 || c.locksMe);
     pool = [...pool.filter(c => c.threat), ...pool.filter(c => !c.threat)];
   }
+  // машины игроков — самый низкий приоритет: пока на карте есть кого ещё бить, их не трогает (кроме цели, которую ведущий назначил сам)
+  if (v.cands.some(c => !c.player && !failed.has(c.uuid))) pool = pool.filter(c => !c.player || c.uuid === goalUuid);
   pool = [...pool.filter(c => c.uuid === goalUuid), ...pool.filter(c => c.uuid !== goalUuid)];
-  // по площади — только если там есть кого бить по характеру приказа
-  const worth = area => !!area?.uuids?.some(u => pool.some(c => c.uuid === u));
+  // по площади — только если там есть кого бить по характеру приказа, и не одних игроков
+  const worth = area => !!area?.uuids?.some(u => pool.some(c => c.uuid === u && !c.player));
   if (worth(v.rail)) return { act: "rail", why: "линия" };
   if (worth(v.carpet)) return { act: "carpet", why: "ковёр" };
   const style = v.style ?? "missile";
@@ -244,7 +248,8 @@ async function railFor(S, R, actor, token, goalUuid) {
   for (const [pick, ln] of Object.entries(SW.railLines(actor, token) ?? {})) {
     const foes = ln.units.filter(u => { const a = resolveActor(u.uuid); return a && !gone(a) && S.canFireAt(actor, a); });
     if (!foes.length || foes.length < ln.units.length) continue;
-    const score = foes.length + (foes.some(u => u.uuid === goalUuid) ? 2 : 0);
+    // линия без машин игроков лучше любой с ними
+    const score = foes.length + (foes.some(u => u.uuid === goalUuid) ? 2 : 0) - (foes.some(u => isPlayerUnit(resolveActor(u.uuid))) ? 100 : 0);
     if (!best || score > best.score) best = { id: w.id, pick, uuids: foes.map(u => u.uuid), score };
   }
   return best;
@@ -271,6 +276,8 @@ async function viewOf(actor, token, order, state) {
   // предпочтение целей: подходящие по виду первыми (порядок совета внутри сохраняется)
   const w = { kind: s.kind, grp: s.grp }, pref = preferOf(order, w), style = styleOf(order, w);
   if (pref !== "any") list.sort((a, b) => (b.kind === pref) - (a.kind === pref));
+  // машины игроков — последними (свободная охота идёт к ним, только если больше некого)
+  list.sort((a, b) => isPlayerUnit(a.actor) - isPlayerUnit(b.actor));
   const gunsVs = systems ? null : S.gunVs(actor, null), gunsOk = !systems && !sysOff(s, "gu") && ((s.kind === "ground" ? s.ground?.gun : s.gun) ?? 0) > 0;
   const taskNowV = taskNow(order, { targetGone: withTarget(order.task) && !tgtTok });
   // охрана: кто бьёт охраняемого (ракеты в воздухе по нему) или держит его на захвате, и кто рядом с ним
@@ -318,7 +325,7 @@ async function viewOf(actor, token, order, state) {
     // ЗРК и корабли — по описанию системы; G-G наземки по наземной цели — без захвата
     const noLock = systems ? !!sp && !sp.lock : s.kind === "ground" && x.kind === "ground";
     return {
-      uuid: x.actor.uuid, dist: x.dist, tok: x.token,
+      uuid: x.actor.uuid, player: isPlayerUnit(x.actor), dist: x.dist, tok: x.token,
       // корабль: ракетная система уже стреляла в этот ход, а пушка ещё нет — сначала пушка
       canMissile: systems ? !!sp && (!used.has(sp.i) || !gs || used.has(gs.i)) : !!x.canMissile, canGuns: systems ? !!gs : !!x.canGuns, sys: sp?.i ?? null,
       gunSys: gs?.i ?? null, gunReach: gs?.reach ?? TB.range.guns, gunship: gunshipAt.has(x.actor.uuid), gunFresh: !gs || !used.has(gs.i),
@@ -400,6 +407,15 @@ export async function runAutopilot(actor, token = null) {
     if (!step) break;
     const c = step.uuid ? v.cands.find(x => x.uuid === step.uuid) : null;
     const name = c?.tok?.name ?? "";
+    // выцелил машину игрока — автопилот снимается, дальше ход ведёт ведущий
+    const aimed = step.act === "rail" ? v.rail.uuids : step.act === "carpet" ? v.carpet.uuids : SHOTS.has(step.act) || step.act === "lock" ? [step.uuid] : [];
+    const pc = aimed.map(u => v.cands.find(x => x.uuid === u)).find(x => x?.player);
+    if (pc) {
+      await actor.setFlag(SYSTEM_ID, "autopilot", { ...actor.getFlag(SYSTEM_ID, "autopilot"), on: false });
+      log.push(`${ACT[step.act]} по игроку «${pc.tok?.name ?? ""}»: автопилот снят, этот ход и дальше — за ведущим`);
+      globalThis.ui?.notifications?.warn(`Автопилот: «${token.name}» выцелил игрока «${pc.tok?.name ?? ""}». Автопилот снят, ход за ведущим.`);
+      break;
+    }
     // самолёт не стоит на месте: перед выстрелом заходит на цель по своей зоне, от ракеты уходит в дальний угол
     if (JINK.has(step.act) && !v.systems && (v.flying || step.act === "guns")) await jink(token, c?.tok ?? null, state, step.act === "break");
     let res = null;

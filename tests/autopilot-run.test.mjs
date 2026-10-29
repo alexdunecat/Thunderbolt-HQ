@@ -63,6 +63,8 @@ const pilot = (name, col, row, o = {}) => {
   place(a, col, row, o.alt);
   return a;
 };
+// самолёт союзников под ведущим (не игрок): обычная цель автопилота
+const ally = (name, col, row, o = {}) => npc("f15c", name, col, row, { ...o, sys: { side: "ally", ...o.sys } });
 const AP = await import(R + "/module/autopilot.mjs");
 AP.pace.k = 0;
 const run = async (title, a) => {
@@ -85,10 +87,16 @@ await run("танк, прорыв к штабу", tank);
 const f15 = npc("f15c", "Орёл-1", 5, 5);
 f15.flags.autopilot = { on: true, task: "hunt", manner: "push", acts: 3, after: "hold", route: [], step: 0 };
 await run("истребитель, охота", f15);
-// ЗРК держит позицию: захват и пуск по пилоту в двух зонах
+// ЗРК держит позицию: рядом только пилот игрока — выцелил его, автопилот снят, ход за ведущим
 const sam = npc("s300", "С-300", 2, 4);
 sam.flags.autopilot = { on: true, task: "hold", manner: "careful", acts: 2, after: "hold", route: [], step: 0 };
 await run("ЗРК, держать позицию", sam);
+log.push(`  автопилот: ${AP.autopilotOn(sam) ? "включён" : "снят"}`);
+// охотник: пилот игрока ближе, самолёт союзников дальше — бьёт самолёт, игрок последний
+const hunter = npc("f15c", "Охотник", 2, 3);
+const wingman = ally("Ведомый союзников", 4, 3);
+hunter.flags.autopilot = { on: true, task: "hunt", manner: "careful", acts: 2, after: "hold", route: [], step: 0 };
+await run("охотник, игрок рядом", hunter);
 // колонна по маршруту
 const truck = npc("t80u", "Колонна", 0, 8, { sys: { side: "ally" } });
 truck.flags.autopilot = { on: true, task: "route", manner: "rush", acts: 2, after: "hold", route: ["1,8", "3,8"], step: 0 };
@@ -102,7 +110,7 @@ const weapon = (key, o = {}) => ({ id: "W" + key, type: "weapon", name: key, fla
   system: { key, target: "air", ammo: { value: 2, max: 2 }, reach: 1, dmg: "4", aa: 2, ...o }, async update(ch) { for (const [k, v] of Object.entries(ch)) setp(this, k, v); } });
 // ас с QAAM в собачьей свалке: захват уже есть, перед пуском — заход сбоку по своей зоне; второй пуск с другой стороны
 clear();
-const raven = pilot("Ворон", 4, 3);
+const raven = ally("Ворон", 4, 3);
 const ace = npc("f15c", "Ас", 3, 3, { sys: { tier: "ace" } });
 const kit = (...ws) => Object.assign(ws, { get: id => ws.find(w => w.id === id) });
 ace.items = kit(weapon("QAAM", { ammo: { value: 4, max: 4 } }));
@@ -115,7 +123,7 @@ log.push("  место " + at(ace) + ", QAAM осталось " + ace.items[0].s
 clear();
 const kirov = npc("kirov", "Киров", 6, 6);
 kirov.system.systems = kirov.system.systems.map(y => ({ ...y, value: y.value ?? y.hp }));
-const viper = pilot("Гадюка", 6, 6);
+const viper = ally("Гадюка", 6, 6);
 kirov.flags.autopilot = { on: true, task: "hold", manner: "careful", acts: 2, after: "hold", route: [], step: 0 };
 await run("крейсер, ракета и пушка", kirov);
 // бомбардировщик с ковровой бомбардировкой над колонной союзников
@@ -130,16 +138,16 @@ const tank2 = npc("t80u", "Танк союзников", 5, 8, { sys: { side: "a
 const spectre = npc("f15c", "AC-130", 4, 8, { alt: "low", sys: { props: [{ key: "gunship", name: "Бортовые орудия" }], aa: null, ag: null, stats: {} } });
 spectre.flags.autopilot = { on: true, task: "hunt", manner: "push", acts: 1, after: "hold", route: [], step: 0 };
 await run("AC-130, бортовые орудия", spectre);
-// EMRG: линия по двум пилотам, своих на ней нет
+// EMRG: линия по двум самолётам союзников, своих на ней нет
 clear();
-const a1 = pilot("Альфа", 5, 1), a2 = pilot("Браво", 7, 1);
+const a1 = ally("Альфа", 5, 1), a2 = ally("Браво", 7, 1);
 const rail = npc("f15c", "Рельсотрон", 2, 1, { sys: { tier: "ace" } });
 rail.items = kit(weapon("EMRG", { target: "line", dmg: "12", ammo: { value: 4, max: 4 } }));
 rail.flags.autopilot = { on: true, task: "hunt", manner: "careful", acts: 1, after: "hold", route: [], step: 0 };
 await run("EMRG по линии", rail);
 // наступление строем, действия по совету: звено идёт на восток, по пути бьёт, последним действием держит темп
 clear();
-const foe = pilot("Цель", 4, 5);
+const foe = ally("Цель", 4, 5);
 const lead = npc("f15c", "Звено-1", 1, 4), wing = npc("f15c", "Звено-2", 1, 6);
 const routes = AP.formationRoutes([[1, 4], [1, 6]], ["8,5"]);
 for (const [n, a] of [lead, wing].entries()) a.flags.autopilot = { on: true, task: "advance", manner: "push", acts: 0, after: "hold", route: routes[n], step: 0 };
@@ -149,14 +157,14 @@ await run("наступление, ведомый", wing);
 await run("наступление, ведущий, второй раунд", lead);
 // штурмовик по типу машины: цели на земле первыми, пушкарь — сближается и бьёт пушкой, а не ракетой по истребителю рядом
 clear();
-const jet = pilot("Истребитель", 3, 2), armor = npc("t80u", "Танк", 5, 2, { sys: { side: "ally" } });
+const jet = ally("Истребитель", 3, 2), armor = npc("t80u", "Танк", 5, 2, { sys: { side: "ally" } });
 const hog = npc("f15c", "Штурмовик", 4, 2, { alt: "low", sys: { grp: "attack" } });
 hog.flags.autopilot = { on: true, task: "hunt", manner: "careful", acts: 2, after: "hold", route: [], step: 0 };
 await run("штурмовик, по типу машины", hog);
 // охрана: эскорт держится у колонны, бьёт того, кто взял её на захват, а не ближнего
 clear();
 const convoy = npc("t80u", "Колонна", 5, 5);
-const raider = pilot("Налётчик", 7, 5), bystander = pilot("Мимо", 2, 4);
+const raider = ally("Налётчик", 7, 5), bystander = ally("Мимо", 2, 4);
 raider.system.lockUuid = convoy.uuid;
 const escort = npc("f15c", "Эскорт", 2, 5);
 escort.flags.autopilot = { on: true, task: "escort", manner: "push", acts: 3, after: "hold", route: [], step: 0, target: convoy.uuid, targetName: "Колонна" };
@@ -164,7 +172,7 @@ await run("эскорт колонны", escort);
 await run("эскорт колонны, второй раунд", escort);
 // спецоружие слабее стандартной ракеты (урон 3, мод −2): боезапас бережёт, пускает стандартную
 clear();
-const prey = pilot("Добыча", 4, 4);
+const prey = ally("Добыча", 4, 4);
 const saver = npc("f15c", "Бережливый", 3, 4);
 saver.items = kit(weapon("XLAA", { dmg: "3", aa: -2, reach: 3 }));
 saver.system.lockUuid = prey.uuid;

@@ -74,3 +74,7 @@ show("охрана напролом: только угроза", o("escort", "ru
 show("охрана: далеко — к охраняемому", o("escort", "push", { target: "W" }), base({ goal: { kind: "escort", far: true, icpt: null }, next: [2, 2], cands: [] }));
 show("охрана: перехват", o("escort", "push", { target: "W" }), esc({ goal: { kind: "escort", far: false, icpt: [3, 3] }, cands: [cand("T", 3, { threat: true })] }));
 console.log("строка охраны:", A.orderLine({ task: "escort", manner: "push", acts: 0, route: [], target: "W", targetName: "Колонна" }));
+// машины игроков — самый низкий приоритет
+show("игрок рядом, другой враг далеко — к врагу", o("hunt", "push"), base({ cands: [cand("P", 0, { player: true }), cand("M", 3)], goal: { kind: "target", uuid: "M", dist: 3, want: 1 }, next: [1, 0] }));
+show("остались одни игроки — бьёт игрока", o("hunt", "push"), base({ lock: "P", cands: [cand("P", 1, { player: true })] }));
+show("EMRG: на линии одни игроки — не стреляет", o("hunt", "careful"), base({ rail: { uuids: ["P"] }, cands: [cand("P", 3, { player: true }), cand("M", 3)], goal: { kind: "target", uuid: "M", dist: 3, want: 1 }, next: [1, 0] }));

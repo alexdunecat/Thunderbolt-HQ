@@ -32,7 +32,7 @@ Object.assign(globalThis, {
     static confirm() { return Promise.resolve(true); } },
   Application: class {}, FormApplication: class {}, Actor: class {}, Item: class {}, Combat: class {}, ActorSheet: class {}
 });
-globalThis.canvas = { ready: true, grid: { type: 1, size: 100, measurePath: ([a, b]) => ({ spaces: Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) / 100 }) }, scene: null, tokens: { placeables: [] } };
+globalThis.canvas = { ready: true, grid: { type: 1, size: 100, getOffset: p => ({ i: Math.floor(p.y / 100), j: Math.floor(p.x / 100) }), measurePath: ([a, b]) => ({ spaces: Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) / 100 }) }, scene: null, tokens: { placeables: [] } };
 
 const actors = {};
 globalThis.fromUuidSync = u => actors[u.replace("Actor.", "")] ?? null;
