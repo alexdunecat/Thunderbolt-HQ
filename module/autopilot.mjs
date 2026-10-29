@@ -13,7 +13,9 @@ import { esc, resolveActor } from "./utils.mjs";
 
 /* ---------- приказ ---------- */
 
-export const TASKS = { hunt: "Свободная охота", advance: "Наступление", attack: "Атаковать цель", route: "Маршрут", hold: "Держать позицию" };
+export const TASKS = { hunt: "Свободная охота", advance: "Наступление", attack: "Атаковать цель", escort: "Охранять", route: "Маршрут", hold: "Держать позицию" };
+/** Задачи с целью, выбранной на карте: атаковать её или охранять. */
+const withTarget = task => task === "attack" || task === "escort";
 /** Задачи с путём по зонам: маршрут (точно по клеткам) и наступление (общее направление, каждая машина держит своё место в строю). */
 export const isRoute = task => task === "route" || task === "advance";
 export const MANNERS = {
@@ -56,7 +58,7 @@ export const autopilotOn = actor => actor?.type === "npc" && !!orderOf(actor);
 
 /** Задача сейчас: цель сбита или маршрут пройден — то, что в приказе «после». */
 export function taskNow(order, { targetGone = false } = {}) {
-  if (order.task === "attack" && (targetGone || !order.target)) return order.after;
+  if (withTarget(order.task) && (targetGone || !order.target)) return order.after;
   if (isRoute(order.task) && order.step >= order.route.length) return order.after;
   return order.task;
 }
@@ -64,7 +66,7 @@ export function taskNow(order, { targetGone = false } = {}) {
 /** Строка приказа для сводки и подсказок. */
 export function orderLine(order) {
   if (!order) return "";
-  const t = order.task === "attack" ? `атаковать «${order.targetName || "цель"}»`
+  const t = withTarget(order.task) ? `${order.task === "escort" ? "охранять" : "атаковать"} «${order.targetName || "цель"}»`
     : isRoute(order.task) ? `${order.task === "advance" ? "наступление на" : "маршрут"} ${order.route.length ? order.route.map(cellLabel).join(" → ") : "не задан"}`
       : TASKS[order.task].toLowerCase();
   const style = STYLES[order.style]?.short, pref = PREFS[order.prefer] && !["auto", undefined].includes(order.prefer) ? `цели: ${PREFS[order.prefer].toLowerCase()}` : "";
@@ -76,7 +78,8 @@ export function orderLine(order) {
 /**
  * Следующее действие машины на автопилоте.
  * v (что видно с её места): { flying, systems, incoming, broke, hurt, lock, nearest,
- *   style: missile | guns | mixed (по умолчанию missile),
+ *   style: missile | guns | mixed (по умолчанию missile); охрана: у кандидатов threat (бьёт или держит на захвате охраняемого, рядом с ним),
+ *   goal { kind: "escort", far, icpt } — далеко ли от охраняемого и шаг на перехват угрозы, не отходя от него дальше соседней зоны,
  *   cands: [{ uuid, dist, canMissile, canGuns, gunReach, gunnable, gunship, lockRange, fire, needAlt, blocked, noLock, locksMe, onPath }] — по убыванию ценности,
  *   goal: null | { kind: "target", uuid, dist, want, altStep } | { kind: "cell", reached }, next, away (клетки шага или null),
  *   rail: null | { uuids } (линия EMRG с врагами и без своих), carpet: null | { uuids } (наземка противника под бомбардировщиком) }.
@@ -94,6 +97,12 @@ export function chooseStep(order, v, failed = new Set()) {
   if (task === "attack" || isRoute(task)) {
     if (manner === "rush") pool = pool.filter(c => c.uuid === goalUuid);
     else if (manner === "push") pool = pool.filter(c => c.uuid === goalUuid || c.dist === 0 || c.locksMe || c.onPath);
+  }
+  // охрана: сначала те, кто угрожает охраняемому; «Напролом» — только они, «Прорыв» — ещё кто рядом и кто держит на захвате
+  if (task === "escort") {
+    if (manner === "rush") pool = pool.filter(c => c.threat);
+    else if (manner === "push") pool = pool.filter(c => c.threat || c.dist === 0 || c.locksMe);
+    pool = [...pool.filter(c => c.threat), ...pool.filter(c => !c.threat)];
   }
   pool = [...pool.filter(c => c.uuid === goalUuid), ...pool.filter(c => c.uuid !== goalUuid)];
   // по площади — только если там есть кого бить по характеру приказа
@@ -116,6 +125,11 @@ export function chooseStep(order, v, failed = new Set()) {
     }
   }
   if (task === "hold" || !v.goal) return null;
+  if (v.goal.kind === "escort") {
+    if (v.goal.far && v.next) return { act: "move", cell: v.next, why: "к охраняемому" };
+    if (!v.goal.far && v.goal.icpt) return { act: "move", cell: v.goal.icpt, why: "на перехват" };
+    return null;
+  }
   if (v.goal.kind === "target") {
     if (v.goal.dist === null || v.goal.dist > v.goal.want) {
       if (v.next) return { act: "move", cell: v.next, why: "к цели" };
@@ -192,6 +206,17 @@ function incoming(actor) {
   }).length;
 }
 
+/** Кто пустил ракеты, что ещё летят в эту машину (UUID стрелков). */
+function shootersAt(uuid) {
+  const c = game.combat, out = new Set();
+  if (!c?.started) return out;
+  for (const m of (game.messages?.contents ?? []).slice(-300)) {
+    const card = m.getFlag?.(SYSTEM_ID, "card");
+    if (card?.delayed && card.targetUuid === uuid && String(card.combatKey).startsWith(`${c.id}:`) && !card.resolved && !card.dmgApplied) out.add(card.actorUuid);
+  }
+  return out;
+}
+
 /** Ракетная система корабля или босса против цели этого вида: { i, lock } или null. */
 function sysFor(actor, kind, used = new Set()) {
   const list = actor.system.systems ?? [];
@@ -247,10 +272,13 @@ async function viewOf(actor, token, order, state) {
   const w = { kind: s.kind, grp: s.grp }, pref = preferOf(order, w), style = styleOf(order, w);
   if (pref !== "any") list.sort((a, b) => (b.kind === pref) - (a.kind === pref));
   const gunsVs = systems ? null : S.gunVs(actor, null), gunsOk = !systems && !sysOff(s, "gu") && ((s.kind === "ground" ? s.ground?.gun : s.gun) ?? 0) > 0;
-  const taskNowV = taskNow(order, { targetGone: order.task === "attack" && !tgtTok });
+  const taskNowV = taskNow(order, { targetGone: withTarget(order.task) && !tgtTok });
+  // охрана: кто бьёт охраняемого (ракеты в воздухе по нему) или держит его на захвате, и кто рядом с ним
+  const ward = taskNowV === "escort" && tgtTok ? tgtTok : null;
+  const wardFoes = ward ? shootersAt(tgt.uuid) : new Set();
   // клетка следующего шага пути: нужна, чтобы «Прорыв» знал, кто мешает
   let goal = null, goalCell = null;
-  if (taskNowV === "attack" && tgtTok) {
+  if ((taskNowV === "attack" || taskNowV === "escort") && tgtTok) {
     const c = S.cellOf(tgtTok);
     goalCell = [c.col, c.row];
   } else if (isRoute(taskNowV)) {
@@ -297,6 +325,7 @@ async function viewOf(actor, token, order, state) {
       // спецоружие бьёт дальше стандартной ракеты: дальность того, что пойдёт в пуск
       lockRange, fire: !systems && R.autoWeapon(actor, x.kind, x.dist) ? Math.max(x.dist ?? 0, TB.range.missile) : TB.range.missile, needAlt, blocked,
       locksMe: !!lockedOn && (lockedOn === actor || lockedOn.uuid === actor.uuid),
+      threat: !!ward && ((!!lockedOn && (lockedOn === tgt || lockedOn.uuid === tgt.uuid)) || wardFoes.has(x.actor.uuid) || (S.zoneDistance(x.token, ward) ?? 99) <= 1),
       onPath: !!next && !!c && c.col === next[0] && c.row === next[1]
     };
   });
@@ -311,6 +340,14 @@ async function viewOf(actor, token, order, state) {
   } else if (taskNowV === "hunt" && list.length) {
     const x = cands[0];
     goal = { kind: "target", uuid: x.uuid, dist: x.dist, want: x.canMissile && !(style === "guns" && x.gunnable) ? Math.min(x.lockRange, TB.range.missile) : 0, altStep: 0 };
+  } else if (ward) {
+    // перехват: шаг к ближайшей угрозе вне досягаемости, если он не уводит дальше соседней с охраняемым зоны
+    const cheb = ([c1, r1], [c2, r2]) => Math.max(Math.abs(c1 - c2), Math.abs(r1 - r2));
+    const far = cheb(here, goalCell) > 1;
+    const th = cands.filter(c => c.threat && c.dist !== null && c.dist > Math.max(c.canMissile ? c.lockRange : 0, c.gunReach ?? 0)).sort((a, b) => a.dist - b.dist)[0];
+    const tc = th ? S.cellOf(th.tok) : null;
+    const icpt = tc && !far ? stepToward(here, [tc.col, tc.row], (c, r) => allowed(c, r) && cheb([c, r], goalCell) <= 1) : null;
+    goal = { kind: "escort", far, icpt };
   } else if (isRoute(taskNowV)) goal = { kind: "cell", reached: !goalCell || (goalCell[0] === here[0] && goalCell[1] === here[1]) };
   const foes = cands.map(c => { const k = S.cellOf(c.tok); return k ? [k.col, k.row] : null; }).filter(Boolean);
   const hp = s.hp ?? {};
@@ -480,7 +517,7 @@ export async function orderDialog(tokens) {
     <p class="tb-hint">${esc(names)}. Машины на автопилоте не заявляются и ходят сами в конце раунда.</p>
     <div class="form-group"><label>Автопилот</label><input type="checkbox" name="on" ${o.on || !orderOf(tokens[0].actor) ? "checked" : ""}></div>
     <div class="form-group"><label>Задача</label><select name="task">${opt(TASKS, o.task)}</select></div>
-    <div class="form-group tb-ap-target"><label>Цель</label><input type="hidden" name="target" value="${esc(o.target)}"><input type="hidden" name="targetName" value="${esc(o.targetName)}">
+    <div class="form-group tb-ap-target"><label class="tb-ap-tlabel">Цель</label><input type="hidden" name="target" value="${esc(o.target)}"><input type="hidden" name="targetName" value="${esc(o.targetName)}">
       <span class="tb-ap-tname">${esc(o.targetName || "не выбрана")}</span> <button type="button" data-ap-pick><i class="fas fa-crosshairs"></i> На карте</button></div>
     <div class="form-group tb-ap-route"><label class="tb-ap-rlabel">Маршрут</label><input type="hidden" name="route" value="${esc(o.route.join(";"))}">
       <span class="tb-ap-rname">${esc(o.route.length ? o.route.map(cellLabel).join(" → ") : "не задан")}</span> <button type="button" data-ap-route><i class="fas fa-route"></i> Проложить</button></div>
@@ -495,7 +532,8 @@ export async function orderDialog(tokens) {
     const f = root.querySelector("form");
     const show = () => {
       const task = f.task.value;
-      root.querySelector(".tb-ap-target").style.display = task === "attack" ? "" : "none";
+      root.querySelector(".tb-ap-target").style.display = withTarget(task) ? "" : "none";
+      root.querySelector(".tb-ap-tlabel").textContent = task === "escort" ? "Кого охранять" : "Цель";
       root.querySelector(".tb-ap-route").style.display = isRoute(task) ? "" : "none";
       root.querySelector(".tb-ap-advhint").style.display = task === "advance" ? "" : "none";
       root.querySelector(".tb-ap-rlabel").textContent = task === "advance" ? "Направление" : "Маршрут";
@@ -506,7 +544,9 @@ export async function orderDialog(tokens) {
     show();
     root.querySelector("[data-ap-pick]").addEventListener("click", async () => {
       const { pickTargetToken } = await import("./pick.mjs");
-      const t = await pickTargetToken(tokens[0].actor, { title: "Автопилот: цель", hint: "Щёлкните по токену цели задачи." });
+      const t = await pickTargetToken(tokens[0].actor, f.task.value === "escort"
+        ? { title: "Автопилот: кого охранять", hint: "Щёлкните по токену машины, которую охранять." }
+        : { title: "Автопилот: цель", hint: "Щёлкните по токену цели задачи." });
       if (!t) return;
       f.target.value = t.actor.uuid; f.targetName.value = t.name;
       root.querySelector(".tb-ap-tname").textContent = t.name;
@@ -520,9 +560,9 @@ export async function orderDialog(tokens) {
   };
   const data = await formDialog("Автопилот: приказ", content, { ok: "Отдать приказ", width: 460, render });
   if (!data) return;
-  if (data.task === "attack" && !data.target) ui.notifications.warn("Автопилот: цель задачи не выбрана, пока машины в свободной охоте.");
+  if (withTarget(data.task) && !data.target) ui.notifications.warn(data.task === "escort" ? "Автопилот: не выбрано, кого охранять, пока машины держат позицию." : "Автопилот: цель задачи не выбрана, пока машины в свободной охоте.");
   const order = {
-    on: !!data.on, task: data.task === "attack" && !data.target ? "hunt" : data.task, manner: data.manner, acts: Number(data.acts) || 0, after: data.after,
+    on: !!data.on, task: withTarget(data.task) && !data.target ? (data.task === "escort" ? "hold" : "hunt") : data.task, manner: data.manner, acts: Number(data.acts) || 0, after: data.after,
     target: data.target, targetName: data.targetName, route: data.route ? data.route.split(";").filter(Boolean) : [], step: 0,
     style: STYLES[data.style] ? data.style : "auto", prefer: PREFS[data.prefer] ? data.prefer : "auto"
   };

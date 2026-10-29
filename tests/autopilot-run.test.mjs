@@ -151,4 +151,13 @@ const jet = pilot("Истребитель", 3, 2), armor = npc("t80u", "Танк
 const hog = npc("f15c", "Штурмовик", 4, 2, { alt: "low", sys: { grp: "attack" } });
 hog.flags.autopilot = { on: true, task: "hunt", manner: "careful", acts: 2, after: "hold", route: [], step: 0 };
 await run("штурмовик, по типу машины", hog);
+// охрана: эскорт держится у колонны, бьёт того, кто взял её на захват, а не ближнего
+clear();
+const convoy = npc("t80u", "Колонна", 5, 5);
+const raider = pilot("Налётчик", 7, 5), bystander = pilot("Мимо", 2, 4);
+raider.system.lockUuid = convoy.uuid;
+const escort = npc("f15c", "Эскорт", 2, 5);
+escort.flags.autopilot = { on: true, task: "escort", manner: "push", acts: 3, after: "hold", route: [], step: 0, target: convoy.uuid, targetName: "Колонна" };
+await run("эскорт колонны", escort);
+await run("эскорт колонны, второй раунд", escort);
 console.log(log.join("\n"));

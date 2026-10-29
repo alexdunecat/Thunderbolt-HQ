@@ -67,3 +67,10 @@ show("пушкарь: сближается вместо ракеты", o("hunt",
 show("пушкарь: по кораблю ракетой", o("hunt", "push"), base({ style: "guns", lock: "S", cands: [cand("S", 1, { gunnable: false })] }));
 show("смешанный: вблизи пушка", o("hunt", "push"), base({ style: "mixed", lock: "M", cands: [cand("M", 0, { gunnable: true })] }));
 show("ракетчик: вблизи всё равно ракета", o("hunt", "push"), base({ style: "missile", lock: "M", cands: [cand("M", 0, { gunnable: true })] }));
+// охрана
+const esc = (extra = {}) => base({ goal: { kind: "escort", far: false, icpt: null }, ...extra });
+show("охрана: сначала угроза охраняемому", o("escort", "push", { target: "W" }), esc({ lock: "N", cands: [cand("N", 0, { canMissile: true }), cand("T", 1, { threat: true })] }));
+show("охрана напролом: только угроза", o("escort", "rush", { target: "W" }), esc({ cands: [cand("N", 0)] }));
+show("охрана: далеко — к охраняемому", o("escort", "push", { target: "W" }), base({ goal: { kind: "escort", far: true, icpt: null }, next: [2, 2], cands: [] }));
+show("охрана: перехват", o("escort", "push", { target: "W" }), esc({ goal: { kind: "escort", far: false, icpt: [3, 3] }, cands: [cand("T", 3, { threat: true })] }));
+console.log("строка охраны:", A.orderLine({ task: "escort", manner: "push", acts: 0, route: [], target: "W", targetName: "Колонна" }));
