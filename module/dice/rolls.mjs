@@ -440,12 +440,20 @@ export async function rollRecover(actor) {
 }
 
 /** Сваливание: Push против 7. */
+/** Сваливается ли машина при Speed ≤ 0: летит, не висит (VTOL, вертолёт) и не стоит на палубе авианосца в этом бою. */
+export function stalls(actor) {
+  const flying = actor.type === "pilot" || actor.system.kind === "air";
+  const hover = actor.system.planeProps?.has?.("vtol") || actor.system.props?.some?.(p => p.key === "vtol" || p.key === "hover");
+  const deck = actor.getFlag(SYSTEM_ID, "deck")?.combat === game.combat?.id && !!game.combat;
+  return actor.system.speed <= 0 && flying && !hover && !deck;
+}
+
 export async function rollStall(actor) {
   // Push под Grit: выровняться нечем, проверка проваливается сама (как другие обязательные проверки)
-  if (actor.system.skillBlocked?.push) return postCard(actor, {
+  if (actor.system.skillBlocked?.push) return autoStall(actor, await postCard(actor, {
     type: "stall", label: "Сваливание: Push против 7", rolled: false, parts: [["Push недоступен (Grit)", 0]], strain: 0, dc: 7, forceFail: true,
     strainable: false, alt: actor.system.alt, notes: ["Метка Grit на Push: выровняться нельзя, проверка провалена.", "Провал: минус уровень высоты и повтор на следующем ходу, на Низкой сразу Doom."]
-  }, []);
+  }, []));
   const dice = await rollDice(actor, false, { turnRoll: false });
   const w = weatherAt(actor);
   const parts = [...skillParts(actor, "push", "Форсаж"), ...weatherParts(w, "push"), ...await takeNext(actor)];
@@ -454,7 +462,20 @@ export async function rollStall(actor) {
     strainable: canStrain(actor), alt: actor.system.alt, ...thresholds(actor, "push", w.comp2),
     notes: ["Успех: Speed 1. Провал: минус уровень высоты и повтор на следующем ходу, на Низкой сразу Doom."]
   };
-  return postCard(actor, card, dice.rolls);
+  return autoStall(actor, await postCard(actor, card, dice.rolls));
+}
+
+/** Машина на автопилоте исход сваливания применяет сама: кнопку на карточке жать некому. */
+async function autoStall(actor, msg) {
+  if (!msg || actor.type !== "npc" || !actor.getFlag(SYSTEM_ID, "autopilot")?.on || !actor.isOwner) return msg;
+  const card = foundry.utils.deepClone(msg.getFlag(SYSTEM_ID, "card"));
+  const ok = computeCard(card).success;
+  card.applied = true;
+  await msg.update({ content: renderCard(card), [`flags.${SYSTEM_ID}.card`]: card });
+  if (ok) await actor.update({ "system.speed": 1 }, { tbFree: true });
+  else if (actor.system.alt === "low") await actor.markDoom("Сваливание на Низкой");
+  else await actor.setAltitude({ strat: "high", high: "med", med: "low" }[actor.system.alt] ?? "low", { tbFree: true });
+  return msg;
 }
 
 /* ---------- метка Doom: судьба пилота ---------- */
@@ -1686,12 +1707,17 @@ export async function autoLock(actor, tok) {
   return null;
 }
 
-/** Спецоружие ракетой для автопилота против цели этого вида на dist зон: самое сильное готовое (без EMRG, ESM и UGB) или null. */
-export function autoWeapon(actor, kind, dist = 0) {
+/**
+ * Спецоружие ракетой для автопилота против цели этого вида на dist зон: лучшее готовое (урон + мод, без EMRG, ESM и UGB) или null.
+ * Боезапас не тратится на то, что слабее стандартной ракеты (урон 5, по укреплённой цели половина), если она есть и достаёт.
+ */
+export function autoWeapon(actor, kind, dist = 0, { hard = false } = {}) {
   if (sysOff(actor.system, "sw")) return null;
-  const list = actor.items.filter(w => w.type === "weapon" && weaponFits(w, kind) && weaponReady(w) && !isOwnFire(w) && w.system.key !== "UGB"
-    && (w.system.reach ?? TB.range.missile) >= (dist ?? 0));
-  return list.sort((a, b) => (parseInt(b.system.dmg) || 0) - (parseInt(a.system.dmg) || 0))[0] ?? null;
+  const score = w => (parseInt(w.system.dmg) || 0) + ((kind === "air" ? w.system.aa : w.system.ag) || 0);
+  const best = actor.items.filter(w => w.type === "weapon" && weaponFits(w, kind) && weaponReady(w) && !isOwnFire(w) && w.system.key !== "UGB"
+    && (w.system.reach ?? TB.range.missile) >= (dist ?? 0)).sort((a, b) => score(b) - score(a))[0] ?? null;
+  if (!best || (dist ?? 0) > TB.range.missile || !stdMissile(actor, kind)) return best;
+  return score(best) >= (hard ? Math.floor(TB.missileDamage / 2) : TB.missileDamage) ? best : null;
 }
 
 /** Система корабля-цели для автопилота: та, что выбрал бы пульт, если по ней можно бить; иначе null. */
@@ -1714,7 +1740,7 @@ export async function autoFox(actor, tok, { sys = null } = {}) {
     return m ?? "пуск не прошёл";
   }
   if (s.lockUuid !== t.uuid) return "нет захвата";
-  const w = autoWeapon(actor, air ? "air" : "ground", zoneDistance(tokenOf(actor), tok)), ws = w?.system;
+  const w = autoWeapon(actor, air ? "air" : "ground", zoneDistance(tokenOf(actor), tok), { hard: hardened(t) }), ws = w?.system;
   if (!w && !stdMissile(actor, air ? "air" : "ground")) return "нет ракет";
   const { problems } = reachProblems(actor, t, ws?.reach ?? TB.range.missile, { strike: true });
   problems.push(...nemesisAttack(actor, t.actor).problems, ...triggerAttack(actor, t.actor).problems);

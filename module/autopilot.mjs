@@ -414,7 +414,7 @@ export async function runAutopilot(actor, token = null) {
       case "rail": res = await R.autoRail(actor, actor.items.get(v.rail.id), v.rail.pick); state.used.add("rail"); break;
       case "carpet": res = await R.autoCarpet(actor); state.used.add("carpet"); break;
       case "climb": case "dive": res = await climb(actor, token, step.act === "climb" ? 1 : -1); break;
-      case "move": res = await move(token, v.here, step.cell); if (!res) state.moved = true; break;
+      case "move": res = await move(token, v.here, step.cell); if (!res) { state.moved = true; await regainSpeed(actor); } break;
     }
     if (!res && SHOTS.has(step.act)) res = "не прошло";
     const card = typeof res === "object" ? res?.getFlag?.(SYSTEM_ID, "card") : null;
@@ -485,6 +485,10 @@ async function move(token, from, to) {
   const r = await doc.update({ x: doc.x + (to[0] - from[0]) * gs, y: doc.y + (to[1] - from[1]) * gs }, { tbAuto: true });
   return r ? null : "переход не прошёл";
 }
+/** После Break! Speed падает до сваливания; смена скорости при Move бесплатна — самолёт на автопилоте с переходом выходит на Speed 1. */
+async function regainSpeed(actor) {
+  if (actor.system.kind === "air" && (actor.system.speed ?? 0) < 1) await actor.update({ "system.speed": 1 }, { tbFree: true });
+}
 async function climb(actor, token, dir) {
   const S = await import("./scene.mjs");
   const cur = S.ALT_ORDER.indexOf(S.altOf(token, actor)), to = S.ALT_ORDER[cur + dir];
@@ -495,13 +499,23 @@ async function climb(actor, token, dir) {
   return null;
 }
 
+/** Сводка ведущему: одна карточка на раунд боя, машины дописываются в неё по очереди (вне боя — карточка на машину). */
 async function summary(actor, token, order, log) {
-  const gms = game.users.filter(u => u.isGM).map(u => u.id);
+  const c = game.combat, key = c?.started ? `${c.id}:${c.round}` : null, msg = key ? lastSummary(key) : null;
+  const rows = [...(msg?.getFlag(SYSTEM_ID, "apSummary").rows ?? []),
+    { name: token.name, order: orderLine(order), log: log.length ? log : ["Делать нечего: целей в досягаемости нет."] }];
+  const content = `<div class="tb-card tb-card-round"><header class="tb-card-head"><span class="tb-card-who">Автопилот</span><span class="tb-card-what">${key ? `Раунд ${c.round}` : esc(token.name)}</span></header>
+    ${rows.map(r => `<div class="tb-note"><b>${esc(r.name)}</b> · ${esc(r.order)}<br>${r.log.map(esc).join("<br>")}</div>`).join("")}</div>`;
+  if (msg) return msg.update({ content, [`flags.${SYSTEM_ID}.apSummary.rows`]: rows });
   await ChatMessage.create({
-    speaker: { alias: "Автопилот" }, whisper: gms,
-    content: `<div class="tb-card tb-card-round"><header class="tb-card-head"><span class="tb-card-who">${esc(token.name)}</span><span class="tb-card-what">Автопилот</span></header>
-      <div class="tb-note">Приказ: ${esc(orderLine(order))}<br>${log.length ? log.map(esc).join("<br>") : "Делать нечего: целей в досягаемости нет."}</div></div>`
+    speaker: { alias: "Автопилот" }, whisper: game.users.filter(u => u.isGM).map(u => u.id), content,
+    flags: { [SYSTEM_ID]: { apSummary: { key, rows } } }
   });
+}
+/** Карточка сводки этого раунда, если она последняя из сводок в недавнем чате. */
+function lastSummary(key) {
+  const m = game.messages.contents.slice(-60).reverse().find(x => x.getFlag(SYSTEM_ID, "apSummary"));
+  return m?.getFlag(SYSTEM_ID, "apSummary").key === key ? m : null;
 }
 
 /* ---------- окно приказа ---------- */

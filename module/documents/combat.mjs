@@ -7,7 +7,7 @@
    Ракеты по цели со сломанным MAWS (и HVAA) бьют в начале её хода.
    Всё, что меняет бой, делает клиент ведущего: так раунд закрывается правильно, даже если ход передал игрок. */
 import { SYSTEM_ID, hasProp } from "../config.mjs";
-import { formDialog, resolveVolley, renderCard } from "../dice/rolls.mjs";
+import { formDialog, resolveVolley, renderCard, stalls, rollStall } from "../dice/rolls.mjs";
 import { clearLosses, lossLine } from "../losses.mjs";
 import { resolveStrikes } from "../strikes.mjs";
 import { advanceScales } from "../scales.mjs";
@@ -154,13 +154,24 @@ async function turnStart(combat) {
     await c.setFlag(SYSTEM_ID, "autoDone", combat.round);
     let lines = [];
     const round0 = combat.round;
+    const isAuto = x => x.initiative >= AUTO && autopilotOn(x.actor);
+    // автобой: первый ход раунда ждёт, пока на карте доиграет залп прошлого
+    const now = acting(combat);
+    if (!now.some(x => !isAuto(x)) && !combat.turns.slice(0, combat.turn).some(x => now.includes(x))) {
+      await new Promise(r => setTimeout(r, 1500 * pace.k));
+      if (combat.combatant?.id !== c.id || combat.round !== round0) return;
+    }
+    // как у всех: ракеты по ней со сломанным MAWS (и HVAA) бьют в начале её хода, сваливание бросается и применяется сразу
+    await resolveVolley(combat, { target: a.uuid, atTurnOf: c.name });
+    if (stalls(a) && !pendingStall(a)) await rollStall(a);
+    if (isOut(c) || passive(a)) return combat.nextTurn();
     try { lines = await runAutopilot(a, c.token?.object ?? null); } catch (err) { console.error(`${SYSTEM_ID} | автопилот`, err); }
     const rec = autoRounds.get(combat.id);
     const acted = (lines ?? []).some(l => !/не вышло/.test(l));
     if (rec?.round === combat.round) rec.acted ||= acted;
     else autoRounds.set(combat.id, { round: combat.round, acted });
     if (combat.combatant?.id !== c.id) return;
-    const live = acting(combat).some(x => !(x.initiative >= AUTO && autopilotOn(x.actor)));
+    const live = acting(combat).some(x => !isAuto(x));
     const ids = new Set(acting(combat).map(x => x.id));
     const later = combat.turns.slice(combat.turn + 1).some(x => ids.has(x.id));
     if (live || later) return combat.nextTurn();
@@ -272,6 +283,7 @@ export async function delayTurn(combat, combatant) {
 /* ---------- хуки ---------- */
 
 export function registerCombat() {
+  Hooks.on("deleteCombat", combat => autoRounds.delete(combat.id));
   Hooks.on("preCreateCombatant", (c) => {
     // персонаж на земле в воздушном бою не участвует (кнопка «добавить все токены» его пропускает)
     if (c.actor?.type === "staff") return false;

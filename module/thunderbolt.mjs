@@ -425,13 +425,8 @@ async function onActorUpdate(actor, change, options, userId) {
   if (options?.tbUndo) return;
   const has = p => foundry.utils.hasProperty(change, p);
   // сваливание: Speed ≤ 0 у летящей машины (сразу при падении Speed и в начале каждого хода). Бросает тот, кого назвал конец раунда (владелец пилота), иначе кто менял
-  if ((has("system.speed") || options.tbStallTurn) && actor.system.speed <= 0 && (options.tbStallBy ?? userId) === game.user.id) {
-    const flying = actor.type === "pilot" || actor.system.kind === "air";
-    const hover = actor.system.planeProps?.has?.("vtol") || actor.system.props?.some?.(p => p.key === "vtol" || p.key === "hover");
-    // машина на палубе авианосца стоит, а не летит
-    const deck = actor.getFlag(SYSTEM_ID, "deck")?.combat === game.combat?.id && !!game.combat;
-    if (flying && !hover && !deck) R.rollStall(actor);
-  }
+  // машина на палубе авианосца стоит, а не летит (R.stalls)
+  if ((has("system.speed") || options.tbStallTurn) && (options.tbStallBy ?? userId) === game.user.id && R.stalls(actor)) R.rollStall(actor);
   if (userId !== game.user.id) return;
   if (has("system.alt")) {
     actor.syncElevation();

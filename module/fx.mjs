@@ -130,7 +130,9 @@ function tokenFor(uuid) {
 }
 /** Игрок видит токен: не скрыт и в обзоре. */
 const seen = t => game.user.isGM || (!t.document.hidden && t.visible !== false);
-const P = t => () => (t.destroyed ? null : { x: t.center.x, y: t.center.y });
+const P = t => () => (!t || t.destroyed ? null : { x: t.center.x, y: t.center.y });
+/** Угол от точки a на точку b (b нет — 0). */
+const toward = (a, b) => (b ? Math.atan2(b.y - a.y, b.x - a.x) : 0);
 const gs = () => canvas.grid?.size ?? 100;
 const lerp = (a, b, k) => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k });
 const dist = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
@@ -195,7 +197,7 @@ function run(step, message, i) {
   }
   if (k === "launch" && step.fx) {
     // снаряд в бою: вспышка у ствола, а сам он летит в залпе конца раунда; вне боя долетает сразу
-    if (step.wait) { if (from && seen(from)) muzzle(a, Math.atan2(P(to)().y - a.y, P(to)().x - a.x), 250 + i * 120, step.fx === "arty" ? 0.09 : 0.06); return; }
+    if (step.wait) { if (from && seen(from)) muzzle(a, toward(a, P(to)()), 250 + i * 120, step.fx === "arty" ? 0.09 : 0.06); return; }
     return shell(a, P(to), { hit: null, delay: 250 + i * 120, arc: step.fx === "arty" ? 0.18 : 0, size: 0.1 });
   }
   if (k === "launch") {
@@ -218,7 +220,7 @@ function impact(step) {
   const fx = step.fx ?? {}, shooters = step.from.filter(u => fx[u]), rockets = step.from.filter(u => !fx[u]);
   shooters.forEach((u, j) => {
     const o = origin(tokenFor(u), to), arc = fx[u] === "arty" ? 0.18 : 0;
-    if (tokenFor(u) && seen(tokenFor(u))) muzzle(o, Math.atan2(tp().y - o.y, tp().x - o.x), j * 160, arc ? 0.09 : 0.06);
+    if (tokenFor(u) && seen(tokenFor(u))) muzzle(o, toward(o, tp()), j * 160, arc ? 0.09 : 0.06);
     shell(o, tp, { hit: step.hit || step.ship ? true : false, delay: j * 160 + 60, arc, size: arc ? 0.12 : 0.09, flash: false });
   });
   if (!rockets.length) return;
@@ -250,7 +252,8 @@ function syncSoon() { clearTimeout(syncTimer); syncTimer = setTimeout(() => sync
 function syncAir() {
   if (!canvas?.ready) return;
   const want = new Map();
-  if (on()) for (const m of game.messages?.contents ?? []) {
+  // в воздухе только ракеты этого и следующего раунда: хватает хвоста чата
+  if (on()) for (const m of (game.messages?.contents ?? []).slice(-300)) {
     const c = m.getFlag?.(SYSTEM_ID, "card");
     if (!marked(c) || !game.combat || !String(c.combatKey).startsWith(`${game.combat.id}:`)) continue;
     const to = tokenFor(c.targetUuid), sh = tokenFor(c.actorUuid);

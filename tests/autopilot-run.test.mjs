@@ -18,7 +18,9 @@ Object.assign(globalThis, {
   game: { user: { id: "gm", isGM: true }, users: Object.assign([{ id: "gm", isGM: true, active: true }], { activeGM: { isSelf: true, id: "gm" } }), macros: [], folders: [], messages: { contents: messages }, combat,
     settings: { get: (ns, k) => ({ threats: [], squadrons: {}, squadSortie: {} })[k] ?? null, register() {} }, actors: [], socket: { emit() {} } },
   ui: { notifications: { warn: m => log.push("warn " + m), error: m => log.push("error " + m), info() {} } },
-  ChatMessage: { create: async d => { const c = d.flags?.["thunderbolt-shtab"]?.card; const m = { id: "m" + (++seq), ...d, getFlag: (s, k) => d.flags?.[s]?.[k], canUserModify: () => true, update: async () => {} };
+  ChatMessage: { create: async d => { const c = d.flags?.["thunderbolt-shtab"]?.card; const m = { id: "m" + (++seq), ...d, getFlag: (s, k) => d.flags?.[s]?.[k], canUserModify: () => true,
+    async update(u) { for (const [k, v] of Object.entries(u)) if (k === "content") this.content = v; else setp(this, k, v);
+      const rows = u["flags.thunderbolt-shtab.apSummary.rows"]; if (rows) log.push(`  сводка раунда +${rows.length}: ${rows.at(-1).name} · ${rows.at(-1).order}: ${rows.at(-1).log.join("; ")}`); return this; } };
     messages.push(m); log.push("  чат: " + (c ? `${c.label ?? c.type} → ${c.targetName ?? ""}${c.combatKey ? ` [${c.combatKey}]` : ""}${c.instant ? ` итог ${c.d10 + c.parts.reduce((s, p) => s + p[1], 0)} против ${c.dc}` : ""}` : d.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 140))); return m; },
     getSpeaker: () => ({}), getWhisperRecipients: () => [] },
   Roll: class { constructor(f) { this.f = f; } async evaluate() { this.total = this.f === "1d10" ? 7 : 3; return this; } },
@@ -160,4 +162,20 @@ const escort = npc("f15c", "Эскорт", 2, 5);
 escort.flags.autopilot = { on: true, task: "escort", manner: "push", acts: 3, after: "hold", route: [], step: 0, target: convoy.uuid, targetName: "Колонна" };
 await run("эскорт колонны", escort);
 await run("эскорт колонны, второй раунд", escort);
+// спецоружие слабее стандартной ракеты (урон 3, мод −2): боезапас бережёт, пускает стандартную
+clear();
+const prey = pilot("Добыча", 4, 4);
+const saver = npc("f15c", "Бережливый", 3, 4);
+saver.items = kit(weapon("XLAA", { dmg: "3", aa: -2, reach: 3 }));
+saver.system.lockUuid = prey.uuid;
+saver.flags.autopilot = { on: true, task: "hunt", manner: "careful", acts: 1, after: "hold", route: [], step: 0 };
+await run("слабое спецоружие", saver);
+log.push("  XLAA осталось " + saver.items[0].system.ammo.value);
+// сваливание после Break!: исход применяется сам, кнопку жать некому
+const Rr = await import(R + "/module/dice/rolls.mjs");
+saver.system.speed = -1;
+log.push("сваливание на автопилоте:");
+await Rr.rollStall(saver);
+const stall = messages.at(-1).getFlag("thunderbolt-shtab", "card");
+log.push(`  карточка разобрана: ${stall.applied}, Speed ${saver.system.speed}, высота ${saver.system.alt}`);
 console.log(log.join("\n"));
