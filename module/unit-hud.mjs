@@ -241,9 +241,10 @@ export function unitHtml(actor, folded = false) {
       </div>
       <div class="tb-hud-col tb-hud-ctl">
         <div class="tb-hud-btns">
-          ${d.canSam ? `<button type="button" data-hud-act="lock"><i class="fas fa-crosshairs"></i> Lock On</button>` : ""}
-          ${d.kind === "ground" && d.canSam ? `<button type="button" class="wpn" data-u-sam="" title="${g.ga ? `По воздуху G-A ${g.ga}` : ""}${g.ga && g.gg ? ", " : ""}${g.gg ? `по земле и морю G-G ${g.gg}` : ""}"><i class="fas fa-rocket"></i> Пуск</button>` : ""}
-          ${d.canGun ? `<button type="button" class="wpn" data-u-gun="" title="Gun ${g.gun}, Strafe ${g.strafe}"><i class="fas fa-burst"></i> Огонь</button>` : ""}
+          ${d.canSam && (d.kind !== "ground" || g.ga) ? `<button type="button" data-hud-act="lock"><i class="fas fa-crosshairs"></i> Lock On</button>` : ""}
+          ${d.kind === "ground" && d.canSam ? (g.ga ? `<button type="button" class="wpn" data-u-sam="" title="По воздуху G-A ${g.ga}, нужен Lock On${g.gg ? `; по земле и морю G-G ${g.gg}` : ""}"><i class="fas fa-rocket"></i> Пуск</button>`
+            : `<button type="button" class="wpn" data-u-sam="" title="Главное орудие: G-G ${g.gg} по земле и морю в своей и соседней зоне, без захвата; попадание считает залп в конце раунда"><i class="fas fa-bullseye"></i> Выстрел</button>`) : ""}
+          ${d.canGun ? `<button type="button" class="wpn" data-u-gun="" title="${d.kind === "ground" && g.gg && !g.ga ? "Пулемёт и огонь в упор" : "Огонь"}: Gun ${g.gun}, Strafe ${g.strafe}, только по своей зоне, урон сразу"><i class="fas fa-burst"></i> ${d.kind === "ground" && g.gg && !g.ga ? "В упор" : "Огонь"}</button>` : ""}
           ${d.indirect ? `<button type="button" class="wpn" data-u-strike="indirect" title="Отметить участок: удар в конце раунда"><i class="fas fa-explosion"></i> Навесной огонь</button>` : ""}
         </div>
         <div class="tb-hud-btns tb-hud-acts" title="Действия хода${d.acts?.rolled ? " · бросок уже был" : ""}"><small>ХОД</small>${actBoxes}${d.acts?.rolled ? `<i class="fas fa-dice-d10" title="Бросок за ход уже был"></i>` : ""}<button type="button" data-hud-act="end" class="end">Конец хода</button></div>

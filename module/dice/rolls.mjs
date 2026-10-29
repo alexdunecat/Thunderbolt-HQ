@@ -1646,7 +1646,8 @@ export async function fireSam(actor, sysIndex, { target = null, free = false, ta
   // Наземке захват нужен только для ЗРК (G-A): G-G танка, БМП и орудий — прямой выстрел без Lock On (Стрэйнджриал 9.3 говорит о захвате только у ЗРК)
   const needLock = !free && (s.kind === "ship" ? /Lock On/i.test(src?.note ?? "") : air);
   if (t) {
-    const { problems } = reachProblems(actor, t, hasRule(actor, "shortsam") ? 0 : TB.range.missile);
+    // дальность: с захватом — пока он держится (две зоны); прямой выстрел без захвата — своя и соседняя зона, как захват
+    const { problems } = reachProblems(actor, t, hasRule(actor, "shortsam") ? 0 : needLock || free ? TB.range.missile : TB.range.lockOn);
     if (needLock && s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
     const quiet = quietAA(actor);
     if (quiet && air) problems.unshift(quiet);

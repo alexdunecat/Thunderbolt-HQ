@@ -315,16 +315,17 @@ async function viewOf(actor, token, order, state) {
     }
     const c = S.cellOf(x.token);
     const lockedOn = x.actor.system?.lockUuid ? resolveActor(x.actor.system.lockUuid) : null;
+    // ЗРК и корабли — по описанию системы; G-G наземки по наземной цели — без захвата
+    const noLock = systems ? !!sp && !sp.lock : s.kind === "ground" && x.kind === "ground";
     return {
       uuid: x.actor.uuid, dist: x.dist, tok: x.token,
       // корабль: ракетная система уже стреляла в этот ход, а пушка ещё нет — сначала пушка
       canMissile: systems ? !!sp && (!used.has(sp.i) || !gs || used.has(gs.i)) : !!x.canMissile, canGuns: systems ? !!gs : !!x.canGuns, sys: sp?.i ?? null,
       gunSys: gs?.i ?? null, gunReach: gs?.reach ?? TB.range.guns, gunship: gunshipAt.has(x.actor.uuid), gunFresh: !gs || !used.has(gs.i),
       gunnable: gunsOk && x.info.kind !== "ship" && x.info.defense !== null && x.info.defense !== undefined && [x.kind, "any"].includes(gunsVs),
-      // ЗРК и корабли — по описанию системы; G-G наземки по наземной цели — без захвата
-      noLock: systems ? !!sp && !sp.lock : s.kind === "ground" && x.kind === "ground",
-      // спецоружие бьёт дальше стандартной ракеты: дальность того, что пойдёт в пуск
-      lockRange, fire: !systems && R.autoWeapon(actor, x.kind, x.dist) ? Math.max(x.dist ?? 0, TB.range.missile) : TB.range.missile, needAlt, blocked,
+      noLock,
+      // прямой выстрел без захвата — на дальность захвата; спецоружие бьёт дальше стандартной ракеты: дальность того, что пойдёт в пуск
+      lockRange, fire: noLock ? lockRange : !systems && R.autoWeapon(actor, x.kind, x.dist) ? Math.max(x.dist ?? 0, TB.range.missile) : TB.range.missile, needAlt, blocked,
       locksMe: !!lockedOn && (lockedOn === actor || lockedOn.uuid === actor.uuid),
       threat: !!ward && ((!!lockedOn && (lockedOn === tgt || lockedOn.uuid === tgt.uuid)) || wardFoes.has(x.actor.uuid) || (S.zoneDistance(x.token, ward) ?? 99) <= 1),
       onPath: !!next && !!c && c.col === next[0] && c.row === next[1]

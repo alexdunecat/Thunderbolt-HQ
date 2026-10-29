@@ -171,6 +171,14 @@ saver.system.lockUuid = prey.uuid;
 saver.flags.autopilot = { on: true, task: "hunt", manner: "careful", acts: 1, after: "hold", route: [], step: 0 };
 await run("слабое спецоружие", saver);
 log.push("  XLAA осталось " + saver.items[0].system.ammo.value);
+// танк держит позицию: G-G без захвата бьёт только свою и соседнюю зону — цель через одну не достать
+clear();
+const far = npc("t80u", "Дальний", 7, 7, { sys: { side: "ally" } });
+const holder = npc("t80u", "Заслон", 5, 7);
+holder.flags.autopilot = { on: true, task: "hold", manner: "careful", acts: 1, after: "hold", route: [], step: 0 };
+await run("танк, цель через зону", holder);
+far.getActiveTokens()[0].center = { x: 650, y: 750 };
+await run("танк, цель в соседней зоне", holder);
 // сваливание после Break!: исход применяется сам, кнопку жать некому
 const Rr = await import(R + "/module/dice/rolls.mjs");
 saver.system.speed = -1;

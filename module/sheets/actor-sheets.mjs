@@ -618,6 +618,8 @@ export class NpcSheet extends TBActorSheet {
     ctx.tierOptions = TB.tiers;
     ctx.systems = s.systems.map((y, i) => ({ ...y, i, dead: y.value <= 0 }));
     ctx.canSam = ctx.isGround && (s.ground.ga !== null || s.ground.gg !== null);
+    // танк, БМП, орудие: только G-G — прямой выстрел без захвата, Lock On! на листе не нужен
+    ctx.directGG = ctx.canSam && s.ground.ga === null;
     ctx.shipSam = s.kind === "ship" && s.systems.some(y => y.ga !== null && y.ga !== undefined);
     ctx.canGun = ctx.isAir || (ctx.isGround && s.ground.gun !== null);
     ctx.npcAttacks = { carpet: hasProp(this.actor, "carpet"), gunship: hasProp(this.actor, "gunship") };
