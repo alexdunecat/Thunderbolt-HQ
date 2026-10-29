@@ -221,6 +221,8 @@ export function registerNpcAdvice() {
     if (!game.user.isGM || !("turn" in change || "round" in change) || !combat.started || !on()) return;
     const c = combat.combatant, tok = c?.token?.object ?? (c?.tokenId ? canvas.tokens?.get(c.tokenId) : null);
     if (!tok || !advisable(c.actor) || c.actor.hasPlayerOwner) return;
+    // машина на автопилоте ходит сама: камера и выделение не прыгают за ней (автобой не сбивает вид)
+    if (c.actor.getFlag?.(SYSTEM_ID, "autopilot")?.on && (c.initiative ?? 0) >= 20) return;
     tok.control?.({ releaseOthers: true });
     canvas.animatePan?.({ x: tok.center.x, y: tok.center.y });
   });

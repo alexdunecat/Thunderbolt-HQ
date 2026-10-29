@@ -1615,11 +1615,15 @@ export async function fireSam(actor, sysIndex, { target = null, free = false, ta
   // по воздуху G-A (ЗРК), по земле и морю G-G; без цели — чем система стреляет
   const air = t ? isAirTarget(t) : !!src?.ga;
   const ga = air ? src?.ga : src?.gg;
-  const label = (s.kind === "ship" ? `Пуск: ${src?.name}` : air ? "Пуск ЗРК" : "Пуск G-G") + (tag ? ` · ${tag}` : "");
+  // как рисовать выстрел: танк и БМП — снаряд, артиллерия и главный калибр корабля — навесом, остальное — ракета
+  const fx = s.kind === "ship" ? (/калибр|артуст|оруди|cannon/i.test(src?.name ?? "") ? "arty" : "")
+    : s.kind === "ground" && !air && s.key !== "tel" ? (s.grp === "art" ? "arty" : s.grp === "ad" ? "" : "shell") : "";
+  const label = (s.kind === "ship" ? `Пуск: ${src?.name}` : air ? "Пуск ЗРК" : fx === "shell" ? "Выстрел G-G" : fx === "arty" ? "Навесной огонь G-G" : "Пуск G-G") + (tag ? ` · ${tag}` : "");
   if (!has(ga)) return ui.notifications.warn(air ? `${label}: по воздуху эта система не стреляет.` : `${label}: по земле и морю нечем, нет G-G${t ? `, а «${t.name}» на земле или на воде` : ""}.`);
   // ЗРК — та же ракета: нужен захват этой цели (Lock On! на листе), дальность ракеты.
   // Системам корабля захват нужен, только если так сказано в описании («Lock On и пуск — два действия»): нижним орудиям — нет
-  const needLock = !free && (s.kind !== "ship" || /Lock On/i.test(src?.note ?? ""));
+  // Наземке захват нужен только для ЗРК (G-A): G-G танка, БМП и орудий — прямой выстрел без Lock On (Стрэйнджриал 9.3 говорит о захвате только у ЗРК)
+  const needLock = !free && (s.kind === "ship" ? /Lock On/i.test(src?.note ?? "") : air);
   if (t) {
     const { problems } = reachProblems(actor, t, hasRule(actor, "shortsam") ? 0 : TB.range.missile);
     if (needLock && s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
@@ -1638,9 +1642,6 @@ export async function fireSam(actor, sysIndex, { target = null, free = false, ta
   // «Батарея»: урон +1 за каждое целое орудие сверх первого (счётчик на панели цели)
   const guns = hasRule(actor, "battery") ? Math.max(1, actor.getFlag(SYSTEM_ID, "unit")?.guns ?? 3) : 1;
   const key = forceKey || combatKey(), tBroken = sysOff(t?.actor.system, "ma");
-  // как рисовать выстрел: танк и БМП — снаряд, артиллерия и главный калибр корабля — навесом, остальное — ракета
-  const fx = s.kind === "ship" ? (/калибр|артуст|оруди|cannon/i.test(src?.name ?? "") ? "arty" : "")
-    : s.kind === "ground" && !air && s.key !== "tel" ? (s.grp === "art" ? "arty" : s.grp === "ad" ? "" : "shell") : "";
   const card = {
     type: "attack", attack: true, label, rolled: false, parts, strain: 0, ...(fx ? { fx } : {}),
     // по кораблю и летающему супероружию — против Occlusion системы, а не защиты (у кораблей её нет)

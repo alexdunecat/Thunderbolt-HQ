@@ -321,7 +321,8 @@ async function viewOf(actor, token, order, state) {
       canMissile: systems ? !!sp && (!used.has(sp.i) || !gs || used.has(gs.i)) : !!x.canMissile, canGuns: systems ? !!gs : !!x.canGuns, sys: sp?.i ?? null,
       gunSys: gs?.i ?? null, gunReach: gs?.reach ?? TB.range.guns, gunship: gunshipAt.has(x.actor.uuid), gunFresh: !gs || !used.has(gs.i),
       gunnable: gunsOk && x.info.kind !== "ship" && x.info.defense !== null && x.info.defense !== undefined && [x.kind, "any"].includes(gunsVs),
-      noLock: systems ? !!sp && !sp.lock : false,
+      // ЗРК и корабли — по описанию системы; G-G наземки по наземной цели — без захвата
+      noLock: systems ? !!sp && !sp.lock : s.kind === "ground" && x.kind === "ground",
       // спецоружие бьёт дальше стандартной ракеты: дальность того, что пойдёт в пуск
       lockRange, fire: !systems && R.autoWeapon(actor, x.kind, x.dist) ? Math.max(x.dist ?? 0, TB.range.missile) : TB.range.missile, needAlt, blocked,
       locksMe: !!lockedOn && (lockedOn === actor || lockedOn.uuid === actor.uuid),
