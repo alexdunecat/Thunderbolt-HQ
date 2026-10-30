@@ -204,7 +204,8 @@ function tokenDoc(actor) {
 
 /**
  * Имя в эфире: «Позывной в эфире» с листа NPC, позывной пилота, имя, которое дали копии на листе токена
- * (у несвязанного токена оно расходится с именем токена), иначе имя токена. own: false — без поля «Позывной в эфире».
+ * (у несвязанного токена оно расходится с именем токена), иначе имя токена. own: false — без поля «Позывной в эфире»
+ * (позывной, выданный по нации, остаётся: его лист показывает подсказкой в этом поле).
  */
 export function nameOf(actor, { own = true } = {}) {
   if (!actor) return "";
@@ -212,7 +213,7 @@ export function nameOf(actor, { own = true } = {}) {
   if (call) return call;
   if (actor.system?.callsign) return actor.system.callsign;
   // позывной звена, выданный по нации (окно «Позывные» или импорт миссии)
-  const given = own ? String(tokenDoc(actor)?.getFlag?.(SYSTEM_ID, "radioCall") ?? "") : "";
+  const given = String(tokenDoc(actor)?.getFlag?.(SYSTEM_ID, "radioCall") ?? "");
   if (given) return given;
   if (actor.isToken) {
     const base = actor.token?.baseActor ?? game.actors?.get?.(actor.token?.actorId);
