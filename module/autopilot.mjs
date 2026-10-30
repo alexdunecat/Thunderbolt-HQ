@@ -725,14 +725,16 @@ const WING_REPLY = {
 /** Спецоружие ведомым разрешено при любой возможности (SPW): у всех ведомых. */
 export const wingSpwOf = (leader, tokens) => { const l = wingmenOf(leader, tokens); return l.length > 0 && l.every(t => !!orderOf(t.actor).wingSpw); };
 
-/** Ведомые этого ведущего на сцене: токены на автопилоте с задачей «Ведомый» за ним. */
+/** Ведомые этого ведущего на сцене: токены (или документы токенов) на автопилоте с задачей «Ведомый» за ним. */
 export function wingmenOf(leader, tokens = canvas?.tokens?.placeables ?? []) {
   if (!leader) return [];
   return tokens.filter(t => {
     const o = orderOf(t.actor);
-    return o?.task === "wing" && o.target === leader.uuid && !gone(t.actor) && !t.document?.hidden;
+    return o?.task === "wing" && o.target === leader.uuid && !gone(t.actor) && !(t.document ?? t).hidden;
   });
 }
+/** Токены сцены боя (у ведущего открыта может быть другая сцена). */
+const combatDocs = () => [...((game.combat?.scene ?? canvas?.scene)?.tokens ?? [])];
 
 /** Текущий приказ ведомым: общий для всех или "" (по обстановке, или у ведомых разные). */
 export function wingOrderOf(leader, tokens) {
@@ -745,8 +747,9 @@ export function wingOrderOf(leader, tokens) {
 export async function giveWingOrder(leader, kind) {
   if (!leader?.isOwner) return;
   if (!(kind in WING_ORDERS) && kind !== "" && kind !== "spw") return;
-  if (!wingmenOf(leader).length) return ui.notifications.warn("Ведомых на автопилоте за вами нет: ведущий игры назначает их кнопкой с роботом, задача «Ведомый».");
-  const next = kind === "spw" ? (wingSpwOf(leader) ? "spw-off" : "spw") : wingOrderOf(leader) === kind ? "" : kind;
+  if (!wingmenOf(leader, combatDocs()).length) return ui.notifications.warn("Ведомых на автопилоте за вами нет: ведущий игры назначает их кнопкой с роботом, задача «Ведомый».");
+  const docs = combatDocs();
+  const next = kind === "spw" ? (wingSpwOf(leader, docs) ? "spw-off" : "spw") : wingOrderOf(leader, docs) === kind ? "" : kind;
   if (game.user.isGM) return applyWingOrder(leader.uuid, next);
   if (!game.users.activeGM) return ui.notifications.warn("Ведущего игры нет в сети: приказ ведомому передаёт он.");
   game.socket.emit(WING_CHANNEL, { type: "wingOrder", leader: leader.uuid, kind: next, user: game.user.id });
@@ -755,7 +758,7 @@ export async function giveWingOrder(leader, kind) {
 async function applyWingOrder(leaderUuid, kind, userId = game.user.id) {
   const leader = resolveActor(leaderUuid), user = game.users.get(userId);
   if (!leader || !(user?.isGM || leader.testUserPermission?.(user, "OWNER"))) return;
-  const list = wingmenOf(leader);
+  const list = wingmenOf(leader, combatDocs());
   if (!list.length) return;
   const spw = kind === "spw" || kind === "spw-off";
   for (const t of list) await t.actor.setFlag(SYSTEM_ID, "autopilot", { ...t.actor.getFlag(SYSTEM_ID, "autopilot"), ...(spw ? { wingSpw: kind === "spw" } : { wingOrder: kind }) });

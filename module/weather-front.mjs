@@ -43,9 +43,9 @@ export async function driftFronts(combat) {
   const scene = combat.scene ?? canvas?.scene;
   const drift = scene?.getFlag(SYSTEM_ID, "weatherDrift") ?? {};
   const due = driftDue(drift, combat.round).filter(id => TB.weather[id]);
-  // один раз за раунд: смена раунда туда-обратно не двигает дважды
-  const key = `${combat.id}:${combat.round}`;
-  if (!due.length || scene.getFlag(SYSTEM_ID, "weatherDriftAt") === key) return [];
+  // один раз за раунд и только вперёд: шаг раунда назад и снова вперёд не двигает фронт ещё раз
+  const was = scene.getFlag(SYSTEM_ID, "weatherDriftAt"), key = { combat: combat.id, round: combat.round };
+  if (!due.length || (was?.combat === combat.id && combat.round <= Number(was.round))) return [];
   const M = await import("./apps/mission-import.mjs");
   const { cols, rows } = M.sceneCells(scene);
   let cells = foundry.utils.deepClone(scene.getFlag(SYSTEM_ID, "weatherCells") ?? {});

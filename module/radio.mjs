@@ -20,7 +20,9 @@ export function registerRadio() {
   });
   Hooks.on("createChatMessage", (message, options) => { if (options?.tbUndo) return; try { fromMessage(message); } catch (err) { console.warn(`${SYSTEM_ID} | радио`, err); } });
   Hooks.on("updateScene", (scene, change) => weatherCall(scene, change));
-  Hooks.on("createToken", (doc, options, userId) => { if (!options?.tbUndo) reinforcements(doc, userId); });
+  // скрытый токен (подкрепление, что выйдет позже) объявляется, когда его показали
+  Hooks.on("createToken", (doc, options, userId) => { if (!options?.tbUndo && !doc.hidden) reinforcements(doc, userId); });
+  Hooks.on("updateToken", (doc, change, options, userId) => { if (!options?.tbUndo && change.hidden === false) reinforcements(doc, userId); });
 }
 
 /* ---------- откуда берутся реплики ---------- */
