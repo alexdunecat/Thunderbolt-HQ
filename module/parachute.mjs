@@ -9,7 +9,8 @@ import { esc, resolveActor } from "./utils.mjs";
 import { COL_LETTERS } from "./briefing.mjs";
 
 const KEY = "parachute";
-export const CHUTE_IMG = `${SYS_PATH}assets/status/parachute.svg`;
+/** Купол в стиле карты: контур цвета стороны пилота (игрок, союзник, враг, нейтрал). */
+export const chuteImg = side => `${SYS_PATH}assets/status/parachute-${["player", "ally", "enemy", "neutral"].includes(side) ? side : "enemy"}.svg`;
 /** Шанс катапультироваться NPC: из 10 на d10 (выпало не больше). */
 export const EJECT_CHANCE = { conscript: 5, duelist: 6, ace: 8 };
 /** Расстрел купола: Strafe против этого числа. */
@@ -56,9 +57,9 @@ const cellName = ([c, r]) => (COL_LETTERS[c] ?? "?") + (r + 1);
 /** Куполы сцены (плитки с отметкой). */
 export const chutesOf = scene => (scene?.tiles?.contents ?? [...(scene?.tiles ?? [])]).filter(t => t.getFlag?.(SYSTEM_ID, KEY));
 
-/** Купол в клетке: квадрат в 0.45 клетки в правом верхнем углу, следующие ниже и левее, чтобы не лечь друг на друга. */
+/** Купол в клетке: квадрат в 0.3 клетки в правом верхнем углу, следующие левее и ниже, чтобы не лечь друг на друга. */
 export function chutePlace(cell, gs, taken = 0) {
-  const s = Math.round(gs * 0.45), k = taken % 4;
+  const s = Math.round(gs * 0.3), k = taken % 4;
   return { x: cell[0] * gs + gs - s - (k % 2) * s, y: cell[1] * gs + Math.floor(k / 2) * s, width: s, height: s };
 }
 
@@ -102,7 +103,7 @@ export async function dropChute(actor, { combat = game.combat, doc = null } = {}
   const here = chutesOf(scene).filter(t => { const f = t.getFlag(SYSTEM_ID, KEY); return f.cell?.[0] === cell[0] && f.cell?.[1] === cell[1]; }).length;
   const name = doc?.name ?? actor.name;
   const flag = { combat: combat.id, round: combat.round, uuid: actor.uuid, name, side: sideOfActor(actor), pilot: actor.type === "pilot", cell };
-  const [tile] = await scene.createEmbeddedDocuments("Tile", [{ ...chutePlace(cell, gs, here), texture: { src: CHUTE_IMG }, elevation: 0, flags: { [SYSTEM_ID]: { [KEY]: flag } } }]);
+  const [tile] = await scene.createEmbeddedDocuments("Tile", [{ ...chutePlace(cell, gs, here), texture: { src: chuteImg(flag.side) }, elevation: 0, flags: { [SYSTEM_ID]: { [KEY]: flag } } }]);
   await announce(flag, tile, scene);
   return tile;
 }

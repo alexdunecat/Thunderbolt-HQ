@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="128" height="128">
+  <!-- купол катапультировавшегося пилота в стиле карты: контур цвета стороны, полупрозрачная заливка, тёмная обводка -->
+  <g fill="none" stroke="#07141a" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" opacity=".8">
+    <path d="M12 40C14 20 30 8 50 8S86 20 88 40C80 36 72 36 66 40C60 36 40 36 34 40C28 36 20 36 12 40Z"/><path d="M13 40L47 76M34 40L49 76M66 40L51 76M87 40L53 76"/><circle cx="50" cy="79" r="4"/><path d="M45 85h10l-1.5 9h-7z"/>
+  </g>
+  <path d="M12 40C14 20 30 8 50 8S86 20 88 40C80 36 72 36 66 40C60 36 40 36 34 40C28 36 20 36 12 40Z" fill="#ff6b4a" fill-opacity=".22" stroke="#ff6b4a" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M34 40C36 22 42 11 50 8C58 11 64 22 66 40" fill="none" stroke="#ff6b4a" stroke-width="2" stroke-opacity=".8"/>
+  <g stroke="#ff6b4a" stroke-width="1.6" stroke-opacity=".9" fill="none" stroke-linecap="round"><path d="M13 40L47 76M34 40L49 76M66 40L51 76M87 40L53 76"/></g>
+  <circle cx="50" cy="79" r="3.6" fill="#ff6b4a"/>
+  <path d="M45 85h10l-1.5 9h-7z" fill="#ff6b4a" fill-opacity=".45" stroke="#ff6b4a" stroke-width="2" stroke-linejoin="round"/>
+</svg>
