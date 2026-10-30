@@ -30,8 +30,10 @@ export const MANNERS = {
   careful: { name: "Осторожно", hint: "Уходит Break! от ракет, бьёт всё, что достаёт, раненым отходит от врага." }
 };
 export const AFTER = { hold: "Держать позицию", hunt: "Свободная охота" };
-/** Приказы ведомому от ведущего (кнопки в HUD пилота): атаковать его цель, прикрывать его, свободная охота. Пусто — по обстановке. */
-export const WING_ORDERS = { attack: "Атакуй мою цель", cover: "Прикрой меня", free: "Свободная охота" };
+/** Приказы ведомому от ведущего (крест команд в HUD пилота, как в Ace Combat): ATK — атаковать его цель, CVR — прикрывать его,
+    DSP — рассыпаться на свободную охоту. Пусто — по обстановке. SPW — отдельный переключатель: спецоружие в ход при любой возможности. */
+export const WING_ORDERS = { attack: "Атакуй мою цель", cover: "Прикрой меня", free: "Рассыпаться: свободная охота" };
+export const WING_SPW = "Спецоружие к бою";
 /** Стиль боя: чем бьёт и на какой дистанции держится. «По типу машины»: истребитель — ракетчик, штурмовик и вертолёт — пушкарь, остальные — смешанный. */
 export const STYLES = {
   auto: { name: "По типу машины", short: "" },
@@ -78,7 +80,7 @@ export function taskNow(order, { targetGone = false } = {}) {
 /** Строка приказа для сводки и подсказок. */
 export function orderLine(order) {
   if (!order) return "";
-  const t = withTarget(order.task) ? `${{ escort: "охранять", wing: "ведомый у" }[order.task] ?? "атаковать"} «${order.targetName || "цель"}»${order.task === "wing" && WING_ORDERS[order.wingOrder] ? ` (${WING_ORDERS[order.wingOrder].toLowerCase()})` : ""}`
+  const t = withTarget(order.task) ? `${{ escort: "охранять", wing: "ведомый у" }[order.task] ?? "атаковать"} «${order.targetName || "цель"}»${order.task === "wing" && (WING_ORDERS[order.wingOrder] || order.wingSpw) ? ` (${[WING_ORDERS[order.wingOrder], order.wingSpw ? WING_SPW : ""].filter(Boolean).join(", ").toLowerCase()})` : ""}`
     : isRoute(order.task) ? `${{ advance: "наступление на", patrol: "патруль" }[order.task] ?? "маршрут"} ${order.route.length ? order.route.map(cellLabel).join(" → ") : "не задан"}`
       : TASKS[order.task].toLowerCase();
   const style = STYLES[order.style]?.short, pref = PREFS[order.prefer] && !["auto", undefined].includes(order.prefer) ? `цели: ${PREFS[order.prefer].toLowerCase()}` : "";
@@ -374,7 +376,7 @@ async function viewOf(actor, token, order, state) {
       gunnable: gunsOk && x.info.kind !== "ship" && x.info.defense !== null && x.info.defense !== undefined && [x.kind, "any"].includes(gunsVs),
       noLock,
       // прямой выстрел без захвата — на дальность захвата; спецоружие бьёт дальше стандартной ракеты: дальность того, что пойдёт в пуск
-      lockRange, fire: noLock ? lockRange : !systems && R.autoWeapon(actor, x.kind, x.dist) ? Math.max(x.dist ?? 0, TB.range.missile) : TB.range.missile, needAlt, blocked,
+      lockRange, fire: noLock ? lockRange : !systems && R.autoWeapon(actor, x.kind, x.dist, { any: !!order.wingSpw && order.task === "wing" }) ? Math.max(x.dist ?? 0, TB.range.missile) : TB.range.missile, needAlt, blocked,
       locksMe: !!lockedOn && (lockedOn === actor || lockedOn.uuid === actor.uuid),
       threat: !!ward && ((!!lockedOn && (lockedOn === tgt || lockedOn.uuid === tgt.uuid)) || wardFoes.has(x.actor.uuid) || (S.zoneDistance(x.token, ward) ?? 99) <= 1),
       lead: leadTargets.has(x.actor.uuid),
@@ -715,9 +717,13 @@ const WING_CHANNEL = `system.${SYSTEM_ID}`;
 const WING_REPLY = {
   attack: { yes: "Понял, работаю по твоей цели.", none: "Понял. Захвати цель, и я на неё." },
   cover: { yes: "Понял, прикрываю. Твой хвост на мне." },
-  free: { yes: "Понял, ухожу на свободную охоту." },
-  "": { yes: "Понял, действую по обстановке." }
+  free: { yes: "Понял, расходимся, ухожу на свободную охоту." },
+  "": { yes: "Понял, действую по обстановке." },
+  spw: { yes: "Понял, спецоружие к бою!", none: "Понял, спецоружие берегу." }
 };
+
+/** Спецоружие ведомым разрешено при любой возможности (SPW): у всех ведомых. */
+export const wingSpwOf = (leader, tokens) => { const l = wingmenOf(leader, tokens); return l.length > 0 && l.every(t => !!orderOf(t.actor).wingSpw); };
 
 /** Ведомые этого ведущего на сцене: токены на автопилоте с задачей «Ведомый» за ним. */
 export function wingmenOf(leader, tokens = canvas?.tokens?.placeables ?? []) {
@@ -734,12 +740,13 @@ export function wingOrderOf(leader, tokens) {
   return os.length && os.every(o => o === os[0]) ? os[0] : "";
 }
 
-/** Ведущий отдаёт приказ своим ведомым. Повторный щелчок по тому же — снова по обстановке. Игрок — через ведущего игры. */
+/** Ведущий отдаёт приказ своим ведомым. Повторный щелчок по тому же — снова по обстановке; SPW включает и выключает спецоружие.
+    Игрок — через ведущего игры. */
 export async function giveWingOrder(leader, kind) {
   if (!leader?.isOwner) return;
-  if (!(kind in WING_ORDERS) && kind !== "") return;
+  if (!(kind in WING_ORDERS) && kind !== "" && kind !== "spw") return;
   if (!wingmenOf(leader).length) return ui.notifications.warn("Ведомых на автопилоте за вами нет: ведущий игры назначает их кнопкой с роботом, задача «Ведомый».");
-  const next = wingOrderOf(leader) === kind ? "" : kind;
+  const next = kind === "spw" ? (wingSpwOf(leader) ? "spw-off" : "spw") : wingOrderOf(leader) === kind ? "" : kind;
   if (game.user.isGM) return applyWingOrder(leader.uuid, next);
   if (!game.users.activeGM) return ui.notifications.warn("Ведущего игры нет в сети: приказ ведомому передаёт он.");
   game.socket.emit(WING_CHANNEL, { type: "wingOrder", leader: leader.uuid, kind: next, user: game.user.id });
@@ -750,9 +757,10 @@ async function applyWingOrder(leaderUuid, kind, userId = game.user.id) {
   if (!leader || !(user?.isGM || leader.testUserPermission?.(user, "OWNER"))) return;
   const list = wingmenOf(leader);
   if (!list.length) return;
-  for (const t of list) await t.actor.setFlag(SYSTEM_ID, "autopilot", { ...t.actor.getFlag(SYSTEM_ID, "autopilot"), wingOrder: kind });
-  const r = WING_REPLY[kind] ?? WING_REPLY[""];
-  const text = kind === "attack" && !targetsOf(leader).size ? r.none : r.yes;
+  const spw = kind === "spw" || kind === "spw-off";
+  for (const t of list) await t.actor.setFlag(SYSTEM_ID, "autopilot", { ...t.actor.getFlag(SYSTEM_ID, "autopilot"), ...(spw ? { wingSpw: kind === "spw" } : { wingOrder: kind }) });
+  const r = spw ? WING_REPLY.spw : WING_REPLY[kind] ?? WING_REPLY[""];
+  const text = (kind === "attack" && !targetsOf(leader).size) || kind === "spw-off" ? r.none : r.yes;
   const { sendRadio } = await import("./radio.mjs");
   const who = list.map(t => t.name).join(", "), lead = leader.system?.callsign || leader.token?.name || leader.name;
   await sendRadio({ speaker: who, text: `${lead}, ${text.charAt(0).toLowerCase()}${text.slice(1)}`, side: leader.type === "pilot" ? "ally" : leader.system?.side ?? "ally" });

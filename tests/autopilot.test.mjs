@@ -96,3 +96,4 @@ console.log("строки:", A.orderLine({ task: "patrol", manner: "careful", ac
     wt("Чужой", { on: true, task: "wing", target: "Actor.X" }), wt("Выключен", { on: false, task: "wing", target: "Actor.L" }), wt("Сбит", { on: true, task: "wing", target: "Actor.L" }, { system: { markers: { doom: true } } })];
   console.log("ведомые ведущего:", A.wingmenOf(lead, ts).map(t => t.name).join(", "), "| общий приказ:", A.wingOrderOf(lead, ts), "| разные:", JSON.stringify(A.wingOrderOf(lead, [ts[0], wt("Ведомый-3", { on: true, task: "wing", target: "Actor.L" })])));
 }
+console.log("строка ведомого с SPW:", A.orderLine({ task: "wing", manner: "push", acts: 0, route: [], targetName: "Гроза", wingOrder: "cover", wingSpw: true }));

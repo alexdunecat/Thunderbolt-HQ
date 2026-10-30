@@ -59,3 +59,11 @@ const boss = mkActor("Линкор", "npc", { kind: "ship", grp: "boss", key: "a
 const tank = mkActor("Т-80", "npc", { kind: "ground", grp: "armor", hp: { value: 4, max: 4 } });
 const liner = mkActor("Лайнер", "npc", { kind: "air", grp: "civil", hp: { value: 4, max: 4 } });
 console.log("HUD истребителя:", [me, foe, boss, tank, liner].map(a => `${a.name} ${H.hudFits(a) ? "да" : "нет"}`).join(", "));
+// крест команд ведомым: появляется, когда за пилотом идут ведомые на автопилоте
+game.user.isGM = false; canvas.tokens.controlled = [];
+const wingFlag = { on: true, task: "wing", target: "Actor.Гроза", wingOrder: "attack", wingSpw: true };
+const wm = mkActor("Стрела-2", "npc", { kind: "air", hp: { value: 4, max: 4 }, markers: {} });
+wm.statuses = new Set(); wm.getFlag = (s, k) => (k === "autopilot" ? wingFlag : undefined);
+wm.tok = mkTok("T3", wm, 150, 1); canvas.tokens.placeables.push(wm.tok);
+console.log("ведомые:", JSON.stringify(H.hudData(me).wing), "· крест:", [...H.hudHtml(me).matchAll(/tb-wx-btn (\w+) (on)?[^>]*data-hud-wing="(\w+)"/g)].map(m => `${m[3]}${m[2] ? "*" : ""}@${m[1]}`).join(" "));
+if (process.env.HUD_HTML) (await import("node:fs")).writeFileSync(process.env.HUD_HTML.replace(".html", "4.html"), H.hudHtml(me));

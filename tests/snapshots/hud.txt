@@ -8,3 +8,4 @@ Doom: ["doom"] катапульта: true кнопка есть
 у ведущего с выделенным: Стрикс-2 · Воздушная цель 4 [{"key":"lock","text":"LOCK"},{"key":"lowalt","text":"LOW ALT"}]
 свёрнут: только шапка
 HUD истребителя: Гроза да, Стрикс-2 да, Линкор нет, Т-80 нет, Лайнер нет
+ведомые: {"names":["Стрела-2"],"order":"attack","spw":true} · крест: attack*@up free@left spw*@right cover@down

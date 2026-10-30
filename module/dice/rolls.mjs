@@ -1710,12 +1710,13 @@ export async function autoLock(actor, tok) {
  * Спецоружие ракетой для автопилота против цели этого вида на dist зон: лучшее готовое (урон + мод, без EMRG, ESM и UGB) или null.
  * Боезапас не тратится на то, что слабее стандартной ракеты (урон 5, по укреплённой цели половина), если она есть и достаёт.
  */
-export function autoWeapon(actor, kind, dist = 0, { hard = false } = {}) {
+export function autoWeapon(actor, kind, dist = 0, { hard = false, any = false } = {}) {
   if (sysOff(actor.system, "sw")) return null;
   const score = w => (parseInt(w.system.dmg) || 0) + ((kind === "air" ? w.system.aa : w.system.ag) || 0);
   const best = actor.items.filter(w => w.type === "weapon" && weaponFits(w, kind) && weaponReady(w) && !isOwnFire(w) && w.system.key !== "UGB"
     && (w.system.reach ?? TB.range.missile) >= (dist ?? 0)).sort((a, b) => score(b) - score(a))[0] ?? null;
-  if (!best || (dist ?? 0) > TB.range.missile || !stdMissile(actor, kind)) return best;
+  // any: ведомому скомандовали SPW — спецоружие в ход, даже если оно не сильнее стандартной ракеты
+  if (!best || any || (dist ?? 0) > TB.range.missile || !stdMissile(actor, kind)) return best;
   return score(best) >= (hard ? Math.floor(TB.missileDamage / 2) : TB.missileDamage) ? best : null;
 }
 
@@ -1739,7 +1740,8 @@ export async function autoFox(actor, tok, { sys = null } = {}) {
     return m ?? "пуск не прошёл";
   }
   if (s.lockUuid !== t.uuid) return "нет захвата";
-  const w = autoWeapon(actor, air ? "air" : "ground", zoneDistance(tokenOf(actor), tok), { hard: hardened(t) }), ws = w?.system;
+  const ap = actor.getFlag?.(SYSTEM_ID, "autopilot");
+  const w = autoWeapon(actor, air ? "air" : "ground", zoneDistance(tokenOf(actor), tok), { hard: hardened(t), any: ap?.task === "wing" && !!ap.wingSpw }), ws = w?.system;
   if (!w && !stdMissile(actor, air ? "air" : "ground")) return "нет ракет";
   const { problems } = reachProblems(actor, t, ws?.reach ?? TB.range.missile, { strike: true });
   problems.push(...nemesisAttack(actor, t.actor).problems, ...triggerAttack(actor, t.actor).problems);

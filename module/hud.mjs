@@ -18,7 +18,7 @@ import { adviceRow, runAdvice, showTarget } from "./npc-advice.mjs";
 import { hudPlane, planeRowHtml, useMove, useAoa, pickBooster, useDeck } from "./plane-roles.mjs";
 import { poolOf, squadRowHtml, useTactic } from "./duelists.mjs";
 import { aceRowHtml, aceClick } from "./ace-play.mjs";
-import { wingmenOf, wingOrderOf, giveWingOrder, WING_ORDERS } from "./autopilot.mjs";
+import { wingmenOf, wingOrderOf, wingSpwOf, giveWingOrder, WING_ORDERS, WING_SPW } from "./autopilot.mjs";
 import { hudNemesis, isNemesis, pilotsOf, monologue, startMonologue, endMonologue, appear, useTrigger, STATE_TEXT } from "./nemesis.mjs";
 
 const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, POS_KEY = `${SYSTEM_ID}.hudPos`;
@@ -157,14 +157,28 @@ function ctRow(d) {
 /** Строка Немезиды в HUD. */
 function hudWing(actor) {
   const list = wingmenOf(actor);
-  return list.length ? { names: list.map(t => t.name), order: wingOrderOf(actor) } : null;
+  return list.length ? { names: list.map(t => t.name), order: wingOrderOf(actor), spw: wingSpwOf(actor) } : null;
 }
 
-const WING_ICON = { attack: "fa-crosshairs", cover: "fa-shield-halved", free: "fa-paper-plane" };
-function wingRow(d) {
+/* Крест команд ведомым, как в Ace Combat: стрелки-пятиугольники смотрят в центр, подпись снаружи.
+   ATK сверху, CVR снизу, DSP слева, SPW справа. Горит то, что приказано. */
+const WING_CROSS = [
+  { k: "attack", tag: "ATK", pos: "up", pts: "6,2 34,2 34,20 20,34 6,20" },
+  { k: "free", tag: "DSP", pos: "left", pts: "2,6 20,6 34,20 20,34 2,34" },
+  { k: "spw", tag: "SPW", pos: "right", pts: "34,6 16,6 2,20 16,34 34,34" },
+  { k: "cover", tag: "CVR", pos: "down", pts: "6,38 34,38 34,20 20,6 6,20" }
+];
+function wingCross(d) {
   if (!d.wing) return "";
-  return `<div class="tb-hud-btns tb-hud-wing"><small title="Ведомые: ${esc(d.wing.names.join(", "))}">WING</small>
-    ${Object.entries(WING_ORDERS).map(([k, label]) => `<button type="button" class="tb-hud-wingbtn ${d.wing.order === k ? "on" : ""}" data-hud-wing="${k}" title="${esc(label)}${d.wing.order === k ? ": ещё раз — по обстановке" : ""}"><i class="fas ${WING_ICON[k]}"></i> ${esc(label)}</button>`).join("")}</div>`;
+  const on = k => (k === "spw" ? d.wing.spw : d.wing.order === k);
+  const title = k => k === "spw" ? `SPW · ${WING_SPW}${d.wing.spw ? ": ещё раз — только когда оно сильнее ракеты" : ""}`
+    : `${WING_CROSS.find(x => x.k === k).tag} · ${WING_ORDERS[k]}${on(k) ? ": ещё раз — по обстановке" : ""}`;
+  const btn = x => `<a class="tb-wx-btn ${x.pos} ${on(x.k) ? "on" : ""}" data-hud-wing="${x.k}" title="${esc(title(x.k))}">
+    <svg viewBox="0 0 36 40" aria-hidden="true"><polygon points="${x.pts}"/></svg><span>${x.tag}</span></a>`;
+  const now = d.wing.order ? WING_ORDERS[d.wing.order] : "по обстановке";
+  return `<div class="tb-hud-col tb-hud-wingx"><small title="Ведомые: ${esc(d.wing.names.join(", "))}">WING</small>
+    <div class="tb-wx">${WING_CROSS.map(btn).join("")}<i class="tb-wx-hub"></i></div>
+    <div class="tb-wx-now" title="Ведомые: ${esc(d.wing.names.join(", "))}">${esc(now)}${d.wing.spw ? " · SPW" : ""}</div></div>`;
 }
 
 function nemRow(d) {
@@ -266,7 +280,7 @@ function html(actor, d, folded) {
       <i class="fas fa-chevron-${folded ? "up" : "down"}"></i>
     </header>
     ${d.warn.filter(w => BIG.has(w.key)).map(w => `<div class="tb-hud-alert ${w.key}"><span>${w.key === "missile" ? "▲ " : ""}${w.text}${w.key === "missile" ? " ▲" : ""}</span><small>${BIG_HINT[w.key]}</small>${w.key === "doom" && d.canEject ? ejectButton : ""}</div>`).join("")}
-    ${folded ? "" : `<div class="tb-hud-grid">
+    ${folded ? "" : `<div class="tb-hud-grid${d.wing ? " wing" : ""}">
       <div class="tb-hud-col tb-hud-stat">
         <div class="tb-hud-row"><small>HP</small><span class="tb-hud-pips hp ${d.hp.value <= 1 ? "low" : ""}">${pips(d.hp.value, d.hp.max)}</span><span class="tb-hud-num">${d.hp.value}/${d.hp.max}</span></div>
         ${d.strain?.max ? `<div class="tb-hud-row"${d.strainPool ? ` title="Запас Strain эскадрильи"` : ""}><small>${d.strainPool ? "ЗАПАС" : "STRAIN"}</small><span class="tb-hud-pips strain">${pips(d.strain.value, d.strain.max)}</span><span class="tb-hud-num">${d.strain.value}/${d.strain.max}</span></div>` : ""}
@@ -294,10 +308,10 @@ function html(actor, d, folded) {
         ${actor.type === "npc" ? aceRowHtml(actor) : ""}
         ${actor.type === "npc" ? squadRowHtml(actor) : ""}
         ${ctRow(d)}
-        ${wingRow(d)}
         ${nemRow(d)}
         ${actor.type === "npc" ? adviceRow(actor) : ""}
       </div>
+      ${wingCross(d)}
     </div>`}`;
 }
 

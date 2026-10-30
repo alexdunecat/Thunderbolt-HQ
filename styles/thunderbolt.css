@@ -1341,8 +1341,25 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 #tb-pilot-hud .tb-hud-nemchip { padding: 0 5px; font-size: 10px; line-height: 20px; color: #ffb8a8; border: 1px solid #5a1b14; border-radius: 2px; background: #1a0604; }
 #tb-pilot-hud .tb-hud-btns button.tb-hud-nemtrig { flex: 0 0 auto; line-height: 20px; color: #ffd0c8; background: #3a0c07; border: 1px solid #ff4a3a; border-radius: 2px; box-shadow: none; }
 #tb-pilot-hud .tb-hud-btns button.tb-hud-nemtrig.on, #tb-pilot-hud .tb-hud-btns button.tb-hud-nemtrig:hover { background: #ff4a3a; color: #1a0604; }
-#tb-pilot-hud .tb-hud-btns button.tb-hud-wingbtn { flex: 0 0 auto; line-height: 20px; color: #cdefff; background: #08202c; border: 1px solid #7fd8ff; border-radius: 2px; box-shadow: none; }
-#tb-pilot-hud .tb-hud-btns button.tb-hud-wingbtn.on, #tb-pilot-hud .tb-hud-btns button.tb-hud-wingbtn:hover { background: #7fd8ff; color: #07141a; }
+/* крест команд ведомым (Ace Combat): сбоку от пульта, панель растёт вширь */
+#tb-pilot-hud .tb-hud-grid.wing { grid-template-columns: minmax(180px, 1fr) 118px minmax(176px, .8fr) 92px minmax(300px, 2.4fr) 148px; }
+@container (max-width: 960px) { #tb-pilot-hud .tb-hud-grid.wing { grid-template-columns: minmax(180px, 1fr) 112px minmax(156px, .8fr) 92px 148px; } #tb-pilot-hud .tb-hud-grid.wing .tb-hud-wingx { grid-row: 1; grid-column: 5; } }
+@container (max-width: 640px) { #tb-pilot-hud .tb-hud-grid.wing { grid-template-columns: minmax(170px, 1fr) 110px minmax(90px, .7fr) 80px; } #tb-pilot-hud .tb-hud-grid.wing .tb-hud-wingx { grid-row: auto; grid-column: 1 / -1; } }
+#tb-pilot-hud .tb-hud-wingx { display: flex; flex-direction: column; align-items: center; gap: 2px; align-self: stretch; justify-content: center; }
+#tb-pilot-hud .tb-hud-wingx > small { align-self: flex-start; color: var(--ck-plate); letter-spacing: .12em; font-size: 10px; }
+.tb-wx { display: grid; grid-template-columns: 56px 12px 56px; grid-template-rows: 42px 10px 42px; grid-template-areas: ". up ." "left hub right" ". down ."; align-items: center; justify-items: center; }
+.tb-wx-btn { display: flex; align-items: center; gap: 2px; cursor: pointer; font: 700 11px/1 "JetBrains Mono", monospace; letter-spacing: .06em; color: var(--ck-plate, #8f9c95); text-decoration: none; user-select: none; }
+.tb-wx-btn svg { width: 22px; height: 24px; overflow: visible; }
+.tb-wx-btn polygon { fill: rgba(9, 14, 13, .9); stroke: currentColor; stroke-width: 3; stroke-linejoin: round; }
+/* подпись снаружи креста, стрелка к центру */
+.tb-wx-btn.up { grid-area: up; flex-direction: column-reverse; align-self: end; } .tb-wx-btn.down { grid-area: down; flex-direction: column; align-self: start; }
+.tb-wx-btn.left { grid-area: left; flex-direction: row-reverse; justify-self: end; } .tb-wx-btn.right { grid-area: right; flex-direction: row; justify-self: start; }
+.tb-wx-btn.left svg, .tb-wx-btn.right svg { width: 24px; height: 22px; }
+.tb-wx-btn:hover { color: var(--ck-text, #d9e2dc); } .tb-wx-btn:hover polygon { fill: rgba(94, 240, 143, .18); }
+.tb-wx-btn.on { color: var(--ck-led, #5ef08f); text-shadow: 0 0 6px rgba(94, 240, 143, .6); }
+.tb-wx-btn.on polygon { fill: var(--ck-led, #5ef08f); stroke: var(--ck-led, #5ef08f); filter: drop-shadow(0 0 4px rgba(94, 240, 143, .7)); }
+.tb-wx-hub { grid-area: hub; width: 6px; height: 6px; border-radius: 50%; background: var(--ck-plate, #8f9c95); opacity: .5; }
+#tb-pilot-hud .tb-wx-now { font: 10px/1.2 "JetBrains Mono", monospace; color: var(--ck-led, #5ef08f); text-align: center; max-width: 140px; }
 /* панель монолога: у всех, кнопки ответа у пилотов Немезиды */
 #tb-monologue { position: fixed; top: 150px; left: 50%; transform: translateX(-50%); z-index: 72; display: flex; flex-direction: column; gap: 6px; min-width: 320px; max-width: min(92vw, 640px);
   padding: 8px 12px 10px; color: #f4fbf8; background: rgba(8, 4, 4, .86); border: 1px solid #ff4a3a; box-shadow: 0 0 14px rgba(255, 74, 58, .45); font-family: "Jura", "Exo 2", system-ui, sans-serif; }
