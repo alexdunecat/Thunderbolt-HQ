@@ -42,3 +42,20 @@ await D.stepThreat("ark", 3);
 store.threats.push({ id: "own", kind: "boss", value: 3, name: "Мост", size: 4, tick: false, note: "мост взорван", lines: { 50: "", 75: "", 90: "", full: "" } });
 await D.stepThreat("own", 1);
 console.log(log.join("\n"));
+
+// лимит времени: отметки по раундам до конца, реплики за 2 раунда и в последнем, остановка при выполненной задаче
+log.length = 0;
+const tmarks = size => DT.timerMarks.map(([k]) => `${k}→${D.bossMarkAt(k, size)}`).join(" ");
+for (const size of [2, 4, 6, 8]) console.log(`лимит ${size}: ${tmarks(size)}`);
+store.threats = [];
+const t1 = await D.setupTimer(5, "Конвой уходит за линию фронта.");
+console.log("лимит из планшета:", JSON.stringify({ name: t1.name, size: t1.size, tick: t1.tick, open: t1.open, timer: t1.timer, note: t1.note, full: t1.lines.full }));
+for (let r = 2; r <= 7; r++) { log.push(`— конец раунда ${r - 1}`); await endRound(r); }
+log.push(`лимит ${store.threats[0].value}/5`);
+await D.setupTimer(6);
+log.push(`перезапуск: шкал ${store.threats.length}, ${store.threats[0].value}/${store.threats[0].size}, «${store.threats[0].lines.full}»`);
+await endRound(2);
+await D.stopTimers();
+await endRound(3);
+log.push(`цели поражены раньше срока: ${store.threats[0].value}/6, тикает ${store.threats[0].tick}, остановлена ${store.threats[0].stopped}`);
+console.log(log.join("\n"));

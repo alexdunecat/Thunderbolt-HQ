@@ -68,3 +68,10 @@ showW("танк: G-G в бою", { type: "attack", attack: true, label: "Пус�
 showW("залп: снаряд и ракета", { type: "volley", targets: [{ uuid: "T", hit: true, count: 2, shooterUuids: ["TANK", "JET"], fx: { TANK: "shell" } }] });
 console.log("дым и огонь:", [["цел", {}], ["Grit", { grit: true }], ["Structure", { structure: true }], ["Doom", { structure: true, doom: true }]]
   .map(([n, m]) => `${n} ${Fx.burnOf({ type: "npc", system: { markers: m } }) ?? "—"}`).join(", "), "· штаб без меток:", Fx.burnOf({ type: "staff", system: {} }) ?? "—");
+// инверсионный след: только летящие на Высокой и в стратосфере; концы отнесены назад от носа
+const tok = (elevation, actor) => ({ document: { elevation }, actor });
+const jet = { type: "npc", system: { kind: "air", alt: "med" } }, tank = { type: "npc", system: { kind: "ground" } };
+console.log("след:", [["Низкая", tok(1, jet)], ["Средняя", tok(2, jet)], ["Высокая", tok(3, jet)], ["стратосфера", tok(4, jet)], ["пилот на Высокой", tok(3, { type: "pilot", system: {} })], ["танк", tok(3, tank)]]
+  .map(([n, t]) => `${n} ${Fx.trailOf(t) ? "да" : "нет"}`).join(", "));
+console.log("отрезок следа на восток:", JSON.stringify(Fx.trailSegment({ x: 0, y: 0 }, { x: 100, y: 0 }, 100)));
+console.log("на месте:", Fx.trailSegment({ x: 5, y: 5 }, { x: 6, y: 5 }, 100));

@@ -95,16 +95,21 @@ export async function stepThreat(id, delta) {
   return t;
 }
 
-/** Деление, на котором срабатывает отметка шкалы боя: 50 %, 75 %, 90 % (вниз до целого, не раньше первого) или заполнение. */
-export const bossMarkAt = (key, size) => key === "full" ? size : Math.max(1, Math.floor(size * Number(key) / 100));
+/** Отметки шкалы: у лимита времени свои (половина, 2 раунда до конца, последний раунд), у остальных 50 %, 75 %, 90 %. */
+export const marksOf = t => (t?.timer ? DT.timerMarks : DT.bossMarks);
+
+/** Деление, на котором срабатывает отметка шкалы боя: 50 %, 75 %, 90 % (вниз до целого, не раньше первого), за N раундов до конца или заполнение. */
+export const bossMarkAt = (key, size) => key === "full" ? size
+  : String(key).startsWith("left") ? Math.max(1, size - Number(String(key).slice(4)))
+  : Math.max(1, Math.floor(size * Number(key) / 100));
 
 /** Реплика AWACS на пройденной отметке: всем в чат и в субтитры; 75 % с CAUTION, 90 % и заполнение с WARNING. */
 async function bossLine(t, was) {
   // пройдено сразу несколько отметок: звучит старшая, у которой есть реплика
-  const keys = DT.bossMarks.map(([k]) => k).filter(k => { const at = bossMarkAt(k, t.size); return was < at && t.value >= at; }).reverse();
+  const keys = marksOf(t).map(([k]) => k).filter(k => { const at = bossMarkAt(k, t.size); return was < at && t.value >= at; }).reverse();
   const use = keys.find(k => (t.lines?.[k] ?? "").trim());
   if (!use) return null;
-  const caution = use === "50" ? null : { level: use === "75" ? "caution" : "warning", title: use === "75" ? "CAUTION" : "WARNING", sub: t.name };
+  const caution = use === "50" ? null : { level: ["75", "left2"].includes(use) ? "caution" : "warning", title: ["75", "left2"].includes(use) ? "CAUTION" : "WARNING", sub: t.name };
   // радио грузится лениво: его окна (Application) не нужны модулям, которые тянут даунтайм
   const { sendRadio } = await import("./radio.mjs");
   await sendRadio({ text: t.lines[use].trim(), caution });
@@ -115,8 +120,10 @@ async function bossLine(t, was) {
 export async function bossClockDialog(existing = null) {
   const T = DT.bossClocks;
   const cur = existing ?? { ...T.arkbird, lines: { ...T.arkbird.lines } };
-  const lines = DT.bossMarks.map(([k, label]) => `<div class="form-group stacked"><label>AWACS на ${label}</label>
-    <textarea name="line_${k}" rows="2">${esc(cur.lines?.[k] ?? "")}</textarea></div>`).join("");
+  // у лимита времени свои отметки: в окне обе группы, видна та, что подходит шаблону
+  const group = (kind, marks, label, on) => `<div data-marks="${kind}" ${on ? "" : "hidden"}>${marks.map(([k, l]) => `<div class="form-group stacked"><label>AWACS ${label(l)}</label>
+    <textarea name="${kind === "timer" ? "tline" : "line"}_${k}" rows="2">${esc(on ? cur.lines?.[k] ?? "" : "")}</textarea></div>`).join("")}</div>`;
+  const lines = group("boss", DT.bossMarks, l => `на ${l}`, !cur.timer) + group("timer", DT.timerMarks, l => l, !!cur.timer);
   const data = await formDialog(existing ? `Шкала боя: ${existing.name}` : "Новая шкала боя", `
     ${existing ? "" : `<div class="form-group"><label>Шаблон</label><select name="tpl">${Object.entries(T).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join("")}</select></div>`}
     <div class="form-group"><label>Название</label><input type="text" name="name" value="${esc(cur.name)}" placeholder="«Аркбёрд»: сброс"></div>
@@ -133,16 +140,41 @@ export async function bossClockDialog(existing = null) {
         const v = T[sel.value];
         const set = (n, val) => { const el = root.querySelector(`[name="${n}"]`); if (el.type === "checkbox") el.checked = !!val; else el.value = val ?? ""; };
         set("name", v.name); set("size", v.size); set("tick", v.tick); set("note", v.note); set("open", v.open); set("alarm", v.alarm);
-        for (const [k] of DT.bossMarks) set(`line_${k}`, v.lines[k]);
+        root.querySelector('[data-marks="boss"]').hidden = !!v.timer;
+        root.querySelector('[data-marks="timer"]').hidden = !v.timer;
+        for (const [k] of DT.bossMarks) set(`line_${k}`, v.timer ? "" : v.lines[k]);
+        for (const [k] of DT.timerMarks) set(`tline_${k}`, v.timer ? v.lines[k] : "");
       });
     } });
   if (!data?.name) return null;
   const patch = { kind: "boss", name: data.name, size: Math.max(2, Math.min(12, Number(data.size) || 6)), tick: !!data.tick, note: data.note ?? "",
     open: !!data.open, alarm: !!data.alarm,
-    lines: Object.fromEntries(DT.bossMarks.map(([k]) => [k, data[`line_${k}`] ?? ""])) };
+    timer: existing ? !!existing.timer : !!T[data.tpl]?.timer,
+    lines: {} };
+  patch.lines = patch.timer ? Object.fromEntries(DT.timerMarks.map(([k]) => [k, data[`tline_${k}`] ?? ""]))
+    : Object.fromEntries(DT.bossMarks.map(([k]) => [k, data[`line_${k}`] ?? ""]));
   if (existing) { await editThreat(existing.id, { ...patch, value: Math.min(existing.value, patch.size) }); return { ...existing, ...patch }; }
   const t = { id: randomID(), value: 0, created: Date.now(), ...patch };
   return changeThreats(list => ({ list: [...list, t], result: t }));
+}
+
+/** Лимит времени миссии из планшета: шкала на rounds раундов, видна игрокам, тикает в конце раунда; заводит новую или перезапускает. */
+export async function setupTimer(rounds, fail = "") {
+  const T = DT.bossClocks.timer, list = foundry.utils.deepClone(threats());
+  const size = Math.max(2, Math.min(12, Number(rounds) || T.size));
+  const old = list.find(t => t.kind === "boss" && t.timer);
+  const lines = { ...T.lines, ...(String(fail).trim() ? { full: `Время вышло. ${String(fail).trim()}` } : {}) };
+  const t = { kind: "boss", name: T.name, size, tick: true, open: true, timer: true, note: String(fail).trim() || T.note, lines, value: 0, created: Date.now() };
+  if (old) Object.assign(old, t);
+  else list.push({ id: randomID(), ...t });
+  await game.settings.set(SYSTEM_ID, "threats", list);
+  return old ?? list[list.length - 1];
+}
+
+/** Все цели поражены раньше срока: лимит времени останавливается (шкала остаётся на листах). */
+export async function stopTimers() {
+  if (!threats().some(t => t.kind === "boss" && t.timer && t.tick && t.value < t.size)) return;
+  return changeThreats(list => ({ list: list.map(t => t.kind === "boss" && t.timer && t.value < t.size ? { ...t, tick: false, stopped: true } : t) }));
 }
 
 export async function deleteThreat(id) {

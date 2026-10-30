@@ -15,7 +15,7 @@ import { openDossierExchange } from "../dossier-sync.mjs";
 import { specialSections, setSectionState } from "../tunnel.mjs";
 import { campaignDate, campaignDateRaw, setCampaignDate, todayDate } from "../campaign-date.mjs";
 import { lessonDone, lessonReset } from "../career-triggers.mjs";
-import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMarkAt, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
+import { threats, addThreat, stepThreat, deleteThreat, bossClockDialog, bossMarkAt, marksOf, baseEvent, clockPips, nervesHint, afterSortieUpdate, edgeLabel } from "../downtime.mjs";
 import { DT } from "../config.mjs";
 import { squadBudget, pointsText, operationsDone, setOperationsDone, allSquads, squadPoints, setSquadLayout, deleteSquad, squadFromSelection, numberSquad, budgetOf, isAirSquad, airSquadBudget, setSquadTactic } from "../squadrons.mjs";
 import { sortieOf, tacticsView, useTactic } from "../duelists.mjs";
@@ -26,6 +26,7 @@ import { markStrike, cancelStrike, strikesOfCombat, strikeWhere } from "../strik
 import { lineOf, lineHint, escapedOf, bringBack, forgetEscaped, setLineSettings, tallyOf, tallyLine } from "../return-line.mjs";
 import { RET_ENEMY, RET_ESCORT, RET_PILOTS, rearmText } from "../return-rules.mjs";
 import { openBrush, clearReturnLine } from "../cell-brush.mjs";
+const TIMER_SHORT = { 50: "половина", left2: "осталось 2", left1: "последний раунд" };
 import { setInactive } from "../inactive.mjs";
 
 let panel = null;
@@ -155,7 +156,7 @@ export class AwacsPanel extends Application {
       threats: allThreats.filter(t => t.kind !== "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size })),
       bossClocks: allThreats.filter(t => t.kind === "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size,
         pct: Math.round(100 * t.value / t.size),
-        marks: DT.bossMarks.filter(([k]) => k !== "full" && (t.lines?.[k] ?? "").trim()).map(([k, label]) => `${label} на ${bossMarkAt(k, t.size)}`).join(", ") })),
+        marks: marksOf(t).filter(([k]) => k !== "full" && (t.lines?.[k] ?? "").trim()).map(([k, label]) => `${t.timer ? TIMER_SHORT[k] ?? k : label} на ${bossMarkAt(k, t.size)}`).join(", ") })),
       ground: game.actors.filter(inCampaign).sort((a, b) => a.name.localeCompare(b.name, "ru")).map(a => {
         const s = a.system;
         return { id: a.id, name: a.name, nerves: s.nerves, nervesCls: s.nerves >= 5 ? "edge" : s.nerves >= 3 ? "high" : "", edgeFly: s.edgeFly,

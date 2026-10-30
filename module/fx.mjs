@@ -8,6 +8,7 @@
    Невидимое для игрока (скрытый токен, вне обзора) не рисуется: схема не выдаёт засаду. */
 import { SYSTEM_ID } from "./config.mjs";
 import { resolveActor } from "./utils.mjs";
+import { isFlying, altOf } from "./scene.mjs";
 
 /* ---------- план: что показать по карточке (чистая часть, тесты) ---------- */
 
@@ -86,6 +87,9 @@ export function burnOf(actor) {
   return m.doom ? "fire" : m.structure ? "smoke" : null;
 }
 
+/** Тянет ли машина инверсионный след: летит на Высокой или в стратосфере. */
+export const trailOf = (token, actor = token?.actor) => isFlying(actor) && ["high", "strat"].includes(altOf(token, actor));
+
 export function registerFx() {
   game.settings.register(SYSTEM_ID, "fxOn", {
     name: "Анимация ракет и попаданий", hint: "Схема боя на карте: ракеты с дымным следом, трассеры, лучи, ловушки, взрывы и сбитые машины. Только у себя.",
@@ -95,8 +99,15 @@ export function registerFx() {
     name: "Дым и огонь у повреждённых", hint: "Машина с меткой Structure тянет за собой дымный след, с меткой Doom горит. Только у себя, вместе с анимацией.",
     scope: "client", config: true, type: Boolean, default: true
   });
+  game.settings.register(SYSTEM_ID, "fxTrail", {
+    name: "Инверсионные следы", hint: "Машины на Высокой и в стратосфере оставляют за собой тающий белый след, пока летят. Только у себя, вместе с анимацией.",
+    scope: "client", config: true, type: Boolean, default: true, onChange: () => trailAt.clear()
+  });
   // unref: в проверках под Node таймер не держит процесс
-  Hooks.once("ready", () => setInterval(() => { try { burnTick(); } catch (err) { console.warn(`${SYSTEM_ID} | дым`, err); } }, BURN_MS)?.unref?.());
+  Hooks.once("ready", () => setInterval(() => {
+    try { burnTick(); } catch (err) { console.warn(`${SYSTEM_ID} | дым`, err); }
+    try { trailTick(); } catch (err) { console.warn(`${SYSTEM_ID} | след`, err); }
+  }, BURN_MS)?.unref?.());
   Hooks.on("createChatMessage", (m, options) => { if (!options?.tbUndo) chuteFire(m); });
   Hooks.on("createChatMessage", (m, options) => { if (!options?.tbUndo) onCard(m).catch(err => { console.warn(`${SYSTEM_ID} | анимация`, err); report(`ошибка: ${err?.message ?? err}`); }); });
   // отчёты игроков ведущему: почему у них не нарисовалось (консоль игрока ведущему не видна)
@@ -111,7 +122,7 @@ export function registerFx() {
   for (const ev of ["updateChatMessage", "deleteChatMessage"]) Hooks.on(ev, () => syncSoon());
   Hooks.on("updateCombat", () => syncSoon());
   Hooks.on("deleteCombat", () => syncSoon());
-  Hooks.on("canvasReady", () => { clearAll(); syncSoon(); });
+  Hooks.on("canvasReady", () => { clearAll(); trailAt.clear(); syncSoon(); });
   Hooks.on("canvasTearDown", () => clearAll());
   Hooks.on("createActiveEffect", (effect, options) => {
     if (options?.tbUndo || !effect.statuses?.has?.(CONFIG.specialStatusEffects.DEFEATED)) return;
@@ -362,6 +373,48 @@ function burnTick() {
       puff({ x: c.x + rnd(-w, w), y: c.y + rnd(-w, w) }, { r: 0.016, life: 420, color: Math.random() < 0.5 ? 0xff7a1a : 0xffc23a, alpha: 0.85, grow: 0.8, vy: -rnd(8, 18) });
     }
   }
+}
+
+/* ---------- инверсионный след: две белые линии от двигателей за машиной на Высокой, тают за несколько секунд ---------- */
+
+const TRAIL_MS = 4500;
+const trailAt = new Map();   // id токена → где был центр в прошлый тик
+const trailOn = () => { try { return on() && game.settings.get(SYSTEM_ID, "fxTrail") !== false; } catch { return true; } };
+
+/** Отрезок следа за машиной, прошедшей от a к b: концы отнесены назад на длину носа, чтобы след не лёг поверх токена. */
+export function trailSegment(a, b, size) {
+  const d = Math.hypot(b.x - a.x, b.y - a.y);
+  if (d < 2) return null;
+  const ux = (b.x - a.x) / d, uy = (b.y - a.y) / d, back = size * 0.42, half = size * 0.16;
+  const from = { x: a.x - ux * back, y: a.y - uy * back }, to = { x: b.x - ux * back, y: b.y - uy * back };
+  return [-1, 1].map(s => ({ from: { x: from.x - uy * half * s, y: from.y + ux * half * s }, to: { x: to.x - uy * half * s, y: to.y + ux * half * s } }));
+}
+
+function trailTick() {
+  if (!canvas?.ready || !trailOn() || document.hidden) return;
+  if (items.length > MAX_ITEMS * 0.6) return;
+  const live = new Set();
+  for (const t of canvas.tokens?.placeables ?? []) {
+    if (t.document.hidden || !seen(t) || !trailOf(t)) continue;
+    live.add(t.id);
+    const now = { x: t.center.x, y: t.center.y }, was = trailAt.get(t.id);
+    trailAt.set(t.id, now);
+    // перенос токена ведущим (прыжок дальше пары клеток за тик) следа не оставляет
+    if (!was || Math.hypot(now.x - was.x, now.y - was.y) > gs() * 2.5) continue;
+    const seg = trailSegment(was, now, t.w ?? gs());
+    if (seg) contrail(seg);
+  }
+  for (const id of trailAt.keys()) if (!live.has(id)) trailAt.delete(id);
+}
+
+function contrail(lines) {
+  add((t, g) => {
+    const k = t / TRAIL_MS;
+    if (k >= 1) return false;
+    g.lineStyle(Math.max(1, gs() * 0.02 * (1 + 1.5 * k)), 0xf4f8ff, 0.5 * (1 - k) ** 1.5);
+    for (const l of lines) { g.moveTo(l.from.x, l.from.y); g.lineTo(l.to.x, l.to.y); }
+    g.lineStyle(0);
+  });
 }
 
 /* ---------- движок: один слой, всё перерисовывается каждый кадр ---------- */

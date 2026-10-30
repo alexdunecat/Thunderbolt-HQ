@@ -27,3 +27,6 @@ Break!: [{"kind":"flares","at":"P"}]
 танк: G-G в бою: [{"kind":"launch","from":"TANK","to":"T","bomb":false,"wait":true,"fx":"shell"}]
 залп: снаряд и ракета: [{"kind":"impact","to":"T","from":["TANK","JET"],"count":2,"hit":true,"ship":false,"bomb":false,"broke":false,"prox":false,"fx":{"TANK":"shell"}}]
 дым и огонь: цел —, Grit —, Structure smoke, Doom fire · штаб без меток: —
+след: Низкая нет, Средняя нет, Высокая да, стратосфера да, пилот на Высокой да, танк нет
+отрезок следа на восток: [{"from":{"x":-42,"y":-16},"to":{"x":58,"y":-16}},{"from":{"x":-42,"y":16},"to":{"x":58,"y":16}}]
+на месте: null

@@ -471,7 +471,7 @@ export async function importMission(input) {
   const pages = [
     { name: "Брифинг", type: "text", text: { content: `${m.type ? `<p><b>${esc(m.type)}</b>${m.players ? ` · игроков: ${esc(m.players)}` : ""}</p>` : ""}${p(m.briefing)}` } },
     { name: "Задачи и поворот", type: "text", text: { content:
-      `${m.alarm ? `<p><b>Стелс-миссия:</b> шкала Тревоги на ${Number(m.alarm)} делений (в панели AWACS, видна игрокам).</p>` : ""}<h2>Задачи</h2><ol>${(m.objectives ?? []).map(o => `<li>${esc(o)}</li>`).join("")}</ol>` +
+      `${m.alarm ? `<p><b>Стелс-миссия:</b> шкала Тревоги на ${Number(m.alarm)} делений (в панели AWACS, видна игрокам).</p>` : ""}${Number(m.timeLimit) >= 2 ? `<p><b>Лимит времени:</b> ${Math.min(12, Number(m.timeLimit))} раундов (шкала «Время на задачу», видна игрокам)${m.timeFail ? `. Если не успели: ${esc(m.timeFail)}` : ""}.</p>` : ""}<h2>Задачи</h2><ol>${(m.objectives ?? []).map(o => `<li>${esc(o)}</li>`).join("")}</ol>` +
       `${m.twistType || m.twist ? `<h2>Поворот${m.twistType ? `: ${esc(m.twistType)}` : ""}</h2>${p(m.twist)}` : ""}` +
       `${m.fail ? `<h2>Если провалят</h2>${p(m.fail)}` : ""}${m.notes ? `<h2>Заметки</h2>${p(m.notes)}` : ""}` } },
     { name: "Силы на карте", type: "text", text: { content: `<table><tr><th>Клетка</th><th>Кто</th><th>Что</th><th>Заметки</th></tr>${roster.map(x =>
@@ -483,7 +483,9 @@ export async function importMission(input) {
   // стелс-миссия: шкала Тревоги на 8, 6 или 4 деления
   const alarm = [4, 6, 8].includes(Number(m.alarm)) ? Number(m.alarm) : 0;
   if (alarm) await (await import("../stealth.mjs")).setupAlarm(alarm);
-  ui.notifications.info(`Миссия «${title}» импортирована: сцена, ${tokens.length} токенов, журнал брифинга${alarm ? `, шкала Тревоги на ${alarm}` : ""}${plans.orders ? `, приказов автопилота ${plans.orders}` : ""}${plans.arrive ? `, подкреплений ${plans.arrive}` : ""}${plans.events ? `, событий ${plans.events}` : ""}.`);
+  const timer = Number(m.timeLimit) >= 2 ? Math.min(12, Number(m.timeLimit)) : 0;
+  if (timer) await (await import("../downtime.mjs")).setupTimer(timer, m.timeFail ?? "");
+  ui.notifications.info(`Миссия «${title}» импортирована: сцена, ${tokens.length} токенов, журнал брифинга${alarm ? `, шкала Тревоги на ${alarm}` : ""}${timer ? `, лимит времени ${timer} раундов` : ""}${plans.orders ? `, приказов автопилота ${plans.orders}` : ""}${plans.arrive ? `, подкреплений ${plans.arrive}` : ""}${plans.events ? `, событий ${plans.events}` : ""}.`);
   for (const w of plans.problems) ui.notifications.warn(`Импорт миссии: ${w}`);
   return { scene, journal, folder };
 }

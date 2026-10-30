@@ -35,8 +35,8 @@ export function goalCall(g, goals) {
     // подкрепление с целями ещё не вышло: не выдавать его
     if (kill.some(x => x.hidden)) return { text: `Цель «${g.name}» поражена. Других целей пока не вижу.` };
     const fled = kill.filter(x => x.out === "retreat").length;
-    if (fled) return { text: `Цель «${g.name}» поражена. Больше целей в районе нет, ушли: ${fled}.`, caution: { title: "MISSION UPDATE", sub: "Целей в районе нет" } };
-    return { text: `Цель «${g.name}» поражена. Все цели поражены!`, caution: { title: "MISSION UPDATE", sub: "Все цели поражены" } };
+    if (fled) return { text: `Цель «${g.name}» поражена. Больше целей в районе нет, ушли: ${fled}.`, caution: { title: "MISSION UPDATE", sub: "Целей в районе нет" }, allDone: true };
+    return { text: `Цель «${g.name}» поражена. Все цели поражены!`, caution: { title: "MISSION UPDATE", sub: "Все цели поражены" }, allDone: true };
   }
   if (KEEP.includes(g.task) && g.out === "down")
     return { text: `«${g.name}» потерян! Задача «${verb}» провалена.`, caution: { title: "MISSION UPDATE", sub: `${verb}: «${g.name}» потерян` } };
@@ -55,7 +55,10 @@ async function check() {
   for (const g of fresh) {
     said.add(`${c.id}:${g.uuid}`);
     const call = goalCall(g, goals);
-    if (call) await sendRadio(call);
+    if (!call) continue;
+    await sendRadio(call);
+    // лимит времени больше не нужен: задача выполнена раньше срока
+    if (call.allDone) await (await import("./downtime.mjs")).stopTimers();
   }
 }
 

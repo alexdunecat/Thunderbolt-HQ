@@ -18,6 +18,7 @@ import { adviceRow, runAdvice, showTarget } from "./npc-advice.mjs";
 import { hudPlane, planeRowHtml, useMove, useAoa, pickBooster, useDeck } from "./plane-roles.mjs";
 import { poolOf, squadRowHtml, useTactic } from "./duelists.mjs";
 import { aceRowHtml, aceClick } from "./ace-play.mjs";
+import { justEmptied } from "./winchester.mjs";
 import { wingmenOf, wingOrderOf, wingSpwOf, giveWingOrder, WING_ORDERS, WING_SPW } from "./autopilot.mjs";
 import { hudNemesis, isNemesis, pilotsOf, monologue, startMonologue, endMonologue, appear, useTrigger, STATE_TEXT } from "./nemesis.mjs";
 
@@ -111,7 +112,7 @@ export function hudData(actor) {
   const aim = aimedWeapon(actor)?.id ?? null;
   const weapons = actor.items.filter(i => i.type === "weapon").map(i => {
     const a = i.system.ammo, max = a.max === null ? null : a.max + (s.ammoBonus?.[i.id] ?? 0);
-    return { id: i.id, name: i.name, ammo: max === null ? "∞" : `${a.value}/${max}`, empty: !weaponReady(i), aimed: i.id === aim, trait: i.system.trait ?? null };
+    return { id: i.id, name: i.name, ammo: max === null ? "∞" : `${a.value}/${max}`, empty: !weaponReady(i), winch: justEmptied(i), aimed: i.id === aim, trait: i.system.trait ?? null };
   });
   // альтиметр: доступные ступени (потолок машины, у боссов свои), остальные тусклые
   const ceil = ceilingOf(actor);
@@ -227,8 +228,8 @@ function fighter(d) {
       ${d.img ? `<img src="${esc(d.img)}" alt="" draggable="false">` : ""}
       ${point(`gun ${off("gu") ? "dead" : ""}`, SPOTS.gu, `data-hud-act="guns"`, "Guns, Guns, Guns!")}
       ${point(`msl ${d.aimed ? "" : "aimed"} ${off("ms") ? "dead" : ""}`, SPOTS.ms, `data-hud-act="missile"`, "Fox Two! стандартной ракетой")}
-      ${spw[0] ? point(`spw ${spw[0].aimed ? "aimed" : ""} ${spw[0].empty ? "empty" : ""} ${off("sw") ? "dead" : ""}`, SPOTS.sw, `data-hud-spw="${spw[0].id}"`, `${spw[0].name} ${spw[0].ammo}: выбрать и пустить`) : ""}
-      ${spw[1] ? point(`spw bomb ${spw[1].aimed ? "aimed" : ""} ${spw[1].empty ? "empty" : ""} ${off("sw") ? "dead" : ""}`, SPOTS.sw2, `data-hud-spw="${spw[1].id}"`, `${spw[1].name} ${spw[1].ammo}: выбрать и пустить`) : ""}
+      ${spw[0] ? point(`spw ${spw[0].aimed ? "aimed" : ""} ${spw[0].empty ? "empty" : ""} ${spw[0].winch ? "winch" : ""} ${off("sw") ? "dead" : ""}`, SPOTS.sw, `data-hud-spw="${spw[0].id}"`, `${spw[0].name} ${spw[0].ammo}: выбрать и пустить`) : ""}
+      ${spw[1] ? point(`spw bomb ${spw[1].aimed ? "aimed" : ""} ${spw[1].empty ? "empty" : ""} ${spw[1].winch ? "winch" : ""} ${off("sw") ? "dead" : ""}`, SPOTS.sw2, `data-hud-spw="${spw[1].id}"`, `${spw[1].name} ${spw[1].ammo}: выбрать и пустить`) : ""}
       ${["en", "fl", "ma"].filter(off).map(k => point("hit", SPOTS[k], "", `${d.systems.find(x => x.key === k).jam ? "Заглушено РЭБ" : "Сломано"}: ${TB.systems[k].label} (${TB.systems[k].hint})`, "✕")).join("")}
     </div>`;
 }
@@ -246,7 +247,7 @@ function weaponButtons(d) {
     station({ attrs: `data-hud-act="missile"`, cls: `${d.aimed ? "" : "aimed"} ${dead("ms") ? "dead" : ""}`, code: "FOX 2", cnt: dead("ms") ? "FAIL" : "RDY", key: n("missile"), title: "Fox Two! стандартной ракетой" }),
     ...d.weapons.map(w => {
       const [ammo] = String(w.ammo).split("/");
-      return station({ attrs: `data-hud-spw="${w.id}"`, cls: `spw ${w.aimed ? "aimed" : ""} ${w.empty ? "empty" : ""} ${dead("sw") ? "dead" : ""}`,
+      return station({ attrs: `data-hud-spw="${w.id}"`, cls: `spw ${w.aimed ? "aimed" : ""} ${w.empty ? "empty" : ""} ${w.winch ? "winch" : ""} ${dead("sw") ? "dead" : ""}`,
         code: w.name.split(" · ")[0], cnt: dead("sw") ? "FAIL" : pad(ammo), tag: w.trait?.tag,
         title: `${w.name} ${w.ammo}: выбрать и пустить${w.trait ? `\n${w.trait.name}. ${w.trait.text}` : ""}` });
     })

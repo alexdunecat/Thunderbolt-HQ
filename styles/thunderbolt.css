@@ -1005,6 +1005,7 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 #tb-pilot-hud .tb-hud-pt.spw.bomb { width: 8px; height: 12px; margin: -6px 0 0 -4px; border-radius: 4px; }
 #tb-pilot-hud .tb-hud-pt.aimed { box-shadow: 0 0 0 2px var(--tb-accent); }
 #tb-pilot-hud .tb-hud-pt.empty { background: transparent; border-color: var(--tb-muted); }
+#tb-pilot-hud .tb-hud-pt.winch { border-color: var(--tb-bad); box-shadow: 0 0 0 2px var(--tb-bad); animation: tb-hud-blink .5s steps(2, start) 6; }
 #tb-pilot-hud .tb-hud-pt.dead { background: var(--tb-bad); box-shadow: 0 0 0 2px var(--tb-bad); }
 #tb-pilot-hud .tb-hud-pt.hit { width: 16px; height: 16px; margin: -8px 0 0 -8px; background: transparent; border: none; box-shadow: none; color: var(--tb-bad); font-size: 15px; font-weight: 800; line-height: 16px; text-align: center; cursor: help; }
 #tb-pilot-hud .tb-hud-pt:not(.hit):hover { background: var(--tb-accent); }
@@ -1038,6 +1039,9 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 #tb-pilot-hud button.st.aimed .st-led { background: #ffc94a; box-shadow: 0 0 7px #ffc94a; }
 #tb-pilot-hud button.st.empty .st-led { background: #2b2f2d; box-shadow: none; }
 #tb-pilot-hud button.st.empty .st-name, #tb-pilot-hud button.st.empty .st-cnt { opacity: .45; text-shadow: none; }
+/* «Винчестер»: только что опустевшая станция несколько секунд мигает красным табло */
+#tb-pilot-hud button.st.winch .st-cnt { opacity: 1; color: #ff5a46; text-shadow: 0 0 5px rgba(255, 80, 60, .8); animation: tb-hud-blink .5s steps(2, start) 6; }
+#tb-pilot-hud button.st.winch { border-color: #ff5a46; }
 #tb-pilot-hud button.st.dead .st-led { background: #ff4a3a; box-shadow: 0 0 7px #ff4a3a; animation: tb-hud-blink .8s steps(2, start) infinite; }
 #tb-pilot-hud button.st.dead .st-cnt { color: #ff5a46; text-shadow: 0 0 5px rgba(255, 80, 60, .8); }
 #tb-pilot-hud button.st.dead .st-name { text-decoration: line-through; opacity: .7; }
