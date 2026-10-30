@@ -13,5 +13,6 @@ console.log("вперёд:", [null, "a", "b", "c", "x"].map(c => `${c ?? "—"}�
 console.log("назад:", [null, "a", "c"].map(c => `${c ?? "—"}→${K.nextTarget(ids, c, -1)}`).join(" "), "· пусто:", K.nextTarget([], null));
 console.log("досягаемость: ракета", K.reachFor(null), "· спецоружие на 3 зоны", K.reachFor({ system: { reach: 3 } }), "· вся зона операции", K.reachFor({ system: { reach: 99 } }), "· без дальности", K.reachFor({ system: {} }));
 const D = await import(R + "/module/daytime.mjs");
-const scene = t => ({ getFlag: () => t });
-console.log("время суток:", ["day", "dawn", "dusk", "night", undefined, "noon"].map(t => `${t ?? "—"} ${JSON.stringify(D.tintOf(scene(t)))}`).join(", "));
+const scene = f => ({ getFlag: (ns, k) => f[k] });
+console.log("время и место:", [{ daytime: "day" }, { daytime: "night" }, { daytime: "dusk" }, { place: "desert" }, { place: "cold", daytime: "night" }, { place: "lava" }, {}]
+  .map(f => `${JSON.stringify(f)} ${JSON.stringify(D.tintsOf(scene(f)))}`).join("\n  "));
