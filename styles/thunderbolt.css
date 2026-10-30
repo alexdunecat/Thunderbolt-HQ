@@ -1821,3 +1821,20 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 #tb-keys .tb-keys td { padding: 2px 4px; border-bottom: 1px solid rgba(127, 127, 127, .2); }
 #tb-keys .tb-keys .tb-keys-k { text-align: right; white-space: nowrap; }
 #tb-keys kbd { font-family: var(--tb-data, monospace); font-size: 11px; padding: 0 5px; border: 1px solid currentColor; border-radius: 3px; opacity: .9; }
+
+/* ---------- карточка NPC при наведении (ведущий) ---------- */
+#tb-hovercard { position: fixed; z-index: 90; pointer-events: none; min-width: 190px; max-width: 280px; padding: 6px 9px 7px; background: color-mix(in srgb, var(--tb-bg) 92%, transparent);
+  border: 1px solid var(--tb-line); border-left: 3px solid var(--tb-accent); color: var(--tb-ink); font-family: var(--tb-body); font-size: 12px; line-height: 1.35; box-shadow: 0 4px 14px rgba(0, 0, 0, .45); }
+#tb-hovercard .tb-hc-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid var(--tb-line); }
+#tb-hovercard .tb-hc-head span { font-family: var(--tb-display); font-weight: 700; font-size: 13px; }
+#tb-hovercard .tb-hc-head.enemy span { color: var(--tb-hostile); }
+#tb-hovercard .tb-hc-head.ally span { color: var(--tb-friend); }
+#tb-hovercard .tb-hc-head small { color: var(--tb-muted); }
+#tb-hovercard .tb-hc-head em { margin-left: auto; font-style: normal; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--tb-muted); }
+#tb-hovercard .tb-hc-row { display: flex; justify-content: space-between; gap: 10px; }
+#tb-hovercard .tb-hc-row span { color: var(--tb-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tb-hovercard .tb-hc-row b { font-family: var(--tb-data); font-weight: 400; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#tb-hovercard .tb-hc-row.off b, #tb-hovercard .tb-hc-row.bad b { color: var(--tb-bad); }
+#tb-hovercard .tb-hc-row.bad b { white-space: normal; text-align: right; }
+#tb-hovercard .tb-hc-row.warn b { color: var(--tb-warn); }
+#tb-hovercard .tb-hc-order { margin-top: 4px; padding-top: 3px; border-top: 1px solid var(--tb-line); color: var(--tb-accent); font-size: 11.5px; }
