@@ -396,7 +396,7 @@ export async function importMission(input) {
   const pm = publicMission(m, cat);
 
   const scene = await Scene.create({
-    flags: { [SYSTEM_ID]: { mission: m.name ?? "", objectives: m.objectives ?? [], nations: { enemy: m.nations?.enemy ?? "", ally: m.nations?.ally ?? "", neutral: m.nations?.neutral ?? "" }, briefing: { mission: pm, steps: buildSteps(pm) } } },
+    flags: { [SYSTEM_ID]: { mission: m.name ?? "", objectives: m.objectives ?? [], daytime: ["dawn", "day", "dusk", "night"].includes(m.daytime) ? m.daytime : "day", nations: { enemy: m.nations?.enemy ?? "", ally: m.nations?.ally ?? "", neutral: m.nations?.neutral ?? "" }, briefing: { mission: pm, steps: buildSteps(pm) } } },
     name: title, width: m.cols * S, height: m.rows * S, padding: 0, backgroundColor: "#07141a",
     grid: { type: CONST.GRID_TYPES.SQUARE, size: S, distance: 1, units: "", color: "#9be3bf", alpha: 0.25 },
     tokenVision: false, fog: { exploration: false }, navigation: true

@@ -1814,3 +1814,10 @@ body.tb-dark-ui #sidebar :is(.header-search input, input[type="search"], input[t
 .tb-ace-trigs li.used b { text-decoration: line-through; }
 .tb-ace-trigs em { font-style: normal; color: var(--tb-muted); font-size: 11px; }
 .tb-ace-trigs a { color: var(--tb-warn); white-space: nowrap; }
+
+/* Шпаргалка по клавишам (F1) */
+#tb-keys .tb-keys h3 { margin: 8px 0 4px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; border: 0; }
+#tb-keys .tb-keys table { width: 100%; border-collapse: collapse; margin: 0; background: none; border: 0; }
+#tb-keys .tb-keys td { padding: 2px 4px; border-bottom: 1px solid rgba(127, 127, 127, .2); }
+#tb-keys .tb-keys .tb-keys-k { text-align: right; white-space: nowrap; }
+#tb-keys kbd { font-family: var(--tb-data, monospace); font-size: 11px; padding: 0 5px; border: 1px solid currentColor; border-radius: 3px; opacity: .9; }

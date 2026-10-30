@@ -221,6 +221,7 @@ export class AwacsPanel extends Application {
     on("[data-undo-log]", () => openUndoLog());
     on("[data-radio]", () => openRadioDialog());
     on("[data-chatter]", () => openChatterEditor());
+    on("[data-daytime]", () => import("../daytime.mjs").then(m => m.daytimeDialog(game.scenes.viewed)));
     on("[data-callsigns]", () => import("../callsigns.mjs").then(m => m.openCallsigns(game.scenes.viewed)));
     on("[data-briefing]", () => openBriefing());
     on("[data-aces]", () => openAceIntro());

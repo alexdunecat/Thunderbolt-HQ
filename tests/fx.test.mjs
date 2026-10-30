@@ -75,3 +75,8 @@ console.log("след:", [["Низкая", tok(1, jet)], ["Средняя", tok(
   .map(([n, t]) => `${n} ${Fx.trailOf(t) ? "да" : "нет"}`).join(", "));
 console.log("отрезок следа на восток:", JSON.stringify(Fx.trailSegment({ x: 0, y: 0 }, { x: 100, y: 0 }, 100)));
 console.log("на месте:", Fx.trailSegment({ x: 5, y: 5 }, { x: 6, y: 5 }, 100));
+// форсаж: только летящая машина на своей Max Speed; пламя у сопла позади по ходу движения
+console.log("форсаж:", [["на пределе", { type: "npc", system: { kind: "air", speed: 4, maxSpeed: 4 } }], ["ниже", { type: "npc", system: { kind: "air", speed: 3, maxSpeed: 4 } }],
+  ["пилот на пределе", { type: "pilot", system: { speed: 5, maxSpeed: 5 } }], ["танк", { type: "npc", system: { kind: "ground", speed: 0, maxSpeed: 0 } }]]
+  .map(([n, a]) => `${n} ${Fx.burnerOf(a) ? "да" : "нет"}`).join(", "));
+console.log("сопло, летит на юг:", JSON.stringify(Fx.nozzleAt({ x: 0, y: 0 }, { x: 0, y: 50 }, 100)), "· стоит:", Fx.nozzleAt({ x: 0, y: 0 }, { x: 1, y: 0 }, 100));

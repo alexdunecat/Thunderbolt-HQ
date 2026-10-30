@@ -89,6 +89,8 @@ export function burnOf(actor) {
 
 /** Тянет ли машина инверсионный след: летит на Высокой или в стратосфере. */
 export const trailOf = (token, actor = token?.actor) => isFlying(actor) && ["high", "strat"].includes(altOf(token, actor));
+/** Идёт ли машина на форсаже: летит на своей Max Speed. */
+export const burnerOf = actor => isFlying(actor) && Number(actor.system?.maxSpeed) > 0 && Number(actor.system?.speed) >= Number(actor.system.maxSpeed);
 
 export function registerFx() {
   game.settings.register(SYSTEM_ID, "fxOn", {
@@ -102,6 +104,10 @@ export function registerFx() {
   game.settings.register(SYSTEM_ID, "fxTrail", {
     name: "Инверсионные следы", hint: "Машины на Высокой и в стратосфере оставляют за собой тающий белый след, пока летят. Только у себя, вместе с анимацией.",
     scope: "client", config: true, type: Boolean, default: true, onChange: () => trailAt.clear()
+  });
+  game.settings.register(SYSTEM_ID, "fxBurner", {
+    name: "Форсаж", hint: "У машины на своей максимальной скорости при движении из сопла бьёт короткое пламя. Только у себя, вместе с анимацией.",
+    scope: "client", config: true, type: Boolean, default: true
   });
   // unref: в проверках под Node таймер не держит процесс
   Hooks.once("ready", () => setInterval(() => {
@@ -380,6 +386,7 @@ function burnTick() {
 const TRAIL_MS = 4500;
 const trailAt = new Map();   // id токена → где был центр в прошлый тик
 const trailOn = () => { try { return on() && game.settings.get(SYSTEM_ID, "fxTrail") !== false; } catch { return true; } };
+const burnerOn = () => { try { return on() && game.settings.get(SYSTEM_ID, "fxBurner") !== false; } catch { return true; } };
 
 /** Отрезок следа за машиной, прошедшей от a к b: концы отнесены назад на длину носа, чтобы след не лёг поверх токена. */
 export function trailSegment(a, b, size) {
@@ -391,20 +398,43 @@ export function trailSegment(a, b, size) {
 }
 
 function trailTick() {
-  if (!canvas?.ready || !trailOn() || document.hidden) return;
+  const trail = trailOn(), burner = burnerOn();
+  if (!canvas?.ready || (!trail && !burner) || document.hidden) return;
   if (items.length > MAX_ITEMS * 0.6) return;
   const live = new Set();
   for (const t of canvas.tokens?.placeables ?? []) {
-    if (t.document.hidden || !seen(t) || !trailOf(t)) continue;
+    if (t.document.hidden || !seen(t) || !isFlying(t.actor)) continue;
+    const high = trail && trailOf(t), fast = burner && burnerOf(t.actor);
+    if (!high && !fast) continue;
     live.add(t.id);
     const now = { x: t.center.x, y: t.center.y }, was = trailAt.get(t.id);
     trailAt.set(t.id, now);
     // перенос токена ведущим (прыжок дальше пары клеток за тик) следа не оставляет
     if (!was || Math.hypot(now.x - was.x, now.y - was.y) > gs() * 2.5) continue;
-    const seg = trailSegment(was, now, t.w ?? gs());
+    const size = t.w ?? gs(), seg = high ? trailSegment(was, now, size) : null;
     if (seg) contrail(seg);
+    if (fast) afterburner(was, now, size);
   }
   for (const id of trailAt.keys()) if (!live.has(id)) trailAt.delete(id);
+}
+
+/** Точка сопла: позади центра по направлению движения или null (стоит на месте). */
+export function nozzleAt(a, b, size) {
+  const d = Math.hypot(b.x - a.x, b.y - a.y);
+  if (d < 2) return null;
+  const ux = (b.x - a.x) / d, uy = (b.y - a.y) / d;
+  return { x: b.x - ux * size * 0.4, y: b.y - uy * size * 0.4, ux, uy };
+}
+
+/** Пламя форсажа: яркое ядро у сопла и рыжие языки, которые тут же отстают и гаснут. */
+function afterburner(a, b, size) {
+  const n = nozzleAt(a, b, size);
+  if (!n) return;
+  const back = (k, sp) => ({ vx: -n.ux * sp * k, vy: -n.uy * sp * k });
+  puff({ x: n.x, y: n.y }, { r: 0.022, life: 220, color: 0xfff2c0, alpha: 0.95, grow: 0.3, ...back(1, 60) });
+  for (let i = 0; i < 2; i++) {
+    puff({ x: n.x - n.ux * rnd(2, 8), y: n.y - n.uy * rnd(2, 8) }, { r: 0.02, life: 320, color: Math.random() < 0.5 ? 0xff8a1e : 0xffc23a, alpha: 0.8, grow: 0.6, delay: i * 50, ...back(1, rnd(90, 160)) });
+  }
 }
 
 function contrail(lines) {

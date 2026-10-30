@@ -1,0 +1,4 @@
+вперёд: —→a a→b b→c c→a x→a
+назад: —→c a→c c→b · пусто: null
+досягаемость: ракета 2 · спецоружие на 3 зоны 3 · вся зона операции Infinity · без дальности 2
+время суток: day null, dawn {"color":16750250,"alpha":0.14}, dusk {"color":16739900,"alpha":0.22}, night {"color":264738,"alpha":0.5}, — null, noon null
