@@ -53,6 +53,7 @@ import { registerGoalCalls } from "./goal-calls.mjs";
 import { registerMissionEvents } from "./mission-events.mjs";
 import { registerWeatherFront } from "./weather-front.mjs";
 import { registerWinchester } from "./winchester.mjs";
+import { registerCallsigns } from "./callsigns.mjs";
 import { registerInsignia } from "./insignia.mjs";
 import { registerSideColor } from "./sidecolor.mjs";
 import { registerLosses } from "./losses.mjs";
@@ -187,6 +188,7 @@ Hooks.once("init", () => {
   registerMissionEvents();
   registerWeatherFront();
   registerWinchester();
+  registerCallsigns();
   registerAltitude();
   registerInsignia();
   registerSideColor();

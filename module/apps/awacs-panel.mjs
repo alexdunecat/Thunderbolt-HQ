@@ -26,8 +26,8 @@ import { markStrike, cancelStrike, strikesOfCombat, strikeWhere } from "../strik
 import { lineOf, lineHint, escapedOf, bringBack, forgetEscaped, setLineSettings, tallyOf, tallyLine } from "../return-line.mjs";
 import { RET_ENEMY, RET_ESCORT, RET_PILOTS, rearmText } from "../return-rules.mjs";
 import { openBrush, clearReturnLine } from "../cell-brush.mjs";
-const TIMER_SHORT = { 50: "половина", left2: "осталось 2", left1: "последний раунд" };
 import { setInactive } from "../inactive.mjs";
+const TIMER_SHORT = { 50: "половина", left2: "осталось 2", left1: "последний раунд" };
 
 let panel = null;
 let timer = null;
@@ -221,6 +221,7 @@ export class AwacsPanel extends Application {
     on("[data-undo-log]", () => openUndoLog());
     on("[data-radio]", () => openRadioDialog());
     on("[data-chatter]", () => openChatterEditor());
+    on("[data-callsigns]", () => import("../callsigns.mjs").then(m => m.openCallsigns(game.scenes.viewed)));
     on("[data-briefing]", () => openBriefing());
     on("[data-aces]", () => openAceIntro());
     on("[data-mission]", () => openMissionDialog({ op: game.scenes.viewed?.getFlag(SYSTEM_ID, "mission") || game.scenes.viewed?.name || "" }));

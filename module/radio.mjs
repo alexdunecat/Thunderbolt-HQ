@@ -95,7 +95,9 @@ function reinforcements(doc, userId) {
   if (a.system.nemesis) return;
   const boss = a.system.grp === "boss", ace = a.system.tier === "ace", squad = a.system.tier === "duelist" && a.system.squad;
   if (!boss && !ace && !squad) return;
-  pending.push({ name: doc.name, base: a.name, boss, ace, squad: squad || "", launch: a.system.key === "icbm" });
+  // безымянная эскадрилья дуэлянтов называется по выданному позывному («Ак-Буран»)
+  const call = String(doc.getFlag?.(SYSTEM_ID, "radioCall") ?? "").replace(/[- ]\d+$/, "");
+  pending.push({ name: doc.name, base: a.name, boss, ace, squad: squad ? call || squad : "", launch: a.system.key === "icbm" });
   clearTimeout(pendTimer);
   pendTimer = setTimeout(announce, 400);
 }

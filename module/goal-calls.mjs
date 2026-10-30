@@ -19,7 +19,7 @@ export function outOf(actor, combatId) {
 /** Приоритетные цели сцены с задачей: { name, uuid, task, out, hidden }. Скрытые (подкрепление ещё не вышло) не называются. */
 export function liveGoals(tokens, combatId) {
   return tokens.filter(t => t.actor?.type === "npc" && t.actor.system?.priority && t.actor.system.task)
-    .map(t => ({ name: t.name, uuid: t.actor.uuid, task: t.actor.system.task, out: t.hidden ? null : outOf(t.actor, combatId), hidden: !!t.hidden }));
+    .map(t => ({ name: String(t.getFlag?.(SYSTEM_ID, "radioCall") ?? "") || t.name, uuid: t.actor.uuid, task: t.actor.system.task, out: t.hidden ? null : outOf(t.actor, combatId), hidden: !!t.hidden }));
 }
 
 const left = n => (n === 1 ? "осталась одна цель" : n >= 2 && n <= 4 ? `осталось ${n} цели` : `осталось ${n} целей`);

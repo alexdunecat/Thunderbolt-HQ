@@ -211,6 +211,9 @@ export function nameOf(actor, { own = true } = {}) {
   const call = own ? String(actor.getFlag?.(SYSTEM_ID, "callsign") ?? "").trim() : "";
   if (call) return call;
   if (actor.system?.callsign) return actor.system.callsign;
+  // позывной звена, выданный по нации (окно «Позывные» или импорт миссии)
+  const given = own ? String(tokenDoc(actor)?.getFlag?.(SYSTEM_ID, "radioCall") ?? "") : "";
+  if (given) return given;
   if (actor.isToken) {
     const base = actor.token?.baseActor ?? game.actors?.get?.(actor.token?.actorId);
     if (base && actor.name && actor.name !== base.name) return actor.name;

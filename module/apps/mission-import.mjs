@@ -396,7 +396,7 @@ export async function importMission(input) {
   const pm = publicMission(m, cat);
 
   const scene = await Scene.create({
-    flags: { [SYSTEM_ID]: { mission: m.name ?? "", objectives: m.objectives ?? [], briefing: { mission: pm, steps: buildSteps(pm) } } },
+    flags: { [SYSTEM_ID]: { mission: m.name ?? "", objectives: m.objectives ?? [], nations: { enemy: m.nations?.enemy ?? "", ally: m.nations?.ally ?? "", neutral: m.nations?.neutral ?? "" }, briefing: { mission: pm, steps: buildSteps(pm) } } },
     name: title, width: m.cols * S, height: m.rows * S, padding: 0, backgroundColor: "#07141a",
     grid: { type: CONST.GRID_TYPES.SQUARE, size: S, distance: 1, units: "", color: "#9be3bf", alpha: 0.25 },
     tokenVision: false, fog: { exploration: false }, navigation: true
@@ -416,6 +416,9 @@ export async function importMission(input) {
     const q = i % 4, ring = Math.floor(i / 4);
     return { x: c * S + (q % 2) * (S / 2) + ring * 10, y: r * S + Math.floor(q / 2) * (S / 2) + ring * 10 };
   };
+  // позывные безымянных звеньев по нации стороны (Планшет: «Противник», «Союзники»)
+  const CS = await import("../callsigns.mjs"), callsUsed = new Set();
+  const nationFor = u => u.nation || m.nations?.[["ally", "player"].includes(u.side) ? "ally" : u.side === "neutral" ? "neutral" : "enemy"] || "";
   for (const u of m.units ?? []) {
     const ref = cat.alias[u.ref] ?? u.ref;
     const mk = markers.get(ref);
@@ -451,16 +454,19 @@ export async function importMission(input) {
     const elevation = TB.altElevation[actor.system.alt] ?? 1;
     const count = Math.max(1, Number(u.count) || 1);
     const fp = footprintOf(actor.system);
+    const callKind = !u.name ? CS.callKind(actor.system) : null, nation = callKind ? nationFor(u) : "";
+    const calls = [];
+    for (let i = 0; nation && i < count; i += 4) calls.push(...CS.flightCalls({ nation, kind: callKind, tier, count: Math.min(4, count - i), used: callsUsed }));
     for (let i = 0; i < count; i++) {
       // каждая машина — на свободные места своей зоны, большая цель — на блок мест
       const spot = pack(fp, u.c, u.r);
       // строка Планшета — во флаге токена: по ней ставятся приказ автопилота и выход подкреплением
       const td = await actor.getTokenDocument({ ...spot, texture: { ...actor.prototypeToken.texture.toObject(), ...spot.texture }, elevation,
-        name: count > 1 ? `${actor.name} ${i + 1}` : actor.name, hidden: !!(u.arrive?.round || u.arrive?.after), flags: { [SYSTEM_ID]: { unitId: u.id ?? "" } } });
+        name: count > 1 ? `${actor.name} ${i + 1}` : actor.name, hidden: !!(u.arrive?.round || u.arrive?.after), flags: { [SYSTEM_ID]: { unitId: u.id ?? "", ...(calls[i] ? { radioCall: calls[i] } : {}) } } });
       tokens.push(td.toObject());
     }
     const later = u.arrive?.round > 0 ? ` · появится в раунде ${u.arrive.round}` : u.arrive?.after ? " · подкрепление" : "";
-    roster.push({ u, name: actor.name, where, what: `${entry.name} · ${TB.tiers[tier] ?? tier}${count > 1 ? ` ×${count}` : ""}${u.ap?.task ? " · автопилот" : ""}${later}` });
+    roster.push({ u, name: calls.length ? `${actor.name} (${calls.join(", ")})` : actor.name, where, what: `${entry.name} · ${TB.tiers[tier] ?? tier}${count > 1 ? ` ×${count}` : ""}${u.ap?.task ? " · автопилот" : ""}${later}` });
   }
   if (drawings.length) await scene.createEmbeddedDocuments("Drawing", drawings);
   const created = tokens.length ? await scene.createEmbeddedDocuments("Token", tokens, { tbKeep: true }) : [];
