@@ -560,7 +560,7 @@ export async function rollBreak(actor, { g12 = false, instinct = false } = {}) {
     <div class="form-group"><label>Лидерство союзника</label><input type="number" name="lead" value="0"></div>
     ${commonFields(actor, "dodge")}`);
   if (!data) return;
-  const dice = await rollDice(actor, data.practiced, { follow: data.follow ? "dodge" : null });
+  const dice = await rollDice(actor, data.practiced, { turnRoll: !instinct, follow: data.follow ? "dodge" : null });
   if (!dice) return;
   const parts = skillParts(actor, "dodge", "Уклонение");
   if (data.lead) parts.push(["Lead", data.lead]);
