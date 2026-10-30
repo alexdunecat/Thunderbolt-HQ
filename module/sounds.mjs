@@ -82,6 +82,8 @@ export function registerSounds() {
     if (rwr) { cue("lock", resolveActor(rwr.fromUuid)); cue("locked", resolveActor(rwr.target)); }
     if (card?.maws && card.targetUuid) cue("missile", resolveActor(card.targetUuid));
     if (card?.attack && card.actorUuid && card.type !== "rail") cue(card.instant ? "guns" : "fire", resolveActor(card.actorUuid));
+    // ас расстреливает купол: пушку слышат все
+    if (message.getFlag(SYSTEM_ID, "chuteFire")) cueAll("guns");
   });
   Hooks.once("ready", () => {
     game.socket.on(CHANNEL, msg => { if (msg?.type === "sound" && COCKPIT_SOUNDS[msg.key]?.all) cueAll(msg.key); });

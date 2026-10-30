@@ -2,7 +2,7 @@
    Пилот игрока — когда бросок на катапультирование удался (статус «катапультировался»). NPC — когда его сбили, с вероятностью
    по уровню: конскрипт 5 из 10, дуэлянт 6, ас 8. Парашютов нет у бомбардировщиков, транспортников, самолётов ДРЛО,
    вертолётов и беспилотников, гражданских, боссов, ракет, наземной техники и кораблей.
-   Ас или дуэлянт противника (NPC в той же или соседней клетке) может расстрелять купол: Strafe против 6, вне броска хода.
+   Ас или дуэлянт противника (NPC в той же или соседней клетке) может расстрелять купол: Strafe против 6, вне броска хода. Очередь видна трассерами и слышна всем, сбитый пилот кричит по радио.
    Попал — купол исчезает, пилот игрока погибает. Купол — плитка сцены (Tile), без актёра; всё делает главный ведущий. */
 import { SYSTEM_ID, SYS_PATH } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
@@ -168,14 +168,38 @@ export async function shootChute(chute, shooter) {
   const hit = R.computeCard(card).success;
   const victim = f.uuid ? resolveActor(f.uuid) : null;
   const who = shooter.name;
-  if (!hit) return ChatMessage.create({ speaker: { alias: "AWACS" }, content: `<div class="tb-card tb-card-chute"><div class="tb-note"><b>${esc(who)}</b> бьёт по куполу «${esc(f.name)}» и промахивается.</div></div>` });
+  // очередь к куполу: трассеры и звук пушки у всех (fx.mjs, sounds.mjs по флагу chuteFire)
+  const at = { x: chute.x + chute.width / 2, y: chute.y + chute.height / 2 };
+  await ChatMessage.create({ speaker: { alias: "AWACS" }, flags: { [SYSTEM_ID]: { chuteFire: { from: shooter.actor.uuid, ...at, hit } } },
+    content: `<div class="tb-card tb-card-chute"><div class="tb-note"><b>${esc(who)}</b> ${hit ? "расстреливает купол" : "бьёт по куполу"} «${esc(f.name)}»${hit ? `.${f.pilot ? " Пилот погиб." : ""}` : " и промахивается."}</div></div>` });
+  const { sendRadio } = await import("./radio.mjs");
+  // сбитый пилот по радио: последние слова или крик после промаха
+  await sendRadio({ speaker: f.name, text: chuteLine(f, hit, game.combat?.round ?? 0), side: f.side === "player" ? "ally" : f.side });
+  if (!hit) return;
+  // купол пропадает, когда очередь дошла
+  await new Promise(r => setTimeout(r, 700));
   if (chute.parent?.tiles?.get?.(chute.id)) await chute.parent.deleteEmbeddedDocuments("Tile", [chute.id]);
   if (f.pilot && victim) await victim.update({ "system.service.status": "kia" });
-  await ChatMessage.create({ speaker: { alias: "AWACS" }, content: `<div class="tb-card tb-card-chute"><div class="tb-note"><b>${esc(who)}</b> расстреливает купол «${esc(f.name)}».${f.pilot ? " Пилот погиб." : ""}</div></div>` });
-  if (f.pilot) {
-    const { sendRadio } = await import("./radio.mjs");
-    await sendRadio({ text: `Они стреляют по куполу! ${f.name}... нет сигнала маяка. Всем бортам: ${who} расстрелял нашего пилота.`, caution: { title: "CAUTION", sub: "Расстрел купола" } });
-  }
+  if (f.pilot) await sendRadio({ text: `Маяк ${f.name} молчит. Всем бортам: ${who} расстрелял нашего пилота под куполом.`, caution: { title: "CAUTION", sub: "Расстрел купола" } });
+}
+
+const CHUTE_LAST = [
+  "Не стреляй! Я уже выпрыгнул, я...",
+  "Он заходит на купол... Нет, не надо, не на—",
+  "Вижу трассы! Мама, я...",
+  "Я без оружия! Слышишь? Я без ору—"
+];
+const CHUTE_MISS = [
+  "Он стреляет по куполу! Мимо... Вниз, быстрее вниз!",
+  "Трассы рядом с куполом! Кто-нибудь, уберите его от меня!",
+  "Мимо! Он разворачивается на второй заход!",
+  "Купол цел... Он что, совсем с ума сошёл?!"
+];
+/** Реплика пилота под куполом: последние слова при попадании или крик после промаха. Выбор по имени и раунду, без случайности. */
+export function chuteLine(f, hit, round = 0) {
+  const list = hit ? CHUTE_LAST : CHUTE_MISS;
+  const h = [...String(f?.name ?? "")].reduce((n, ch) => n + ch.charCodeAt(0), round);
+  return list[h % list.length];
 }
 
 /** Кнопка в карточке: найти стрелков рядом с куполом. */

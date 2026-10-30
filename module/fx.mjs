@@ -97,6 +97,7 @@ export function registerFx() {
   });
   // unref: в проверках под Node таймер не держит процесс
   Hooks.once("ready", () => setInterval(() => { try { burnTick(); } catch (err) { console.warn(`${SYSTEM_ID} | дым`, err); } }, BURN_MS)?.unref?.());
+  Hooks.on("createChatMessage", (m, options) => { if (!options?.tbUndo) chuteFire(m); });
   Hooks.on("createChatMessage", (m, options) => { if (!options?.tbUndo) onCard(m).catch(err => { console.warn(`${SYSTEM_ID} | анимация`, err); report(`ошибка: ${err?.message ?? err}`); }); });
   // отчёты игроков ведущему: почему у них не нарисовалось (консоль игрока ведущему не видна)
   Hooks.once("ready", () => game.socket?.on(CHANNEL, msg => {
@@ -149,6 +150,16 @@ async function onCard(message) {
     else if (t && !seen(t)) report(`токен «${t.name}» не виден игроку (скрыт: ${!!t.document.hidden}, зрение токенов на сцене: ${!!canvas.visibility?.tokenVision})`);
   }
   playPlan(plan, message, card.type === "volley");
+}
+
+/** Очередь аса по куполу (parachute.mjs): трассеры от стрелка к точке купола. */
+function chuteFire(message) {
+  const f = message.getFlag?.(SYSTEM_ID, "chuteFire");
+  if (!f || !on() || !canvas?.ready) return;
+  const t = tokenFor(f.from);
+  if (!t || !seen(t)) return;
+  const at = { x: f.x, y: f.y };
+  guns(P(t)(), () => at, { hit: !!f.hit, n: 8 });
 }
 
 /** Показать план (planOf) на карте: залп сначала снимает висящие ракеты, чтобы они долетели от своих меток. */
