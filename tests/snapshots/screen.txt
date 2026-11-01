@@ -1,7 +1,9 @@
 боевой экран: {"inCombat":true}=прячет
   {"inCombat":true,"isGM":true}=нет
   {"inCombat":true,"isGM":true,"mode":"all"}=прячет
-  {"inCombat":true,"shown":true}=нет
+  {"inCombat":true,"override":false}=нет
+  {"inCombat":true,"isGM":true,"override":true}=прячет
+  {"inCombat":false,"override":true}=нет
   {"inCombat":false}=нет
   {"inCombat":true,"mode":"off"}=нет
 огни: пилот=plane, истребитель NPC=plane, корабль=ship, подлодка под водой=—, ЗРК=light, танк=—, штаб=—

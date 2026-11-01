@@ -9,7 +9,7 @@ Object.assign(globalThis, {
 });
 const r1 = x => Math.round(x * 10) / 10;
 const C = await import(R + "/module/combat-screen.mjs");
-const cases = [{ inCombat: true }, { inCombat: true, isGM: true }, { inCombat: true, isGM: true, mode: "all" }, { inCombat: true, shown: true }, { inCombat: false }, { inCombat: true, mode: "off" }];
+const cases = [{ inCombat: true }, { inCombat: true, isGM: true }, { inCombat: true, isGM: true, mode: "all" }, { inCombat: true, override: false }, { inCombat: true, isGM: true, override: true }, { inCombat: false, override: true }, { inCombat: false }, { inCombat: true, mode: "off" }];
 console.log("боевой экран:", cases.map(c => `${JSON.stringify(c)}=${C.screenWanted(c) ? "прячет" : "нет"}`).join("\n  "));
 
 const actor = (type, system, flags = {}) => ({ type, system, getFlag: (ns, k) => flags[k] });

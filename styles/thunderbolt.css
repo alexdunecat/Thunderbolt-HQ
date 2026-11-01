@@ -1859,17 +1859,38 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-pilot-hud.corners .tb-hud-alert.lock { background: radial-gradient(closest-side, rgba(42, 29, 5, .55), transparent); box-shadow: none; }
 #tb-pilot-hud.corners .tb-hud-alert small { text-shadow: var(--tb-glow); }
 #tb-pilot-hud.corners .tb-hud-alert span { text-shadow: 0 0 10px color-mix(in srgb, var(--tb-bad) 80%, transparent), 0 0 2px #000; animation: tb-hud-blink 1s steps(2, start) infinite; }
-/* приборы: слева состояние, скорость и высота, справа силуэт, оружие и кнопки; между ними карта */
-#tb-pilot-hud.corners .tb-hud-grid { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 14px; padding: 0; pointer-events: none; }
-#tb-pilot-hud.corners .tb-hud-grid > .tb-hud-col { pointer-events: auto; align-self: flex-end; border: 0; border-radius: 10px; box-shadow: none; padding: 4px 8px; text-shadow: var(--tb-glow);
+/* приборы: слева состояние, скорость и высота, справа силуэт, оружие и кнопки; между ними карта.
+   Сетка с пустой резиновой колонкой посередине: правая группа всегда прижата вправо, левая влево, на узком экране
+   сначала уходит силуэт (его пилоны дублирует STORES), потом сжимаются колонки, и только совсем узко кнопки встают под приборы */
+#tb-pilot-hud.corners { container-type: inline-size; }
+#tb-pilot-hud.corners .tb-hud-grid { display: grid; grid-template-columns: max-content max-content max-content minmax(0, 1fr) max-content max-content max-content;
+  grid-template-areas: "stat speed alt . arm ctl wing"; align-items: end; gap: 6px 12px; padding: 0; pointer-events: none; }
+#tb-pilot-hud.corners .tb-hud-grid > .tb-hud-col { pointer-events: auto; align-self: end; border: 0; border-radius: 10px; box-shadow: none; padding: 4px 8px; text-shadow: var(--tb-glow);
   background: radial-gradient(closest-side, rgba(3, 9, 11, .5), rgba(3, 9, 11, 0)); }
 #tb-pilot-hud.corners .tb-hud-grid > .tb-hud-ctl { padding: 0; background: none; }
-#tb-pilot-hud.corners .tb-hud-stat { width: 230px; }
-#tb-pilot-hud.corners .tb-hud-speed { width: 118px; }
-#tb-pilot-hud.corners .tb-hud-alt { width: 180px; }
-#tb-pilot-hud.corners .tb-hud-arm { width: 92px; margin-left: auto; }
-#tb-pilot-hud.corners .tb-hud-ctl { width: min(470px, 46vw); }
-#tb-pilot-hud.corners .tb-hud-wingx { width: 150px; }
+#tb-pilot-hud.corners .tb-hud-stat { grid-area: stat; width: 230px; }
+#tb-pilot-hud.corners .tb-hud-speed { grid-area: speed; width: 118px; }
+#tb-pilot-hud.corners .tb-hud-alt { grid-area: alt; width: 180px; }
+#tb-pilot-hud.corners .tb-hud-arm { grid-area: arm; width: 92px; }
+#tb-pilot-hud.corners .tb-hud-ctl { grid-area: ctl; width: 470px; }
+#tb-pilot-hud.corners .tb-hud-wingx { grid-area: wing; width: 150px; }
+#tb-pilot-hud.corners .tb-hud-grid:not(.wing) { grid-template-areas: "stat speed alt . arm ctl ctl"; }
+@container (max-width: 1240px) {
+  #tb-pilot-hud.corners .tb-hud-arm { display: none; }
+  #tb-pilot-hud.corners .tb-hud-grid { grid-template-areas: "stat speed alt . ctl ctl wing"; }
+  #tb-pilot-hud.corners .tb-hud-grid:not(.wing) { grid-template-areas: "stat speed alt . ctl ctl ctl"; }
+}
+@container (max-width: 1080px) {
+  #tb-pilot-hud.corners .tb-hud-stat { width: 205px; }
+  #tb-pilot-hud.corners .tb-hud-alt { width: 128px; }
+  #tb-pilot-hud.corners .tb-hud-alt li em { display: none; }
+  #tb-pilot-hud.corners .tb-hud-ctl { width: 420px; }
+  #tb-pilot-hud.corners .tb-hud-wingx { width: 140px; }
+}
+@container (max-width: 940px) {
+  #tb-pilot-hud.corners .tb-hud-grid, #tb-pilot-hud.corners .tb-hud-grid:not(.wing) { grid-template-areas: "stat speed alt . wing wing wing" ". ctl ctl ctl ctl ctl ctl"; }
+  #tb-pilot-hud.corners .tb-hud-ctl { justify-self: end; }
+}
 #tb-pilot-hud.corners .tb-hud-dial { background: none; box-shadow: none; }
 #tb-pilot-hud.corners .tb-hud-def { background: rgba(11, 7, 3, .6); }
 #tb-pilot-hud.corners small, #tb-pilot-hud.corners header small { color: #b9c9c1; text-shadow: var(--tb-glow); }
