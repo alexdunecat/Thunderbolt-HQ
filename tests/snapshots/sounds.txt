@@ -1,4 +1,4 @@
-сигналы: lock=lock.ogg locked=locked.ogg missile=missile.ogg stall=stall.ogg lowAlt=lowAlt.ogg fire=fire.ogg guns=guns.ogg ammoOut=ammoOut.ogg missionWin=missionWin.ogg missionFail=missionFail.ogg priority=priority.ogg turn=turn.ogg flares=flares.ogg sysHit=sysHit.ogg boom=boom.ogg bomb=bomb.ogg laser=laser.ogg railgun=railgun.ogg awacs=awacs.ogg radioOn=radioOn.ogg siren=siren.ogg click=click.ogg tab=tab.ogg toggle=toggle.ogg
+сигналы: lock=lock.ogg locked=locked.ogg missile=missile.ogg stall=stall.ogg lowAlt=lowAlt.ogg fire=fire.ogg guns=guns.ogg ammoOut=ammoOut.ogg missionWin=missionWin.ogg missionFail=missionFail.ogg priority=priority.ogg turn=turn.ogg flares=flares.ogg sysHit=sysHit.ogg boom=boom.ogg bomb=bomb.ogg laser=laser.ogg railgun=railgun.ogg awacs=awacs.ogg squelch=squelch.ogg radioOn=radioOn.ogg siren=siren.ogg click=click.ogg tab=tab.ogg toggle=toggle.ogg
 createChatMessage: lock.ogg @0.7
 createChatMessage: locked.ogg @0.7
 createChatMessage: тишина

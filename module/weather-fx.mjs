@@ -212,12 +212,25 @@ export function refreshWeatherFx() {
   else { stopTick(); gfx?.clear?.(); }
 }
 
+/** Плитка штриховки погоды, которую заменяет анимация: id погоды или null (значки, облачность, глаз урагана, чужие плитки). */
+export function hatchOf(src) {
+  const m = /\/map\/weather\/([A-Za-z]+)\.svg$/.exec(src ?? "");
+  return m && kindsOf([m[1]]).length ? m[1] : null;
+}
+/** Пока у этого клиента идут осадки, штриховка погоды не рисуется: остаётся значок в углу клетки, остальное показывает анимация. */
+function hatch(tile) {
+  if (tile?.mesh && isOn() && hatchOf(tile.document?.texture?.src)) tile.mesh.visible = false;
+}
+// выключили осадки: Foundry сам заново решает, видна ли плитка
+const hatchAll = () => { for (const t of canvas?.tiles?.placeables ?? []) if (hatchOf(t.document?.texture?.src)) isOn() ? hatch(t) : t.renderFlags?.set?.({ refresh: true }); };
+
 export function registerWeatherFx() {
   game.settings.register(SYSTEM_ID, "fxWeather", {
-    name: "Осадки и молнии", hint: "В клетках погоды идёт дождь (на Севере снег), метёт пыль и ветер, крутится торнадо, бьют молнии. Только у себя.",
-    scope: "client", config: true, type: Boolean, default: true, onChange: () => refreshWeatherFx()
+    name: "Осадки и молнии", hint: "В клетках погоды идёт дождь (на Севере снег), метёт пыль и ветер, крутится торнадо, бьют молнии; статичная штриховка этих клеток тогда не рисуется, остаётся значок. Только у себя.",
+    scope: "client", config: true, type: Boolean, default: true, onChange: () => { refreshWeatherFx(); hatchAll(); }
   });
-  Hooks.on("canvasReady", () => { gfx = null; refreshWeatherFx(); });
+  Hooks.on("refreshTile", tile => hatch(tile));
+  Hooks.on("canvasReady", () => { gfx = null; refreshWeatherFx(); hatchAll(); });
   Hooks.on("canvasTearDown", () => { stopTick(); gfx = null; cells = new Map(); });
   Hooks.on("updateScene", (scene, change) => {
     if (scene.id === canvas?.scene?.id && ["weather", "weatherCells", "-=weatherCells", "place"].some(k => foundry.utils.hasProperty(change, `flags.${SYSTEM_ID}.${k}`))) refreshWeatherFx();

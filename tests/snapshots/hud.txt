@@ -9,3 +9,6 @@ Doom: ["doom"] катапульта: true кнопка есть
 свёрнут: только шапка
 HUD истребителя: Гроза да, Стрикс-2 да, Линкор нет, Т-80 нет, Лайнер нет
 ведомые: {"names":["Стрела-2"],"order":"attack","spw":true} · крест: attack*@up free@left spw*@right cover@down
+HUD по углам, всё спрятано: {"left":8,"right":8,"bottom":8}
+HUD по углам, окна Foundry видны: {"left":223,"right":313,"bottom":70}
+HUD по углам, чат свёрнут: {"left":8,"right":48,"bottom":8} · вид по умолчанию: углы

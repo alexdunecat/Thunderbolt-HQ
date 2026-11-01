@@ -89,6 +89,15 @@ export function burnOf(actor) {
 
 /** Тянет ли машина инверсионный след: летит на Высокой или в стратосфере. */
 export const trailOf = (token, actor = token?.actor) => isFlying(actor) && ["high", "strat"].includes(altOf(token, actor));
+/** След по земле и воде: корабль на ходу оставляет кильватер, наземная техника поднимает пыль (на Севере снежную).
+    Летающие корабли, подлодка под водой и объекты следа не оставляют. */
+export function groundTrailOf(actor) {
+  if (actor?.type !== "npc" || isFlying(actor)) return null;
+  const s = actor.system;
+  if (s.kind === "ship") return actor.getFlag?.(SYSTEM_ID, "unit")?.sub ? null : "wake";
+  if (s.kind === "ground" && s.grp !== "obj" && s.grp !== "boss") return "dust";
+  return null;
+}
 /** Идёт ли машина на форсаже: летит на своей Max Speed. */
 export const burnerOf = actor => isFlying(actor) && Number(actor.system?.maxSpeed) > 0 && Number(actor.system?.speed) >= Number(actor.system.maxSpeed);
 
@@ -104,6 +113,10 @@ export function registerFx() {
   game.settings.register(SYSTEM_ID, "fxTrail", {
     name: "Инверсионные следы", hint: "Машины на Высокой и в стратосфере оставляют за собой тающий белый след, пока летят. Только у себя, вместе с анимацией.",
     scope: "client", config: true, type: Boolean, default: true, onChange: () => trailAt.clear()
+  });
+  game.settings.register(SYSTEM_ID, "fxWake", {
+    name: "Кильватер и пыль", hint: "Корабль на ходу оставляет белый расходящийся след на воде, наземная техника поднимает пыль (на Севере снег). Только у себя, вместе с анимацией.",
+    scope: "client", config: true, type: Boolean, default: true
   });
   game.settings.register(SYSTEM_ID, "fxBurner", {
     name: "Форсаж", hint: "У машины на своей максимальной скорости при движении из сопла бьёт короткое пламя. Только у себя, вместе с анимацией.",
@@ -387,6 +400,7 @@ const TRAIL_MS = 4500;
 const trailAt = new Map();   // id токена → где был центр в прошлый тик
 const trailOn = () => { try { return on() && game.settings.get(SYSTEM_ID, "fxTrail") !== false; } catch { return true; } };
 const burnerOn = () => { try { return on() && game.settings.get(SYSTEM_ID, "fxBurner") !== false; } catch { return true; } };
+const wakeOn = () => { try { return on() && game.settings.get(SYSTEM_ID, "fxWake") !== false; } catch { return true; } };
 
 /** Отрезок следа за машиной, прошедшей от a к b: концы отнесены назад на длину носа, чтобы след не лёг поверх токена. */
 export function trailSegment(a, b, size) {
@@ -398,12 +412,21 @@ export function trailSegment(a, b, size) {
 }
 
 function trailTick() {
-  const trail = trailOn(), burner = burnerOn();
-  if (!canvas?.ready || (!trail && !burner) || document.hidden) return;
+  const trail = trailOn(), burner = burnerOn(), wake = wakeOn();
+  if (!canvas?.ready || (!trail && !burner && !wake) || document.hidden) return;
   if (items.length > MAX_ITEMS * 0.6) return;
-  const live = new Set();
+  const live = new Set(), cold = canvas.scene?.getFlag?.(SYSTEM_ID, "place") === "cold";
   for (const t of canvas.tokens?.placeables ?? []) {
-    if (t.document.hidden || !seen(t) || !isFlying(t.actor)) continue;
+    if (t.document.hidden || !seen(t)) continue;
+    const surf = wake ? groundTrailOf(t.actor) : null;
+    if (surf) {
+      live.add(t.id);
+      const now = { x: t.center.x, y: t.center.y }, was = trailAt.get(t.id);
+      trailAt.set(t.id, now);
+      if (was && Math.hypot(now.x - was.x, now.y - was.y) <= gs() * 2.5) surfTrail(surf, was, now, t.w ?? gs(), cold);
+      continue;
+    }
+    if (!isFlying(t.actor)) continue;
     const high = trail && trailOf(t), fast = burner && burnerOf(t.actor);
     if (!high && !fast) continue;
     live.add(t.id);
@@ -434,6 +457,30 @@ function afterburner(a, b, size) {
   puff({ x: n.x, y: n.y }, { r: 0.022, life: 220, color: 0xfff2c0, alpha: 0.95, grow: 0.3, ...back(1, 60) });
   for (let i = 0; i < 2; i++) {
     puff({ x: n.x - n.ux * rnd(2, 8), y: n.y - n.uy * rnd(2, 8) }, { r: 0.02, life: 320, color: Math.random() < 0.5 ? 0xff8a1e : 0xffc23a, alpha: 0.8, grow: 0.6, delay: i * 50, ...back(1, rnd(90, 160)) });
+  }
+}
+
+/** Точки следа по пройденному отрезку: шаг в долю клетки, у каждой — направление движения (для расхождения волн). */
+export function surfPoints(a, b, size, step = 0.07) {
+  const n = nozzleAt(a, b, size);
+  if (!n) return [];
+  const d = Math.hypot(b.x - a.x, b.y - a.y), k = Math.max(1, Math.round(d / (size * step)));
+  return Array.from({ length: k }, (_, i) => ({ x: n.x - (b.x - a.x) * (1 - (i + 1) / k), y: n.y - (b.y - a.y) * (1 - (i + 1) / k), ux: n.ux, uy: n.uy, i, k }));
+}
+
+/** Кильватер: белая пена за кормой расходится в обе стороны клином; пыль: бурые клубы оседают за техникой. */
+function surfTrail(kind, a, b, size, cold) {
+  const pts = surfPoints(a, b, size);
+  for (const p of pts) {
+    const delay = (p.i / p.k) * 120;
+    if (kind === "wake") {
+      const side = gs() * 0.05;
+      for (const s of [-1, 1]) puff({ x: p.x, y: p.y }, { r: 0.008, life: 4200, color: 0xf4fbff, alpha: 0.5, grow: 1.2, delay, vx: -p.uy * side * s - p.ux * side * 0.25, vy: p.ux * side * s - p.uy * side * 0.25 });
+      if (p.i % 2 === 0) puff({ x: p.x + rnd(-2, 2), y: p.y + rnd(-2, 2) }, { r: 0.016, life: 2600, color: 0xe6f2f8, alpha: 0.35, grow: 1.4, delay });
+    } else if (p.i % 2 === 0) {
+      const color = cold ? 0xf2f6fb : Math.random() < 0.5 ? 0xb8a07a : 0xa89478;
+      puff({ x: p.x + rnd(-3, 3), y: p.y + rnd(-3, 3) }, { r: 0.022, life: 1700, color, alpha: 0.32, grow: 2.2, delay, vx: -p.ux * gs() * 0.06 + rnd(-4, 4), vy: -p.uy * gs() * 0.06 + rnd(-4, 4) });
+    }
   }
 }
 

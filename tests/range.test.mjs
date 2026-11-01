@@ -17,7 +17,7 @@ const tok = (o) => ({ center: { x: o.x + 50, y: o.y + 50 }, document: { x: o.x, 
 const W = (id, target, reach) => ({ id, type: "weapon", system: { target, reach } });
 const wl = [W("laam", "air", 99), W("emrg", "line", 99), W("aam4", "air", 1), W("rcl", "ground", 0)];
 const pilot = { uuid: "Actor.p", type: "pilot", system: { alt: "med", lockUuid: "x" }, items: Object.assign([...wl], { get: id => wl.find(w => w.id === id) }) };
-globalThis.game = { settings: { register(){}, get: () => true }, user: { isGM: false, targets: { first: () => globalThis.tgt } }, scenes: { viewed: { getFlag: () => [] } } };
+globalThis.game = { settings: { register(){}, get: (ns, k) => k === "hlMode" ? "range" : true }, user: { isGM: false, targets: { first: () => globalThis.tgt } }, scenes: { viewed: { getFlag: () => [] } } };
 globalThis.canvas = { ready: true, dimensions: { width: 1000, height: 800 },
   grid: { type: 1, size: gs, isHexagonal: false, getOffset: p => ({ i: Math.floor(p.y / gs), j: Math.floor(p.x / gs) }), getTopLeftPoint: o => ({ x: o.j * gs, y: o.i * gs }) },
   interface: { addChild: c => c, grid: { addHighlightLayer: () => ({}), clearHighlightLayer: () => { cells.length = 0; }, highlightPosition: (n, o) => cells.push(o) } },
@@ -32,3 +32,5 @@ canvas.tokens.placeables = canvas.tokens.controlled;
 run(); console.log("standard:", cells.length, hist());
 for (const id of ["laam", "aam4", "rcl", "emrg"]) { toggleAim(pilot, id); run(); console.log(id, cells.length, hist()); toggleAim(pilot, id); }
 globalThis.tgt = tok({ x: 700, y: 100, actor: {} }); toggleAim(pilot, "emrg"); run(); console.log("emrg+target", cells.length, cells.map(c => "").length && hist()); toggleAim(pilot, "emrg"); run(); console.log("back to std", cells.length);
+const { autoLayer } = await import(root + "/module/range.mjs");
+console.log("Авто:", [[true, false], [true, true], [false, false], [false, true]].map(([t, a]) => `${t ? "свой ход" : "чужой"}${a ? "+Alt" : ""}=${autoLayer(t, a)}`).join(" "));

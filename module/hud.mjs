@@ -33,6 +33,15 @@ export function registerHud() {
     name: "HUD пилота", hint: "Полоса внизу экрана в бою: HP, Strain, Speed, высота, действия хода, захват, спецоружие и предупреждения, кнопки действий.",
     scope: "client", config: true, type: Boolean, default: true, onChange: () => refreshHud()
   });
+  game.settings.register(SYSTEM_ID, "hudLayout", {
+    name: "Вид HUD пилота", hint: "По углам: приборы светятся в левом нижнем углу, оружие и кнопки в правом, без общей панели, середина экрана открыта. Панелью: одна полоса над панелью макросов, её можно двигать и тянуть за угол. Переключается и значком в шапке HUD.",
+    scope: "client", config: true, type: String, default: "corners", choices: { corners: "По углам, как в Ace Combat", panel: "Одной панелью" },
+    onChange: () => { lastHtml = ""; refreshHud(); }
+  });
+  // боевой экран спрятал или вернул окна Foundry, свернули чат, поменяли окно: углы HUD встают заново
+  Hooks.on(`${SYSTEM_ID}.combatScreen`, () => setTimeout(place, 60));
+  Hooks.on("collapseSidebar", () => setTimeout(place, 260));
+  globalThis.window?.addEventListener?.("resize", () => place());
   for (const ev of ["canvasReady", "controlToken", "updateActor", "updateActorDelta", "createToken", "deleteToken", "updateItem",
     "createCombat", "updateCombat", "deleteCombat", "updateCombatant"]) Hooks.on(ev, () => refreshHud());
   // чат: только карточки системы (пуски, захваты, Doom), не обычные реплики
@@ -277,6 +286,7 @@ function html(actor, d, folded) {
       ${d.warn.filter(w => !BIG.has(w.key)).map(w => `<span class="tb-hud-warn ${w.key}">${w.text}</span>`).join("")}
       ${d.acts?.turn ? `<span class="tb-hud-turn">ВАШ ХОД</span>` : ""}
       ${hlSwitch()}
+      <a class="tb-hud-lay" data-hud-layout title="${corners() ? "Собрать HUD в одну панель" : "Разнести HUD по углам экрана"}"><i class="fas fa-${corners() ? "window-maximize" : "table-columns"}"></i></a>
       <a class="tb-hud-dock" data-hud-dock title="Вернуть панель на место над панелью макросов и к обычному размеру"><i class="fas fa-thumbtack"></i></a>
       <i class="fas fa-chevron-${folded ? "up" : "down"}"></i>
     </header>
@@ -316,6 +326,9 @@ function html(actor, d, folded) {
     </div>`}`;
 }
 
+/** HUD разнесён по углам экрана (настройка «Вид HUD пилота»). */
+export const corners = () => { try { return game.settings.get(SYSTEM_ID, "hudLayout") !== "panel"; } catch { return true; } };
+
 /** Разметка HUD для актёра (для тестов и проверки вида). */
 export const hudHtml = (actor, folded = false) => html(actor, hudData(actor), folded);
 
@@ -352,6 +365,7 @@ function render() {
   el.classList.toggle("folded", folded);
   el.classList.toggle("pinned", readPos().x !== undefined);
   el.classList.toggle("tb-unit-hud", !hudFits(actor));
+  el.classList.toggle("corners", corners() && hudFits(actor));
   const markup = hudFits(actor) ? html(actor, hudData(actor), folded) : unitHtml(actor, folded);
   // та же разметка: не трогать DOM и не пересчитывать раскладку
   if (markup === lastHtml) return;
@@ -376,7 +390,12 @@ function writePos(pos) {
 /** Свою позицию держит панель, которую двигали или тянули; иначе она по центру над панелью макросов. В окно она влезает всегда. */
 function place() {
   if (!el) return;
-  const pos = readPos(), w = el.offsetWidth, h = el.offsetHeight;
+  if (el.classList.contains("corners")) return placeCorners();
+  el.style.right = "";
+  const pos = readPos();
+  el.style.width = pos.w ? `${pos.w}px` : "";
+  el.style.height = pos.h ? `${pos.h}px` : "";
+  const w = el.offsetWidth, h = el.offsetHeight;
   if (pos.x !== undefined) {
     el.style.left = `${Math.max(0, Math.min(window.innerWidth - Math.min(w, 120), pos.x))}px`;
     el.style.top = `${Math.max(0, Math.min(window.innerHeight - 30, pos.y))}px`;
@@ -390,9 +409,30 @@ function place() {
   el.style.bottom = `${bar && bar.height ? Math.max(8, window.innerHeight - bar.top + 8) : 70}px`;
 }
 
+/** Видимый прямоугольник окна Foundry или null (спрятано боевым экраном, свёрнуто, нет на странице). */
+function shownRect(id) {
+  const n = document.getElementById(id);
+  if (!n || n.offsetParent === null) return null;
+  const r = n.getBoundingClientRect();
+  return r.width && r.height ? r : null;
+}
+
+/** HUD по углам: от левого края до чата, над панелью макросов, если она видна. Сам HUD прозрачен, ловят щелчки только приборы. */
+export function cornerBox(win, { sidebar = null, controls = null, players = null, hotbar = null } = {}) {
+  const left = Math.max(8, players ? players.right + 8 : 0, controls ? controls.right + 8 : 0);
+  const right = sidebar ? Math.max(8, win.w - sidebar.left + 8) : 8;
+  const bottom = hotbar ? Math.max(8, win.h - hotbar.top + 8) : 8;
+  return { left, right, bottom };
+}
+function placeCorners() {
+  const b = cornerBox({ w: window.innerWidth, h: window.innerHeight }, { sidebar: shownRect("sidebar"), controls: shownRect("controls"), players: shownRect("players"), hotbar: shownRect("hotbar") });
+  Object.assign(el.style, { left: `${b.left}px`, right: `${b.right}px`, bottom: `${b.bottom}px`, top: "auto", width: "auto", height: "auto" });
+}
+
 /** Перетаскивание за шапку: короткий щелчок по ней по-прежнему сворачивает панель. */
 let dragged = false;
 function startDrag(ev) {
+  if (el?.classList.contains("corners")) return;
   if (ev.button !== 0 || !ev.target.closest("header") || ev.target.closest("[data-hud-dock], [data-hud-hl]")) return;
   const r = el.getBoundingClientRect(), dx = ev.clientX - r.left, dy = ev.clientY - r.top, x0 = ev.clientX, y0 = ev.clientY;
   dragged = false;
@@ -426,6 +466,7 @@ function dock() {
 
 async function onClick(ev) {
   if (ev.target.closest("[data-hud-dock]")) { ev.preventDefault(); ev.stopPropagation(); return dock(); }
+  if (ev.target.closest("[data-hud-layout]")) { ev.preventDefault(); ev.stopPropagation(); return game.settings.set(SYSTEM_ID, "hudLayout", corners() ? "panel" : "corners"); }
   const hl = ev.target.closest("[data-hud-hl]");
   if (hl) { ev.preventDefault(); ev.stopPropagation(); return setHlMode(hl.dataset.hudHl); }
   if (dragged && ev.target.closest("header")) { dragged = false; return; }

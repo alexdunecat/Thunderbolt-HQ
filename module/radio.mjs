@@ -151,6 +151,9 @@ export function say(speaker, text, side = "ally", { low = false, log = true } = 
   if (!showing) next();
 }
 
+/** Щелчок рации в начале и конце реплики (sounds.mjs грузится лениво: радио не тянет звук при старте). */
+const click = edge => import("./sounds.mjs").then(m => m.squelch(edge)).catch(() => null);
+
 function box(id) {
   let el = document.getElementById(id);
   if (!el) { el = document.createElement("div"); el.id = id; el.setAttribute("aria-live", "polite"); document.body.append(el); }
@@ -166,8 +169,9 @@ function next() {
   el.innerHTML = `<div class="tb-radio-who">${esc(item.speaker)}</div><div class="tb-radio-line"><span class="q">«</span> ${esc(item.text)} <span class="q">»</span></div>`;
   void el.offsetWidth;
   el.classList.add("on");
+  click("open");
   const ms = Math.min(7000, 2200 + item.text.length * 45);
-  setTimeout(() => { el.classList.remove("on"); setTimeout(next, 350); }, ms);
+  setTimeout(() => { el.classList.remove("on"); click("close"); setTimeout(next, 350); }, ms);
 }
 
 /** Баннер посреди экрана: CAUTION, WARNING, итог миссии (mission: true, level — success/complete/aborted/failed)

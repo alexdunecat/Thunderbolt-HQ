@@ -23,7 +23,7 @@ const aimed = new Map();
 
 /** Режимы подсветки: подпись для переключателя и подсказка. */
 export const HL_MODES = {
-  auto: { label: "АВТО", hint: "Ход в свой ход, дальность в остальное время" },
+  auto: { label: "АВТО", hint: "Тихо: в свой ход клетки хода только обведены, в остальное время подсветки нет, а дальность видна, пока держите Alt" },
   range: { label: "ДАЛЬН", hint: "Дальность: кого достану отсюда" },
   move: { label: "ХОД", hint: "Ход: куда долечу за оставшиеся действия и за сколько" },
   threat: { label: "УГРОЗЫ", hint: "Угрозы: куда долечу, и где ЗРК, зенитки, удары и опасная погода" },
@@ -48,6 +48,8 @@ export function registerRange() {
   const TOKEN_KEYS = ["x", "y", "elevation", "hidden", "delta", "width", "height"];
   Hooks.on("updateToken", (doc, change) => { if (canvas?.tokens?.controlled?.length && TOKEN_KEYS.some(k => k in change)) refreshSoon(); });
   Hooks.on("canvasReady", () => refreshSoon());
+  // Alt (подсветка объектов Foundry): в «Авто» не в свой ход показывает дальность, пока клавиша зажата
+  Hooks.on("highlightObjects", on => { altHeld = !!on; if (hlMode() === "auto" && canvas?.tokens?.controlled?.length) refreshSoon(); });
   Hooks.on("canvasTearDown", () => { labels = null; marks = null; hideTip(); });
   globalThis.window?.addEventListener("pointermove", onPointer, { passive: true });
   globalThis.window?.addEventListener("pointerup", () => setTimeout(hideTip, 0));
@@ -76,12 +78,17 @@ export function hlSwitch() {
     `<a data-hud-hl="${k}" class="${k === cur ? "on" : ""}" title="${v.hint}">${v.label}</a>`).join("")}</span>`;
 }
 
-/** Какой слой рисовать сейчас: auto — ход в свой ход (заявка уже есть), иначе дальность. */
+let altHeld = false;
+/** Что в «Авто»: свой ход (заявка уже есть) — ход контуром; не свой — дальность, только пока зажат Alt, иначе ничего. */
+export function autoLayer(myTurn, alt) {
+  return myTurn ? "move" : alt ? "range" : "off";
+}
+/** Какой слой рисовать сейчас. */
 function effective(token) {
   const m = hlMode();
   if (m !== "auto") return m;
   const c = combatantOf(token.actor, token.document);
-  return c && c.parent.combatant?.id === c.id && c.parent.getFlag(SYSTEM_ID, "ready") === c.parent.round ? "move" : "range";
+  return autoLayer(!!c && c.parent.combatant?.id === c.id && c.parent.getFlag(SYSTEM_ID, "ready") === c.parent.round, altHeld);
 }
 
 /** Спецоружие, по которому идёт подсветка у этого актёра (предмет или null — стандартная ракета). */
@@ -203,6 +210,10 @@ function draw() {
   if (mode === "off") return;
   const bounds = canvas.grid.getOffset({ x: canvas.dimensions.width - 1, y: canvas.dimensions.height - 1 });
   const paint = (name, i, j, style) => { const p = canvas.grid.getTopLeftPoint({ i, j }); grid.highlightPosition(name, { x: p.x, y: p.y, color: style.color, border: style.border, alpha: style.alpha }); };
+  // «Авто» в свой ход: клетки хода только обведены, без заливки — карта и анимация под ними видны
+  const quiet = hlMode() === "auto" && mode === "move", gsz = canvas.grid.size;
+  const ring = quiet ? layerOf("labels").addChild(new PIXI.Graphics()) : null;
+  const outline = (i, j, style) => { const p = canvas.grid.getTopLeftPoint({ i, j }); ring.lineStyle(2, style.border, Math.min(0.85, 0.35 + style.alpha * 3)).drawRect(p.x + 4, p.y + 4, gsz - 8, gsz - 8); };
   if (mode === "range") {
     const block = blockOf(token);
     if (!block) return;
@@ -216,7 +227,8 @@ function draw() {
   const gs = canvas.grid.size;
   for (const c of cells.values()) {
     const base = c.cost === 0 ? OWN : c.punch ? PUNCH : MOVE[Math.min(3, c.cost)];
-    paint(LAYER, c.row, c.col, ml.plan ? { ...base, alpha: base.alpha * 0.55 } : base);
+    if (quiet) outline(c.row, c.col, base);
+    else paint(LAYER, c.row, c.col, ml.plan ? { ...base, alpha: base.alpha * 0.55 } : base);
     if (c.cost === 0) continue;
     const p = canvas.grid.getTopLeftPoint({ i: c.row, j: c.col });
     text(labels, c.punch ? `⚡${c.cost}` : String(c.cost), p.x + 5, p.y + 3, { fill: c.punch ? 0xffd77a : 0xbfe6ff, size: Math.max(14, Math.round(gs / 6)) });

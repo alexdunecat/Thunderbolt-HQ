@@ -5,3 +5,4 @@ rcl 1 { '9be3bf': 1 }
 emrg 31 { '9be3bf': 1, f2c14e: 30 }
 emrg+target 31 { '9be3bf': 1, f2c14e: 30 }
 back to std 25
+Авто: свой ход=move свой ход+Alt=move чужой=off чужой+Alt=range

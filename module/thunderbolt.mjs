@@ -59,6 +59,8 @@ import { registerKeys } from "./keys.mjs";
 import { registerWeatherFx } from "./weather-fx.mjs";
 import { registerAmbient } from "./ambient.mjs";
 import { registerHoverCard } from "./hover-card.mjs";
+import { registerNightLights } from "./night-lights.mjs";
+import { registerCombatScreen } from "./combat-screen.mjs";
 import { registerInsignia } from "./insignia.mjs";
 import { registerSideColor } from "./sidecolor.mjs";
 import { registerLosses } from "./losses.mjs";
@@ -199,6 +201,8 @@ Hooks.once("init", () => {
   registerWeatherFx();
   registerAmbient();
   registerHoverCard();
+  registerNightLights();
+  registerCombatScreen();
   registerAltitude();
   registerInsignia();
   registerSideColor();

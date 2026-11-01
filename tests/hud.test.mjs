@@ -67,3 +67,7 @@ wm.statuses = new Set(); wm.getFlag = (s, k) => (k === "autopilot" ? wingFlag : 
 wm.tok = mkTok("T3", wm, 150, 1); canvas.tokens.placeables.push(wm.tok);
 console.log("ведомые:", JSON.stringify(H.hudData(me).wing), "· крест:", [...H.hudHtml(me).matchAll(/tb-wx-btn (\w+) (on)?[^>]*data-hud-wing="(\w+)"/g)].map(m => `${m[3]}${m[2] ? "*" : ""}@${m[1]}`).join(" "));
 if (process.env.HUD_HTML) (await import("node:fs")).writeFileSync(process.env.HUD_HTML.replace(".html", "4.html"), H.hudHtml(me));
+const win = { w: 1920, h: 1080 };
+console.log("HUD по углам, всё спрятано:", JSON.stringify(H.cornerBox(win)));
+console.log("HUD по углам, окна Foundry видны:", JSON.stringify(H.cornerBox(win, { sidebar: { left: 1615 }, controls: { right: 95 }, players: { right: 215 }, hotbar: { top: 1018 } })));
+console.log("HUD по углам, чат свёрнут:", JSON.stringify(H.cornerBox(win, { sidebar: { left: 1880 } })), "· вид по умолчанию:", H.corners() ? "углы" : "панель");

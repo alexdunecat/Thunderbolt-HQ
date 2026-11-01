@@ -27,6 +27,7 @@ export const COCKPIT_SOUNDS = {
   laser: { label: "Выстрел лазера", hint: "У всех: лазер супероружия.", all: true },
   railgun: { label: "Выстрел рейлгана", hint: "У всех: рельсотрон супероружия.", all: true },
   awacs: { label: "Радиосообщение AWACS", hint: "У всех: перед репликой AWACS от ведущего (кроме итога миссии).", all: true },
+  squelch: { label: "Щелчок рации", hint: "У всех: короткий шорох в начале и конце каждой реплики в эфире (NPC, AWACS, пилоты).", all: true, synth: true },
   radioOn: { label: "Включение гражданского радио", hint: "У всех: радио заиграло после тишины.", all: true },
   siren: { label: "Сирена", hint: "У всех, пока ведущий её не выключит (кнопка в разделе «Радио»).", all: true },
   click: { label: "Нажатие кнопки", hint: "Кнопки системы: листы, окна, карточки, HUD.", ui: true },
@@ -91,7 +92,7 @@ export function registerSounds() {
     const pre = foundry.audio?.AudioHelper?.preloadSound;
     // выключенные у себя звуки и нулевую громкость не грузим; остальное — когда браузер свободен
     if (!pre || Number(setting("soundVolume", 70)) <= 0) return;
-    const keys = Object.keys(COCKPIT_SOUNDS).filter(k => !muted(k)).flatMap(k => COCKPIT_SOUNDS[k].files ?? [k]);
+    const keys = Object.keys(COCKPIT_SOUNDS).filter(k => !muted(k) && !COCKPIT_SOUNDS[k].synth).flatMap(k => COCKPIT_SOUNDS[k].files ?? [k]);
     const idle = globalThis.requestIdleCallback ?? (f => setTimeout(f, 1500));
     idle(() => { for (const k of keys) Promise.resolve().then(() => pre.call(foundry.audio.AudioHelper, SRC(k))).catch(() => null); });
   });
@@ -149,6 +150,45 @@ function failed(key, src, err) {
   if (warned) return;
   warned = true;
   try { ui.notifications.warn(`Звук «${COCKPIT_SOUNDS[key]?.label ?? key}» не сыграл: ${err?.message ?? err}. Подробности в консоли (F12).`); } catch {}
+}
+
+/* ---------- щелчок рации: шум через полосовой фильтр, без файла ---------- */
+
+let sqCtx = null, sqNoise = null, sqLast = 0;
+/** Громкость щелчка 0..1: своя громкость звуков × ползунок «Интерфейс» Foundry; 0 — выключен. */
+export function squelchVolume(own = setting("soundVolume", 70), core = (() => { try { return game.settings.get("core", "globalInterfaceVolume"); } catch { return 1; } })(), off = muted("squelch")) {
+  return off ? 0 : Math.max(0, Math.min(1, Number(own) / 100 * Number(core ?? 1)));
+}
+/** Щелчок рации: open — нажали тангенту (короткий щелчок с шорохом), close — отпустили (хвост шипения). */
+export function squelch(edge = "open") {
+  const vol = squelchVolume();
+  if (vol <= 0) return false;
+  try {
+    sqCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (sqCtx.state !== "running") { sqCtx.resume?.().catch(() => null); if (sqCtx.state !== "running") return false; }
+    if (!sqNoise) {
+      sqNoise = sqCtx.createBuffer(1, sqCtx.sampleRate, sqCtx.sampleRate);
+      const d = sqNoise.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const now = performance.now();
+    if (now - sqLast < 120) return false;
+    sqLast = now;
+    const c = sqCtx, t = c.currentTime, close = edge === "close", dur = close ? 0.16 : 0.07;
+    const n = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    n.buffer = sqNoise;
+    f.type = "bandpass"; f.frequency.value = close ? 2600 : 1800; f.Q.value = close ? 0.9 : 1.6;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.16 * vol, t + 0.005);
+    g.gain.setValueAtTime(0.16 * vol, t + dur * 0.4); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    n.connect(f).connect(g).connect(c.destination); n.start(t, Math.random() * 0.5); n.stop(t + dur + 0.02);
+    // нажатие тангенты: короткий щелчок реле перед шорохом
+    if (!close) {
+      const o = c.createOscillator(), og = c.createGain();
+      o.frequency.value = 1100; og.gain.setValueAtTime(0.08 * vol, t); og.gain.exponentialRampToValueAtTime(0.0001, t + 0.02);
+      o.connect(og).connect(c.destination); o.start(t); o.stop(t + 0.03);
+    }
+    return true;
+  } catch { return false; }
 }
 
 /** Приоритетная цель своих: NPC с отметкой «Приоритетная цель» на стороне союзников, нейтральный или гражданский. */
