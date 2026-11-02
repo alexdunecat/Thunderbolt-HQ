@@ -85,6 +85,7 @@ const parts = r => r.parts.map(p => `${p[0]} ${p[1] > 0 ? "+" : ""}${p[1]}`).joi
 const states = a => a.items.map(t => `${t.name}=${C.ctState(a, t)}`).join(", ");
 for (const a of [knight, merc, techno, hot, soldier, border, chat, rookie]) console.log(`${a.name}:`, states(a));
 console.log("Обходная цепь без Structure:", C.waitReason(techno, techno.items[1]));
+for (const a of [techno, hot, soldier]) console.log(`HUD ${a.name}:`, (C.hudTriggers(a)?.trig ?? []).map(t => `${t.name}=${t.state}${t.why ? ` (${t.why})` : ""}`).join(", ") || "—");
 
 // Поединок «Кодекса»
 const duelTxt = (p, f) => JSON.stringify(C.duelBonus(p, f));

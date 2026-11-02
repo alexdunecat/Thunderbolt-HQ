@@ -38,6 +38,11 @@ export function registerHud() {
     scope: "client", config: true, type: String, default: "corners", choices: { corners: "По углам, как в Ace Combat", panel: "Одной панелью" },
     onChange: () => { lastHtml = ""; refreshHud(); }
   });
+  game.settings.register(SYSTEM_ID, "hudScale", {
+    name: "Размер HUD по углам", hint: "Насколько крупно рисуются приборы, оружие и кнопки HUD по углам. Если места на экране не хватает, сначала прячется силуэт машины, потом сужаются колонки.",
+    scope: "client", config: true, type: String, default: "1.15", choices: { "1": "Обычный", "1.15": "Крупнее", "1.3": "Ещё крупнее", "1.45": "Самый крупный" },
+    onChange: () => place()
+  });
   // боевой экран спрятал или вернул окна Foundry, свернули чат, поменяли окно: углы HUD встают заново
   Hooks.on(`${SYSTEM_ID}.combatScreen`, () => setTimeout(place, 60));
   Hooks.on("collapseSidebar", () => setTimeout(place, 260));
@@ -161,7 +166,9 @@ function ctRow(d) {
   if (!d.ct) return "";
   return `<div class="tb-hud-btns tb-hud-ct"><small title="Боевые триггеры">TRIG</small>
     ${d.ct.chips.map(c => `<span class="tb-hud-ctchip">${esc(c)}</span>`).join("")}
-    ${d.ct.trig.map(t => `<button type="button" class="tb-hud-cttrig" data-hud-ctrig="${t.id}" title="${esc(t.hint)}">${esc(t.name)}</button>`).join("")}</div>`;
+    ${d.ct.trig.map(t => t.state === "ready" || t.state === undefined
+    ? `<button type="button" class="tb-hud-cttrig" data-hud-ctrig="${t.id}" title="${esc(t.hint)}">${esc(t.name)}</button>`
+    : `<span class="tb-hud-cttrig ${t.state}" title="${esc(`${t.hint}. Сейчас: ${t.why}`)}">${esc(t.name)}${t.state === "on" ? " · действует" : ""}</span>`).join("")}</div>`;
 }
 
 /** Строка Немезиды в HUD. */
@@ -419,13 +426,26 @@ function shownRect(id) {
 
 /** HUD по углам: от левого края до чата, над панелью макросов, если она видна. Сам HUD прозрачен, ловят щелчки только приборы. */
 export function cornerBox(win, { sidebar = null, controls = null, players = null, hotbar = null } = {}) {
-  const left = Math.max(8, players ? players.right + 8 : 0, controls ? controls.right + 8 : 0);
-  const right = sidebar ? Math.max(8, win.w - sidebar.left + 8) : 8;
-  const bottom = hotbar ? Math.max(8, win.h - hotbar.top + 8) : 8;
+  const left = Math.max(16, players ? players.right + 12 : 0, controls ? controls.right + 12 : 0);
+  const right = sidebar ? Math.max(16, win.w - sidebar.left + 12) : 16;
+  const bottom = hotbar ? Math.max(12, win.h - hotbar.top + 8) : 12;
   return { left, right, bottom };
 }
+
+/* Сколько места (до масштаба) нужно раскладкам HUD по углам: колонки, поля и промежутки; крест ведомых — ещё столько же */
+const FIT_NEED = { full: 1290, noarm: 1160, narrow: 1030 }, WING_NEED = 190;
+/** Раскладка под ширину: full, noarm (без силуэта), narrow (уже колонки), stack (кнопки под приборами). */
+export function fitOf(width, zoom = 1, wing = false) {
+  const w = width / (zoom || 1) - (wing ? WING_NEED : 0);
+  return w >= FIT_NEED.full ? "full" : w >= FIT_NEED.noarm ? "noarm" : w >= FIT_NEED.narrow ? "narrow" : "stack";
+}
+const zoomNow = () => { try { const z = Number(game.settings.get(SYSTEM_ID, "hudScale")); return z > 0.5 && z < 2 ? z : 1.15; } catch { return 1.15; } };
+
 function placeCorners() {
   const b = cornerBox({ w: window.innerWidth, h: window.innerHeight }, { sidebar: shownRect("sidebar"), controls: shownRect("controls"), players: shownRect("players"), hotbar: shownRect("hotbar") });
+  const z = zoomNow();
+  el.style.setProperty("--tb-hud-zoom", String(z));
+  el.dataset.fit = fitOf(window.innerWidth - b.left - b.right, z, !!el.querySelector(".tb-hud-grid.wing"));
   Object.assign(el.style, { left: `${b.left}px`, right: `${b.right}px`, bottom: `${b.bottom}px`, top: "auto", width: "auto", height: "auto" });
 }
 

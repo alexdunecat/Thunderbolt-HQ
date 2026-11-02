@@ -71,3 +71,4 @@ const win = { w: 1920, h: 1080 };
 console.log("HUD по углам, всё спрятано:", JSON.stringify(H.cornerBox(win)));
 console.log("HUD по углам, окна Foundry видны:", JSON.stringify(H.cornerBox(win, { sidebar: { left: 1615 }, controls: { right: 95 }, players: { right: 215 }, hotbar: { top: 1018 } })));
 console.log("HUD по углам, чат свёрнут:", JSON.stringify(H.cornerBox(win, { sidebar: { left: 1880 } })), "· вид по умолчанию:", H.corners() ? "углы" : "панель");
+console.log("раскладка по ширине:", [[1900, 1], [1532, 1.15], [1300, 1], [1200, 1], [1060, 1], [1060, 1.15], [1500, 1, true], [1500, 1.3]].map(([w, z, wing]) => `${w}/${z}${wing ? "+крест" : ""}=${H.fitOf(w, z, wing)}`).join(" "));

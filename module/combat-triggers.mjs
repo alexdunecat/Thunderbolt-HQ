@@ -862,7 +862,9 @@ export function hudTriggers(pilot) {
   const trigs = [], chips = [];
   for (const t of pilot.items.filter(i => i.type === "trigger" && CT[i.system.key])) {
     const st = ctState(pilot, t), chip = chipOf(pilot, t);
-    if (st === "ready" && t.system.key !== "code" && !["bill", "byside"].includes(t.system.key) && !CT[t.system.key].life) trigs.push({ id: t.id, name: t.name, hint: CT[t.system.key].fx });
+    // всё, что задействуют в бою вручную: готовое — кнопкой, остальное видно с причиной (условие, уже использован, действует)
+    if (CT[t.system.key].use && t.system.key !== "code" && !["bill", "byside"].includes(t.system.key) && !CT[t.system.key].life && st)
+      trigs.push({ id: t.id, name: t.name, hint: CT[t.system.key].fx, state: st, why: st === "wait" ? waitReason(pilot, t) || STATE_TEXT.wait : STATE_TEXT[st] ?? "" });
     if (chip) chips.push(chip);
   }
   return trigs.length || chips.length ? { trig: trigs, chips } : null;
