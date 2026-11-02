@@ -61,6 +61,7 @@ import { registerAmbient } from "./ambient.mjs";
 import { registerHoverCard } from "./hover-card.mjs";
 import { registerNightLights } from "./night-lights.mjs";
 import { registerCombatScreen } from "./combat-screen.mjs";
+import { registerQuietNotes } from "./quiet-notes.mjs";
 import { registerInsignia } from "./insignia.mjs";
 import { registerSideColor } from "./sidecolor.mjs";
 import { registerLosses } from "./losses.mjs";
@@ -203,6 +204,7 @@ Hooks.once("init", () => {
   registerHoverCard();
   registerNightLights();
   registerCombatScreen();
+  registerQuietNotes();
   registerAltitude();
   registerInsignia();
   registerSideColor();

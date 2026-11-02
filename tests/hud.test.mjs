@@ -54,6 +54,14 @@ game.user.isGM = true;
 console.log("у ведущего без выделения:", H.hudActor()?.name ?? "нет");
 canvas.tokens.controlled = [foe.tok];
 console.log("у ведущего с выделенным:", H.hudActor()?.name ?? "нет", "·", H.hudData(foe).plane, H.hudData(foe).maxSpeed, JSON.stringify(H.hudData(foe).warn));
+{ const card = (o = {}) => ({ id: "M" + msgs.length, getFlag: (s, k) => (k === "card" ? { actorUuid: me.uuid, label: "Fox Two!", rolled: true, strainable: true, d10: 4, parts: [["Aim", 2]], dc: 7, ...o } : undefined) });
+  const keep = msgs.splice(0);
+  msgs.push(card());
+  const r = H.strainRoll(me);
+  console.log("бросок для Strain из HUD:", JSON.stringify(r), /data-hud-strain="M0"/.test(H.hudHtml(me)) ? "кнопка есть" : "кнопки нет");
+  msgs.push(card({ strainable: false }));
+  console.log("свежий бросок без Strain:", H.strainRoll(me), "· уже учтён в залпе:", (msgs.splice(1), msgs.push(card({ resolved: true })), H.strainRoll(me)));
+  msgs.splice(0, msgs.length, ...keep); }
 console.log("кнопка Strain: у NPC без Strain", /data-hud-act="recover"/.test(H.hudHtml(foe)) ? "есть" : "нет", "· у пилота", /data-hud-act="recover"/.test(H.hudHtml(me)) ? "есть" : "нет");
 { const W = await import(R + "/module/rwr.mjs"), was = foe.system.lockUuid, gf = foe.getFlag;
   foe.system.lockUuid = "Actor.Гроза";

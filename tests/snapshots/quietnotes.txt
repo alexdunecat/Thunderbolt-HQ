@@ -1,0 +1,9 @@
+бой, info, тихо: quiet
+бой, warning: foundry
+бой, error: foundry
+вне боя, info: foundry
+бой, info, постоянное: foundry
+бой, info, не показывать: off
+бой, info, как обычно: foundry
+бой, info, неизвестный режим: foundry
+режимы: quiet, foundry, off

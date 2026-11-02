@@ -11,7 +11,7 @@ import { combatantOf, spentOf, declaredOf, endTurn } from "./actions.mjs";
 import { runAction, PILOT_BAR } from "./macros.mjs";
 import { lockersOf } from "./rwr.mjs";
 import { vmaxOf, kmhOf } from "./plane-speed.mjs";
-import { ejectNow, weaponReady, isGunPod, isOwnFire } from "./dice/rolls.mjs";
+import { ejectNow, weaponReady, isGunPod, isOwnFire, computeCard, onCardAction } from "./dice/rolls.mjs";
 import { unitKind, unitHtml, onUnitClick, registerUnitHud } from "./unit-hud.mjs";
 import { hudTriggers, useCombatTrigger } from "./combat-triggers.mjs";
 import { adviceRow, runAdvice, showTarget } from "./npc-advice.mjs";
@@ -152,6 +152,8 @@ export function hudData(actor) {
     nem: pilot ? hudNemesis(actor) : null,
     // боевые триггеры: что можно задействовать сейчас и что действует
     ct: pilot ? hudTriggers(actor) : null,
+    // последний бросок, к которому можно добавить Strain прямо из HUD
+    roll: c ? strainRoll(actor) : null,
     // роль машины, лампы свойств, Angle of Attack Limiter и фирменный приём
     planeRow: hudPlane(actor),
     // ведомые на автопилоте за этой машиной: приказы им
@@ -159,6 +161,31 @@ export function hudData(actor) {
     nemSelf: !pilot && isNemesis(actor) && game.user.isGM
       ? { side: s.side === "ally" || s.side === "neutral" ? s.side : "enemy", who: pilotsOf(actor).map(p => p.system.callsign || p.name).join(", "), talking: monologue()?.uuid === actor.uuid } : null
   };
+}
+
+/** Последний свой бросок, если к нему ещё можно добавить Strain (как кнопка «+1 Strain» на карточке): { id, label, total, dc, success }.
+    Смотрится только самая свежая своя карточка: если к ней Strain уже нельзя, к старым тоже не предлагается. */
+export function strainRoll(actor, messages = game.messages?.contents ?? []) {
+  for (let i = messages.length - 1, seen = 0; i >= 0 && seen < 40; i--, seen++) {
+    const c = messages[i].getFlag?.(SYSTEM_ID, "card");
+    if (!c || c.actorUuid !== actor.uuid) continue;
+    if (!c.rolled || !c.strainable || c.resolved || c.dmgApplied || (c.type === "eject" && c.applied)) return null;
+    const r = computeCard(c);
+    return { id: messages[i].id, label: c.label, total: r.total, dc: c.dc ?? null, success: r.success ?? null, strain: c.strain ?? 0, brk: c.type === "break" ? { value: r.value, ev: c.ev, applies: r.applies } : null };
+  }
+  return null;
+}
+
+/** Строка броска в HUD: итог последнего броска и кнопка «+1 Strain» прямо отсюда, без чата. */
+function rollRowHtml(d) {
+  const r = d.roll;
+  if (!r) return "";
+  const res = r.brk ? `Evasion ${r.brk.value}${r.brk.applies ? "" : ` · не выше ${r.brk.ev}`}`
+    : `${r.total}${r.dc !== null ? ` против ${r.dc} · ${r.success ? "успех" : "мимо"}` : ""}`;
+  const left = d.strain?.max ? d.strain.value : 0;
+  return `<div class="tb-hud-btns tb-hud-roll ${r.dc !== null ? (r.success ? "ok" : "miss") : ""}"><small title="Последний бросок">БРОСОК</small>
+    <span class="tb-hud-rolltxt" title="${esc(r.label)}${r.strain ? ` · Strain +${r.strain}` : ""}"><b>${esc(res)}</b>${r.strain ? ` <em>+${r.strain} Strain</em>` : ""} · ${esc(r.label)}</span>
+    ${left > 0 ? `<button type="button" data-hud-strain="${r.id}" title="Потратить 1 Strain: +1 к этому броску (как кнопка на карточке в чате)"><b>+1</b> STRAIN · ${left}</button>` : `<span class="tb-hud-none">Strain 0</span>`}</div>`;
 }
 
 /** Строка боевых триггеров в HUD: кнопки «задействовать» и то, что действует. */
@@ -323,6 +350,7 @@ function html(actor, d, folded) {
         <div class="tb-hud-btns tb-hud-wpns"><small title="Пульт вооружения">STORES</small>${weaponButtons(d)}</div>
         <div class="tb-hud-btns tb-hud-moves"><small>МАНЁВР</small>${moves}</div>
         <div class="tb-hud-btns tb-hud-acts${d.acts?.turn ? " turn" : ""}" title="Действия хода${d.acts?.rolled ? " · бросок уже был" : ""}"><small>ХОД</small>${actBoxes}${d.acts?.rolled ? `<i class="fas fa-dice-d10" title="Бросок за ход уже был"></i>` : ""}${button("end", BUTTONS.end)}</div>
+        ${rollRowHtml(d)}
         ${planeRowHtml(d.planeRow)}
         ${actor.type === "npc" ? aceRowHtml(actor) : ""}
         ${actor.type === "npc" ? squadRowHtml(actor) : ""}
@@ -441,11 +469,11 @@ export function liftOf(x0, x1, obstacles, h, base = 12) {
 }
 
 /* Сколько места (до масштаба) нужно раскладкам HUD по углам: колонки, поля и промежутки; крест ведомых — ещё столько же */
-const FIT_NEED = { full: 1290, noarm: 1160, narrow: 1030 }, WING_NEED = 190;
-/** Раскладка под ширину: full, noarm (без силуэта), narrow (уже колонки), stack (кнопки под приборами). */
+const FIT_NEED = { full: 1290, compact: 1160, narrow: 1030 }, WING_NEED = 190;
+/** Раскладка под ширину: full, compact (уже колонки, силуэт на месте), narrow (уже колонки и без силуэта), stack (кнопки под приборами). */
 export function fitOf(width, zoom = 1, wing = false) {
   const w = width / (zoom || 1) - (wing ? WING_NEED : 0);
-  return w >= FIT_NEED.full ? "full" : w >= FIT_NEED.noarm ? "noarm" : w >= FIT_NEED.narrow ? "narrow" : "stack";
+  return w >= FIT_NEED.full ? "full" : w >= FIT_NEED.compact ? "compact" : w >= FIT_NEED.narrow ? "narrow" : "stack";
 }
 /** Масштаб по углам: выбранный, но если с ним кнопки ушли бы под приборы, а мельче (не меньше 100%) влезают в строку — мельче. */
 export function fitZoom(width, zoom, wing = false) {
@@ -521,7 +549,7 @@ async function onClick(ev) {
   const hl = ev.target.closest("[data-hud-hl]");
   if (hl) { ev.preventDefault(); ev.stopPropagation(); return setHlMode(hl.dataset.hudHl); }
   if (dragged && ev.target.closest("header")) { dragged = false; return; }
-  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-tactic], [data-hud-ace], [data-hud-wing]");
+  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-tactic], [data-hud-ace], [data-hud-wing], [data-hud-strain]");
   if (!t || !shown) return;
   ev.preventDefault();
   const d = t.dataset, actor = shown;
@@ -542,6 +570,7 @@ async function onClick(ev) {
   if (!actor.isOwner) return ui.notifications.warn(`«${actor.name}» вам не принадлежит.`);
   if (d.hudNemtrig) return useTrigger(actor, actor.items.get(d.hudNemtrig));
   if (d.hudCtrig) return useCombatTrigger(actor, actor.items.get(d.hudCtrig));
+  if (d.hudStrain) { const m = game.messages.get(d.hudStrain); return m ? onCardAction(m, "strain") : null; }
   if (d.hudMove !== undefined) return useMove(actor);
   if (d.hudAoa !== undefined) return useAoa(actor);
   if (d.hudBooster !== undefined) return pickBooster(actor);

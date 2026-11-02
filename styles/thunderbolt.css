@@ -1893,11 +1893,11 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-pilot-hud.corners[data-fit="noarm"] .tb-hud-arm, #tb-pilot-hud.corners[data-fit="narrow"] .tb-hud-arm, #tb-pilot-hud.corners[data-fit="stack"] .tb-hud-arm { display: none; }
 #tb-pilot-hud.corners[data-fit="noarm"] .tb-hud-grid, #tb-pilot-hud.corners[data-fit="narrow"] .tb-hud-grid { grid-template-areas: "stat speed alt . ctl ctl wing"; }
 #tb-pilot-hud.corners[data-fit="noarm"] .tb-hud-grid:not(.wing), #tb-pilot-hud.corners[data-fit="narrow"] .tb-hud-grid:not(.wing) { grid-template-areas: "stat speed alt . ctl ctl ctl"; }
-#tb-pilot-hud.corners[data-fit="narrow"] .tb-hud-stat, #tb-pilot-hud.corners[data-fit="stack"] .tb-hud-stat { width: 210px; }
-#tb-pilot-hud.corners[data-fit="narrow"] .tb-hud-alt, #tb-pilot-hud.corners[data-fit="stack"] .tb-hud-alt { width: 132px; }
-#tb-pilot-hud.corners[data-fit="narrow"] .tb-hud-alt li em, #tb-pilot-hud.corners[data-fit="stack"] .tb-hud-alt li em { display: none; }
-#tb-pilot-hud.corners[data-fit="narrow"] .tb-hud-ctl { width: 420px; }
-#tb-pilot-hud.corners[data-fit="narrow"] .tb-hud-wingx { width: 140px; }
+#tb-pilot-hud.corners[data-fit="compact"] .tb-hud-stat, #tb-pilot-hud.corners[data-fit="narrow"] .tb-hud-stat, #tb-pilot-hud.corners[data-fit="stack"] .tb-hud-stat { width: 210px; }
+#tb-pilot-hud.corners[data-fit="compact"] .tb-hud-alt, #tb-pilot-hud.corners[data-fit="narrow"] .tb-hud-alt, #tb-pilot-hud.corners[data-fit="stack"] .tb-hud-alt { width: 132px; }
+#tb-pilot-hud.corners[data-fit="compact"] .tb-hud-alt li em, #tb-pilot-hud.corners[data-fit="narrow"] .tb-hud-alt li em, #tb-pilot-hud.corners[data-fit="stack"] .tb-hud-alt li em { display: none; }
+#tb-pilot-hud.corners[data-fit="compact"] .tb-hud-ctl, #tb-pilot-hud.corners[data-fit="narrow"] .tb-hud-ctl { width: 420px; }
+#tb-pilot-hud.corners[data-fit="compact"] .tb-hud-wingx, #tb-pilot-hud.corners[data-fit="narrow"] .tb-hud-wingx { width: 140px; }
 #tb-pilot-hud.corners[data-fit="stack"] .tb-hud-grid, #tb-pilot-hud.corners[data-fit="stack"] .tb-hud-grid:not(.wing) { grid-template-areas: "stat speed alt . wing wing wing" ". ctl ctl ctl ctl ctl ctl"; }
 #tb-pilot-hud.corners[data-fit="stack"] .tb-hud-ctl { justify-self: end; }
 /* символика: зелёный фосфор вместо табло и колодцев кабины */
@@ -1967,3 +1967,20 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 /* окна Foundry внизу видны: левая и правая группы поднимаются над ними каждая сама (hud.mjs liftOf) */
 #tb-pilot-hud.corners .tb-hud-stat, #tb-pilot-hud.corners .tb-hud-speed, #tb-pilot-hud.corners .tb-hud-alt { margin-bottom: var(--tb-hud-lift-l, 0px); }
 #tb-pilot-hud.corners .tb-hud-arm, #tb-pilot-hud.corners .tb-hud-ctl, #tb-pilot-hud.corners .tb-hud-wingx { margin-bottom: var(--tb-hud-lift-r, 0px); }
+/* тихие подсказки в бою (quiet-notes.mjs): строка вверху по центру, под субтитрами радио */
+#tb-quiet-notes { position: fixed; top: 136px; left: 50%; transform: translateX(-50%); z-index: 90; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; max-width: min(720px, 70vw); }
+#tb-quiet-notes .tb-qn { padding: 3px 14px; border-radius: 2px; background: rgba(2, 14, 12, .55); backdrop-filter: blur(2px); color: #a4ffcb; font-family: var(--tb-data, monospace); font-size: 13px; letter-spacing: .02em; text-align: center;
+  text-shadow: 0 0 6px rgba(164, 255, 203, .45), 0 0 2px #000; box-shadow: 0 0 0 1px rgba(164, 255, 203, .18); animation: tb-qn-in .25s ease-out; transition: opacity .6s; }
+#tb-quiet-notes .tb-qn.out { opacity: 0; }
+@keyframes tb-qn-in { from { opacity: 0; transform: translateY(-4px); } }
+/* строка броска: итог последнего броска и «+1 Strain» прямо из HUD */
+#tb-pilot-hud .tb-hud-roll { flex-wrap: nowrap; }
+#tb-pilot-hud .tb-hud-rolltxt { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--tb-data); font-size: 12px; }
+#tb-pilot-hud .tb-hud-rolltxt em { font-style: normal; color: #ffc94a; }
+#tb-pilot-hud .tb-hud-roll.ok .tb-hud-rolltxt b { color: #a4ffcb; }
+#tb-pilot-hud .tb-hud-roll.miss .tb-hud-rolltxt b { color: #ff8a73; }
+#tb-pilot-hud .tb-hud-roll button { flex: 0 0 auto; }
+#tb-pilot-hud.corners .tb-hud-roll .tb-hud-rolltxt { color: var(--hud); text-shadow: var(--tb-glow); }
+#tb-pilot-hud.corners .tb-hud-roll button { color: #ffe08a; border-color: #ffc94a; background: rgba(46, 36, 8, .7); }
+#tb-pilot-hud.corners .tb-hud-roll button b { background: #ffc94a; color: #1a1404; }
+#tb-pilot-hud.corners .tb-hud-roll button:hover { background: #ffc94a; color: #1a1404; }
