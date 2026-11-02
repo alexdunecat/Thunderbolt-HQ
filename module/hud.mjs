@@ -154,6 +154,8 @@ export function hudData(actor) {
     ct: pilot ? hudTriggers(actor) : null,
     // последний бросок, к которому можно добавить Strain прямо из HUD
     roll: c ? strainRoll(actor) : null,
+    // сваливание: бросок уже был, а исход не применён — кнопка прямо на плашке STALL
+    stall: flying ? stallPending(actor) : null,
     // роль машины, лампы свойств, Angle of Attack Limiter и фирменный приём
     planeRow: hudPlane(actor),
     // ведомые на автопилоте за этой машиной: приказы им
@@ -174,6 +176,24 @@ export function strainRoll(actor, messages = game.messages?.contents ?? []) {
     return { id: messages[i].id, label: c.label, total: r.total, dc: c.dc ?? null, success: r.success ?? null, strain: c.strain ?? 0, brk: c.type === "break" ? { value: r.value, ev: c.ev, applies: r.applies } : null };
   }
   return null;
+}
+
+/** Неразобранная карточка сваливания этой машины: { id, ok, low } — исход применяется кнопкой прямо из HUD. */
+export function stallPending(actor, messages = game.messages?.contents ?? []) {
+  for (let i = messages.length - 1, seen = 0; i >= 0 && seen < 40; i--, seen++) {
+    const c = messages[i].getFlag?.(SYSTEM_ID, "card");
+    if (c?.type !== "stall" || c.actorUuid !== actor.uuid) continue;
+    return c.applied ? null : { id: messages[i].id, ok: !!computeCard(c).success, alt: c.alt ?? actor.system.alt };
+  }
+  return null;
+}
+
+/** Кнопка исхода сваливания на плашке STALL: успех — выровняться, провал — потерять высоту (на Низкой — Doom). */
+function stallButton(d) {
+  const s = d.stall;
+  if (!s) return "";
+  const label = s.ok ? "Выровняться: Speed 1" : s.alt === "low" ? "Удар о землю: Doom" : s.alt === "strat" ? "Спуститься на Высокую" : "Потерять высоту";
+  return `<button type="button" class="tb-hud-stallbtn ${s.ok ? "ok" : "bad"}" data-hud-stall="${s.id}" title="Исход броска на сваливание (то же, что кнопка на карточке в чате)">${label}</button>`;
 }
 
 /** Строка броска в HUD: итог последнего броска и кнопка «+1 Strain» прямо отсюда, без чата. */
@@ -325,7 +345,7 @@ function html(actor, d, folded) {
       <a class="tb-hud-dock" data-hud-dock title="Вернуть панель на место над панелью макросов и к обычному размеру"><i class="fas fa-thumbtack"></i></a>
       <i class="fas fa-chevron-${folded ? "up" : "down"}"></i>
     </header>
-    ${d.warn.filter(w => BIG.has(w.key)).map(w => `<div class="tb-hud-alert ${w.key}"><span>${w.key === "missile" ? "▲ " : ""}${w.text}${w.key === "missile" ? " ▲" : ""}</span><small>${BIG_HINT[w.key]}</small>${w.key === "doom" && d.canEject ? ejectButton : ""}</div>`).join("")}
+    ${d.warn.filter(w => BIG.has(w.key)).map(w => `<div class="tb-hud-alert ${w.key}"><span>${w.key === "missile" ? "▲ " : ""}${w.text}${w.key === "missile" ? " ▲" : ""}</span><small>${BIG_HINT[w.key]}</small>${w.key === "doom" && d.canEject ? ejectButton : ""}${w.key === "stall" ? stallButton(d) : ""}</div>`).join("")}
     ${folded ? "" : `<div class="tb-hud-grid${d.wing ? " wing" : ""}">
       <div class="tb-hud-col tb-hud-stat">
         <div class="tb-hud-row"><small>HP</small><span class="tb-hud-pips hp ${d.hp.value <= 1 ? "low" : ""}">${pips(d.hp.value, d.hp.max)}</span><span class="tb-hud-num">${d.hp.value}/${d.hp.max}</span></div>
@@ -549,7 +569,7 @@ async function onClick(ev) {
   const hl = ev.target.closest("[data-hud-hl]");
   if (hl) { ev.preventDefault(); ev.stopPropagation(); return setHlMode(hl.dataset.hudHl); }
   if (dragged && ev.target.closest("header")) { dragged = false; return; }
-  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-tactic], [data-hud-ace], [data-hud-wing], [data-hud-strain]");
+  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-tactic], [data-hud-ace], [data-hud-wing], [data-hud-strain], [data-hud-stall]");
   if (!t || !shown) return;
   ev.preventDefault();
   const d = t.dataset, actor = shown;
@@ -570,6 +590,7 @@ async function onClick(ev) {
   if (!actor.isOwner) return ui.notifications.warn(`«${actor.name}» вам не принадлежит.`);
   if (d.hudNemtrig) return useTrigger(actor, actor.items.get(d.hudNemtrig));
   if (d.hudCtrig) return useCombatTrigger(actor, actor.items.get(d.hudCtrig));
+  if (d.hudStall) { const m = game.messages.get(d.hudStall), c = m?.getFlag(SYSTEM_ID, "card"); return c ? onCardAction(m, computeCard(c).success ? "stall-ok" : "stall-fail") : null; }
   if (d.hudStrain) { const m = game.messages.get(d.hudStrain); return m ? onCardAction(m, "strain") : null; }
   if (d.hudMove !== undefined) return useMove(actor);
   if (d.hudAoa !== undefined) return useAoa(actor);

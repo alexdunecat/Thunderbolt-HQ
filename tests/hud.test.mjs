@@ -62,6 +62,16 @@ console.log("у ведущего с выделенным:", H.hudActor()?.name ?
   msgs.push(card({ strainable: false }));
   console.log("свежий бросок без Strain:", H.strainRoll(me), "· уже учтён в залпе:", (msgs.splice(1), msgs.push(card({ resolved: true })), H.strainRoll(me)));
   msgs.splice(0, msgs.length, ...keep); }
+{ const keep = msgs.splice(0), sp = me.system.speed;
+  const stallCard = (o = {}) => ({ id: "S0", getFlag: (s, k) => (k === "card" ? { type: "stall", actorUuid: me.uuid, label: "Сваливание", rolled: true, d10: 3, parts: [["Push", 1]], dc: 7, alt: "med", ...o } : undefined) });
+  me.system.speed = 0;
+  msgs.push(stallCard());
+  console.log("сваливание, провал:", JSON.stringify(H.stallPending(me)), (H.hudHtml(me).match(/data-hud-stall="S0"[^>]*>([^<]+)/) ?? [])[1] ?? "кнопки нет");
+  msgs.splice(0, 1, stallCard({ d10: 9 }));
+  console.log("сваливание, успех:", (H.hudHtml(me).match(/data-hud-stall="S0"[^>]*>([^<]+)/) ?? [])[1] ?? "кнопки нет");
+  msgs.splice(0, 1, stallCard({ alt: "low" }));
+  console.log("сваливание на Низкой:", (H.hudHtml(me).match(/data-hud-stall="S0"[^>]*>([^<]+)/) ?? [])[1] ?? "кнопки нет", "· исход уже применён:", (msgs.splice(0, 1, stallCard({ applied: true })), H.stallPending(me)));
+  me.system.speed = sp; msgs.splice(0, msgs.length, ...keep); }
 console.log("кнопка Strain: у NPC без Strain", /data-hud-act="recover"/.test(H.hudHtml(foe)) ? "есть" : "нет", "· у пилота", /data-hud-act="recover"/.test(H.hudHtml(me)) ? "есть" : "нет");
 { const W = await import(R + "/module/rwr.mjs"), was = foe.system.lockUuid, gf = foe.getFlag;
   foe.system.lockUuid = "Actor.Гроза";

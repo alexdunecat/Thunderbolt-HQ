@@ -1992,3 +1992,8 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-pilot-hud.corners .tb-hud-alert.stall span { animation: tb-hud-blink 1s steps(2, start) infinite; text-shadow: 0 0 10px rgba(255, 201, 74, .8), 0 0 2px #000; }
 #tb-pilot-hud.corners header .tb-hud-warn { animation: tb-hud-pulse 1.2s ease-in-out infinite; font-size: 11px; }
 @keyframes tb-hud-pulse { 50% { opacity: .45; } }
+/* исход сваливания прямо на плашке STALL */
+#tb-pilot-hud .tb-hud-stallbtn { flex: 0 0 auto; width: auto; margin-left: 10px; padding: 0 10px; line-height: 24px; font-family: var(--tb-data); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; border-radius: 2px; cursor: pointer; }
+#tb-pilot-hud .tb-hud-stallbtn.ok { color: #03140c; background: #a4ffcb; border: 1px solid #a4ffcb; box-shadow: 0 0 10px rgba(164, 255, 203, .5); }
+#tb-pilot-hud .tb-hud-stallbtn.bad { color: #1a1404; background: #ffc94a; border: 1px solid #ffc94a; box-shadow: 0 0 10px rgba(255, 201, 74, .5); }
+#tb-pilot-hud .tb-hud-stallbtn:hover { filter: brightness(1.15); }
