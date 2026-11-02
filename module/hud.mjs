@@ -23,8 +23,8 @@ import { wingmenOf, wingOrderOf, wingSpwOf, giveWingOrder, WING_ORDERS, WING_SPW
 import { hudNemesis, isNemesis, pilotsOf, monologue, startMonologue, endMonologue, appear, useTrigger, STATE_TEXT } from "./nemesis.mjs";
 
 const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, POS_KEY = `${SYSTEM_ID}.hudPos`;
-const BIG = new Set(["missile", "lock", "doom"]);
-const BIG_HINT = { missile: "ракета в воздухе: Break! или смена высоты", lock: "вас держат на захвате", doom: "машина обречена: катапульта или героическая гибель" };
+const BIG = new Set(["missile", "lock", "stall", "doom"]);
+const BIG_HINT = { missile: "ракета в воздухе: Break! или смена высоты", lock: "вас держат на захвате", stall: "Speed 0 и ниже: машина сваливается, прибавьте скорость", doom: "машина обречена: катапульта или героическая гибель" };
 const BUTTONS = { lock: "Lock On", break: "Break", lead: "Lead", formup: "Вплотную", recover: "Strain", end: "Конец хода" };
 let el = null, timer = null, shown = null;
 
