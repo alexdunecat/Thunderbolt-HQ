@@ -1964,3 +1964,6 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-pilot-hud.corners .tb-hud-acts.turn button.end { background: var(--tb-warn); color: #1a1404; text-shadow: none; box-shadow: 0 0 12px color-mix(in srgb, var(--tb-warn) 70%, transparent); animation: tb-hud-endpulse 1.6s ease-in-out infinite; }
 #tb-pilot-hud.corners .tb-hud-acts.turn button.end b { background: #1a1404; color: var(--tb-warn); }
 @keyframes tb-hud-endpulse { 50% { box-shadow: 0 0 3px color-mix(in srgb, var(--tb-warn) 40%, transparent); } }
+/* окна Foundry внизу видны: левая и правая группы поднимаются над ними каждая сама (hud.mjs liftOf) */
+#tb-pilot-hud.corners .tb-hud-stat, #tb-pilot-hud.corners .tb-hud-speed, #tb-pilot-hud.corners .tb-hud-alt { margin-bottom: var(--tb-hud-lift-l, 0px); }
+#tb-pilot-hud.corners .tb-hud-arm, #tb-pilot-hud.corners .tb-hud-ctl, #tb-pilot-hud.corners .tb-hud-wingx { margin-bottom: var(--tb-hud-lift-r, 0px); }

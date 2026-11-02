@@ -425,12 +425,19 @@ function shownRect(id) {
   return r.width && r.height ? r : null;
 }
 
-/** HUD по углам: от левого края до чата, над панелью макросов, если она видна. Сам HUD прозрачен, ловят щелчки только приборы. */
-export function cornerBox(win, { sidebar = null, controls = null, players = null, hotbar = null } = {}) {
-  const left = Math.max(16, players ? players.right + 12 : 0, controls ? controls.right + 12 : 0);
+/** HUD по углам: от инструментов слева до чата справа, у нижнего края. Сам HUD прозрачен, ловят щелчки только приборы.
+    Игроков и панель макросов внизу обходит каждая группа приборов сама (liftOf), а не весь HUD целиком. */
+export function cornerBox(win, { sidebar = null, controls = null } = {}) {
+  const left = Math.max(16, controls ? controls.right + 12 : 0);
   const right = sidebar ? Math.max(16, win.w - sidebar.left + 12) : 16;
-  const bottom = hotbar ? Math.max(12, win.h - hotbar.top + 8) : 12;
-  return { left, right, bottom };
+  return { left, right, bottom: 12 };
+}
+
+/** На сколько поднять группу приборов [x0, x1], чтобы она встала над окнами внизу экрана (игроки, панель макросов), которые под ней. */
+export function liftOf(x0, x1, obstacles, h, base = 12) {
+  let bottom = base;
+  for (const o of obstacles) if (o && o.left < x1 && o.right > x0) bottom = Math.max(bottom, h - o.top + 8);
+  return bottom - base;
 }
 
 /* Сколько места (до масштаба) нужно раскладкам HUD по углам: колонки, поля и промежутки; крест ведомых — ещё столько же */
@@ -440,14 +447,37 @@ export function fitOf(width, zoom = 1, wing = false) {
   const w = width / (zoom || 1) - (wing ? WING_NEED : 0);
   return w >= FIT_NEED.full ? "full" : w >= FIT_NEED.noarm ? "noarm" : w >= FIT_NEED.narrow ? "narrow" : "stack";
 }
+/** Масштаб по углам: выбранный, но если с ним кнопки ушли бы под приборы, а мельче (не меньше 100%) влезают в строку — мельче. */
+export function fitZoom(width, zoom, wing = false) {
+  if (fitOf(width, zoom, wing) !== "stack") return zoom;
+  const z = Math.floor(width / (FIT_NEED.narrow + (wing ? WING_NEED : 0)) * 100) / 100;
+  return Math.max(1, Math.min(zoom, z));
+}
 const zoomNow = () => { try { const z = Number(game.settings.get(SYSTEM_ID, "hudScale")); return z > 0.5 && z < 2 ? z : 1.15; } catch { return 1.15; } };
 
+const LEFT_COLS = ".tb-hud-stat, .tb-hud-speed, .tb-hud-alt", RIGHT_COLS = ".tb-hud-arm, .tb-hud-ctl, .tb-hud-wingx";
+/** Крайние x видимых колонок группы или null. */
+function spanOf(sel) {
+  const rs = [...el.querySelectorAll(sel)].map(n => n.getBoundingClientRect()).filter(r => r.width);
+  return rs.length ? [Math.min(...rs.map(r => r.left)), Math.max(...rs.map(r => r.right))] : null;
+}
+
 function placeCorners() {
-  const b = cornerBox({ w: window.innerWidth, h: window.innerHeight }, { sidebar: shownRect("sidebar"), controls: shownRect("controls"), players: shownRect("players"), hotbar: shownRect("hotbar") });
-  const z = zoomNow();
+  const win = { w: window.innerWidth, h: window.innerHeight };
+  const b = cornerBox(win, { sidebar: shownRect("sidebar"), controls: shownRect("controls") });
+  const wing = !!el.querySelector(".tb-hud-grid.wing"), width = win.w - b.left - b.right, z = fitZoom(width, zoomNow(), wing);
   el.style.setProperty("--tb-hud-zoom", String(z));
-  el.dataset.fit = fitOf(window.innerWidth - b.left - b.right, z, !!el.querySelector(".tb-hud-grid.wing"));
+  el.dataset.fit = fitOf(width, z, wing);
   Object.assign(el.style, { left: `${b.left}px`, right: `${b.right}px`, bottom: `${b.bottom}px`, top: "auto", width: "auto", height: "auto" });
+  // левая и правая группы приборов поднимаются над игроками и панелью макросов каждая сама, только если те под ней
+  el.style.setProperty("--tb-hud-lift-l", "0px");
+  el.style.setProperty("--tb-hud-lift-r", "0px");
+  const below = [shownRect("players"), shownRect("hotbar")].filter(Boolean);
+  if (!below.length) return;
+  for (const [sel, v] of [[LEFT_COLS, "--tb-hud-lift-l"], [RIGHT_COLS, "--tb-hud-lift-r"]]) {
+    const span = spanOf(sel), lift = span ? liftOf(span[0], span[1], below, win.h, b.bottom) : 0;
+    el.style.setProperty(v, `${Math.round(lift / z)}px`);
+  }
 }
 
 /** Перетаскивание за шапку: короткий щелчок по ней по-прежнему сворачивает панель. */
