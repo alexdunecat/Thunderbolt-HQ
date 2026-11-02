@@ -54,6 +54,13 @@ game.user.isGM = true;
 console.log("у ведущего без выделения:", H.hudActor()?.name ?? "нет");
 canvas.tokens.controlled = [foe.tok];
 console.log("у ведущего с выделенным:", H.hudActor()?.name ?? "нет", "·", H.hudData(foe).plane, H.hudData(foe).maxSpeed, JSON.stringify(H.hudData(foe).warn));
+console.log("кнопка Strain: у NPC без Strain", /data-hud-act="recover"/.test(H.hudHtml(foe)) ? "есть" : "нет", "· у пилота", /data-hud-act="recover"/.test(H.hudHtml(me)) ? "есть" : "нет");
+{ const W = await import(R + "/module/rwr.mjs"), was = foe.system.lockUuid, gf = foe.getFlag;
+  foe.system.lockUuid = "Actor.Гроза";
+  const before = W.locksOf(foe).length;
+  foe.getFlag = (s, k) => (k === "down" ? { combat: "C1", round: 2 } : undefined);
+  console.log("захват сбитого: держит", before, "→ после гибели", W.locksOf(foe).length);
+  foe.system.lockUuid = was; foe.getFlag = gf; }
 console.log("свёрнут:", H.hudHtml(foe, true).includes("tb-hud-grid") ? "приборы видны" : "только шапка");
 const boss = mkActor("Линкор", "npc", { kind: "ship", grp: "boss", key: "air205", hp: { value: 41, max: 41 }, systems: [{ name: "ЗРК" }], rules: [{ key: "aerialship" }] });
 const tank = mkActor("Т-80", "npc", { kind: "ground", grp: "armor", hp: { value: 4, max: 4 } });

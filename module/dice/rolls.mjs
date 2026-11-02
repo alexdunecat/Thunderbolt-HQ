@@ -422,6 +422,8 @@ export async function rollCheck(actor, skill, { dc = TB.difficulty, label } = {}
 
 /** Восстановление Strain: Push против 7, вернуть (итог − 7), минимум 1 (2 с «Кухней и туалетом»). */
 export async function rollRecover(actor) {
+  // у конскриптов и дуэлянтов без запаса эскадрильи Strain нет: восстанавливать нечего
+  if (actor.type === "npc" && !(actor.system.strain?.max > 0) && !poolOf(actor)) return ui.notifications.warn(`${actor.name}: у этой машины нет Strain.`);
   if (blocked(actor, "push")) return;
   const data = await formDialog("Восстановить Strain (Push против 7)", commonFields(actor, "push"));
   if (!data) return;

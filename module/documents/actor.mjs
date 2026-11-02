@@ -340,6 +340,8 @@ export class TBActor extends Actor {
     if (!c?.started || this.getFlag(SYSTEM_ID, "down")?.combat === c.id) return;
     const by = sourceUuid ? R.resolveActor(sourceUuid)?.name ?? "" : "";
     await this.setFlag(SYSTEM_ID, "down", { combat: c.id, round: c.round, by, byUuid: sourceUuid ?? "" });
+    // сбитый срывает свой захват: цель больше не под прицелом
+    if (this.system.lockUuid) await this.update({ "system.lock": "", "system.lockUuid": "", [`flags.${SYSTEM_ID}.salvo`]: null, [`flags.${SYSTEM_ID}.phoenix`]: null });
     this.#alarm();
     this.#chatter("down", { victim: this.uuid, killer: sourceUuid ?? "" });
     // в трекере боец выбывает: заявок и хода у него больше нет

@@ -287,7 +287,8 @@ function html(actor, d, folded) {
     const n = PILOT_BAR.indexOf(act) + 1;
     return `<button type="button" data-hud-act="${act}" class="${act === "end" ? "end" : ""}">${n ? `<b>${n}</b> ` : ""}${label}</button>`;
   };
-  const moves = Object.entries(BUTTONS).filter(([act]) => act !== "end").map(([act, label]) => button(act, label)).join("");
+  // Strain восстанавливают только те, у кого он есть (у конскриптов его нет)
+  const moves = Object.entries(BUTTONS).filter(([act]) => act !== "end" && (act !== "recover" || d.strain?.max > 0 || actor.type === "pilot")).map(([act, label]) => button(act, label)).join("");
   return `<header data-hud-fold title="Тащите шапку, чтобы передвинуть панель; щелчок сворачивает. Размер — за правый нижний угол">
       <b>${esc(d.name)}</b> <small>${esc(d.plane)}</small>
       ${d.warn.filter(w => !BIG.has(w.key)).map(w => `<span class="tb-hud-warn ${w.key}">${w.text}</span>`).join("")}
@@ -320,8 +321,8 @@ function html(actor, d, folded) {
       <div class="tb-hud-col tb-hud-arm">${fighter(d)}</div>
       <div class="tb-hud-col tb-hud-ctl">
         <div class="tb-hud-btns tb-hud-wpns"><small title="Пульт вооружения">STORES</small>${weaponButtons(d)}</div>
-        <div class="tb-hud-btns"><small>МАНЁВР</small>${moves}</div>
-        <div class="tb-hud-btns tb-hud-acts" title="Действия хода${d.acts?.rolled ? " · бросок уже был" : ""}"><small>ХОД</small>${actBoxes}${d.acts?.rolled ? `<i class="fas fa-dice-d10" title="Бросок за ход уже был"></i>` : ""}${button("end", BUTTONS.end)}</div>
+        <div class="tb-hud-btns tb-hud-moves"><small>МАНЁВР</small>${moves}</div>
+        <div class="tb-hud-btns tb-hud-acts${d.acts?.turn ? " turn" : ""}" title="Действия хода${d.acts?.rolled ? " · бросок уже был" : ""}"><small>ХОД</small>${actBoxes}${d.acts?.rolled ? `<i class="fas fa-dice-d10" title="Бросок за ход уже был"></i>` : ""}${button("end", BUTTONS.end)}</div>
         ${planeRowHtml(d.planeRow)}
         ${actor.type === "npc" ? aceRowHtml(actor) : ""}
         ${actor.type === "npc" ? squadRowHtml(actor) : ""}

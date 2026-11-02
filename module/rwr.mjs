@@ -34,7 +34,8 @@ function refreshAll() {
 /** Кого держит на захвате машина: основная цель и цели залпа (4AAM, XLAA, XAGM), пока основной захват тот же. */
 export function locksOf(actor) {
   const u = actor?.system?.lockUuid;
-  if (!u) return [];
+  // сбитая машина уже никого не держит, даже пока стоит на поле до конца раунда
+  if (!u || (game.combat && actor.getFlag?.(SYSTEM_ID, "down")?.combat === game.combat.id)) return [];
   const salvo = actor.getFlag?.(SYSTEM_ID, "salvo");
   return salvo?.list?.[0]?.uuid === u ? salvo.list.map(x => x.uuid) : [u];
 }
