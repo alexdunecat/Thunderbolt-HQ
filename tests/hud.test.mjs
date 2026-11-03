@@ -74,7 +74,9 @@ console.log("у ведущего с выделенным:", H.hudActor()?.name ?
   console.log("сваливание на Низкой:", (H.hudHtml(me).match(/data-hud-stall="S0"[^>]*>([^<]+)/) ?? [])[1] ?? "кнопки нет", "· исход уже применён:", (msgs.splice(0, 1, stallCard({ applied: true })), H.stallPending(me)));
   me.system.speed = sp; msgs.splice(0, msgs.length, ...keep); }
 { const cases = [["4→3 та же", { uuid: "a", hp: 4 }, { uuid: "a", hp: 3 }], ["3→3", { uuid: "a", hp: 3 }, { uuid: "a", hp: 3 }], ["3→5 ремонт", { uuid: "a", hp: 3 }, { uuid: "a", hp: 5 }], ["4→2 другая машина", { uuid: "b", hp: 4 }, { uuid: "a", hp: 2 }], ["первый раз", null, { uuid: "a", hp: 2 }]];
-  console.log("удар по своей машине:", cases.map(([k, a, b]) => `${k}=${H.tookHit(a, b)}`).join(", ")); }
+  console.log("удар по своей машине:", cases.map(([k, a, b]) => `${k}=${H.tookHit(a, b)}`).join(", "));
+  const mk = (hp, m = {}) => H.hitSign({ uuid: "a", system: { hp: { value: hp }, markers: m } });
+  console.log("удар с меткой (HP восстановлен):", H.tookHit(mk(1), mk(6, { structure: true })), "· метку сняли:", H.tookHit(mk(6, { grit: true }), mk(6))); }
 console.log("рябь удара:", [0, 0.04, 0.08, 0.3, 0.6, 0.9, 1].map(k => `${k}=${H.rippleAt(k)}`).join(" "));
 console.log("кнопка Strain: у NPC без Strain", /data-hud-act="recover"/.test(H.hudHtml(foe)) ? "есть" : "нет", "· у пилота", /data-hud-act="recover"/.test(H.hudHtml(me)) ? "есть" : "нет");
 { const W = await import(R + "/module/rwr.mjs"), was = foe.system.lockUuid, gf = foe.getFlag;

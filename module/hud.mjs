@@ -404,8 +404,11 @@ export const corners = () => { try { return game.settings.get(SYSTEM_ID, "hudLay
 /** Разметка HUD для актёра (для тестов и проверки вида). */
 export const hudHtml = (actor, folded = false) => html(actor, hudData(actor), folded);
 
-/** Получила ли машина урон: HP упало с прошлого раза, а это та же машина (смена машины в HUD — не удар). */
-export const tookHit = (prev, now) => !!prev && prev.uuid === now.uuid && now.hp < prev.hp;
+/** Получила ли машина урон: HP упало или прибавилась метка (на метке HP восстанавливается, по нему удар не видно),
+    а это та же машина (смена машины в HUD — не удар). */
+export const tookHit = (prev, now) => !!prev && prev.uuid === now.uuid && (now.hp < prev.hp || (now.marks ?? 0) > (prev.marks ?? 0));
+/** Что сравнивать между перерисовками HUD: HP и число меток Grit, Structure, Doom. */
+export const hitSign = actor => ({ uuid: actor.uuid, hp: Number(actor.system.hp?.value ?? 0), marks: ["grit", "structure", "doom"].filter(k => actor.system.markers?.[k]).length });
 
 /* Удар по своей машине, как в Ace Combat: символика HUD краснеет, идёт горизонтальной рябью помех и вздрагивает;
    при метке Doom HUD остаётся красным и медленно мерцает. Края экрана не трогаю. */
@@ -452,7 +455,7 @@ function setDoom(on) {
 }
 function watchHits(actor) {
   if (!actor) { lastHp = null; return; }
-  const now = { uuid: actor.uuid, hp: Number(actor.system.hp?.value ?? 0) };
+  const now = hitSign(actor);
   setDoom(!!actor.system.markers?.doom);
   if (tookHit(lastHp, now)) hitFlash();
   lastHp = now;

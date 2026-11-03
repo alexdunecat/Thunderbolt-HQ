@@ -66,6 +66,8 @@ export const orderOf = actor => {
 };
 export const autopilotOn = actor => actor?.type === "npc" && !!orderOf(actor);
 /** Машина игрока (пилот или то, чем владеет игрок): для автопилота — последняя цель, а выцелил её — автопилот снимается. */
+/** Настройка мира «Автопилот воюет с игроками»: не снимать автопилот, когда NPC выцелил машину игрока. */
+export const vsPlayers = () => { try { return !!game.settings.get(SYSTEM_ID, "autopilotVsPlayers"); } catch { return false; } };
 export const isPlayerUnit = actor => actor?.type === "pilot" || !!actor?.hasPlayerOwner;
 
 /** Задача сейчас: цель сбита или маршрут пройден — то, что в приказе «после». */
@@ -456,7 +458,8 @@ export async function runAutopilot(actor, token = null) {
     // выцелил машину игрока — автопилот снимается, дальше ход ведёт ведущий
     const aimed = step.act === "rail" ? v.rail.uuids : step.act === "carpet" ? v.carpet.uuids : SHOTS.has(step.act) || step.act === "lock" ? [step.uuid] : [];
     const pc = aimed.map(u => v.cands.find(x => x.uuid === u)).find(x => x?.player);
-    if (pc) {
+    // настройка «Автопилот воюет с игроками»: выстрел по игроку идёт как по любой цели
+    if (pc && !vsPlayers()) {
       await actor.setFlag(SYSTEM_ID, "autopilot", { ...actor.getFlag(SYSTEM_ID, "autopilot"), on: false });
       log.push(`${ACT[step.act]} по игроку «${pc.tok?.name ?? ""}»: автопилот снят, этот ход и дальше — за ведущим`);
       globalThis.ui?.notifications?.warn(`Автопилот: «${token.name}» выцелил игрока «${pc.tok?.name ?? ""}». Автопилот снят, ход за ведущим.`);
@@ -772,6 +775,10 @@ async function applyWingOrder(leaderUuid, kind, userId = game.user.id) {
 /* ---------- меню токена, значок и маршрут выделенного ---------- */
 
 export function registerAutopilot() {
+  game.settings.register(SYSTEM_ID, "autopilotVsPlayers", {
+    name: "Автопилот воюет с игроками", hint: "Включено: NPC на автопилоте, выцелив машину игрока, не снимаются с автопилота, а берут её на захват, стреляют и воюют дальше сами (игрок отвечает на карточки как обычно). Выключено: автопилот снимается и ход отдаётся ведущему. Машины игроков по-прежнему самые последние в очереди целей.",
+    scope: "world", config: true, type: Boolean, default: false
+  });
   Hooks.on("renderTokenHUD", (hud, html) => {
     const token = hud.object;
     if (!game.user.isGM || token?.actor?.type !== "npc") return;

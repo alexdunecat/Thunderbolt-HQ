@@ -16,7 +16,7 @@ Object.assign(globalThis, {
   CONST: { DOCUMENT_OWNERSHIP_LEVELS: { LIMITED: 1 }, GRID_TYPES: { GRIDLESS: 0, SQUARE: 1 } },
   Hooks: { on() {}, once() {}, callAll() {} }, CONFIG: { sounds: {}, specialStatusEffects: { DEFEATED: "dead" } },
   game: { user: { id: "gm", isGM: true }, users: Object.assign([{ id: "gm", isGM: true, active: true }], { activeGM: { isSelf: true, id: "gm" } }), macros: [], folders: [], messages: { contents: messages }, combat,
-    settings: { get: (ns, k) => ({ threats: [], squadrons: {}, squadSortie: {} })[k] ?? null, register() {} }, actors: [], socket: { emit() {} } },
+    settings: { get: (ns, k) => ({ threats: [], squadrons: {}, squadSortie: {}, autopilotVsPlayers: globalThis.__vsPlayers ?? false })[k] ?? null, register() {} }, actors: [], socket: { emit() {} } },
   ui: { notifications: { warn: m => log.push("warn " + m), error: m => log.push("error " + m), info() {} } },
   ChatMessage: { create: async d => { const c = d.flags?.["thunderbolt-shtab"]?.card; const m = { id: "m" + (++seq), ...d, getFlag: (s, k) => d.flags?.[s]?.[k], canUserModify: () => true,
     async update(u) { for (const [k, v] of Object.entries(u)) if (k === "content") this.content = v; else setp(this, k, v);
@@ -92,6 +92,13 @@ const sam = npc("s300", "С-300", 2, 4);
 sam.flags.autopilot = { on: true, task: "hold", manner: "careful", acts: 2, after: "hold", route: [], step: 0 };
 await run("ЗРК, держать позицию", sam);
 log.push(`  автопилот: ${AP.autopilotOn(sam) ? "включён" : "снят"}`);
+// то же при настройке «Автопилот воюет с игроками»: автопилот остаётся, ЗРК бьёт игрока сам
+globalThis.__vsPlayers = true;
+const sam2 = npc("s300", "С-300 (воюет с игроками)", 2, 4);
+sam2.flags.autopilot = { on: true, task: "hold", manner: "careful", acts: 2, after: "hold", route: [], step: 0 };
+await run("ЗРК, воюет с игроками", sam2);
+log.push(`  автопилот: ${AP.autopilotOn(sam2) ? "включён" : "снят"}`);
+globalThis.__vsPlayers = false;
 // охотник: пилот игрока ближе, самолёт союзников дальше — бьёт самолёт, игрок последний
 const hunter = npc("f15c", "Охотник", 2, 3);
 const wingman = ally("Ведомый союзников", 4, 3);
