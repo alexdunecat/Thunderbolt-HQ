@@ -56,7 +56,8 @@ function bindingText(ns, action) {
 /** Шпаргалка: системные клавиши (как назначены сейчас), клавиши Foundry для боя, панель макросов пилота. */
 export async function openCheatSheet() {
   const mine = [...game.keybindings.actions.entries()].filter(([k, a]) => k.startsWith(`${SYSTEM_ID}.`) && (!a.restricted || game.user.isGM))
-    .map(([k, a]) => [game.i18n.localize(a.name), bindingText(SYSTEM_ID, k.slice(SYSTEM_ID.length + 1))]);
+    .map(([k, a]) => [game.i18n.localize(a.name), bindingText(SYSTEM_ID, k.slice(SYSTEM_ID.length + 1))])
+    .concat([["Метка в эфир: зона на карте и реплика «смотрю квадрат»", "Alt + щелчок"]]);
   const core = [["target", "Прицел на токен под курсором (цель для ракет)"], ["dismiss", "Снять выделение, закрыть окно"], ["pan", "Сдвиг карты"], ["sendToBack", "Токен под другие"]]
     .filter(([k]) => game.keybindings.actions.has(`core.${k}`)).map(([k, label]) => [label, bindingText("core", k)]);
   const { PILOT_BAR, ACTIONS } = await import("./macros.mjs");

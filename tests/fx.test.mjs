@@ -85,3 +85,20 @@ console.log("форсаж:", [["на пределе", { type: "npc", system: { k
   ["пилот на пределе", { type: "pilot", system: { speed: 5, maxSpeed: 5 } }], ["танк", { type: "npc", system: { kind: "ground", speed: 0, maxSpeed: 0 } }]]
   .map(([n, a]) => `${n} ${Fx.burnerOf(a) ? "да" : "нет"}`).join(", "));
 console.log("сопло, летит на юг:", JSON.stringify(Fx.nozzleAt({ x: 0, y: 0 }, { x: 0, y: 50 }, 100)), "· стоит:", Fx.nozzleAt({ x: 0, y: 0 }, { x: 1, y: 0 }, 100));
+
+// пар: конус только на переходе к максимальной Speed
+const seenMax = new Set();
+const vjet = sp => ({ uuid: "J", type: "npc", system: { kind: "air", grp: "fighter", speed: sp, maxSpeed: 4 } });
+console.log("конус пара:", [[3, { system: { speed: 3 } }], [4, { system: { speed: 4 } }], [4, { system: { hp: { value: 2 } } }], [4, { system: { speed: 4 } }], [3, { system: { speed: 3 } }], [4, { system: { speed: 4 } }]]
+  .map(([sp, ch]) => Fx.vaporEdge(vjet(sp), ch, seenMax) ? "да" : "нет").join(" "), "· танк:", Fx.vaporEdge({ uuid: "T", type: "npc", system: { kind: "ground", speed: 2, maxSpeed: 2 } }, { system: { speed: 2 } }, seenMax) ? "да" : "нет");
+const r2 = q => `${Math.round(q.x)},${Math.round(q.y)}`;
+const cone = Fx.coneShape({ x: 0, y: 0 }, 0, 100);
+console.log("конус носом вверх: вершина", r2(cone.pts[0]), "кромка", r2(cone.rim[0]), r2(cone.rim[5]), r2(cone.rim[10]), "· внутренний слой уже:", r2(Fx.coneShape({ x: 0, y: 0 }, 0, 100, 0.5).rim[0]));
+console.log("конус носом вправо: вершина", r2(Fx.coneShape({ x: 0, y: 0 }, 90, 100).pts[0]));
+const vx = Fx.vortexPath({ x: 0, y: 0 }, 0, 100, -1, 1, 5), vy = Fx.vortexPath({ x: 0, y: 0 }, 0, 100, 1, 1, 5);
+console.log("вихри, вираж вправо: левое", vx.map(r2).join(" "), "· правое", vy.map(r2).join(" "));
+// воронки: по раундам в бою, по времени вне боя
+console.log("воронка по раундам:", [3, 4, 5, 6, 2].map(r => Fx.scarAlpha({ round: 3, at: 0 }, r, 0)).join(" "),
+  "· по времени:", [0, 60000, 120000, 150000].map(ms => Fx.scarAlpha({ round: null, at: 0 }, null, ms).toFixed(2)).join(" "));
+const blot = Fx.blotPoints(0, 0, 10, 42, 6);
+console.log("пятно:", blot.map(r2).join(" "), "· то же зерно — то же пятно:", JSON.stringify(blot) === JSON.stringify(Fx.blotPoints(0, 0, 10, 42, 6)));

@@ -126,6 +126,19 @@ export function registerFx() {
     name: "Форсаж", hint: "У машины на своей максимальной скорости при движении из сопла бьёт короткое пламя. Только у себя, вместе с анимацией.",
     scope: "client", config: true, type: Boolean, default: true
   });
+  game.settings.register(SYSTEM_ID, "fxVapor", {
+    name: "Пар и вихри", hint: "Машина, которая разгоняется до своей максимальной Speed, на миг одевается конусом пара, а по карте расходится хлопок. На Break! с концов крыльев срываются белые нити вихрей. Только у себя, вместе с анимацией.",
+    scope: "client", config: true, type: Boolean, default: true
+  });
+  game.settings.register(SYSTEM_ID, "fxCraters", {
+    name: "Воронки после ударов", hint: "Бомбы, ракеты и снаряды по наземным целям оставляют на земле воронки и подпалины, которые тают за три раунда (вне боя — за пару минут). На воде воронок нет. Только у себя, вместе с анимацией.",
+    scope: "client", config: true, type: Boolean, default: true, onChange: () => drawScars()
+  });
+  // разгон до максимальной Speed: конус пара и хлопок (изменение видят все клиенты, сокет не нужен)
+  Hooks.on("updateActor", (actor, change, options) => { if (!options?.tbUndo) onSpeed(actor, change); });
+  Hooks.on("updateActorDelta", (delta, change, options) => { if (!options?.tbUndo) onSpeed(delta.parent?.actor, change); });
+  Hooks.on("updateCombat", () => drawScars());
+  Hooks.on("deleteCombat", () => { for (let i = scars.length - 1; i >= 0; i--) if (scars[i].round != null) scars.splice(i, 1); drawScars(); });
   // unref: в проверках под Node таймер не держит процесс
   Hooks.once("ready", () => setInterval(() => {
     try { burnTick(); } catch (err) { console.warn(`${SYSTEM_ID} | дым`, err); }
@@ -145,8 +158,8 @@ export function registerFx() {
   for (const ev of ["updateChatMessage", "deleteChatMessage"]) Hooks.on(ev, () => syncSoon());
   Hooks.on("updateCombat", () => syncSoon());
   Hooks.on("deleteCombat", () => syncSoon());
-  Hooks.on("canvasReady", () => { clearAll(); trailAt.clear(); syncSoon(); });
-  Hooks.on("canvasTearDown", () => clearAll());
+  Hooks.on("canvasReady", () => { clearAll(); trailAt.clear(); scars.length = 0; scarGfx = null; syncSoon(); });
+  Hooks.on("canvasTearDown", () => { clearAll(); scars.length = 0; scarGfx = null; });
   Hooks.on("createActiveEffect", (effect, options) => {
     if (options?.tbUndo || !effect.statuses?.has?.(CONFIG.specialStatusEffects.DEFEATED)) return;
     const a = effect.parent;
@@ -234,7 +247,7 @@ const ours = uuid => { const a = resolveActor(uuid); return a?.type === "pilot" 
 
 function run(step, message, i) {
   const k = step.kind;
-  if (k === "flares") { const t = tokenFor(step.at); if (t && seen(t)) flares(P(t)(), t.document.rotation); return; }
+  if (k === "flares") { const t = tokenFor(step.at); if (t && seen(t)) { flares(P(t)(), t.document.rotation); if (vaporOn()) vortices(t); } return; }
   if (k === "blast") return blastZones(step.zones);
   if (k === "lost") return null;
   if (k === "impact") return impact(step);
@@ -251,39 +264,39 @@ function run(step, message, i) {
       if (seen(from)) { beam(a, far, { color: 0x9fe8ff, delay: 250, width: 0.12, life: 800 }); later(250, () => { boom(a, 0.05); sparks(a, 7, 0.06); }); }
       step.rows.forEach((x, n) => {
         const t = tokenFor(x.to);
-        if (t && seen(t) && x.hit) later(300 + n * 40, () => boom(P(t)(), 0.12));
+        if (t && seen(t) && x.hit) later(300 + n * 40, () => { const p = P(t)(); boom(p, 0.12); if (onGround(t)) scar(p, 0.14); });
       });
       return;
     }
     step.rows.forEach((r, j) => {
       const t = tokenFor(r.to);
       if (!t || !seen(t)) return;
-      if (k === "carpet") return bomb(a, P(t), { hit: r.hit, delay: 120 + j * 160 });
+      if (k === "carpet") return bomb(a, P(t), { hit: r.hit, delay: 120 + j * 160, scar: onGround(t) });
       if (step.rail && seen(from)) later(250, () => { boom(a, 0.05); sparks(a, 6, 0.06); });
       beam(seen(from) ? a : origin(null, t), P(t)(), step.rail ? { color: 0x9fe8ff, delay: 250 + j * 40, width: 0.11, life: 700 } : { color: 0x9fe8ff, delay: 250 + j * 40 });
-      if (r.hit) later(320 + j * 40, () => boom(P(t)(), 0.11));
+      if (r.hit) later(320 + j * 40, () => { const p = P(t)(); boom(p, 0.11); if (step.rail && onGround(t)) scar(p, 0.13); });
       else if (r.hit === null) later(320, () => sparks(P(t)()));
     });
     return;
   }
   const to = tokenFor(step.to);
   if (!to || !seen(to)) return;
-  const a = origin(from, to);
-  if (k === "guns" || k === "rockets") return guns(a, P(to), { hit: step.hit, n: step.n, rockets: k === "rockets", delay: 250 });
+  const a = origin(from, to), gnd = onGround(to);
+  if (k === "guns" || k === "rockets") return guns(a, P(to), { hit: step.hit, n: step.n, rockets: k === "rockets", delay: 250, scar: gnd && k === "rockets" });
   if (k === "cannon") {
-    for (let n = 0; n < step.n; n++) shell(a, P(to), { hit: step.hit, delay: 250 + n * 220, size: step.big ? 0.11 : 0.08, flash: seen(from ?? to) && !!from });
+    for (let n = 0; n < step.n; n++) shell(a, P(to), { hit: step.hit, delay: 250 + n * 220, size: step.big ? 0.11 : 0.08, flash: seen(from ?? to) && !!from, scar: gnd });
     return;
   }
   // AC-130: очередь мелкого калибра и снаряд 105 мм
   if (k === "gunship") {
     guns(a, P(to), { hit: step.hit, n: 4, delay: 200 });
-    shell(a, P(to), { hit: step.hit, delay: 520, size: 0.1, flash: false });
+    shell(a, P(to), { hit: step.hit, delay: 520, size: 0.1, flash: false, scar: gnd });
     return;
   }
   if (k === "launch" && step.fx) {
     // снаряд в бою: вспышка у ствола, а сам он летит в залпе конца раунда; вне боя долетает сразу
     if (step.wait) { if (from && seen(from)) muzzle(a, toward(a, P(to)()), 250 + i * 120, step.fx === "arty" ? 0.09 : 0.06); return; }
-    return shell(a, P(to), { hit: null, delay: 250 + i * 120, arc: step.fx === "arty" ? 0.18 : 0, size: 0.1 });
+    return shell(a, P(to), { hit: null, delay: 250 + i * 120, arc: step.fx === "arty" ? 0.18 : 0, size: 0.1, scar: gnd });
   }
   if (k === "launch") {
     const ally = ours(step.from);
@@ -291,7 +304,7 @@ function run(step, message, i) {
     const stop = step.wait ? AIR_AT : 1;
     missile(() => a, P(to), {
       delay: 250 + i * 120, stop, color: ally ? 0xbfefff : 0xffd8c8,
-      done: p => { if (step.wait && message) { launched.set(message.id, a); syncAir(); } else boom(p, 0.1); }
+      done: p => { if (step.wait && message) { launched.set(message.id, a); syncAir(); } else { boom(p, 0.1); if (gnd) scar(p, 0.13); } }
     });
   }
 }
@@ -300,13 +313,13 @@ function run(step, message, i) {
 function impact(step) {
   const to = tokenFor(step.to);
   if (!to || !seen(to)) return;
-  const tp = P(to);
+  const tp = P(to), gnd = onGround(to);
   // снаряды и навес летят от стрелков целиком; ракеты — от своих меток в воздухе
   const fx = step.fx ?? {}, shooters = step.from.filter(u => fx[u]), rockets = step.from.filter(u => !fx[u]);
   shooters.forEach((u, j) => {
     const o = origin(tokenFor(u), to), arc = fx[u] === "arty" ? 0.18 : 0;
     if (tokenFor(u) && seen(tokenFor(u))) muzzle(o, toward(o, tp()), j * 160, arc ? 0.09 : 0.06);
-    shell(o, tp, { hit: step.hit || step.ship ? true : false, delay: j * 160 + 60, arc, size: arc ? 0.12 : 0.09, flash: false });
+    shell(o, tp, { hit: step.hit || step.ship ? true : false, delay: j * 160 + 60, arc, size: arc ? 0.12 : 0.09, flash: false, scar: gnd });
   });
   if (!rockets.length) return;
   const starts = takeLanding(step.to);
@@ -318,8 +331,8 @@ function impact(step) {
   if (step.broke) later(200, () => { const p = tp(); if (p) flares(p, to.document.rotation); });
   starts.forEach((s, j) => {
     const opts = { delay: j * 160, color: 0xffe6c8 };
-    if (step.bomb) return bomb(s, tp, { hit: step.hit || step.ship, delay: j * 160 });
-    if (step.hit || step.ship) missile(() => s, tp, { ...opts, done: p => boom(step.prox ? { x: p.x + gs() * 0.08, y: p.y - gs() * 0.06 } : p, j ? 0.09 : 0.13) });
+    if (step.bomb) return bomb(s, tp, { hit: step.hit || step.ship, delay: j * 160, scar: gnd });
+    if (step.hit || step.ship) missile(() => s, tp, { ...opts, done: p => { boom(step.prox ? { x: p.x + gs() * 0.08, y: p.y - gs() * 0.06 } : p, j ? 0.09 : 0.13); if (gnd) scar(p, j ? 0.12 : 0.15); } });
     else missile(() => s, tp, { ...opts, miss: true });
   });
 }
@@ -545,6 +558,181 @@ function contrail(lines, eng, size) {
   });
 }
 
+/* ---------- пар и вихри: конус пара с хлопком на разгоне до максимальной Speed, нити вихрей с крыльев на Break! ---------- */
+
+const vaporOn = () => { try { return on() && game.settings.get(SYSTEM_ID, "fxVapor") !== false; } catch { return true; } };
+const atMax = new Set();   // uuid машин, которые уже идут на максимальной Speed: конус только на переходе
+/** Перешла ли машина на максимальную Speed этим изменением: speed в изменении, теперь на максимуме, раньше не была. */
+export function vaporEdge(actor, change, seenMax = atMax) {
+  const sys = change?.system ?? {};
+  if (!actor?.uuid || !("speed" in sys || "maxSpeed" in sys)) return false;
+  if (!burnerOf(actor)) { seenMax.delete(actor.uuid); return false; }
+  if (seenMax.has(actor.uuid)) return false;
+  seenMax.add(actor.uuid);
+  return true;
+}
+function onSpeed(actor, change) {
+  // расстановка и импорт миссии меняют Speed пачкой: пар только в бою
+  if (!vaporEdge(actor, change) || !game.combat?.started || !vaporOn() || !canvas?.ready) return;
+  const toks = actor.isToken ? [actor.token?.object] : actor.getActiveTokens?.() ?? [];
+  let shown = false;
+  for (const t of toks) if (t && !t.document.hidden && seen(t)) { vaporCone(t); shown = true; }
+  if (shown) import("./sounds.mjs").then(m => m.cueAll("sonic")).catch(() => null);
+}
+
+/** Нос токена: курс 0 — нос вверх, по часовой; угол в радианах экрана. */
+const noseOf = rot => ((Number(rot) || 0) - 90) * Math.PI / 180;
+/** Конус пара сверху: вершина впереди центра, бока колоколом расходятся назад, кромка раструба выгнута за хвостом.
+    scale — доля размера (слои плотности). Точки многоугольника и отдельно кромка. */
+export function coneShape(c, rot, size, scale = 1) {
+  const a = noseOf(rot), ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux;
+  const ahead = size * 0.3 * scale, behind = size * 0.34 * scale, R = size * 0.56 * scale;
+  const at = (s, w) => ({ x: c.x + ux * (ahead - (ahead + behind) * s) + nx * w, y: c.y + uy * (ahead - (ahead + behind) * s) + ny * w });
+  const side = sgn => Array.from({ length: 7 }, (_, i) => { const s = i / 6; return at(s, sgn * R * Math.sqrt(s)); });
+  // кромка: дуга от левого края раструба к правому через точку за хвостом
+  const rim = Array.from({ length: 11 }, (_, i) => { const t = Math.PI * (i / 10 - 0.5); return at(1 + 0.32 * Math.cos(t) * R / (ahead + behind), -R * Math.sin(t)); });
+  return { pts: [...side(-1), ...rim, ...side(1).reverse()], rim, ux, uy };
+}
+function vaporCone(t) {
+  const size = Math.min(t.w ?? gs(), t.h ?? gs()), LIFE = 1000;
+  add((ms, g) => {
+    if (!t || t.destroyed) return false;
+    const k = ms / LIFE;
+    if (k >= 1) return false;
+    const fade = k < 0.1 ? k / 0.1 : (1 - (k - 0.1) / 0.9) ** 1.3;
+    // пар срывается за машиной: конус раздувается и отстаёт
+    const c = { x: t.center.x, y: t.center.y }, rot = t.document.rotation, grow = 1 + 0.3 * k, drift = size * 0.15 * k;
+    const shift = (q, sh) => [q.x - sh.ux * drift, q.y - sh.uy * drift];
+    // плотнее у оси: три слоя, внутренние уже
+    for (const [sc, al] of [[1, 0.13], [0.78, 0.13], [0.55, 0.14]]) {
+      const sh = coneShape(c, rot, size * grow, sc);
+      g.beginFill(0xf4f8ff, al * fade); g.drawPolygon(sh.pts.flatMap(q => shift(q, sh))); g.endFill();
+    }
+    // кромка раструба: широкое свечение и яркая линия
+    const sh = coneShape(c, rot, size * grow);
+    for (const [w, al] of [[0.09, 0.22], [0.035, 0.8]]) {
+      g.lineStyle(Math.max(1.5, size * w), 0xffffff, al * fade);
+      sh.rim.forEach((q, i) => { const [x, y] = shift(q, sh); if (i) g.lineTo(x, y); else g.moveTo(x, y); });
+    }
+    g.lineStyle(0);
+  });
+  // хлопок: тонкое кольцо ударной волны расходится от машины
+  const c0 = { x: t.center.x, y: t.center.y };
+  add((ms, g) => {
+    const k = ms / 750;
+    if (k >= 1) return false;
+    g.lineStyle(Math.max(1, size * 0.025 * (1 - k)), 0xffffff, 0.55 * (1 - k)); g.drawCircle(c0.x, c0.y, size * (0.35 + 2.1 * k)); g.lineStyle(0);
+  }, 70);
+}
+
+/** Нить вихря с законцовки крыла side (−1 левое, 1 правое): назад от крыла, загибаясь в сторону виража turn. */
+export function vortexPath(c, rot, size, side, turn, n = 14) {
+  const a = noseOf(rot), ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux;
+  const tip = { x: c.x + nx * size * 0.42 * side - ux * size * 0.05, y: c.y + ny * size * 0.42 * side - uy * size * 0.05 };
+  return Array.from({ length: n }, (_, i) => {
+    const u = i / (n - 1), back = size * 0.95 * u, curl = size * 0.45 * u * u * turn;
+    return { x: tip.x - ux * back + nx * curl, y: tip.y - uy * back + ny * curl };
+  });
+}
+function vortices(t) {
+  const size = Math.min(t.w ?? gs(), t.h ?? gs()), c = { x: t.center.x, y: t.center.y }, rot = t.document.rotation;
+  const turn = Math.random() < 0.5 ? -1 : 1, LIFE = 1500, DRAW = 320;
+  const paths = [-1, 1].map(side => vortexPath(c, rot, size, side, turn));
+  add((ms, g) => {
+    const k = ms / LIFE;
+    if (k >= 1) return false;
+    // нить тянется от крыла за DRAW мс, потом бледнеет и расплывается
+    const upto = Math.max(2, Math.ceil(Math.min(1, ms / DRAW) * paths[0].length));
+    g.lineStyle(Math.max(1, size * 0.014 * (1 + 1.5 * k)), 0xf4f8ff, 0.7 * (1 - k) ** 1.4);
+    for (const p of paths) { g.moveTo(p[0].x, p[0].y); for (let i = 1; i < upto; i++) g.lineTo(p[i].x, p[i].y); }
+    g.lineStyle(0);
+  });
+}
+
+/* ---------- воронки и подпалины: под токенами, тают за три раунда (вне боя за пару минут) ---------- */
+
+const scars = [];
+let scarGfx = null, scarTimer = null;
+const SCAR_ROUNDS = 3, SCAR_MS = 150000, MAX_SCARS = 120;
+const cratersOn = () => { try { return on() && game.settings.get(SYSTEM_ID, "fxCraters") !== false; } catch { return true; } };
+/** Стоит ли цель на земле: наземная техника, здания и сухопутный линкор на суше; не самолёт, не корабль, не вода. */
+function onGround(t) {
+  const a = t?.actor;
+  if (!a || isFlying(a)) return false;
+  if (a.type !== "npc") return false;
+  const s = a.system ?? {};
+  if (s.kind === "ship" && !hasRule(a, "landship")) return false;
+  return !WATER.includes(terrainAt(t.center));
+}
+/** Насколько видна воронка (0..1): в бою по раундам с её раунда, вне боя по времени. */
+export function scarAlpha(sc, round, now) {
+  if (sc.round != null && round != null) { const age = round - sc.round; return age >= SCAR_ROUNDS || age < 0 ? 0 : [1, 0.65, 0.35][age]; }
+  const k = (now - sc.at) / SCAR_MS;
+  return k >= 1 ? 0 : 1 - k * k;
+}
+/** Неровный край пятна: n точек на радиусе r с разбросом по seed (одинаково при каждой перерисовке). */
+export function blotPoints(x, y, r, seed, n = 14) {
+  let z = seed >>> 0 || 1;
+  const rand = () => { z = (z * 1664525 + 1013904223) >>> 0; return z / 4294967296; };
+  return Array.from({ length: n }, (_, i) => { const a = (i / n) * Math.PI * 2, k = 0.72 + rand() * 0.45; return { x: x + Math.cos(a) * r * k, y: y + Math.sin(a) * r * k }; });
+}
+function scar(p, size = 0.14, kind = "crater") {
+  if (!p || !cratersOn() || !canvas?.ready) return;
+  if (WATER.includes(terrainAt(p))) return;
+  const round = game.combat?.started ? game.combat.round : null;
+  scars.push({ x: p.x, y: p.y, r: gs() * size, kind, seed: Math.floor(Math.random() * 2 ** 31), round, at: Date.now() });
+  if (scars.length > MAX_SCARS) scars.splice(0, scars.length - MAX_SCARS);
+  drawScars();
+}
+// PrimaryGraphics в v12 объявлен в общем скрипте через class: виден по имени, но не как globalThis.PrimaryGraphics
+const PGClass = () => foundry.canvas?.primary?.PrimaryGraphics ?? (typeof PrimaryGraphics === "function" ? PrimaryGraphics : null);
+function scarLayer() {
+  if (!canvas?.ready) return null;
+  if (scarGfx && !scarGfx.destroyed) return scarGfx;
+  const PG = PGClass();
+  // под токенами, над картой и плитками местности; без PrimaryGraphics — в слое схемы
+  if (PG && canvas.primary) {
+    scarGfx = canvas.primary.addChild(new PG({ name: "tbScars" }));
+    scarGfx.elevation = 0;
+    const L = foundry.canvas?.groups?.PrimaryCanvasGroup?.SORT_LAYERS ?? (typeof PrimaryCanvasGroup === "function" ? PrimaryCanvasGroup.SORT_LAYERS : null);
+    scarGfx.sortLayer = L?.TILES ?? 500;
+    scarGfx.sort = 1e6;
+  } else {
+    if (!canvas.interface) return null;
+    scarGfx = canvas.interface.addChildAt(new PIXI.Graphics(), 0);
+  }
+  scarGfx.eventMode = "none";
+  return scarGfx;
+}
+function drawScars() {
+  clearTimeout(scarTimer);
+  const round = game.combat?.started ? game.combat.round : null, now = Date.now();
+  for (let i = scars.length - 1; i >= 0; i--) if (scarAlpha(scars[i], round, now) <= 0) scars.splice(i, 1);
+  if (!canvas?.ready) return;
+  if (!scars.length && !scarGfx) return;
+  const g = scarLayer();
+  if (!g) return;
+  g.clear();
+  if (!cratersOn()) return;
+  for (const sc of scars) {
+    const k = scarAlpha(sc, round, now), r = sc.r;
+    // подпалина: неровное тёмное пятно и копоть лучами
+    g.beginFill(0x1c150f, 0.42 * k); g.drawPolygon(blotPoints(sc.x, sc.y, r, sc.seed).flatMap(q => [q.x, q.y])); g.endFill();
+    g.lineStyle(Math.max(1, r * 0.07), 0x241a12, 0.28 * k);
+    blotPoints(sc.x, sc.y, r * 1.55, sc.seed + 7, 9).forEach(q => { g.moveTo(sc.x, sc.y); g.lineTo(q.x, q.y); });
+    g.lineStyle(0);
+    if (sc.kind === "scorch") {
+      g.beginFill(0x0b0907, 0.35 * k); g.drawPolygon(blotPoints(sc.x, sc.y, r * 0.6, sc.seed + 3, 10).flatMap(q => [q.x, q.y])); g.endFill();
+      continue;
+    }
+    // воронка: неровный вал выброшенной земли и тёмная яма
+    g.beginFill(0x6e5c46, 0.3 * k); g.drawPolygon(blotPoints(sc.x, sc.y, r * 0.55, sc.seed + 11, 11).flatMap(q => [q.x, q.y])); g.endFill();
+    g.beginFill(0x0d0a07, 0.55 * k); g.drawPolygon(blotPoints(sc.x, sc.y, r * 0.38, sc.seed + 5, 10).flatMap(q => [q.x, q.y])); g.endFill();
+  }
+  // вне боя воронки тают по времени: перерисовать, пока есть что гасить
+  if (scars.some(sc => sc.round == null || round == null)) scarTimer = setTimeout(drawScars, 5000);
+}
+
 /* ---------- движок: один слой, всё перерисовывается каждый кадр ---------- */
 
 const items = [];
@@ -698,11 +886,11 @@ function flares(p, rot = 0) {
 }
 
 /** Очереди: короткие трассеры; промах уходит мимо, попадание — искры. */
-function guns(a, b, { hit = null, n = 6, rockets = false, delay = 0 } = {}) {
+function guns(a, b, { hit = null, n = 6, rockets = false, delay = 0, scar: mark = false } = {}) {
   for (let i = 0; i < n; i++) {
     const off = hit === false ? { x: rnd(-1, 1) * gs() * 0.14, y: rnd(-1, 1) * gs() * 0.14 } : { x: rnd(-1, 1) * gs() * 0.02, y: rnd(-1, 1) * gs() * 0.02 };
     if (rockets) {
-      missile(() => a, () => { const p = b(); return p && { x: p.x + off.x, y: p.y + off.y }; }, { delay: delay + i * 110, miss: hit === false, color: 0xffffff, curve: 0.04, done: p => boom(p, 0.06) });
+      missile(() => a, () => { const p = b(); return p && { x: p.x + off.x, y: p.y + off.y }; }, { delay: delay + i * 110, miss: hit === false, color: 0xffffff, curve: 0.04, done: p => { boom(p, 0.06); if (mark && i % 2 === 0) scar(p, 0.07); } });
       continue;
     }
     const life = Math.max(140, Math.min(320, dist(a, b() ?? a) / gs() * 160));
@@ -740,7 +928,7 @@ function dust(p) {
  * Снаряд от a к b (b — функция точки): яркая точка с коротким хвостом, быстро и по прямой; arc — навес (артиллерия).
  * hit: true — разрыв, false — пыль рядом, null — исход неизвестен (разрыв поменьше).
  */
-function shell(a, b, { hit = true, delay = 0, arc = 0, size = 0.09, flash = true } = {}) {
+function shell(a, b, { hit = true, delay = 0, arc = 0, size = 0.09, flash = true, scar: mark = false } = {}) {
   const B0 = b();
   if (!a || !B0) return;
   const len = dist(a, B0), dur = arc ? Math.min(1700, 650 + (len / gs()) * 240) : Math.min(420, 120 + (len / gs()) * 70);
@@ -757,6 +945,8 @@ function shell(a, b, { hit = true, delay = 0, arc = 0, size = 0.09, flash = true
     if (k < 1) return true;
     if (hit === false) dust(B);
     else boom(B, hit === null ? size * 0.7 : size);
+    // мимо тоже взрывает землю: воронка рядом с целью
+    if (mark) scar(B, size * (hit === false ? 0.9 : 1.2));
     return false;
   }, delay);
 }
@@ -773,13 +963,14 @@ function beam(a, b, { color = 0x9fe8ff, delay = 0, width = 0.05, life = 480 } = 
 }
 
 /** Бомба: тёмная точка уменьшается к земле, внизу взрыв (промах — рядом). */
-function bomb(a, b, { hit = true, delay = 0 } = {}) {
+function bomb(a, b, { hit = true, delay = 0, scar: mark = false } = {}) {
   const off = hit ? { x: 0, y: 0 } : { x: rnd(-1, 1) * gs() * 0.15, y: rnd(-1, 1) * gs() * 0.15 };
   add((t, g) => {
     const B0 = b();
     if (!B0) return false;
     const B = { x: B0.x + off.x, y: B0.y + off.y }, k = t / 650;
-    if (k >= 1) { boom(B, hit ? 0.12 : 0.08); return false; }
+    // бомба мимо цели тоже оставляет воронку
+    if (k >= 1) { boom(B, hit ? 0.12 : 0.08); if (mark) scar(B, hit ? 0.17 : 0.13); return false; }
     const p = lerp(a, B, k);
     g.beginFill(0x202020, 0.9); g.drawCircle(p.x, p.y, gs() * (0.025 - 0.012 * k)); g.endFill();
   }, delay);
@@ -792,7 +983,7 @@ function blastZones(zones) {
     const [j, r] = z.split(",").map(Number);
     if (!Number.isFinite(j) || !Number.isFinite(r)) return;
     const tl = canvas.grid.getTopLeftPoint?.({ i: r, j }) ?? { x: j * size, y: r * size };
-    for (let n = 0; n < 4; n++) later(i * 120 + n * 140, () => boom({ x: tl.x + size * rnd(0.2, 0.8), y: tl.y + size * rnd(0.2, 0.8) }, rnd(0.12, 0.2)));
+    for (let n = 0; n < 4; n++) later(i * 120 + n * 140, () => { const p = { x: tl.x + size * rnd(0.2, 0.8), y: tl.y + size * rnd(0.2, 0.8) }, r = rnd(0.12, 0.2); boom(p, r); scar(p, r * 1.1); });
   });
 }
 
@@ -802,6 +993,8 @@ function downed(t) {
   if (!p) return;
   callout(t, "DESTROYED", 250);
   boom(p, 0.2);
+  // сгоревшая наземная техника и здания: большая подпалина
+  if (onGround(t)) later(300, () => scar(p, 0.24, "scorch"));
   later(180, () => boom({ x: p.x + rnd(-1, 1) * gs() * 0.06, y: p.y + rnd(-1, 1) * gs() * 0.06 }, 0.12));
   for (let i = 0; i < 10; i++) puff({ x: p.x + rnd(-4, 4), y: p.y }, { r: 0.04, life: 2200, color: 0x333333, alpha: 0.5, grow: 2.2, vx: rnd(-6, 6), vy: -gs() * 0.08, delay: 300 + i * 120 });
 }
