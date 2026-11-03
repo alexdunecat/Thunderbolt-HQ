@@ -11,7 +11,7 @@ import { combatantOf, spentOf, declaredOf, endTurn } from "./actions.mjs";
 import { runAction, PILOT_BAR } from "./macros.mjs";
 import { lockersOf } from "./rwr.mjs";
 import { vmaxOf, kmhOf } from "./plane-speed.mjs";
-import { ejectNow, heroNow, weaponReady, isGunPod, isOwnFire, computeCard, onCardAction, hudOdds } from "./dice/rolls.mjs";
+import { ejectNow, heroNow, ejectFate, weaponReady, isGunPod, isOwnFire, computeCard, onCardAction, hudOdds } from "./dice/rolls.mjs";
 import { unitKind, unitHtml, onUnitClick, registerUnitHud } from "./unit-hud.mjs";
 import { hudTriggers, useCombatTrigger } from "./combat-triggers.mjs";
 import { adviceRow, runAdvice, showTarget } from "./npc-advice.mjs";
@@ -186,17 +186,19 @@ export function strainRoll(actor, messages = game.messages?.contents ?? [], now 
     if (!c.rolled) return null;
     const can = c.strainable && !c.resolved && !c.dmgApplied && !(c.type === "eject" && c.applied);
     // бросок без Strain (или уже учтённый) ещё немного висит на HUD, чтобы его успели увидеть
-    const age = now - (Number(messages[i].timestamp) || 0);
-    if (!can && !(messages[i].timestamp && age < ROLL_SHOW_MS)) return null;
+    const age = now - (Number(messages[i].timestamp) || 0), keepMs = c.type === "eject" ? EJECT_SHOW_MS : ROLL_SHOW_MS;
+    if (!can && !(messages[i].timestamp && age < keepMs)) return null;
     const r = computeCard(c);
     return { id: messages[i].id, label: c.label, total: r.total, dc: c.dc ?? null, success: r.success ?? null, strain: c.strain ?? 0, brk: c.type === "break" ? { value: r.value, ev: c.ev, applies: r.applies } : null,
-      ...(can ? {} : { canStrain: false, left: ROLL_SHOW_MS - age }),
+      ...(can ? {} : { canStrain: false, left: keepMs - age }),
+      eject: c.type === "eject" ? ejectFate(r).key : null,
       d10: c.d10 ?? null, d4: c.d4 ?? null, perk: !!r.perk, comp: !!r.comp, attack: !!c.attack, delayed: !!c.delayed,
       parts: (c.parts ?? []).filter(p => p?.[1]).slice(0, 4).map(([n, v]) => `${n} ${v > 0 ? "+" : ""}${v}`) };
   }
   return null;
 }
-const ROLL_SHOW_MS = 25000;
+const ROLL_SHOW_MS = 25000, EJECT_SHOW_MS = 90000;
+const FATE_WORD = { ok: "КАТАПУЛЬТИРОВАЛСЯ", hurt: "РАНЕН · ПОДОБРАН", mia: "ПРОПАЛ БЕЗ ВЕСТИ", kia: "ГИБЕЛЬ" };
 
 /** Шанс по цели для каждой станции HUD (подсказка при наведении); ошибка прикидки подсказку просто не даёт. */
 function oddsOf(actor) {
@@ -235,17 +237,17 @@ export function rollPlateHtml(d) {
   if (!r || r.d10 === null || r.d10 === undefined) return "";
   const left = d.strain?.max ? d.strain.value : 0, can = r.canStrain !== false;
   const has = r.dc !== null && !r.brk, gap = has && !r.success ? r.dc - r.total : 0;
-  const verdict = r.brk ? `EVASION ${r.brk.value}${r.brk.applies ? "" : ` · не выше ${r.brk.ev}`}`
-    : !has ? "ИТОГ" : r.success ? (r.attack ? (r.delayed ? "ВЕРНО · ЖДЁМ ЗАЛП" : "ПОПАДАНИЕ") : "УСПЕХ") : `${r.attack ? "МИМО" : "ПРОВАЛ"} −${gap}`;
-  const cls = r.brk ? (r.brk.applies ? "ok" : "miss") : has ? (r.success ? "ok" : "miss") : "plain";
+  const verdict = r.eject ? FATE_WORD[r.eject] : r.brk ? `EVASION ${r.brk.value}${r.brk.applies ? "" : ` · не выше ${r.brk.ev}`}`
+    : !has ? "ИТОГ" : r.success ? (r.attack ? "ПОПАДАНИЕ" : "УСПЕХ") : `${r.attack ? "МИМО" : "ПРОВАЛ"} −${gap}`;
+  const cls = r.eject ? (r.eject === "ok" ? "ok eject" : "miss eject") : r.brk ? (r.brk.applies ? "ok" : "miss") : has ? (r.success ? "ok" : "miss") : "plain";
   const btns = can && left > 0 ? `<span class="tb-hud-rollbtns">
       <button type="button" data-hud-strain="${r.id}" title="Потратить 1 Strain: +1 к этому броску"><b>+1</b> STRAIN · ${left}</button>
       ${gap > 1 && gap <= left ? `<button type="button" class="reach" data-hud-strain-n="${r.id}:${gap}" title="Потратить ${gap} Strain и дотянуть бросок до успеха"><b>+${gap}</b> ДО УСПЕХА</button>` : ""}</span>`
     : can && has && !r.success ? `<span class="tb-hud-none">Strain 0</span>` : "";
   return `<div class="tb-hud-rollplate ${cls}" data-roll-id="${r.id}">
-    <span class="tb-hud-dice"><i class="d10" title="d10">${r.d10}</i>${r.d4 !== null && r.d4 !== undefined ? `<i class="d4${r.perk ? " perk" : r.comp ? " comp" : ""}" title="d4${r.perk ? ": Perk" : r.comp ? ": Complication" : ""}">${r.d4}</i>` : ""}</span>
+    ${r.eject ? `<i class="fas fa-parachute-box tb-hud-chute"></i>` : ""}<span class="tb-hud-dice"><i class="d10" title="d10">${r.d10}</i>${r.d4 !== null && r.d4 !== undefined ? `<i class="d4${r.perk ? " perk" : r.comp ? " comp" : ""}" title="d4${r.perk ? ": Perk" : r.comp ? ": Complication" : ""}">${r.d4}</i>` : ""}</span>
     <span class="tb-hud-rollsum"><b>${r.brk ? r.total : r.total}</b>${has ? `<em>/ ${r.dc}</em>` : ""}</span>
-    <span class="tb-hud-rollinfo"><strong>${esc(verdict)}</strong><small>${esc(r.label)}${r.parts?.length ? ` · ${esc(r.parts.join(" · "))}` : ""}${r.strain ? ` · Strain +${r.strain}` : ""}${r.perk ? " · PERK" : r.comp ? " · COMPLICATION" : ""}</small></span>
+    <span class="tb-hud-rollinfo"><strong>${esc(verdict)}</strong><small>${esc(r.label)}${r.parts?.length ? ` · ${esc(r.parts.join(" · "))}` : ""}${r.strain ? ` · Strain +${r.strain}` : ""}${r.perk ? " · PERK" : r.comp ? " · COMPLICATION" : ""}${r.delayed && r.success && !r.eject ? " · долетит в залпе конца раунда" : ""}</small></span>
     ${btns}</div>`;
 }
 

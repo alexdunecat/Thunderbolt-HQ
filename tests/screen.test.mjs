@@ -79,3 +79,8 @@ const vs = { name: "Тсой", call: "Кино", img: "", voters: [{ id: "a", na
 const vh = V.verdictHtml(vs, { me: "a" });
 console.log("окно игрока:", /tb-vd-opt win picked/.test(vh), "· чужой голос скрыт:", !/<em>1<\/em>/.test(vh), "· лампы:", (vh.match(/tb-vd-chip cast/g) ?? []).length);
 console.log("окно ведущего:", /data-vd-force="win"/.test(V.verdictHtml(vs, { me: "gm", gm: true })), "· итог:", /tb-vd-stamp retreat/.test(V.verdictHtml({ ...vs, result: "retreat" }, { me: "a" })));
+
+// судьба пилота при Doom: катапульта или гибель, исход на стекле
+const fh = HP.fatePickHtml({ name: "Тсой", system: { skillTotal: { push: 2 }, strain: { value: 3 } } });
+console.log("судьба:", /data-fate="eject"/.test(fh), /data-fate="hero"/.test(fh), /data-fate="later"/.test(fh), /d10 \+ 2/.test(fh), /есть 3/.test(fh));
+console.log("исход:", ["ok", "hurt", "mia", "kia"].map(k => HP.fateResultHtml({ name: "Тсой", system: {} }, { d10: 5, d4: 2, total: 7, strain: 1 }, { key: k, text: "" }).match(/tb-fate-stamp \w+">([^<]+)/)?.[1]).join(" · "));

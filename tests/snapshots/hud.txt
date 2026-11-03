@@ -6,12 +6,31 @@ Doom: ["doom"] катапульта: true кнопка есть
 у игрока: Гроза
 у ведущего без выделения: нет
 у ведущего с выделенным: Стрикс-2 · Воздушная цель 4 [{"key":"lock","text":"LOCK"},{"key":"lowalt","text":"LOW ALT"}]
-бросок для Strain из HUD: {"id":"M0","label":"Fox Two!","total":6,"dc":7,"success":false,"strain":0,"brk":null,"d10":4,"d4":null,"perk":false,"comp":false,"attack":false,"delayed":false,"parts":["Aim +2"]} кнопка есть
+бросок для Strain из HUD: {"id":"M0","label":"Fox Two!","total":6,"dc":7,"success":false,"strain":0,"brk":null,"eject":null,"d10":4,"d4":null,"perk":false,"comp":false,"attack":false,"delayed":false,"parts":["Aim +2"]} кнопка есть
 табло броска: 4 6 / 7 ПРОВАЛ −1 Fox Two! · Aim +2 +1 STRAIN · 5
 табло, не хватает 5: 2 4 4 / 9 МИМО −5 Fox Two! · Aim +2 · PERK +1 STRAIN · 5 +5 ДО УСПЕХА · до успеха: true · Strain мало: false
-табло, ракета: 9 11 / 7 ВЕРНО · ЖДЁМ ЗАЛП Fox Two! · Aim +2 +1 STRAIN · 5
+табло, ракета: 9 11 / 7 ПОПАДАНИЕ Fox Two! · Aim +2 · долетит в залпе конца раунда +1 STRAIN · 5
 свежий бросок без Strain: null · уже учтён в залпе: null
-бросок без Strain висит: 21000 · ушёл: null
+исход катапульты на HUD: 3 2 4 / 7 ПРОПАЛ БЕЗ ВЕСТИ Катапультирование: Push против 7 · Push +1 · через 2 минуты: null
+бросок без Strain висит: 86000 · ушёл: {
+  id: 'E1',
+  label: 'Катапультирование: Push против 7',
+  total: 4,
+  dc: 7,
+  success: false,
+  strain: 0,
+  brk: null,
+  canStrain: false,
+  left: 51000,
+  eject: 'mia',
+  d10: 3,
+  d4: 2,
+  perk: false,
+  comp: false,
+  attack: false,
+  delayed: false,
+  parts: [ 'Push +1' ]
+}
 сваливание, провал: {"id":"S0","ok":false,"alt":"med"} Потерять высоту
 сваливание, успех: Выровняться: Speed 1
 сваливание на Низкой: Удар о землю: Doom · исход уже применён: null

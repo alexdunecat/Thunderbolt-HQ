@@ -299,7 +299,10 @@ export class TBActor extends Actor {
     if (this.type === "pilot") {
       // игрок может писать карточку только от своего имени; ведущий отдаёт её активному игроку пилота
       const player = game.user.isGM ? game.users.find(u => !u.isGM && u.active && this.testUserPermission(u, "OWNER")) : game.user;
-      return R.postCard(this, { type: "doomfate", reason: reason ?? "" }, [], { author: player?.id });
+      const msg = await R.postCard(this, { type: "doomfate", reason: reason ?? "" }, [], { author: player?.id });
+      // судьбу выбирает тот, у кого урон: игрок-владелец, а без него в сети — ведущий (окно в стиле кабины, hit-pick.mjs)
+      if (this.isOwner && (!game.user.isGM || !player)) import("../hit-pick.mjs").then(x => x.fatePick(this)).catch(err => console.warn(`${SYSTEM_ID} | судьба пилота`, err));
+      return msg;
     }
     return this.#say(`<b>${esc(this.name)}</b>: метка <b>Doom</b>${reason ? ` (${esc(reason)})` : ""}. Машина сбита.`);
   }

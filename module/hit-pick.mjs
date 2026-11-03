@@ -82,3 +82,85 @@ export function hitPick(actor, opts = {}) {
     document.body.append(root);
   });
 }
+
+/* ---------- метка Doom у пилота: катапульта или героическая гибель, исход катапульты на том же стекле ---------- */
+
+export const FATE_SHORT = { ok: "КАТАПУЛЬТИРОВАЛСЯ", hurt: "РАНЕН · ПОДОБРАН", mia: "ПРОПАЛ БЕЗ ВЕСТИ", kia: "ГИБЕЛЬ" };
+
+/** Разметка выбора судьбы (для тестов отдельно). */
+export function fatePickHtml(actor) {
+  const s = actor.system, push = Number(s.skillTotal?.push ?? s.skills?.push ?? 0), strain = Number(s.strain?.value ?? 0);
+  return `<div class="tb-hp-glass fate">
+    <div class="tb-hp-head"><span class="tb-hp-alarm">▲ DOOM ▲</span><span class="tb-hp-who">${esc(actor.token?.name ?? actor.name)}</span>
+      <small>Машина обречена. Решите судьбу пилота.</small></div>
+    <div class="tb-fate-opts">
+      <button type="button" class="tb-fate eject" data-fate="eject"><i class="fas fa-parachute-box"></i><b>КАТАПУЛЬТА</b>
+        <span>Push против 7: d10 ${push ? `+ ${push}` : ""}. Не хватит — Strain добавится сам (есть ${strain}).</span><em>Провал решает d4: 4 ранен, 2–3 пропал, 1 гибель</em></button>
+      <button type="button" class="tb-fate hero" data-fate="hero"><i class="fas fa-skull"></i><b>ГЕРОИЧЕСКАЯ ГИБЕЛЬ</b>
+        <span>Последние слова, без броска.</span><em>Стол решает: «Победа любой ценой» или «Достойное отступление»</em></button>
+    </div>
+    <div class="tb-fate-later"><button type="button" data-fate="later">Решу позже</button><small>Кнопки останутся в полосе DOOM на HUD и на карточке в чате.</small></div>
+  </div>`;
+}
+
+/** Исход катапульты на стекле: кубики, итог против 7, штамп исхода. */
+export function fateResultHtml(actor, r, fate) {
+  return `<div class="tb-hp-glass fate result ${fate.key}">
+    <div class="tb-hp-head"><span class="tb-hp-alarm"><i class="fas fa-parachute-box"></i> КАТАПУЛЬТА</span><span class="tb-hp-who">${esc(actor.token?.name ?? actor.name)}</span></div>
+    <div class="tb-fate-roll"><span class="tb-fate-dice"><i class="d10">${r.d10 ?? "?"}</i>${r.d4 !== null && r.d4 !== undefined ? `<i class="d4">${r.d4}</i>` : ""}</span>
+      <span class="tb-fate-sum"><b>${r.total}</b><em>/ 7</em></span>${r.strain ? `<small>Strain +${r.strain}</small>` : ""}</div>
+    <div class="tb-fate-stamp ${fate.key}">${FATE_SHORT[fate.key] ?? esc(fate.title)}</div>
+    <p class="tb-fate-text">${esc(fate.text)}</p>
+    <div class="tb-fate-later"><button type="button" data-fate="close">Принято</button></div>
+  </div>`;
+}
+
+/** Окно судьбы пилота: КАТАПУЛЬТА бросает сразу и показывает исход, ГИБЕЛЬ — вторым нажатием. «Решу позже» закрывает. */
+export function fatePick(actor) {
+  if (typeof document === "undefined" || !document.body || !pickOn() || actor?.type !== "pilot") return Promise.resolve(null);
+  document.getElementById("tb-fate-pick")?.remove();
+  return new Promise(resolve => {
+    const root = document.createElement("div");
+    root.id = "tb-fate-pick";
+    root.className = "thunderbolt tb-hit-pick";
+    root.innerHTML = fatePickHtml(actor);
+    let armed = false, busy = false, timer = null;
+    const finish = v => {
+      clearTimeout(timer);
+      if (!root.isConnected) return resolve(v);
+      root.classList.add("out");
+      setTimeout(() => root.remove(), 220);
+      resolve(v);
+    };
+    root.addEventListener("click", async ev => {
+      const b = ev.target.closest("[data-fate]");
+      if (!b || busy) return;
+      const what = b.dataset.fate;
+      if (what === "later" || what === "close") return finish(what);
+      const R = await import("./dice/rolls.mjs");
+      if (what === "hero") {
+        if (!armed) { armed = true; b.classList.add("armed"); b.querySelector("span").textContent = "Нажмите ещё раз: пилот погибает."; return; }
+        busy = true;
+        await R.heroNow(actor, { confirmed: true });
+        return finish("hero");
+      }
+      busy = true;
+      root.querySelectorAll("[data-fate]").forEach(x => { x.disabled = true; });
+      b.classList.add("rolling");
+      const msg = await R.ejectNow(actor);
+      const card = msg?.getFlag?.(SYSTEM_ID, "card");
+      if (!card) return finish(null);
+      const r = R.computeCard(card), fate = R.ejectFate(r);
+      // пауза на «рывок рукоятки», потом кубик катится и замирает
+      await new Promise(ok => setTimeout(ok, 350));
+      root.innerHTML = fateResultHtml(actor, r, fate);
+      root.classList.add("result");
+      const die = root.querySelector(".d10"), real = die?.textContent, t0 = performance.now();
+      const spin = now => { if (!die?.isConnected) return; if (now - t0 > 700) { die.textContent = real; die.classList.add("land"); root.querySelector(".tb-fate-stamp")?.classList.add("in"); return; } die.textContent = String(1 + Math.floor(Math.random() * 10)); requestAnimationFrame(spin); };
+      requestAnimationFrame(spin);
+      busy = false;
+      timer = setTimeout(() => finish("eject"), 20000);
+    });
+    document.body.append(root);
+  });
+}
