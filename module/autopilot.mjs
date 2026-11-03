@@ -471,7 +471,8 @@ export async function runAutopilot(actor, token = null) {
     switch (step.act) {
       case "break": res = await R.autoBreak(actor); state.broke = true; break;
       case "lock": res = await R.autoLock(actor, c.tok); break;
-      case "fire": res = await R.autoFox(actor, c.tok, { sys: c.sys }); if (c.sys !== null) state.used.add(c.sys); break;
+      // Improved Fox Two! — бросок хода: не больше одного броска атаки за ход (пушка тоже бросок)
+      case "fire": res = await R.autoFox(actor, c.tok, { sys: c.sys, canRoll: !state.rolled }); if (c.sys !== null) state.used.add(c.sys); break;
       case "guns":
         res = c.gunSys !== null ? await R.autoSysGun(actor, c.tok, c.gunSys) : await R.autoGuns(actor, c.tok);
         if (c.gunSys !== null) state.used.add(c.gunSys);
@@ -484,6 +485,7 @@ export async function runAutopilot(actor, token = null) {
     }
     if (!res && SHOTS.has(step.act)) res = "не прошло";
     const card = typeof res === "object" ? res?.getFlag?.(SYSTEM_ID, "card") : null;
+    if (card?.rolled && step.act !== "break") state.rolled = true;
     const what = card?.label && step.act !== "break" ? card.label : step.act === "fire" && actor.system.kind !== "air" ? "Пуск" : ACT[step.act];
     // строка — почему не вышло: эту цель (или этот шаг) больше не пробуем, действие не тратится один раз
     if (typeof res === "string") {

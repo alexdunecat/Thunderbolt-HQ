@@ -179,16 +179,24 @@ export function hudData(actor) {
 
 /** Последний свой бросок, если к нему ещё можно добавить Strain (как кнопка «+1 Strain» на карточке): { id, label, total, dc, success }.
     Смотрится только самая свежая своя карточка: если к ней Strain уже нельзя, к старым тоже не предлагается. */
-export function strainRoll(actor, messages = game.messages?.contents ?? []) {
+export function strainRoll(actor, messages = game.messages?.contents ?? [], now = Date.now()) {
   for (let i = messages.length - 1, seen = 0; i >= 0 && seen < 40; i--, seen++) {
     const c = messages[i].getFlag?.(SYSTEM_ID, "card");
     if (!c || c.actorUuid !== actor.uuid) continue;
-    if (!c.rolled || !c.strainable || c.resolved || c.dmgApplied || (c.type === "eject" && c.applied)) return null;
+    if (!c.rolled) return null;
+    const can = c.strainable && !c.resolved && !c.dmgApplied && !(c.type === "eject" && c.applied);
+    // бросок без Strain (или уже учтённый) ещё немного висит на HUD, чтобы его успели увидеть
+    const age = now - (Number(messages[i].timestamp) || 0);
+    if (!can && !(messages[i].timestamp && age < ROLL_SHOW_MS)) return null;
     const r = computeCard(c);
-    return { id: messages[i].id, label: c.label, total: r.total, dc: c.dc ?? null, success: r.success ?? null, strain: c.strain ?? 0, brk: c.type === "break" ? { value: r.value, ev: c.ev, applies: r.applies } : null };
+    return { id: messages[i].id, label: c.label, total: r.total, dc: c.dc ?? null, success: r.success ?? null, strain: c.strain ?? 0, brk: c.type === "break" ? { value: r.value, ev: c.ev, applies: r.applies } : null,
+      ...(can ? {} : { canStrain: false, left: ROLL_SHOW_MS - age }),
+      d10: c.d10 ?? null, d4: c.d4 ?? null, perk: !!r.perk, comp: !!r.comp, attack: !!c.attack, delayed: !!c.delayed,
+      parts: (c.parts ?? []).filter(p => p?.[1]).slice(0, 4).map(([n, v]) => `${n} ${v > 0 ? "+" : ""}${v}`) };
   }
   return null;
 }
+const ROLL_SHOW_MS = 25000;
 
 /** Шанс по цели для каждой станции HUD (подсказка при наведении); ошибка прикидки подсказку просто не даёт. */
 function oddsOf(actor) {
@@ -216,6 +224,29 @@ function stallButton(d) {
   if (!s) return "";
   const label = s.ok ? "Выровняться: Speed 1" : s.alt === "low" ? "Удар о землю: Doom" : s.alt === "strat" ? "Спуститься на Высокую" : "Потерять высоту";
   return `<button type="button" class="tb-hud-stallbtn ${s.ok ? "ok" : "bad"}" data-hud-stall="${s.id}" title="Исход броска на сваливание (то же, что кнопка на карточке в чате)">${label}</button>`;
+}
+
+/**
+ * Табло броска над HUD: кубики, итог против защиты, вердикт, Perk и Complication, кнопки Strain («+1» и «+N до успеха»).
+ * Висит, пока к броску можно добавить Strain; бросок без Strain — ещё 25 секунд.
+ */
+export function rollPlateHtml(d) {
+  const r = d.roll;
+  if (!r || r.d10 === null || r.d10 === undefined) return "";
+  const left = d.strain?.max ? d.strain.value : 0, can = r.canStrain !== false;
+  const has = r.dc !== null && !r.brk, gap = has && !r.success ? r.dc - r.total : 0;
+  const verdict = r.brk ? `EVASION ${r.brk.value}${r.brk.applies ? "" : ` · не выше ${r.brk.ev}`}`
+    : !has ? "ИТОГ" : r.success ? (r.attack ? (r.delayed ? "ВЕРНО · ЖДЁМ ЗАЛП" : "ПОПАДАНИЕ") : "УСПЕХ") : `${r.attack ? "МИМО" : "ПРОВАЛ"} −${gap}`;
+  const cls = r.brk ? (r.brk.applies ? "ok" : "miss") : has ? (r.success ? "ok" : "miss") : "plain";
+  const btns = can && left > 0 ? `<span class="tb-hud-rollbtns">
+      <button type="button" data-hud-strain="${r.id}" title="Потратить 1 Strain: +1 к этому броску"><b>+1</b> STRAIN · ${left}</button>
+      ${gap > 1 && gap <= left ? `<button type="button" class="reach" data-hud-strain-n="${r.id}:${gap}" title="Потратить ${gap} Strain и дотянуть бросок до успеха"><b>+${gap}</b> ДО УСПЕХА</button>` : ""}</span>`
+    : can && has && !r.success ? `<span class="tb-hud-none">Strain 0</span>` : "";
+  return `<div class="tb-hud-rollplate ${cls}" data-roll-id="${r.id}">
+    <span class="tb-hud-dice"><i class="d10" title="d10">${r.d10}</i>${r.d4 !== null && r.d4 !== undefined ? `<i class="d4${r.perk ? " perk" : r.comp ? " comp" : ""}" title="d4${r.perk ? ": Perk" : r.comp ? ": Complication" : ""}">${r.d4}</i>` : ""}</span>
+    <span class="tb-hud-rollsum"><b>${r.brk ? r.total : r.total}</b>${has ? `<em>/ ${r.dc}</em>` : ""}</span>
+    <span class="tb-hud-rollinfo"><strong>${esc(verdict)}</strong><small>${esc(r.label)}${r.parts?.length ? ` · ${esc(r.parts.join(" · "))}` : ""}${r.strain ? ` · Strain +${r.strain}` : ""}${r.perk ? " · PERK" : r.comp ? " · COMPLICATION" : ""}</small></span>
+    ${btns}</div>`;
 }
 
 /** Строка броска в HUD: итог последнего броска и кнопка «+1 Strain» прямо отсюда, без чата. */
@@ -370,6 +401,7 @@ function html(actor, d, folded) {
       <i class="fas fa-chevron-${folded ? "up" : "down"}"></i>
     </header>
     ${d.warn.filter(w => BIG.has(w.key)).map(w => `<div class="tb-hud-alert ${w.key}"><span>${w.key === "missile" ? "▲ " : ""}${w.text}${w.key === "missile" ? " ▲" : ""}</span><small>${BIG_HINT[w.key]}</small>${w.key === "doom" && d.canEject ? `<span class="tb-hud-fate">${ejectButton}${heroButton}</span>` : ""}${w.key === "stall" ? stallButton(d) : ""}</div>`).join("")}
+    ${rollPlateHtml(d)}
     ${folded ? "" : `<div class="tb-hud-grid${d.wing ? " wing" : ""}">
       <div class="tb-hud-col tb-hud-stat">
         <div class="tb-hud-row"><small>HP</small><span class="tb-hud-pips hp ${d.hp.value <= 1 ? "low" : ""}">${pips(d.hp.value, d.hp.max)}</span><span class="tb-hud-num">${d.hp.value}/${d.hp.max}</span></div>
@@ -394,7 +426,7 @@ function html(actor, d, folded) {
         <div class="tb-hud-btns tb-hud-wpns"><small title="Пульт вооружения">STORES</small>${weaponButtons(d)}</div>
         <div class="tb-hud-btns tb-hud-moves"><small>МАНЁВР</small>${moves}${d.ident ? `<button type="button" data-hud-act="ident" class="ident" title="Опознать захваченный контакт: Aim против 7, проверка хода (Стрэйнджриал 9.6)">ОПОЗН</button>` : ""}</div>
         <div class="tb-hud-btns tb-hud-acts${d.acts?.turn ? " turn" : ""}" title="Действия хода${d.acts?.rolled ? " · бросок уже был" : ""}"><small>ХОД</small>${actBoxes}${d.acts?.rolled ? `<i class="fas fa-dice-d10" title="Бросок за ход уже был"></i>` : ""}${button("end", BUTTONS.end)}</div>
-        ${rollRowHtml(d)}
+        ${d.roll && (d.roll.d10 === null || d.roll.d10 === undefined) ? rollRowHtml(d) : ""}
         ${planeRowHtml(d.planeRow)}
         ${actor.type === "npc" ? aceRowHtml(actor) : ""}
         ${actor.type === "npc" ? squadRowHtml(actor) : ""}
@@ -522,6 +554,30 @@ function render() {
   lastHtml = markup;
   el.innerHTML = markup;
   place();
+  rollFx();
+}
+
+/* Новое табло броска: d10 «катится» полсекунды и замирает на выпавшем; бросок без Strain уходит с HUD сам. */
+let rolledId = null, rollHide = null;
+function rollFx() {
+  const plate = el?.querySelector(".tb-hud-rollplate");
+  const id = plate?.dataset.rollId ?? null;
+  clearTimeout(rollHide);
+  const left = shown ? strainRoll(shown)?.left : null;
+  if (left) rollHide = setTimeout(() => { lastHtml = ""; refreshHud(); }, left + 100);
+  if (!plate || id === rolledId) return;
+  rolledId = id;
+  plate.classList.add("fresh");
+  const die = plate.querySelector(".d10"), real = die?.textContent;
+  if (!die || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+  const t0 = performance.now();
+  const spin = now => {
+    if (!die.isConnected) return;
+    if (now - t0 > 520) { die.textContent = real; die.classList.add("land"); return; }
+    die.textContent = String(1 + Math.floor(Math.random() * 10));
+    requestAnimationFrame(spin);
+  };
+  requestAnimationFrame(spin);
 }
 let lastHtml = "";
 
@@ -663,7 +719,7 @@ async function onClick(ev) {
   const hl = ev.target.closest("[data-hud-hl]");
   if (hl) { ev.preventDefault(); ev.stopPropagation(); return setHlMode(hl.dataset.hudHl); }
   if (dragged && ev.target.closest("header")) { dragged = false; return; }
-  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-hero], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-tactic], [data-hud-ace], [data-hud-wing], [data-hud-strain], [data-hud-stall]");
+  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-hero], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-tactic], [data-hud-ace], [data-hud-wing], [data-hud-strain], [data-hud-strain-n], [data-hud-stall]");
   if (!t || !shown) return;
   ev.preventDefault();
   const d = t.dataset, actor = shown;
@@ -686,6 +742,13 @@ async function onClick(ev) {
   if (d.hudCtrig) return useCombatTrigger(actor, actor.items.get(d.hudCtrig));
   if (d.hudStall) { const m = game.messages.get(d.hudStall), c = m?.getFlag(SYSTEM_ID, "card"); return c ? onCardAction(m, computeCard(c).success ? "stall-ok" : "stall-fail") : null; }
   if (d.hudStrain) { const m = game.messages.get(d.hudStrain); return m ? onCardAction(m, "strain") : null; }
+  if (d.hudStrainN) {
+    // «+N до успеха»: N раз по 1 Strain, как N нажатий «+1»
+    const [id, n] = d.hudStrainN.split(":"), m = game.messages.get(id);
+    if (!m) return null;
+    t.disabled = true;
+    return (async () => { for (let k = 0; k < (Number(n) || 0); k++) await onCardAction(game.messages.get(id), "strain"); })();
+  }
   if (d.hudMove !== undefined) return useMove(actor);
   if (d.hudAoa !== undefined) return useAoa(actor);
   if (d.hudBooster !== undefined) return pickBooster(actor);

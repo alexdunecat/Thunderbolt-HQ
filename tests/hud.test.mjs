@@ -60,8 +60,18 @@ console.log("у ведущего с выделенным:", H.hudActor()?.name ?
   msgs.push(card());
   const r = H.strainRoll(me);
   console.log("бросок для Strain из HUD:", JSON.stringify(r), /data-hud-strain="M0"/.test(H.hudHtml(me)) ? "кнопка есть" : "кнопки нет");
+  const plate = (o, strain = 5) => H.rollPlateHtml({ roll: H.strainRoll(me), strain: { value: strain, max: 9 }, ...o }).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  console.log("табло броска:", plate());
+  msgs[0] = card({ d10: 2, dc: 9, attack: true, d4: 4 });
+  console.log("табло, не хватает 5:", plate(), "· до успеха:", /data-hud-strain-n="M\d+:5"/.test(H.rollPlateHtml({ roll: H.strainRoll(me), strain: { value: 5, max: 9 } })), "· Strain мало:", /strain-n/.test(H.rollPlateHtml({ roll: H.strainRoll(me), strain: { value: 3, max: 9 } })));
+  msgs[0] = card({ d10: 9, dc: 7, attack: true, delayed: true });
+  console.log("табло, ракета:", plate());
+  msgs[0] = card();
   msgs.push(card({ strainable: false }));
   console.log("свежий бросок без Strain:", H.strainRoll(me), "· уже учтён в залпе:", (msgs.splice(1), msgs.push(card({ resolved: true })), H.strainRoll(me)));
+  const fresh = { id: "F1", timestamp: 1000, getFlag: (x, k) => (k === "card" ? { actorUuid: me.uuid, label: "Lock On!", rolled: true, strainable: false, d10: 7, parts: [["Aim", 1]], dc: 7 } : undefined) };
+  msgs.splice(0, msgs.length, fresh);
+  console.log("бросок без Strain висит:", H.strainRoll(me, msgs, 5000)?.left, "· ушёл:", H.strainRoll(me, msgs, 40000));
   msgs.splice(0, msgs.length, ...keep); }
 { const keep = msgs.splice(0), sp = me.system.speed;
   const stallCard = (o = {}) => ({ id: "S0", getFlag: (s, k) => (k === "card" ? { type: "stall", actorUuid: me.uuid, label: "Сваливание", rolled: true, d10: 3, parts: [["Push", 1]], dc: 7, alt: "med", ...o } : undefined) });

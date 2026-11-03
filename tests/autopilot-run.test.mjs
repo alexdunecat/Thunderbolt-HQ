@@ -223,3 +223,11 @@ leadP.system.lockUuid = "";
 bandit.getActiveTokens()[0].document.hidden = true; closer.getActiveTokens()[0].document.hidden = true;
 await run("ведомый догоняет", wingAp);
 console.log(log.join("\n"));
+
+// Improved Fox Two! у автопилота: бросок, когда простой пуск не достаёт или бросок в среднем заметно выше
+const pi = o => Rr.preferImproved(o) ? "с броском" : "без броска";
+console.log("Improved Fox Two!:", [
+  ["A-A 7 против 6", { basic: 7, imp: 1, dc: 6 }], ["A-A 4 против 7, Aim 2", { basic: 4, imp: 2, dc: 7 }], ["A-A 4 против 13, Aim 1", { basic: 4, imp: 1, dc: 13 }],
+  ["ас: A-A 7 против 7, Aim 5", { basic: 7, imp: 5, dc: 7 }], ["корабль без системы, A-A 6, Aim 1", { basic: 6, imp: 1 }], ["корабль, A-A 3, Aim 2", { basic: 3, imp: 2 }],
+  ["бросок уже был", { basic: 3, imp: 4, dc: 8, canRoll: false }], ["после молнии", { basic: 9, imp: 0, dc: 5, forced: true }]
+].map(([n, o]) => `${n}: ${pi(o)}`).join("\n  "));

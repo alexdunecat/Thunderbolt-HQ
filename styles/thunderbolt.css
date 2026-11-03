@@ -2126,3 +2126,36 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 .tb-card-verdict .tb-verdict-res { display: flex; flex-direction: column; margin-top: 6px; padding: 6px 8px; border-left: 3px solid; }
 .tb-card-verdict .tb-verdict-res.win { border-color: #d23a2a; }
 .tb-card-verdict .tb-verdict-res.retreat { border-color: #4a90d0; }
+
+/* табло броска над HUD: кубики, итог против защиты, вердикт, Strain прямо отсюда */
+#tb-pilot-hud .tb-hud-rollplate { margin: 5px 9px 0; padding: 6px 12px; border-radius: 3px; font-family: var(--tb-display); display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; animation: none; background: rgba(4, 16, 12, .82); color: #dff7ea;
+  border: 1px solid rgba(164, 255, 203, .45); box-shadow: inset 0 0 12px rgba(0, 0, 0, .6), 0 0 12px rgba(164, 255, 203, .18); }
+#tb-pilot-hud .tb-hud-rollplate.miss { background: rgba(26, 6, 4, .85); border-color: rgba(255, 120, 100, .55); box-shadow: inset 0 0 12px rgba(0, 0, 0, .6), 0 0 12px rgba(255, 90, 70, .25); }
+#tb-pilot-hud .tb-hud-rollplate.fresh { animation: tb-roll-in .45s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes tb-roll-in { from { transform: scale(.92); opacity: 0; } }
+#tb-pilot-hud .tb-hud-dice { display: flex; gap: 6px; flex: none; }
+#tb-pilot-hud .tb-hud-dice i { display: grid; place-items: center; width: 34px; height: 34px; font-style: normal; font-family: var(--tb-data, monospace); font-size: 20px; font-weight: 700;
+  color: #0b1a12; background: #a4ffcb; clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%); }
+#tb-pilot-hud .tb-hud-dice i.d4 { width: 26px; height: 26px; font-size: 14px; background: #cfe3da; clip-path: polygon(50% 0, 100% 100%, 0 100%); padding-top: 6px; }
+#tb-pilot-hud .tb-hud-dice i.d4.perk { background: #ffd76a; }
+#tb-pilot-hud .tb-hud-dice i.d4.comp { background: #ff7a66; }
+#tb-pilot-hud .tb-hud-dice i.d10.land { animation: tb-die-land .3s ease-out; }
+@keyframes tb-die-land { 40% { transform: scale(1.25); filter: brightness(1.4); } }
+#tb-pilot-hud .tb-hud-rollplate.miss .tb-hud-dice i.d10 { background: #ffb4a8; }
+#tb-pilot-hud .tb-hud-rollsum { display: flex; align-items: baseline; gap: 6px; flex: none; font-family: var(--tb-data, monospace); }
+#tb-pilot-hud .tb-hud-rollsum b { font-size: 30px; line-height: 1; color: #fff; text-shadow: 0 0 10px rgba(164, 255, 203, .7); }
+#tb-pilot-hud .tb-hud-rollplate.miss .tb-hud-rollsum b { text-shadow: 0 0 10px rgba(255, 90, 70, .8); }
+#tb-pilot-hud .tb-hud-rollsum em { font-style: normal; font-size: 16px; color: #9fbcae; }
+#tb-pilot-hud .tb-hud-rollinfo { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; }
+#tb-pilot-hud .tb-hud-rollinfo strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tb-pilot-hud .tb-hud-rollinfo strong { font-size: 15px; letter-spacing: .18em; color: #a4ffcb; text-shadow: 0 0 8px rgba(164, 255, 203, .6); }
+#tb-pilot-hud .tb-hud-rollplate.miss .tb-hud-rollinfo strong { color: #ff8a73; text-shadow: 0 0 8px rgba(255, 90, 70, .7); }
+#tb-pilot-hud .tb-hud-rollplate.plain .tb-hud-rollinfo strong { color: #dff7ea; }
+#tb-pilot-hud .tb-hud-rollinfo small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #9fbcae; font-family: var(--tb-data, monospace); letter-spacing: 0; text-transform: none; }
+#tb-pilot-hud .tb-hud-rollbtns { display: flex; gap: 6px; margin-left: auto; flex: none; }
+#tb-pilot-hud .tb-hud-rollbtns button { width: auto; margin: 0; padding: 0 12px; line-height: 28px; font-size: 13px; letter-spacing: .12em; color: #ffe08a; border: 1px solid #ffc94a; background: rgba(46, 36, 8, .75); border-radius: 3px; }
+#tb-pilot-hud .tb-hud-rollbtns button b { padding: 0 4px; margin-right: 4px; background: #ffc94a; color: #1a1404; border-radius: 2px; }
+#tb-pilot-hud .tb-hud-rollbtns button:hover { background: #ffc94a; color: #1a1404; }
+#tb-pilot-hud .tb-hud-rollbtns button.reach { animation: tb-ck-caution .6s ease-in-out infinite alternate; }
+#tb-pilot-hud .tb-hud-rollplate .tb-hud-none { margin-left: auto; font-size: 11px; color: #9fbcae; }
+#tb-pilot-hud.corners > .tb-hud-rollplate { zoom: var(--tb-hud-zoom, 1.15); align-self: center; pointer-events: auto; width: min(640px, 90%); margin: 0; }

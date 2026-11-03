@@ -1782,7 +1782,21 @@ function autoAim(actor, t, opts) {
  * (Air-Air или Air-Gnd + мод оружия − Speed); ЗРК наземной цели или ракетная система корабля. Ракета бьёт залпом следующего раунда.
  * Возвращает сообщение или почему нельзя (строка).
  */
-export async function autoFox(actor, tok, { sys = null } = {}) {
+/**
+ * Пускать ли автопилоту Improved Fox Two! (бросок навыка) вместо простого Fox Two! (A-A / A-G без броска).
+ * basic — итог без броска, imp — сумма навыка и модификаторов к d10, dc — защита (null — не с чем сравнить).
+ * С броском, если простой пуск не достаёт до защиты, а бросок может, или если в среднем бросок выше на 1 и больше.
+ */
+export function preferImproved({ basic, imp, dc = null, canRoll = true, forced = false }) {
+  if (!canRoll) return false;
+  if (forced) return true;
+  if (dc !== null && basic >= dc) return imp + 5.5 >= basic + 2;
+  if (dc !== null && imp + 10 < dc) return false;
+  if (dc !== null) return imp + 10 >= dc;
+  return imp + 5.5 >= basic + 1;
+}
+
+export async function autoFox(actor, tok, { sys = null, canRoll = true } = {}) {
   const t = describeTarget(tok.actor, tok.name, tok), air = targetKind(t) === "air", s = actor.system;
   const key = nextRoundKey();
   if (actor.type === "npc" && (s.kind === "ground" || s.kind === "ship")) {
@@ -1811,17 +1825,40 @@ export async function autoFox(actor, tok, { sys = null } = {}) {
   const notes = [...(hard ? [HARD_NOTE] : [])];
   if (ws?.trait) notes.push(`<b>${esc(ws.trait.name)}.</b> ${esc(ws.trait.text)}`);
   else if (ws?.fx) notes.push(esc(ws.fx));
+  const vs = shipDc(t, aim, defVs(actor, t, w), ws?.key === "GPB" ? 2 : 0);
+  // Improved Fox Two!: навык (Aim по воздуху, Deploy по земле) + d10 вместо A-A / A-G, когда это выгоднее; бросок раз за ход
+  const skill = foxSkill(actor, air), struck = !!struckBy(actor);
+  const iparts = [];
+  if (!s.skillBlocked?.[skill]) {
+    try { iparts.push(...skillParts(actor, skill)); } catch { /* у машины нет навыков */ }
+    const im = air ? ws?.aim : ws?.dep;
+    if (im) iparts.push([`мод ${w.name}`, im]);
+    if (sead) iparts.push(sead);
+    if (cue) iparts.push(cue);
+    if (aim) iparts.push(...aim.parts);
+    if (s.speed) iparts.push(["Speed", -s.speed]);
+  }
+  const improved = !s.skillBlocked?.[skill] && preferImproved({ basic: sum(parts), imp: sum(iparts), dc: vs.dc ?? null, canRoll, forced: struck });
+  if (!improved && struck) return "после удара молнии ракета только с броском, а бросок уже был";
+  let dice = null;
+  if (improved) {
+    dice = await rollDice(actor, false, { turnRoll: false });
+    if (!dice) return "бросок не прошёл";
+    notes.push(`<b>Improved Fox Two!</b> Автопилот бросает ${esc(TB.skills[skill]?.en ?? skill)}: так выше шанс попасть.`);
+  }
   notes.push(AUTO_NOTE);
   if (w && !ws.unlimited) await w.update({ "system.ammo.value": Math.max(0, (ws.ammo.value ?? 0) - 1) });
   const card = {
-    type: "attack", attack: true, label: `Fox Two! ${w ? w.name : "стандартная ракета"}`, rolled: false, d10: null, d4: null, parts, strain: 0,
-    ...shipDc(t, aim, defVs(actor, t, w), ws?.key === "GPB" ? 2 : 0),
+    type: "attack", attack: true, label: `${improved ? "Improved Fox Two!" : "Fox Two!"} ${w ? w.name : "стандартная ракета"}`,
+    rolled: improved, d10: dice?.d10 ?? null, d4: dice?.d4 ?? null, parts: improved ? iparts : parts, strain: 0,
+    ...(improved ? thresholds(actor, skill) : {}),
+    ...vs,
     wkey: ws?.key ?? "", close: ws?.key === "QAAM" && closeTo(actor, t), ghost: false, shotKey: key, salvo: null, strainable: false,
     dmg: w ? (parseInt(ws.dmg) || 0) : hard ? Math.floor(TB.missileDamage / 2) : TB.missileDamage,
     delayed: true, atTurn: false, combatKey: key, targetUuid: t.uuid, targetName: t.name, maws: mawsOn(t), tkind: air ? "air" : "ground", bomb: ws?.key === "GPB",
     notes
   };
-  return postCard(actor, card);
+  return postCard(actor, card, dice?.rolls ?? []);
 }
 
 /**
