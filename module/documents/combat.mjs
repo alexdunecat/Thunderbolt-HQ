@@ -94,6 +94,12 @@ async function declareDialog(combat, list) {
   const seen = !game.user.isGM && npcs.length
     ? `<p class="tb-hint">Заявки врага: ${npcs.map(c => `${esc(c.name)} ${declareLabel(c.initiative)}`).join(", ")}.</p>` : "";
   const wsoOf = c => c.actor?.type === "pilot" && !!c.actor.system.wso?.trim?.() && (hasProp(c.actor, "wso") || hasProp(c.actor, "wsoall"));
+  // игроку — стекло кабины над картой (declare-pick.mjs); undefined — обычная форма ниже
+  if (!game.user.isGM) {
+    const DP = await import("../declare-pick.mjs");
+    const got = await DP.declarePick(DP.declareData(combat, list, { npcSide, declared, passive, isOut, hasWso: wsoOf }));
+    if (got !== undefined) return got;
+  }
   const rows = list.map(c => `<div class="form-group"><label>${esc(c.name)}${wsoOf(c) ? ` <small title="WSO во второй кабине: ещё одно действие сверх заявки, место в очереди по заявке пилота; у экипажа две проверки за ход">+1 WSO</small>` : ""}</label>
     <select name="${c.id}">${[1, 2, 3].map(n => `<option value="${n}" ${(advice[c.id] ?? 2) === n ? "selected" : ""}>${n} ${n === 1 ? "действие" : "действия"}${advice[c.id] === n ? " · совет" : ""}</option>`).join("")}<option value="${PASS}">Пропуск</option></select></div>`).join("");
   return formDialog(`Заявка действий: раунд ${combat.round}`,

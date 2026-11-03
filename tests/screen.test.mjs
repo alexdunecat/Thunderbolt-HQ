@@ -84,3 +84,15 @@ console.log("окно ведущего:", /data-vd-force="win"/.test(V.verdictHt
 const fh = HP.fatePickHtml({ name: "Тсой", system: { skillTotal: { push: 2 }, strain: { value: 3 } } });
 console.log("судьба:", /data-fate="eject"/.test(fh), /data-fate="hero"/.test(fh), "отложить:", /data-fate="later"/.test(fh), /d10 \+ 2/.test(fh), /есть 3/.test(fh));
 console.log("исход:", ["ok", "hurt", "mia", "kia"].map(k => { const h = HP.fateResultHtml({ name: "Тсой", system: {} }, { d10: 5, d4: 2, total: 7, strain: 1, parts: [["Push", 1]] }, { key: k }); return `${h.match(/tb-fate-stamp \w+">([^<]+)/)?.[1]} (шаг 2: ${/tb-fate-step two/.test(h) ? h.match(/class="(\w+) on"/)?.[1] : "нет"})`; }).join(" · "));
+
+// заявка действий у игрока: плитки 1/2/3/ПАС с местом в очереди против врага, скрытые и выбывшие не видны
+const DP = await import(R + "/module/declare-pick.mjs");
+const foesD = [{ name: "Кобра", v: 2 }, { name: "Гюрза", v: 1 }, { name: "Контакт 3", v: 3, unknown: true }, { name: "Ту-22М", v: 20 }];
+console.log("очередь:", [1, 2, 3, 10].map(n => DP.orderLine(n, foesD)).join(" · "), "| без врага:", [1, 2, 3].map(n => DP.orderLine(n, [])).join(" · "));
+const cb = (id, name, init, { npc = false, hidden = false, out = false } = {}) => ({ id, name, initiative: init, hidden, out, npc, token: { hidden: false, getFlag: () => (name.startsWith("Контакт") ? {} : null) },
+  actor: { type: npc ? "npc" : "pilot", system: { plane: { name: "F-14D" }, hp: { value: 2, max: 3 }, strain: { value: 1, max: 4 } } } });
+const me = cb("m", "Тсой", null), all = [me, cb("e1", "Кобра", 2, { npc: true }), cb("e2", "Контакт 1", 3, { npc: true }), cb("e3", "Призрак", 1, { npc: true, hidden: true }), cb("e4", "Сбитый", 1, { npc: true, out: true }), cb("p2", "Шершень", 1)];
+const dd = DP.declareData({ round: 4, combatants: all }, [me], { npcSide: c => c.npc, declared: c => Number.isFinite(c.initiative), passive: () => false, isOut: c => c.out, hasWso: () => true });
+console.log("стекло заявки:", JSON.stringify(dd.foes), JSON.stringify(dd.mates), dd.rows[0].plane, dd.rows[0].wso);
+const dh = DP.declarePickHtml(dd);
+console.log("плитки:", (dh.match(/class="tb-dp-tile[ "]/g) ?? []).length, "· одна машина без кнопки ЗАЯВИТЬ:", !/data-go/.test(dh), "· две:", /data-go/.test(DP.declarePickHtml({ ...dd, rows: [...dd.rows, { ...dd.rows[0], id: "x" }] })), "· без DOM:", await DP.declarePick(dd));

@@ -2225,3 +2225,64 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-fate-pick .tb-fate-text { opacity: 0; transition: opacity .3s; }
 #tb-fate-pick .tb-fate-text.in { opacity: 1; }
 @media (max-width: 640px) { #tb-fate-pick .tb-fate-step { flex-wrap: wrap; } #tb-fate-pick .tb-fate-step > small { flex-basis: 100%; } }
+/* заявка действий у игрока (declare-pick.mjs): стекло над картой, карта не закрыта и не затемнена */
+#tb-declare-pick { position: fixed; inset: 0; z-index: 8800; display: flex; justify-content: center; align-items: flex-start; padding: 18vh 16px 16px; pointer-events: none; font-family: var(--tb-display, inherit); animation: tb-hp-in .25s ease-out; }
+#tb-declare-pick.out { animation: tb-hp-out .22s ease-in forwards; }
+#tb-declare-pick .tb-dp-glass { pointer-events: auto; position: relative; width: min(780px, 100%); max-height: calc(100vh - 18vh - 16px); overflow: auto; padding: 12px 16px 12px; color: #dff7ea;
+  background: rgba(4, 14, 12, .8); backdrop-filter: blur(4px); border: 1px solid rgba(164, 255, 203, .4); border-radius: 4px;
+  box-shadow: 0 0 34px rgba(0, 0, 0, .6), inset 0 0 36px rgba(164, 255, 203, .06);
+  background-image: repeating-linear-gradient(0deg, rgba(164, 255, 203, .03) 0 1px, transparent 1px 3px); }
+#tb-declare-pick .tb-dp-glass::before, #tb-declare-pick .tb-dp-glass::after { content: ""; position: absolute; width: 14px; height: 14px; border: 2px solid #a4ffcb; opacity: .7; pointer-events: none; }
+#tb-declare-pick .tb-dp-glass::before { left: 5px; top: 5px; border-right: 0; border-bottom: 0; }
+#tb-declare-pick .tb-dp-glass::after { right: 5px; bottom: 5px; border-left: 0; border-top: 0; }
+#tb-declare-pick .tb-dp-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 16px; margin-bottom: 8px; }
+#tb-declare-pick .tb-dp-ch { font-size: 18px; letter-spacing: .26em; color: #a4ffcb; text-shadow: 0 0 10px rgba(164, 255, 203, .55); }
+#tb-declare-pick .tb-dp-ch i { font-size: 14px; animation: tb-ck-caution .8s ease-in-out infinite alternate; }
+#tb-declare-pick .tb-dp-rule { font-size: 12px; color: #8fb8a6; font-family: var(--tb-body, inherit); }
+#tb-declare-pick .tb-dp-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 6px; padding: 6px 8px; margin-bottom: 6px; border: 1px solid rgba(255, 255, 255, .08); background: rgba(0, 0, 0, .3); }
+#tb-declare-pick .tb-dp-strip > small { font-size: 10px; letter-spacing: .26em; color: #ff8a78; margin-right: 4px; }
+#tb-declare-pick .tb-dp-strip.mates > small { color: #a4ffcb; }
+#tb-declare-pick .tb-dp-none { font-size: 12px; color: #8fb8a6; font-family: var(--tb-body, inherit); }
+#tb-declare-pick .tb-dp-chip { display: inline-flex; align-items: center; gap: 6px; padding: 1px 4px 1px 8px; font-size: 12px; font-family: var(--tb-body, inherit); color: #f3d2cc; border: 1px solid rgba(255, 106, 85, .45); border-radius: 2px; }
+#tb-declare-pick .tb-dp-chip i { width: 7px; height: 7px; transform: rotate(45deg); background: #ff6a55; box-shadow: 0 0 6px #ff4a3a; }
+#tb-declare-pick .tb-dp-chip b { min-width: 18px; padding: 0 4px; text-align: center; font-family: var(--tb-display, inherit); font-size: 14px; color: #fff; background: rgba(255, 106, 85, .28); }
+#tb-declare-pick .tb-dp-chip.unk { color: #c9d2d6; border-color: rgba(184, 194, 200, .45); }
+#tb-declare-pick .tb-dp-chip.unk i { background: #b8c2c8; box-shadow: none; }
+#tb-declare-pick .tb-dp-chip.unk b { background: rgba(184, 194, 200, .22); }
+#tb-declare-pick .tb-dp-chip.auto { opacity: .7; }
+#tb-declare-pick .tb-dp-chip.mate { color: #d7f5e6; border-color: rgba(164, 255, 203, .45); }
+#tb-declare-pick .tb-dp-chip.mate i { border-radius: 50%; transform: none; background: #a4ffcb; box-shadow: 0 0 6px #a4ffcb; }
+#tb-declare-pick .tb-dp-chip.mate b { background: rgba(164, 255, 203, .2); }
+#tb-declare-pick .tb-dp-row { margin-top: 8px; }
+#tb-declare-pick .tb-dp-row header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin-bottom: 6px; }
+#tb-declare-pick .tb-dp-row header b { font-size: 17px; letter-spacing: .14em; color: #fff; }
+#tb-declare-pick .tb-dp-row header span { font-size: 13px; letter-spacing: .08em; color: #a4ffcb; }
+#tb-declare-pick .tb-dp-row header em { font-style: normal; font-size: 11px; letter-spacing: .14em; padding: 0 6px; color: #ffd76a; border: 1px solid rgba(255, 215, 106, .5); }
+#tb-declare-pick .tb-dp-row header small { margin-left: auto; font-size: 12px; color: #8fb8a6; font-family: var(--tb-body, inherit); }
+#tb-declare-pick .tb-dp-tiles { display: grid; grid-template-columns: repeat(3, 1fr) .85fr; gap: 8px; }
+@media (max-width: 600px) { #tb-declare-pick .tb-dp-tiles { grid-template-columns: 1fr 1fr; } }
+#tb-declare-pick .tb-dp-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 104px; margin: 0; padding: 8px 6px; cursor: pointer;
+  background: linear-gradient(#0f1f1a, #07100d); color: #dff7ea; border: 1px solid rgba(164, 255, 203, .3); border-bottom: 3px solid rgba(164, 255, 203, .5); border-radius: 3px; transition: transform .12s, box-shadow .12s, background .12s, opacity .3s; }
+#tb-declare-pick .tb-dp-tile b { font-size: 38px; line-height: 1; color: #a4ffcb; text-shadow: 0 0 10px rgba(164, 255, 203, .45); }
+#tb-declare-pick .tb-dp-tile span { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: #9cc9b5; }
+#tb-declare-pick .tb-dp-tile em { margin-top: 4px; font-size: 12px; font-style: normal; color: #ffd76a; font-family: var(--tb-body, inherit); }
+#tb-declare-pick .tb-dp-pips { display: flex; gap: 4px; margin-bottom: 4px; }
+#tb-declare-pick .tb-dp-pips i { width: 16px; height: 5px; background: rgba(164, 255, 203, .14); border: 1px solid rgba(164, 255, 203, .35); }
+#tb-declare-pick .tb-dp-pips i.on { background: #a4ffcb; box-shadow: 0 0 6px #a4ffcb; }
+#tb-declare-pick .tb-dp-tile.pass { background: linear-gradient(#17140a, #0b0905); border-color: rgba(242, 193, 78, .35); border-bottom-color: rgba(242, 193, 78, .6); }
+#tb-declare-pick .tb-dp-tile.pass b { font-size: 26px; letter-spacing: .14em; color: #f2c14e; text-shadow: 0 0 10px rgba(242, 193, 78, .4); padding: 6px 0 5px; }
+#tb-declare-pick .tb-dp-tile.pass em { color: #c9b98a; }
+#tb-declare-pick .tb-dp-pips.pass i { border-color: rgba(242, 193, 78, .3); background: transparent; }
+#tb-declare-pick .tb-dp-tile:hover, #tb-declare-pick .tb-dp-tile:focus-visible { transform: translateY(-2px); background: linear-gradient(#173328, #0a1a14); box-shadow: 0 0 16px rgba(164, 255, 203, .35); }
+#tb-declare-pick .tb-dp-tile.pass:hover, #tb-declare-pick .tb-dp-tile.pass:focus-visible { background: linear-gradient(#2a2310, #110d05); box-shadow: 0 0 16px rgba(242, 193, 78, .35); }
+#tb-declare-pick .tb-dp-tile.on { background: linear-gradient(#1f4a39, #0d2219); border-color: #a4ffcb; box-shadow: 0 0 20px rgba(164, 255, 203, .5), inset 0 0 12px rgba(164, 255, 203, .2); }
+#tb-declare-pick .tb-dp-tile.pass.on { background: linear-gradient(#3a3012, #161106); border-color: #f2c14e; box-shadow: 0 0 20px rgba(242, 193, 78, .5); }
+#tb-declare-pick .tb-dp-row.set .tb-dp-tile:not(.on) { opacity: .45; }
+#tb-declare-pick.sent .tb-dp-tile.on { animation: tb-dp-lock .38s ease-out; }
+#tb-declare-pick.sent .tb-dp-ch::after { content: " · ПРИНЯТО"; color: #fff; }
+@keyframes tb-dp-lock { 0% { transform: scale(1); } 40% { transform: scale(1.06); filter: brightness(1.6); } 100% { transform: scale(1); } }
+#tb-declare-pick .tb-dp-foot { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+#tb-declare-pick .tb-dp-foot button { width: auto; margin: 0; padding: 2px 14px; line-height: 24px; background: transparent; color: #dff7ea; border: 1px solid rgba(164, 255, 203, .4); border-radius: 2px; cursor: pointer; }
+#tb-declare-pick .tb-dp-foot .tb-dp-go { padding: 2px 22px; font-size: 15px; letter-spacing: .24em; color: #07100d; background: #a4ffcb; border-color: #a4ffcb; }
+#tb-declare-pick .tb-dp-foot .tb-dp-go:disabled { opacity: .35; cursor: default; }
+#tb-declare-pick .tb-dp-foot small { font-size: 11px; color: #8fb8a6; font-family: var(--tb-body, inherit); }
