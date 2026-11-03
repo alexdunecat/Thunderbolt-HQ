@@ -1,18 +1,21 @@
-/* Позывные безымянных звеньев по нации и типу машины: «Шункар-2», «Адлер 1», «триста пятый» («305-й»).
+/* Позывные безымянных звеньев по нации и типу машины: «Шункар-2», «Адлер 1», «триста пятый» («305-й»); корабли — имена («Стойкий», «U-47»).
    Нация стороны задаётся у сцены (Планшет AWACS при импорте или окно «Позывные» в панели AWACS). Асам и именным эскадрильям
    позывных не раздаётся: их называет ведущий. Позывной лежит во флаге токена radioCall; в эфире (реплики NPC, задачи AWACS)
    он заменяет имя токена, само имя на карте не меняется. Таблицы правятся в том же окне (настройка мира callsignBank). */
 import { SYSTEM_ID } from "./config.mjs";
 import { esc } from "./utils.mjs";
-import { NATIONS, KINDS, BANK } from "./data/callsign-bank.mjs";
+import { NATIONS, KINDS, BANK, SHIP_KINDS } from "./data/callsign-bank.mjs";
 
-export { NATIONS, KINDS };
+export { NATIONS, KINDS, SHIP_KINDS };
 const AWACS_KEYS = ["a50", "e767", "nimrod", "bookpatrol"];
 const AIR = ["fighter", "attack", "heavy", "awacs", "transport", "heli"];
+const SHIP_BY_KEY = { nimitz: "carrier", kuznetsov: "carrier", bookcarrier: "carrier", iowa: "cruiser", kirov: "cruiser", ticonderoga: "cruiser",
+  bookcruiser: "cruiser", patrolboat: "boat", sub: "sub", landing: "navaux", cargo: "navaux" };
 
-/** Тип позывного по листу NPC: null — позывной не нужен (ас, босс, корабль, объект, гражданская наземка). */
+/** Тип позывного по листу NPC: null — позывной не нужен (ас, босс, объект, гражданская наземка). Корабль получает имя по классу. */
 export function callKind(sys) {
   if (!sys || sys.tier === "ace" || sys.grp === "boss") return null;
+  if (sys.kind === "ship") return sys.grp === "civil" ? "merchant" : SHIP_BY_KEY[sys.key] ?? "destroyer";
   if (sys.kind === "air") {
     if (["fighter", "multi", "player"].includes(sys.grp)) return "fighter";
     if (sys.grp === "book") return ["ga", "gs"].includes(sys.key) ? "attack" : "fighter";
@@ -61,13 +64,22 @@ export function flightCalls({ nation, kind, tier = "conscript", count = 1, used 
     used.add(`#${no}`);
     return `${N.airline} ${no}`;
   });
+  // корабли: у каждого своё имя; когда имена кончились, повтор с номером («Стойкий 2»)
+  if (SHIP_KINDS.includes(kind)) return Array.from({ length: count }, () => {
+    const name = pickName(bank[kind] ?? [], used, rnd);
+    if (!name) return null;
+    let call = name;
+    for (let n = 2; used.has(call); n++) call = `${name} ${n}`;
+    used.add(call);
+    return call;
+  }).filter(Boolean);
   if (tier === "conscript" && AIR.includes(kind) && rnd() < 0.5) {
     let start, tries = 0;
     const busy = s => Array.from({ length: count }, (_, i) => s + i).some(n => used.has(`#${n}`));
     do start = N.hundreds + 1 + Math.floor(rnd() * Math.max(1, 90 - count)); while (busy(start) && ++tries < 50);
     return Array.from({ length: count }, (_, i) => { used.add(`#${start + i}`); return `${start + i}-й`; });
   }
-  const list = tier === "duelist" && bank.elite.length ? bank.elite : kind === "transport" ? [...bank.transport, ...bank.tanker] : bank[kind];
+  const list = tier === "duelist" && bank.elite.length && AIR.includes(kind) ? bank.elite : kind === "transport" ? [...bank.transport, ...bank.tanker] : bank[kind];
   const name = pickName(list ?? [], used, rnd);
   if (!name) return [];
   used.add(name);
@@ -80,6 +92,7 @@ export function usedCalls(tokens) {
   for (const t of tokens) {
     const c = String(t.getFlag?.(SYSTEM_ID, "radioCall") ?? t.flags?.[SYSTEM_ID]?.radioCall ?? "");
     if (!c) continue;
+    used.add(c);
     const num = c.match(/^(\d+)-й$/) ?? c.match(/ (\d+)$/);
     if (num && (/-й$/.test(c) || Object.values(NATIONS).some(n => c.startsWith(n.airline + " ")))) used.add(`#${num[1]}`);
     else used.add(c.replace(/[- ]\d+$/, ""));
@@ -153,7 +166,7 @@ export async function openCallsigns(scene = game.scenes?.viewed) {
   const { formDialog } = await import("./dice/rolls.mjs");
   const given = [...scene.tokens].filter(t => radioCallOf(t)).length;
   const data = await formDialog("Позывные", `
-    <p class="tb-hint">Безымянным звеньям раздаются позывные по нации и типу машины; в эфире они звучат вместо имени токена. Асов, именные эскадрильи и машины, которые ведущий переименовал, не трогает. На сцене выдано: ${given}.</p>
+    <p class="tb-hint">Безымянным звеньям раздаются позывные по нации и типу машины; в эфире они звучат вместо имени токена. Корабли получают имена по классу. Асов, именные эскадрильи и машины, которые ведущий переименовал, не трогает. На сцене выдано: ${given}.</p>
     <div class="form-group"><label>Противник</label>${nationSelect("enemy", cur.enemy)}</div>
     <div class="form-group"><label>Союзники</label>${nationSelect("ally", cur.ally)}</div>
     <div class="form-group"><label>Нейтралы</label>${nationSelect("neutral", cur.neutral)}</div>

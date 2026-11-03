@@ -14,7 +14,9 @@ const kinds = [["F-16C", { kind: "air", grp: "fighter" }], ["F/A-18E", { kind: "
   ["A-10A", { kind: "air", grp: "attack" }], ["Ту-160", { kind: "air", grp: "heavy" }], ["А-50", { kind: "air", grp: "support", key: "a50" }],
   ["Ил-76", { kind: "air", grp: "support", key: "il76" }], ["Ми-24", { kind: "air", grp: "heli" }], ["авиалайнер", { kind: "air", grp: "civil" }],
   ["С-300", { kind: "ground", grp: "ad" }], ["Т-80У", { kind: "ground", grp: "armor" }], ["гаубица", { kind: "ground", grp: "art" }],
-  ["завод", { kind: "ground", grp: "obj" }], ["эсминец", { kind: "ship", grp: "sea" }], ["Аркбёрд", { kind: "ship", grp: "boss" }], ["ас на F-22", { kind: "air", grp: "fighter", tier: "ace" }]];
+  ["завод", { kind: "ground", grp: "obj" }], ["эсминец", { kind: "ship", grp: "sea", key: "burke" }], ["Кузнецов", { kind: "ship", grp: "sea", key: "kuznetsov" }],
+  ["Киров", { kind: "ship", grp: "sea", key: "kirov" }], ["катер", { kind: "ship", grp: "sea", key: "patrolboat" }], ["подлодка", { kind: "ship", grp: "sea", key: "sub" }],
+  ["десантный", { kind: "ship", grp: "sea", key: "landing" }], ["паром", { kind: "ship", grp: "civil", key: "ferry" }], ["Аркбёрд", { kind: "ship", grp: "boss" }], ["ас на F-22", { kind: "air", grp: "fighter", tier: "ace" }]];
 console.log("тип позывного:", kinds.map(([n, s]) => `${n} ${C.callKind(s) ?? "—"}`).join(", "));
 console.log("строка:", JSON.stringify(C.parseEntry("Кумыс | 100")), JSON.stringify(C.parseEntry("Оазис")));
 
@@ -36,9 +38,14 @@ console.log("Осея, дуэлянты без элиты — обычное с�
 console.log("Белка, транспорт берёт и заправщиков:", C.flightCalls({ nation: "belka", kind: "transport", count: 1, used, rnd: seq(0.9, 0.99) }).join(", "));
 console.log("Осея, гражданские рейсы:", C.flightCalls({ nation: "osea", kind: "civil", count: 2, used, rnd: seq(0.21, 0.5) }).join(", "));
 console.log("ПВО всегда словом:", C.flightCalls({ nation: "yuk", kind: "ad", count: 2, used, rnd: seq(0.1, 0.3) }).join(", "));
+console.log("Юктобания, отряд эсминцев — у каждого своё имя:", C.flightCalls({ nation: "yuk", kind: "destroyer", tier: "duelist", count: 3, used, rnd: seq(0.1, 0.5, 0.9) }).join(", "));
+console.log("Белка, подлодки:", C.flightCalls({ nation: "belka", kind: "sub", count: 2, used, rnd: seq(0.6, 0) }).join(", "));
+const yc = C.bankOf("yuk", {}).carrier.length;
+console.log(`Осея, авианосцев больше, чем имён (${C.bankOf("osea", {}).carrier.length}):`, C.flightCalls({ nation: "osea", kind: "carrier", count: 7, used: new Set(), rnd: seq(0) }).join(", "));
+console.log("у каждой нации корабельные имена:", Object.keys(C.NATIONS).map(n => `${n} ${C.SHIP_KINDS.map(k => C.bankOf(n, {})[k].length).join("/")}`).join(", "), yc > 0);
 console.log("занято:", [...used].join(", "));
 const tok = c => ({ flags: { "thunderbolt-shtab": { radioCall: c } } });
-console.log("занятые на сцене:", [...C.usedCalls([tok("Шункар-2"), tok("Адлер 1"), tok("305-й"), tok("Осеан 2210"), tok("Хэппи Ауэр-1"), tok("")])].join(", "));
+console.log("занятые на сцене:", [...C.usedCalls([tok("Шункар-2"), tok("Адлер 1"), tok("305-й"), tok("Осеан 2210"), tok("Хэппи Ауэр-1"), tok("U-47"), tok("Стойкий 2"), tok("")])].join(", "));
 console.log("правка ведущего:", C.bankOf("yuk", { yuk: { tanker: ["Пивозавр | 2", "Самовар"] } }).tanker.map(e => e.rare ? `${e.name}/${e.rare}` : e.name).join(", "));
 console.log("безымянный:", C.unnamed({ type: "npc", name: "F-16C Fighting Falcon", getFlag: () => undefined }, "F-16C Fighting Falcon"),
   C.unnamed({ type: "npc", name: "Кара-Буран", getFlag: () => undefined }, "Су-47"), C.unnamed({ type: "npc", name: "Су-47", getFlag: () => "Ханзаде" }, "Су-47"));
