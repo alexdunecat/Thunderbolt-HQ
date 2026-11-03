@@ -32,6 +32,14 @@ async function fallenInCombat(dead) {
   const c = game.combat;
   if (!c?.started || c.getFlag(SYSTEM_ID, "fallen")) return;
   await c.setFlag(SYSTEM_ID, "fallen", dead.name);
+  // провал катапультирования, d4 = 1: книга сразу даёт «Достойное отступление»; иначе (героическая гибель) стол голосует
+  const recent = game.messages?.contents.slice(-60).reverse().map(m => m.getFlag(SYSTEM_ID, "card")).filter(x => x?.actorUuid === dead.uuid) ?? [];
+  const ejectDeath = recent.find(x => x.type === "eject")?.applied === "kia" && recent.find(x => x.type === "doomfate")?.chosen !== "hero";
+  if (ejectDeath) return ChatMessage.create({ speaker: { alias: "AWACS" },
+    content: `<div class="tb-card tb-card-ctrig tb-card-life"><header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">${esc(dead.name)} погиб</span></header>
+      <div class="tb-note">Катапульта не спасла. До конца вылета кубики не бросают: действия пилотов остановлены. Стол получает «Достойное отступление»: остальные уходят без потерь. Ведущий снимает запрет, завершив бой.</div></div>` });
+  const { startVerdict } = await import("./verdict.mjs");
+  if (await startVerdict(dead)) return null;
   return ChatMessage.create({ speaker: { alias: "AWACS" },
     content: `<div class="tb-card tb-card-ctrig tb-card-life"><header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">${esc(dead.name)} погиб</span></header>
       <div class="tb-note">До конца вылета кубики не бросают: действия пилотов остановлены. Стол решает вместе: «Победа любой ценой» или «Достойное отступление». Ведущий снимает запрет, завершив бой.</div></div>` });

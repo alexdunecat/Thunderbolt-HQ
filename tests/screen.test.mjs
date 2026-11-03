@@ -67,3 +67,15 @@ const hp = HP.hitPickHtml(pilotA, { fake: { name: "Обманный манёвр
 console.log("выбор метки:", (hp.match(/data-pick="grit"/g) ?? []).length, "навыков,", (hp.match(/data-pick="structure"/g) ?? []).length, "систем,",
   "Grit выключен:", /tb-hp-col grit done/.test(hp), "· Doom есть:", /data-pick="doom"/.test(hp), "· манёвр:", /data-pick="fakeout"/.test(hp), "· ранг Aim:", /ранг 3/.test(hp));
 console.log("без DOM — обычное окно:", await HP.hitPick(pilotA));
+
+// решение стола после героической гибели: большинство, ничья, голос меняется
+const V = await import(R + "/module/verdict.mjs");
+const show = t => `победа ${t.win} · отступление ${t.retreat} · нужно ${t.need}/${t.total} · ${t.decided ?? (t.tie ? "ничья" : "ждём")}`;
+console.log("голоса:", [
+  [{}, ["a", "b", "c"]], [{ a: "win" }, ["a", "b", "c"]], [{ a: "win", b: "win" }, ["a", "b", "c"]], [{ a: "win", b: "retreat" }, ["a", "b"]],
+  [{ a: "retreat", b: "retreat", c: "win" }, ["a", "b", "c", "d"]], [{ a: "retreat", b: "retreat", c: "win", d: "win" }, ["a", "b", "c", "d"]], [{ e: "win" }, []], [{}, []]
+].map(([v, u]) => show(V.tally(v, u))).join("\n  "));
+const vs = { name: "Тсой", call: "Кино", img: "", voters: [{ id: "a", name: "Саша" }, { id: "b", name: "Женя" }], votes: { a: "win" }, result: null };
+const vh = V.verdictHtml(vs, { me: "a" });
+console.log("окно игрока:", /tb-vd-opt win picked/.test(vh), "· чужой голос скрыт:", !/<em>1<\/em>/.test(vh), "· лампы:", (vh.match(/tb-vd-chip cast/g) ?? []).length);
+console.log("окно ведущего:", /data-vd-force="win"/.test(V.verdictHtml(vs, { me: "gm", gm: true })), "· итог:", /tb-vd-stamp retreat/.test(V.verdictHtml({ ...vs, result: "retreat" }, { me: "a" })));

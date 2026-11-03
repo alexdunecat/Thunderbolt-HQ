@@ -55,6 +55,7 @@ import { registerWeatherFront } from "./weather-front.mjs";
 import { registerWinchester } from "./winchester.mjs";
 import { registerCallsigns } from "./callsigns.mjs";
 import { registerHitPick } from "./hit-pick.mjs";
+import { registerVerdict } from "./verdict.mjs";
 import { registerDaytime } from "./daytime.mjs";
 import { registerKeys } from "./keys.mjs";
 import { registerWeatherFx } from "./weather-fx.mjs";
@@ -203,6 +204,7 @@ Hooks.once("init", () => {
   registerWinchester();
   registerCallsigns();
   registerHitPick();
+  registerVerdict();
   registerDaytime();
   registerKeys();
   registerWeatherFx();
