@@ -73,8 +73,13 @@ const tok = (elevation, actor) => ({ document: { elevation }, actor });
 const jet = { type: "npc", system: { kind: "air", alt: "med" } }, tank = { type: "npc", system: { kind: "ground" } };
 console.log("след:", [["Низкая", tok(1, jet)], ["Средняя", tok(2, jet)], ["Высокая", tok(3, jet)], ["стратосфера", tok(4, jet)], ["пилот на Высокой", tok(3, { type: "pilot", system: {} })], ["танк", tok(3, tank)]]
   .map(([n, t]) => `${n} ${Fx.trailOf(t) ? "да" : "нет"}`).join(", "));
-console.log("отрезок следа на восток:", JSON.stringify(Fx.trailSegment({ x: 0, y: 0 }, { x: 100, y: 0 }, 100)));
-console.log("на месте:", Fx.trailSegment({ x: 5, y: 5 }, { x: 6, y: 5 }, 100));
+{ const C = await import(R + "/module/contrails.mjs");
+  const east = (src, actor) => { const e = C.enginesOf(src, actor); return e ? C.contrailLines({ x: 0, y: 0 }, { x: 100, y: 0 }, 100, 100, e).map(l => `${Math.round(l.from.x)},${Math.round(l.off)}`).join(" ") + ` ${e.cls}` : "без следа"; };
+  for (const n of ["f16", "su27", "f18", "b52", "tu95", "an2", "mi24"]) console.log(`след ${n}:`, east(`systems/thunderbolt-shtab/assets/planes/${n}.svg`));
+  console.log("свой токен, тяжёлый NPC:", east("worlds/x/my-bomber.webp", { type: "npc", system: { grp: "heavy" } }), "· вертолёт:", east("worlds/x/h.png", { type: "npc", system: { grp: "heli" } }), "· пилот:", east(null, { type: "pilot", system: {} }));
+  console.log("на месте:", C.contrailLines({ x: 5, y: 5 }, { x: 6, y: 5 }, 100, 100, C.enginesOf("su27.svg")).length);
+  const fs = await import("node:fs"), have = new Set(fs.readdirSync(R.replace("file://", "") + "/assets/planes").map(f => f.replace(".svg", "")));
+  console.log("сопла без силуэта:", Object.keys(C.ENGINES).filter(k => !have.has(k)).join(", ") || "нет"); }
 // форсаж: только летящая машина на своей Max Speed; пламя у сопла позади по ходу движения
 console.log("форсаж:", [["на пределе", { type: "npc", system: { kind: "air", speed: 4, maxSpeed: 4 } }], ["ниже", { type: "npc", system: { kind: "air", speed: 3, maxSpeed: 4 } }],
   ["пилот на пределе", { type: "pilot", system: { speed: 5, maxSpeed: 5 } }], ["танк", { type: "npc", system: { kind: "ground", speed: 0, maxSpeed: 0 } }]]

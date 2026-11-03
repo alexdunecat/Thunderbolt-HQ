@@ -10,6 +10,7 @@ import { SYSTEM_ID } from "./config.mjs";
 import { resolveActor } from "./utils.mjs";
 import { isFlying, altOf, hasRule, WATER } from "./scene.mjs";
 import { playCallouts, callout } from "./callouts.mjs";
+import { enginesOf, contrailLines, CONTRAIL } from "./contrails.mjs";
 
 /* ---------- план: что показать по карточке (чистая часть, тесты) ---------- */
 
@@ -114,7 +115,7 @@ export function registerFx() {
     scope: "client", config: true, type: Boolean, default: true
   });
   game.settings.register(SYSTEM_ID, "fxTrail", {
-    name: "Инверсионные следы", hint: "Машины на Высокой и в стратосфере оставляют за собой тающий белый след, пока летят. Только у себя, вместе с анимацией.",
+    name: "Инверсионные следы", hint: "Машины на Высокой и в стратосфере тянут белый след от своих двигателей: у истребителя одна-две тонкие нитки, которые быстро сливаются и тают, у тяжёлых и транспортных — широкие полосы от каждой гондолы, которые держатся долго. Поршневые и вертолёты следа не тянут. Только у себя, вместе с анимацией.",
     scope: "client", config: true, type: Boolean, default: true, onChange: () => trailAt.clear()
   });
   game.settings.register(SYSTEM_ID, "fxWake", {
@@ -399,22 +400,12 @@ function burnTick() {
   }
 }
 
-/* ---------- инверсионный след: две белые линии от двигателей за машиной на Высокой, тают за несколько секунд ---------- */
+/* ---------- инверсионный след: белые нитки от двигателей машины (contrails.mjs) на Высокой, тают и расплываются ---------- */
 
-const TRAIL_MS = 4500;
 const trailAt = new Map();   // id токена → где был центр в прошлый тик
 const trailOn = () => { try { return on() && game.settings.get(SYSTEM_ID, "fxTrail") !== false; } catch { return true; } };
 const burnerOn = () => { try { return on() && game.settings.get(SYSTEM_ID, "fxBurner") !== false; } catch { return true; } };
 const wakeOn = () => { try { return on() && game.settings.get(SYSTEM_ID, "fxWake") !== false; } catch { return true; } };
-
-/** Отрезок следа за машиной, прошедшей от a к b: концы отнесены назад на длину носа, чтобы след не лёг поверх токена. */
-export function trailSegment(a, b, size) {
-  const d = Math.hypot(b.x - a.x, b.y - a.y);
-  if (d < 2) return null;
-  const ux = (b.x - a.x) / d, uy = (b.y - a.y) / d, back = size * 0.42, half = size * 0.16;
-  const from = { x: a.x - ux * back, y: a.y - uy * back }, to = { x: b.x - ux * back, y: b.y - uy * back };
-  return [-1, 1].map(s => ({ from: { x: from.x - uy * half * s, y: from.y + ux * half * s }, to: { x: to.x - uy * half * s, y: to.y + ux * half * s } }));
-}
 
 function trailTick() {
   const trail = trailOn(), burner = burnerOn(), wake = wakeOn();
@@ -441,8 +432,12 @@ function trailTick() {
     trailAt.set(t.id, now);
     // перенос токена ведущим (прыжок дальше пары клеток за тик) следа не оставляет
     if (!was || Math.hypot(now.x - was.x, now.y - was.y) > gs() * 2.5) continue;
-    const size = t.w ?? gs(), seg = high ? trailSegment(was, now, size) : null;
-    if (seg) contrail(seg);
+    const size = t.w ?? gs();
+    if (high) {
+      const eng = enginesOf(t.document.texture?.src ?? t.actor?.img, t.actor);
+      const lines = contrailLines(was, now, t.h ?? size, size, eng);
+      if (lines.length) contrail(lines, eng, size);
+    }
     if (fast) afterburner(was, now, size);
   }
   for (const id of trailAt.keys()) if (!live.has(id)) trailAt.delete(id);
@@ -534,12 +529,18 @@ function surfTrail(kind, a, b, size, cold) {
   }
 }
 
-function contrail(lines) {
+/** Нитки следа: со временем толще и бледнее; близкие нитки (спарка истребителя) сходятся в одну, у тяжёлых держатся порознь. */
+function contrail(lines, eng, size) {
+  const st = CONTRAIL[eng.cls] ?? CONTRAIL.jet, base = Math.max(1, size * st.width * (eng.w ?? 1));
   add((t, g) => {
-    const k = t / TRAIL_MS;
+    const k = t / st.life;
     if (k >= 1) return false;
-    g.lineStyle(Math.max(1, gs() * 0.02 * (1 + 1.5 * k)), 0xf4f8ff, 0.5 * (1 - k) ** 1.5);
-    for (const l of lines) { g.moveTo(l.from.x, l.from.y); g.lineTo(l.to.x, l.to.y); }
+    g.lineStyle(base * (1 + st.spread * k), 0xf4f8ff, st.alpha * (1 - k) ** 1.5);
+    const m = 1 - st.merge * Math.min(1, k * 1.2);
+    for (const l of lines) {
+      const ox = l.nx * l.off * m, oy = l.ny * l.off * m;
+      g.moveTo(l.from.x + ox, l.from.y + oy); g.lineTo(l.to.x + ox, l.to.y + oy);
+    }
     g.lineStyle(0);
   });
 }
