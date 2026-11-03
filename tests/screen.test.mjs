@@ -15,9 +15,22 @@ console.log("боевой экран:", cases.map(c => `${JSON.stringify(c)}=${C
 const actor = (type, system, flags = {}) => ({ type, system, getFlag: (ns, k) => flags[k] });
 const N = await import(R + "/module/night-lights.mjs");
 const list = [["пилот", actor("pilot", { alt: "high" })], ["истребитель NPC", actor("npc", { kind: "air", alt: "med" })], ["корабль", actor("npc", { kind: "ship" })],
-  ["подлодка под водой", actor("npc", { kind: "ship" }, { unit: { sub: true } })], ["ЗРК", actor("npc", { kind: "ground", grp: "ad" })], ["танк", actor("npc", { kind: "ground", grp: "armor" })], ["штаб", actor("staff", {})]];
+  ["подлодка под водой", actor("npc", { kind: "ship" }, { unit: { sub: true } })], ["ЗРК", actor("npc", { kind: "ground", grp: "ad" })], ["танк", actor("npc", { kind: "ground", grp: "armor" })], ["завод", actor("npc", { kind: "ground", grp: "obj" })], ["вертолёт", actor("npc", { kind: "air", grp: "heli", alt: "low" })], ["штаб", actor("staff", {})]];
 console.log("огни:", list.map(([n, a]) => `${n}=${N.lightsOf(a) ?? "—"}`).join(", "));
-for (const rot of [0, 90, 180]) { const p = N.navPoints(100, 100, rot, 100); console.log(`курс ${rot}°: левый ${r1(p.left.x)},${r1(p.left.y)} правый ${r1(p.right.x)},${r1(p.right.y)} хвост ${r1(p.tail.x)},${r1(p.tail.y)}`); }
+{ // форма по картинке: крестик-самолёт 20×20, крылья в строке 8, хвост внизу
+  const w = 20, h = 20, px = new Uint8ClampedArray(w * h * 4), put = (x, y) => { px[(y * w + x) * 4 + 3] = 255; };
+  for (let y = 2; y < 18; y++) put(10, y); for (let x = 3; x < 18; x++) put(x, 8); for (let x = 7; x < 14; x++) put(x, 16);
+  const g = N.shapeFromAlpha(px, w, h);
+  console.log("форма:", `левый ${r1(g.left.u * 20)},${r1(g.left.v * 20)} правый ${r1(g.right.u * 20)},${r1(g.right.v * 20)} нос ${r1(g.top * 20)} хвост ${r1(g.bottom * 20)}`);
+  const cnt = l => Object.entries(l.reduce((m, x) => ({ ...m, [x.k + (x.c ? ":" + x.c : "")]: (m[x.k + (x.c ? ":" + x.c : "")] ?? 0) + 1 }), {})).map(([k, n]) => `${k}×${n}`).join(" ");
+  for (const k of ["plane", "heli", "ship", "vehicle", "building"]) console.log(`огни ${k}:`, cnt(N.layoutFor(k, g, { seed: 3, tall: true })));
+  console.log("огни авианосца:", N.layoutFor("ship", g, { carrier: true }).length, "· пустая картинка:", N.shapeFromAlpha(new Uint8ClampedArray(16), 2, 2));
+  for (const t of ["city", "village", "industry", "port", "base", "sea"]) console.log(`клетка ${t}:`, N.settlementLights(t, 0, 5).length);
+  const pr = N.settlementLights("port", 90, 5)[1], p0 = N.settlementLights("port", 0, 5)[1];
+  console.log("порт повёрнут:", `${r1(p0.x)},${r1(p0.y)} → ${r1(pr.x)},${r1(pr.y)}`);
+  const run = Array.from({ length: 14 }, (_, k) => N.settlementLights("base").filter(l => l.k === "rabbit").map(l => N.lightLevel(l, k * 90)).join("")).join(" ");
+  console.log("бегущий огонь:", run);
+}
 let on = 0; for (let t = 0; t < 1400; t += 10) if (N.strobeOn(t)) on++;
 console.log("проблесковый: горит", on * 10, "мс из 1400 · сдвиг меняет:", N.strobeOn(0, 0) !== N.strobeOn(0, 300));
 const angs = Array.from({ length: 40 }, (_, i) => N.beamAngle(i * 500));

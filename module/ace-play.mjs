@@ -352,3 +352,74 @@ async function cardAction(d) {
     case "lastEnd": return endLastRun(ace, "ведущий");
   }
 }
+
+/* ---------- пересадка аса в другую машину ---------- */
+
+/** Машины, в которые может пересесть ас: все воздушные NPC каталога и машины пилотов, по группам. */
+export function swapChoices(cat) {
+  const list = [...(cat?.npcs ?? []), ...(cat?.planeNpcs ?? [])].filter(n => n.kind === "air" && n.stats && !["boss", "civil"].includes(n.grp));
+  const groups = new Map();
+  for (const n of list) { const g = n.grpName || n.grp || "Прочие"; if (!groups.has(g)) groups.set(g, []); groups.get(g).push(n); }
+  for (const arr of groups.values()) arr.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+  return groups;
+}
+
+/**
+ * Что меняется на листе аса при пересадке: машина (ключ, характеристики, свойства, штатное спецоружие, справка), HP полные
+ * по новой машине, Speed не выше нового Max Speed, Strain машины — по новой (поле очищается). Остаются имя, позывной, навыки,
+ * триггеры, Немезида, реплики, сторона и уровень. Картинка листа меняется, только если это была картинка старой машины.
+ */
+export function aceSwapPatch(sys, img, entry, fresh) {
+  const n = fresh.system, keep = ["key", "grp", "grpName", "nato", "cls", "seats", "props", "rules", "sig", "desc", "service"];
+  const patch = Object.fromEntries(keep.map(k => [`system.${k}`, n[k] ?? (Array.isArray(sys?.[k]) ? [] : "")]));
+  patch["system.stats"] = { ...n.stats, str: null };
+  patch["system.hp"] = { value: n.hp.max, max: n.hp.max };
+  patch["system.speed"] = Math.min(Number(sys?.speed) || 0, n.stats.spd ?? 0);
+  if (!img || img.includes("/assets/planes/") || img.includes("/assets/targets/") || img.startsWith("icons/")) patch.img = entry.img;
+  return patch;
+}
+
+/** Окно ведущего: выбрать машину и пересадить аса (лист, токены на сценах, штатное спецоружие). */
+export async function aceSwapDialog(actor) {
+  if (!game.user.isGM || !actor) return;
+  const cat = await hangarCatalog(), groups = swapChoices(cat), cur = actor.system.key;
+  const opts = [...groups.entries()].map(([g, arr]) => `<optgroup label="${esc(g)}">${arr.map(n => `<option value="${esc(n.key)}"${n.key === cur ? " selected" : ""}>${esc(n.name)}${n.nato && n.nato !== n.name ? ` · ${esc(n.nato)}` : ""} — Spd ${n.stats.spd} Ev ${n.stats.ev} A-A ${n.stats.aa ?? "—"} HP ${n.stats.hp}</option>`).join("")}</optgroup>`).join("");
+  const { formDialog } = await import("./dice/rolls.mjs");
+  const data = await formDialog(`Пересадить: ${actor.name}`, `
+    <p class="tb-hint">Ас пересаживается в другую машину. Остаются имя, позывной, навыки, триггеры, Немезида и реплики; машина, HP, Strain машины и штатное спецоружие становятся от новой.</p>
+    <div class="form-group"><label>Машина</label><select name="key">${opts}</select></div>
+    <label class="tb-check"><input type="checkbox" name="weapons" checked> Снять штатное спецоружие старой машины и поставить штатное новой</label>
+    <label class="tb-check"><input type="checkbox" name="tokens" checked> Сменить картинку токенов на сценах</label>`, { ok: "Пересадить", width: 520 });
+  if (!data?.key || data.key === cur) return;
+  const entry = [...groups.values()].flat().find(n => n.key === data.key);
+  if (!entry) return;
+  return aceSwap(actor, entry, { weapons: !!data.weapons, tokens: !!data.tokens, cat });
+}
+
+export async function aceSwap(actor, entry, { weapons = true, tokens = true, cat = null } = {}) {
+  const { npcActor } = await import("./data/catalog-docs.mjs");
+  const fresh = npcActor({ ...entry, side: actor.system.side }, { tier: actor.system.tier, name: actor.name });
+  const oldName = actor.system.nato || actor.system.key || "?", oldSig = [...(actor.system.sig ?? [])];
+  const patch = aceSwapPatch(actor.system, actor.img, entry, fresh);
+  patch["prototypeToken.texture.src"] = fresh.prototypeToken.texture.src;
+  await actor.update(patch);
+  if (weapons) {
+    cat ??= await hangarCatalog();
+    const drop = actor.items.filter(i => i.type === "weapon" && oldSig.includes(i.system.key) && !(entry.sig ?? []).includes(i.system.key)).map(i => i.id);
+    if (drop.length) await actor.deleteEmbeddedDocuments("Item", drop);
+    await addAceWeapons(actor, cat);
+  }
+  if (tokens) {
+    const src = fresh.prototypeToken.texture.src;
+    for (const scene of game.scenes) {
+      const docs = scene.tokens.filter(t => t.actorId === actor.id);
+      for (const t of docs) {
+        const unk = t.getFlag(SYSTEM_ID, "unknown");
+        // неопознанный контакт «?»: настоящая картинка лежит во флаге
+        await t.update(unk ? { [`flags.${SYSTEM_ID}.unknown.src`]: src } : { "texture.src": src });
+        if (!t.actorLink && t.actor) await t.actor.update({ "system.hp": patch["system.hp"], "system.speed": Math.min(Number(t.actor.system.speed) || 0, entry.stats.spd ?? 0) });
+      }
+    }
+  }
+  return gmCard(`${actor.name}: пересел в ${entry.name}`, `Было: ${esc(oldName)}. Теперь ${esc(entry.name)}${entry.nato && entry.nato !== entry.name ? ` (${esc(entry.nato)})` : ""}: Max Speed ${entry.stats.spd}, Evasion ${entry.stats.ev}, A-A ${entry.stats.aa ?? "—"}, A-G ${entry.stats.ag ?? "—"}, HP ${entry.stats.hp}, пушка ${entry.stats.gun ?? "—"}.${(entry.sig ?? []).length ? ` Штатное спецоружие: ${esc(entry.sig.join(", "))}.` : ""} Навыки, триггеры и реплики прежние.`);
+}

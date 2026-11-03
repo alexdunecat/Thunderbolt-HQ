@@ -82,6 +82,7 @@
           <p class="tb-small"><button type="button" class="tb-ace-instinct {{#unless ace.instinct.ready}}used{{/unless}}" data-ace-use="instinct" title="{{ace.instinct.why}}"><i class="fas fa-person-falling"></i> Чутьё аса: Break! вне хода{{#if ace.instinct.incoming}} · ракет: {{ace.instinct.incoming}}{{/if}}</button>
             <span class="tb-muted">Раз в раунд, когда по асу пущена ракета; нужен рабочий MAWS.</span></p>
           {{#if ace.sig}}<p class="tb-small tb-muted">Штатное спецоружие машины: {{ace.sig}}.{{#if ace.sigMissing}} <a data-ace-sig><i class="fas fa-plus"></i> поставить на лист</a>{{/if}}</p>{{/if}}
+          {{#if ace.gm}}<p class="tb-small"><a class="tb-btn" data-ace-swap title="Другая машина: навыки, триггеры, Немезида и реплики остаются, машина, HP и штатное спецоружие меняются"><i class="fas fa-right-left"></i> Пересадить в другую машину</a></p>{{/if}}
           <p class="tb-small {{#if ace.slotsOver}}tb-warn{{else}}tb-muted{{/if}}">Триггеры: {{ace.chosen}} из {{ace.slots}} (2 + пройденные операции{{#if system.nemesis}}, Немезида +1{{/if}}). Каждый раз за вылет.</p>
           <ul class="tb-ace-trigs">{{#each ace.triggers as |t|}}<li class="{{#if t.on}}on{{/if}} {{#if t.used}}used{{/if}}">
             <label title="{{t.text}}"><input type="checkbox" data-ace-pick="{{t.key}}" {{#if t.on}}checked{{/if}} {{#unless @root.ace.gm}}disabled{{/unless}}> <b>{{t.name}}</b></label>

@@ -20,7 +20,7 @@ import { CT, ctView, useCombatTrigger } from "../combat-triggers.mjs";
 import { NEM, STATE_TEXT, nemTriggers, trigState, metOf, useTrigger, appear, monologue, startMonologue, endMonologue, fxOf, clearFx } from "../nemesis.mjs";
 import { sheetPlane, useMove, useAoa, useDeck } from "../plane-roles.mjs";
 import { aceBudget, aceSlots, PLANE_STR, PLANE_STRAIN_DEFAULT, ACE_STRAIN_EXTRA } from "../ace-kit.mjs";
-import { aceState, aceClick, addAceWeapons } from "../ace-play.mjs";
+import { aceState, aceClick, addAceWeapons, aceSwapDialog } from "../ace-play.mjs";
 
 /** Короткая подпись эффектов триггера: «Макс. HP +1 · Все броски +2 (пока включён)». */
 export function describeChanges(changes) {
@@ -696,6 +696,7 @@ export class NpcSheet extends TBActorSheet {
     }));
     click("[data-ace-use]", d => aceClick(this.actor, d.aceUse));
     click("[data-ace-sig]", () => addAceWeapons(this.actor).then(k => ui.notifications.info(k.length ? `На лист: ${k.join(", ")}.` : "Штатное спецоружие уже на листе.")));
+    click("[data-ace-swap]", () => aceSwapDialog(this.actor));
     click("[data-ace-clear]", d => this.actor.update({ [`flags.${SYSTEM_ID}.aceFx.-=${d.aceClear}`]: null }));
     click("[data-nem-appear]", () => appear(this.actor));
     click("[data-nem-mono]", () => monologue()?.uuid === this.actor.uuid ? endMonologue() : startMonologue(this.actor));

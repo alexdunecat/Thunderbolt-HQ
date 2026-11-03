@@ -130,3 +130,17 @@ console.log("залп:", row.hit ? "попал" : "мимо", "· повтор �
 // HUD ведущего: строка АС
 console.log("HUD:", P.aceRowHtml(ace).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
 console.log(log.filter(l => /^RADIO|^warn|^info/.test(l)).join("\n"));
+
+// пересадка аса в другую машину
+{
+  const fs = await import("node:fs");
+  const cat = JSON.parse(fs.readFileSync(R + "/data/catalog.json", "utf8"));
+  const groups = P.swapChoices(cat);
+  console.log("пересадка: групп", groups.size, "· машин", [...groups.values()].flat().length, "· есть Су-27 и F-15C:", [...groups.values()].flat().some(n => n.key === "su27"), [...groups.values()].flat().some(n => n.key === "f15c"));
+  const { npcActor } = await import(R + "/module/data/catalog-docs.mjs");
+  const f15 = [...groups.values()].flat().find(n => n.key === "f15c");
+  const fresh = npcActor({ ...f15, side: "enemy" }, { tier: "ace", name: "Кара-Буран" });
+  const patch = P.aceSwapPatch({ key: "su27", speed: 5, sig: ["SAAM"] }, "systems/thunderbolt-shtab/assets/planes/su27.svg", f15, fresh);
+  console.log("пересадка в F-15C:", JSON.stringify({ key: patch["system.key"], stats: patch["system.stats"], hp: patch["system.hp"], speed: patch["system.speed"], sig: patch["system.sig"], img: patch.img }));
+  console.log("свой портрет остаётся:", P.aceSwapPatch({ speed: 1 }, "worlds/x/portraits/karaburan.webp", f15, fresh).img ?? "да");
+}
