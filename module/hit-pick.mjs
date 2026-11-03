@@ -99,7 +99,6 @@ export function fatePickHtml(actor) {
       <button type="button" class="tb-fate hero" data-fate="hero"><i class="fas fa-skull"></i><b>ГЕРОИЧЕСКАЯ ГИБЕЛЬ</b>
         <span>Последние слова, без броска.</span><em>Стол решает: «Победа любой ценой» или «Достойное отступление»</em></button>
     </div>
-    <div class="tb-fate-later"><button type="button" data-fate="later">Решу позже</button><small>Кнопки останутся в полосе DOOM на HUD и на карточке в чате.</small></div>
   </div>`;
 }
 
@@ -115,7 +114,7 @@ export function fateResultHtml(actor, r, fate) {
   </div>`;
 }
 
-/** Окно судьбы пилота: КАТАПУЛЬТА бросает сразу и показывает исход, ГИБЕЛЬ — вторым нажатием. «Решу позже» закрывает. */
+/** Окно судьбы пилота: КАТАПУЛЬТА бросает сразу и показывает исход, ГИБЕЛЬ — вторым нажатием. Отложить нельзя: пилот решает сразу. */
 export function fatePick(actor) {
   if (typeof document === "undefined" || !document.body || !pickOn() || actor?.type !== "pilot") return Promise.resolve(null);
   document.getElementById("tb-fate-pick")?.remove();
@@ -136,7 +135,7 @@ export function fatePick(actor) {
       const b = ev.target.closest("[data-fate]");
       if (!b || busy) return;
       const what = b.dataset.fate;
-      if (what === "later" || what === "close") return finish(what);
+      if (what === "close") return finish(what);
       const R = await import("./dice/rolls.mjs");
       if (what === "hero") {
         if (!armed) { armed = true; b.classList.add("armed"); b.querySelector("span").textContent = "Нажмите ещё раз: пилот погибает."; return; }

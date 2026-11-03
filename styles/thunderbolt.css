@@ -2103,8 +2103,9 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-fate-pick .tb-fate-sum b { font-size: 44px; font-family: var(--tb-data, monospace); color: #fff; }
 #tb-fate-pick .tb-fate-sum em { font-size: 20px; font-style: normal; color: #b9c6c1; margin-left: 6px; }
 #tb-fate-pick .tb-fate-roll small { color: #ffc94a; font-family: var(--tb-data, monospace); }
-#tb-fate-pick .tb-fate-stamp { margin: 4px auto 10px; width: fit-content; padding: 6px 20px; font-size: 26px; letter-spacing: .2em; border: 3px double; transform: rotate(-2deg); opacity: 0; }
-#tb-fate-pick .tb-fate-stamp.in { opacity: 1; animation: tb-vd-stamp .4s cubic-bezier(.2, 1.6, .4, 1); }
+#tb-fate-pick .tb-fate-stamp { margin: 4px auto 10px; width: fit-content; padding: 6px 20px; font-size: 26px; letter-spacing: .2em; border: 3px double; opacity: 0; }
+#tb-fate-pick .tb-fate-stamp.in { opacity: 1; animation: tb-fate-stamp .4s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes tb-fate-stamp { from { transform: scale(2.2); opacity: 0; } }
 #tb-fate-pick .tb-fate-stamp.ok { color: #a4ffcb; border-color: #a4ffcb; text-shadow: 0 0 10px rgba(164, 255, 203, .6); }
 #tb-fate-pick .tb-fate-stamp.hurt, #tb-fate-pick .tb-fate-stamp.mia { color: #ffc94a; border-color: #ffc94a; text-shadow: 0 0 10px rgba(255, 201, 74, .6); }
 #tb-fate-pick .tb-fate-stamp.kia { color: #ff5a46; border-color: #ff5a46; text-shadow: 0 0 10px rgba(255, 60, 40, .7); }
@@ -2154,10 +2155,10 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-verdict .tb-vd-chip.cast i { background: #a4ffcb; box-shadow: 0 0 6px #a4ffcb; }
 #tb-verdict .tb-vd-chip.me { border-color: rgba(164, 255, 203, .5); }
 #tb-verdict .tb-vd-status { margin-top: 12px; text-align: center; font-size: 12px; color: #8fa49c; font-family: var(--tb-body, inherit); }
-#tb-verdict .tb-vd-stamp { margin: 16px auto 0; width: fit-content; padding: 6px 18px; font-size: 22px; letter-spacing: .2em; text-transform: uppercase; border: 3px double; transform: rotate(-2deg); animation: tb-vd-stamp .4s cubic-bezier(.2, 1.6, .4, 1); }
+#tb-verdict .tb-vd-stamp { margin: 16px auto 0; width: fit-content; padding: 6px 18px; font-size: 22px; letter-spacing: .2em; text-transform: uppercase; border: 3px double; animation: tb-vd-stamp .4s cubic-bezier(.2, 1.6, .4, 1); }
 #tb-verdict .tb-vd-stamp.win { color: #ff6a55; border-color: #ff6a55; text-shadow: 0 0 10px rgba(255, 90, 70, .6); }
 #tb-verdict .tb-vd-stamp.retreat { color: #8cc8ff; border-color: #8cc8ff; text-shadow: 0 0 10px rgba(111, 184, 255, .6); }
-@keyframes tb-vd-stamp { from { transform: rotate(-2deg) scale(2.2); opacity: 0; } }
+@keyframes tb-vd-stamp { from { transform: scale(2.2); opacity: 0; } }
 #tb-verdict .tb-vd-gm { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, .15); font-size: 12px; color: #8fa49c; }
 #tb-verdict .tb-vd-gm button { width: auto; margin: 0; padding: 2px 10px; line-height: 22px; font-size: 12px; }
 #tb-verdict-pill { position: fixed; left: 50%; bottom: 120px; translate: -50% 0; z-index: 8900; width: auto; margin: 0; padding: 6px 14px; line-height: 20px;
