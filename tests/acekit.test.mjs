@@ -142,5 +142,6 @@ console.log(log.filter(l => /^RADIO|^warn|^info/.test(l)).join("\n"));
   const fresh = npcActor({ ...f15, side: "enemy" }, { tier: "ace", name: "Кара-Буран" });
   const patch = P.aceSwapPatch({ key: "su27", speed: 5, sig: ["SAAM"] }, "systems/thunderbolt-shtab/assets/planes/su27.svg", f15, fresh);
   console.log("пересадка в F-15C:", JSON.stringify({ key: patch["system.key"], stats: patch["system.stats"], hp: patch["system.hp"], speed: patch["system.speed"], sig: patch["system.sig"], img: patch.img }));
+  console.log("имена токенов:", ["Су-27", "Су-27 2", "Су-27М", "Кара-Буран", "Су-27 бис"].map(n => P.swapTokenName(n, "Су-27", "Су-47")).join(", "));
   console.log("свой портрет остаётся:", P.aceSwapPatch({ speed: 1 }, "worlds/x/portraits/karaburan.webp", f15, fresh).img ?? "да");
 }

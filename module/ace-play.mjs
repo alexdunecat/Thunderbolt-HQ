@@ -396,30 +396,60 @@ export async function aceSwapDialog(actor) {
   return aceSwap(actor, entry, { weapons: !!data.weapons, tokens: !!data.tokens, cat });
 }
 
-export async function aceSwap(actor, entry, { weapons = true, tokens = true, cat = null } = {}) {
+/** Имя токена после пересадки: «Су-27» → «Су-47», «Су-27 2» → «Су-47 2»; своё имя остаётся. */
+export function swapTokenName(name, oldName, newName) {
+  if (!oldName || !name) return name;
+  if (name === oldName) return newName;
+  return name.startsWith(oldName + " ") && /^\d+$/.test(name.slice(oldName.length + 1)) ? `${newName}${name.slice(oldName.length)}` : name;
+}
+
+/** Штатное спецоружие: снять старое, которого нет у новой машины, и добавить недостающее новое (лист или копия токена). */
+async function swapSigWeapons(a, oldSig, newSig, cat) {
+  const drop = a.items.filter(i => i.type === "weapon" && oldSig.includes(i.system.key) && !newSig.includes(i.system.key)).map(i => i.id);
+  if (drop.length) await a.deleteEmbeddedDocuments("Item", drop);
+  await addAceWeapons(a, cat);
+}
+
+export async function aceSwap(sheetActor, entry, { weapons = true, tokens = true, cat = null } = {}) {
+  // лист мог быть открыт с токена: пересаживается сам ас (актёр), а затем все его токены
+  const actor = sheetActor.isToken ? (sheetActor.token?.baseActor ?? game.actors.get(sheetActor.token?.actorId) ?? sheetActor) : sheetActor;
   const { npcActor } = await import("./data/catalog-docs.mjs");
-  const fresh = npcActor({ ...entry, side: actor.system.side }, { tier: actor.system.tier, name: actor.name });
-  const oldName = actor.system.nato || actor.system.key || "?", oldSig = [...(actor.system.sig ?? [])];
+  cat ??= await hangarCatalog();
+  const oldEntry = [...(cat.npcs ?? []), ...(cat.planeNpcs ?? [])].find(n => n.key === actor.system.key);
+  // безымянный ас (имя листа = имя старой машины в каталоге) получает имя новой машины
+  const rename = !!oldEntry && actor.name === oldEntry.name;
+  const name = rename ? entry.name : actor.name;
+  const fresh = npcActor({ ...entry, side: actor.system.side }, { tier: actor.system.tier, name });
+  const oldName = oldEntry?.name || actor.system.nato || actor.system.key || "?", oldSig = [...(actor.system.sig ?? [])], newSig = entry.sig ?? [];
   const patch = aceSwapPatch(actor.system, actor.img, entry, fresh);
+  const sysPatch = Object.fromEntries(Object.entries(patch).filter(([k]) => k.startsWith("system.")));
   patch["prototypeToken.texture.src"] = fresh.prototypeToken.texture.src;
+  if (rename) Object.assign(patch, { name, "prototypeToken.name": swapTokenName(actor.prototypeToken?.name, oldEntry.name, name) });
   await actor.update(patch);
-  if (weapons) {
-    cat ??= await hangarCatalog();
-    const drop = actor.items.filter(i => i.type === "weapon" && oldSig.includes(i.system.key) && !(entry.sig ?? []).includes(i.system.key)).map(i => i.id);
-    if (drop.length) await actor.deleteEmbeddedDocuments("Item", drop);
-    await addAceWeapons(actor, cat);
-  }
-  if (tokens) {
-    const src = fresh.prototypeToken.texture.src;
-    for (const scene of game.scenes) {
-      const docs = scene.tokens.filter(t => t.actorId === actor.id);
-      for (const t of docs) {
+  if (weapons) await swapSigWeapons(actor, oldSig, newSig, cat);
+  const src = fresh.prototypeToken.texture.src;
+  for (const scene of game.scenes) {
+    for (const t of scene.tokens.filter(t => t.actorId === actor.id)) {
+      const upd = {};
+      if (tokens) {
+        // неопознанный контакт «?»: настоящая картинка и имя лежат во флаге
         const unk = t.getFlag(SYSTEM_ID, "unknown");
-        // неопознанный контакт «?»: настоящая картинка лежит во флаге
-        await t.update(unk ? { [`flags.${SYSTEM_ID}.unknown.src`]: src } : { "texture.src": src });
-        if (!t.actorLink && t.actor) await t.actor.update({ "system.hp": patch["system.hp"], "system.speed": Math.min(Number(t.actor.system.speed) || 0, entry.stats.spd ?? 0) });
+        if (unk) {
+          upd[`flags.${SYSTEM_ID}.unknown.src`] = src;
+          if (rename && unk.name) upd[`flags.${SYSTEM_ID}.unknown.name`] = swapTokenName(unk.name, oldEntry.name, name);
+          if (rename && unk.delta === oldEntry.name) upd[`flags.${SYSTEM_ID}.unknown.delta`] = name;
+        } else {
+          upd["texture.src"] = src;
+          if (rename) upd.name = swapTokenName(t.name, oldEntry.name, name);
+        }
+      } else if (rename && !t.getFlag(SYSTEM_ID, "unknown")) upd.name = swapTokenName(t.name, oldEntry.name, name);
+      if (Object.keys(upd).length) await t.update(upd);
+      // копия несвязанного токена: свои поля и свои предметы перекрывают лист, поэтому меняются отдельно
+      if (!t.actorLink && t.actor) {
+        await t.actor.update({ ...sysPatch, ...(rename && t.actor.name === oldEntry.name ? { name } : {}), "system.speed": Math.min(Number(t.actor.system.speed) || 0, entry.stats.spd ?? 0) });
+        if (weapons) await swapSigWeapons(t.actor, oldSig, newSig, cat);
       }
     }
   }
-  return gmCard(`${actor.name}: пересел в ${entry.name}`, `Было: ${esc(oldName)}. Теперь ${esc(entry.name)}${entry.nato && entry.nato !== entry.name ? ` (${esc(entry.nato)})` : ""}: Max Speed ${entry.stats.spd}, Evasion ${entry.stats.ev}, A-A ${entry.stats.aa ?? "—"}, A-G ${entry.stats.ag ?? "—"}, HP ${entry.stats.hp}, пушка ${entry.stats.gun ?? "—"}.${(entry.sig ?? []).length ? ` Штатное спецоружие: ${esc(entry.sig.join(", "))}.` : ""} Навыки, триггеры и реплики прежние.`);
+  return gmCard(`${actor.name}: пересел в ${entry.name}`, `Было: ${esc(oldName)}. Теперь ${esc(entry.name)}${entry.nato && entry.nato !== entry.name ? ` (${esc(entry.nato)})` : ""}: Max Speed ${entry.stats.spd}, Evasion ${entry.stats.ev}, A-A ${entry.stats.aa ?? "—"}, A-G ${entry.stats.ag ?? "—"}, HP ${entry.stats.hp}, пушка ${entry.stats.gun ?? "—"}.${newSig.length ? ` Штатное спецоружие: ${esc(newSig.join(", "))}.` : ""}${rename ? ` Имя на листе и токенах: «${esc(name)}».` : ""} Навыки, триггеры и реплики прежние.`);
 }
