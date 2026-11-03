@@ -225,6 +225,8 @@ function lockInfo(actor) {
   const dist = zoneDistance(tokenOf(actor), tokenOf(target));
   return {
     name: target?.token?.name ?? target?.name ?? s.lock, gone: !target || !tokenOf(target),
+    // захвачен неопознанный контакт «?»: кнопка опознания (9.6)
+    unknown: !!tokenOf(target)?.document?.getFlag?.(SYSTEM_ID, "unknown"),
     dist: dist === null ? "" : dist === 0 ? "в своей зоне" : `${dist} ${dist === 1 ? "зона" : "зоны"}`
   };
 }

@@ -15,7 +15,8 @@ import { inWall, carouselFree, carouselMoved } from "./duelists.mjs";
 export const ACT_NAMES = {
   lock: "Lock On!", missile: "Fox Two!", guns: "Guns, Guns, Guns!", break: "Break!", recover: "Передышка",
   lead: "Leadership", formup: "Вплотную", sam: "Пуск ЗРК", skill: "Проверка", speed: "Change Speed", move: "Move", climb: "Climb / Dive",
-  deckDown: "Посадка на палубу", deckUp: "Взлёт с палубы", carpet: "Ковровая бомбардировка", gunship: "Бортовые орудия"
+  deckDown: "Посадка на палубу", deckUp: "Взлёт с палубы", carpet: "Ковровая бомбардировка", gunship: "Бортовые орудия",
+  ident: "Опознание"
 };
 
 /** Боец текущего боя для актёра или токена: сначала по токену, потом по актёру. */

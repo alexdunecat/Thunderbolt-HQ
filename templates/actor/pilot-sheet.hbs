@@ -105,6 +105,7 @@
         <button type="button" data-act="recover"><i class="fas fa-bolt"></i> Вернуть Strain <span class="tb-dice-tag" title="С броском d10 + d4: одна проверка за ход"><i class="fas fa-dice-d10"></i></span></button>
         <button type="button" data-act="lead"><i class="fas fa-bullhorn"></i> Leadership</button>
         <button type="button" data-act="formup"><i class="fas fa-people-arrows"></i> Вплотную</button>
+        {{#if lockInfo.unknown}}<button type="button" data-act="ident" title="Опознать захваченный контакт «?»: Aim против 7 (Стрэйнджриал 9.6)"><i class="fas fa-question"></i> Опознать <span class="tb-dice-tag" title="С броском d10 + d4: одна проверка за ход"><i class="fas fa-dice-d10"></i></span></button>{{/if}}
       </div>
       <p class="tb-small tb-muted tb-dice-legend"><i class="fas fa-dice-d10"></i> — действие с броском (за ход одна проверка). <i class="fas fa-dice-d10"></i>? — бросок по желанию (Improved). Без значка — без броска: Lock On!, Leadership, Вплотную, пуск ЗРК, Move, Climb / Dive, Change Speed.</p>
       {{#if nextMods.length}}<p class="tb-fx-now tb-small"><span class="tb-muted">К следующему броску:</span> {{#each nextMods as |m|}}<span class="tb-chip">{{m.sval}} {{m.label}} <a data-next-drop="{{m.i}}" title="Убрать">×</a></span>{{/each}}</p>{{/if}}

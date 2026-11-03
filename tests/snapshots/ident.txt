@@ -1,0 +1,9 @@
+что под «?»: враг=enemy лайнер=civil нейтрал=civil свой=own ложная=decoy
+AWACS enemy: Контакт 3 — противник, Су-27 «Стрикс-2». Огонь разрешаю.
+AWACS civil: Контакт 3 — гражданский борт! Огонь не открывать!
+AWACS own: Контакт 3 — свои, Сокол-1. Не стрелять.
+AWACS decoy: Контакт 3 — ложная цель, имитатор. Не тратьте ракеты.
+глазами: 0/low/low=1 0/low/med=1 0/low/high=0 1/med/med=0 0/strat/high=1 null/med/med=0
+нарушение: enemy=— civil=civil own=own decoy=—
+огонь: пилот→свой=нет · пилот→свой «?»=да · союзник NPC→свой «?»=нет · враг→пилот=да
+импорт: {"name":"Контакт 4","texture":{"src":"systems/thunderbolt-shtab/assets/targets/contact.svg","scaleX":0.6},"displayBars":30,"flags":{"thunderbolt-shtab":{"unitId":"u1","unknown":{"n":4,"name":"Су-27 1","src":"systems/x/su27.svg","bars":40,"delta":null}}},"delta":{"name":"Контакт 4"}}

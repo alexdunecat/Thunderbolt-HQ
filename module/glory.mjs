@@ -46,7 +46,8 @@ export function gloryView() {
 const BIG_SHIP = /эсминец|крейсер|линкор|авианос/i;
 
 export function gloryPrefill(losses = [], survivors = []) {
-  const theirs = losses.filter(r => !OURS.includes(r.side) && r.side !== "neutral");
+  // ложная цель (9.6) Славы не даёт
+  const theirs = losses.filter(r => !OURS.includes(r.side) && r.side !== "neutral" && r.key !== "decoy");
   const down = theirs.filter(r => r.how === "down");
   const p = { cons: 0, duel: 0, ace: 0, nem: 0, ship: 0, boss: 0 };
   for (const r of down) {

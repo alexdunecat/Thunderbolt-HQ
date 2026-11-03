@@ -5,7 +5,9 @@
 import { SYSTEM_ID } from "./config.mjs";
 import { resolveActor } from "./utils.mjs";
 
-export const CALLOUT = { HIT: { color: 0xffd27a, size: 0.2 }, MISS: { color: 0xc9d4d8, size: 0.17 }, DESTROYED: { color: 0xff5a4a, size: 0.24 } };
+export const CALLOUT = { HIT: { color: 0xffd27a, size: 0.2 }, MISS: { color: 0xc9d4d8, size: 0.17 }, DESTROYED: { color: 0xff5a4a, size: 0.24 },
+  // ложная цель (9.6): вместо DESTROYED
+  "ЛОЖНАЯ ЦЕЛЬ": { color: 0xc9d4d8, size: 0.2 } };
 const LIFE = 1300, HOLD_DESTROYED = 2200;
 
 /**
@@ -48,8 +50,9 @@ export function callout(token, text, delay = 0) {
   setTimeout(() => {
     if (token.destroyed || !seen(token)) return;
     const prev = live.get(token.id), now = performance.now();
-    if (prev && prev.text === "DESTROYED" && prev.until > now && text !== "DESTROYED") return;
-    if (text === "DESTROYED") live.set(token.id, { text, until: now + HOLD_DESTROYED });
+    const final = text === "DESTROYED" || text === "ЛОЖНАЯ ЦЕЛЬ";
+    if (prev && prev.final && prev.until > now && !final) return;
+    if (final) live.set(token.id, { text, final, until: now + HOLD_DESTROYED });
     const box = container();
     if (!box) return;
     // прежняя надпись этого токена уступает место новой

@@ -114,6 +114,8 @@ export function threatCells(token, { tokens = canvas?.tokens?.placeables ?? [], 
   for (const t of tokens) {
     const a = t.actor;
     if (t === token || a === me || a?.type !== "npc" || !seen(t) || dead(a) || !hostile(a, me)) continue;
+    // неопознанный контакт «?» игроку угрозой не подсвечивается: иначе выдал бы, что он противник
+    if (!game.user.isGM && t.document?.getFlag?.(SYSTEM_ID, "unknown")) continue;
     const cell = cellOf(t);
     if (!cell) continue;
     const s = a.system, name = t.name, quiet = !!quietAA(a);

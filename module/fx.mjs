@@ -991,7 +991,7 @@ function blastZones(zones) {
 function downed(t) {
   const p = P(t)();
   if (!p) return;
-  callout(t, "DESTROYED", 250);
+  callout(t, t.actor?.system?.key === "decoy" ? "ЛОЖНАЯ ЦЕЛЬ" : "DESTROYED", 250);
   boom(p, 0.2);
   // сгоревшая наземная техника и здания: большая подпалина
   if (onGround(t)) later(300, () => scar(p, 0.24, "scorch"));

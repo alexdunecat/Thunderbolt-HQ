@@ -38,7 +38,8 @@ function clear(t) {
 }
 
 function draw(t) {
-  const src = t.actor?.system?.insignia, tex = src ? textureOf(src) : null, m = t.mesh;
+  // контакт «?» эмблему не показывает
+  const src = t.document?.getFlag?.("thunderbolt-shtab", "unknown") ? null : t.actor?.system?.insignia, tex = src ? textureOf(src) : null, m = t.mesh;
   if (!tex || !m) return clear(t);
   let box = t.tbInsignia;
   if (!box || box.destroyed) {

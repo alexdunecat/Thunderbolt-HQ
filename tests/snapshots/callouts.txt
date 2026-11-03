@@ -7,4 +7,4 @@
 залп: 2 ракеты попали, одна мимо после Break!, корабль: [{"to":"B","text":"HIT","delay":1060},{"to":"C","text":"MISS","delay":900},{"to":"S","text":"HIT","delay":1700}]
 пуск в бою (ракета висит до залпа): []
 ловушки Break!: []
-надписи: HIT, MISS, DESTROYED
+надписи: HIT, MISS, DESTROYED, ЛОЖНАЯ ЦЕЛЬ

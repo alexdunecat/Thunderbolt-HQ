@@ -6,6 +6,7 @@ import { esc } from "../utils.mjs";
 import { zonePacker } from "../tokens.mjs";
 import { publicMission, buildSteps, briefingOf, saveBriefing, retOf, retEdges, retLabelEdge } from "../briefing.mjs";
 import { retNorm, retLabel } from "../return-rules.mjs";
+import { contactData } from "../ident.mjs";
 
 const COL_LETTERS = "АБВГДЕЖИКЛМНОПРСТУФХЦЧШЭЮЯ";
 const cellName = (c, r) => (COL_LETTERS[c] ?? "?") + (r + 1);
@@ -396,7 +397,7 @@ export async function importMission(input) {
   const pm = publicMission(m, cat);
 
   const scene = await Scene.create({
-    flags: { [SYSTEM_ID]: { mission: m.name ?? "", objectives: m.objectives ?? [], daytime: m.daytime === "night" ? "night" : "day", place: ["desert", "cold", "sea", "mountain", "jungle"].includes(m.place) ? m.place : "none", nations: { enemy: m.nations?.enemy ?? "", ally: m.nations?.ally ?? "", neutral: m.nations?.neutral ?? "" }, briefing: { mission: pm, steps: buildSteps(pm) } } },
+    flags: { [SYSTEM_ID]: { mission: m.name ?? "", objectives: m.objectives ?? [], ident: !!m.ident, daytime: m.daytime === "night" ? "night" : "day", place: ["desert", "cold", "sea", "mountain", "jungle"].includes(m.place) ? m.place : "none", nations: { enemy: m.nations?.enemy ?? "", ally: m.nations?.ally ?? "", neutral: m.nations?.neutral ?? "" }, briefing: { mission: pm, steps: buildSteps(pm) } } },
     name: title, width: m.cols * S, height: m.rows * S, padding: 0, backgroundColor: "#07141a",
     grid: { type: CONST.GRID_TYPES.SQUARE, size: S, distance: 1, units: "", color: "#9be3bf", alpha: 0.25 },
     tokenVision: false, fog: { exploration: false }, navigation: true
@@ -409,6 +410,7 @@ export async function importMission(input) {
   const folder = await Folder.create({ name: `Миссия: ${title}`, type: "Actor" });
   const tokens = [];
   const roster = [];
+  let contacts = 0;
   const pack = zonePacker(scene);
   const perCell = {};
   const place = (c, r) => {
@@ -463,13 +465,15 @@ export async function importMission(input) {
       // строка Планшета — во флаге токена: по ней ставятся приказ автопилота и выход подкреплением
       const td = await actor.getTokenDocument({ ...spot, texture: { ...actor.prototypeToken.texture.toObject(), ...spot.texture }, elevation,
         name: count > 1 ? `${actor.name} ${i + 1}` : actor.name, hidden: !!(u.arrive?.round || u.arrive?.after), flags: { [SYSTEM_ID]: { unitId: u.id ?? "", ...(calls[i] ? { radioCall: calls[i] } : {}) } } });
-      tokens.push(td.toObject());
+      // неопознанный контакт «?» (9.6): имя «Контакт N» и радарная отметка, настоящее — во флаге
+      tokens.push(u.unknown ? foundry.utils.mergeObject(td.toObject(), contactData(td.toObject(), ++contacts)) : td.toObject());
     }
     const later = u.arrive?.round > 0 ? ` · появится в раунде ${u.arrive.round}` : u.arrive?.after ? " · подкрепление" : "";
-    roster.push({ u, name: calls.length ? `${actor.name} (${calls.join(", ")})` : actor.name, where, what: `${entry.name} · ${TB.tiers[tier] ?? tier}${count > 1 ? ` ×${count}` : ""}${u.ap?.task ? " · автопилот" : ""}${later}` });
+    roster.push({ u, name: calls.length ? `${actor.name} (${calls.join(", ")})` : actor.name, where, what: `${entry.name} · ${TB.tiers[tier] ?? tier}${count > 1 ? ` ×${count}` : ""}${u.ap?.task ? " · автопилот" : ""}${u.unknown ? " · контакт «?»" : ""}${later}` });
   }
   if (drawings.length) await scene.createEmbeddedDocuments("Drawing", drawings);
   const created = tokens.length ? await scene.createEmbeddedDocuments("Token", tokens, { tbKeep: true }) : [];
+  if (contacts) await scene.setFlag(SYSTEM_ID, "contactSeq", contacts);
   const plans = await applyPlans(scene, m.units ?? [], created, m.events ?? []);
 
   // ---- журнал ----

@@ -209,6 +209,9 @@ function tokenDoc(actor) {
  */
 export function nameOf(actor, { own = true } = {}) {
   if (!actor) return "";
+  // неопознанный контакт в чужих репликах — «Контакт N», без позывного
+  const td = tokenDoc(actor);
+  if (td?.getFlag?.(SYSTEM_ID, "unknown")) return td.name || "неизвестный борт";
   const call = own ? String(actor.getFlag?.(SYSTEM_ID, "callsign") ?? "").trim() : "";
   if (call) return call;
   if (actor.system?.callsign) return actor.system.callsign;
@@ -307,8 +310,8 @@ function lineFor(e) {
     if (!event || !eventsFor(type, bankSide(actor, type)).includes(event)) return null;
   }
   const tok = tokenDoc(actor);
-  // скрытый токен не выдаёт себя в эфире
-  if (!tok || tok.hidden) return null;
+  // скрытый токен и неопознанный контакт «?» не выдают себя в эфире
+  if (!tok || tok.hidden || tok.getFlag?.(SYSTEM_ID, "unknown")) return null;
   if (e.event !== "destroyed" && dead(actor)) return null;
   const side = bankSide(actor, type);
   const self = nameOf(actor);

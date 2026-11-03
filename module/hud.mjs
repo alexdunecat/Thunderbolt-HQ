@@ -20,6 +20,7 @@ import { poolOf, squadRowHtml, useTactic } from "./duelists.mjs";
 import { aceRowHtml, aceClick } from "./ace-play.mjs";
 import { justEmptied } from "./winchester.mjs";
 import { wingmenOf, wingOrderOf, wingSpwOf, giveWingOrder, WING_ORDERS, WING_SPW } from "./autopilot.mjs";
+import { isUnknown } from "./ident.mjs";
 import { hudNemesis, isNemesis, pilotsOf, monologue, startMonologue, endMonologue, appear, useTrigger, STATE_TEXT } from "./nemesis.mjs";
 
 const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, POS_KEY = `${SYSTEM_ID}.hudPos`;
@@ -152,6 +153,8 @@ export function hudData(actor) {
     lock: s.lockUuid || s.lock ? { name: target?.token?.name ?? tTok?.name ?? target?.name ?? s.lock, uuid: s.lockUuid, gone: !tTok,
       dist: dist === null ? "" : dist === 0 ? "своя зона" : `${dist} ${dist === 1 ? "зона" : dist < 5 ? "зоны" : "зон"}` } : null,
     weapons, aimed: aim, warn,
+    // захвачен неопознанный контакт «?»: кнопка опознания по радару (9.6)
+    ident: !!tTok && isUnknown(tTok) && (pilot || !!actor.hasPlayerOwner),
     // Немезида: у пилота — лампа с именем, дальностью и тем, что действует; у ведущего на её машине — «Появление» и «Монолог»
     nem: pilot ? hudNemesis(actor) : null,
     // боевые триггеры: что можно задействовать сейчас и что действует
@@ -384,7 +387,7 @@ function html(actor, d, folded) {
       <div class="tb-hud-col tb-hud-arm">${fighter(d)}</div>
       <div class="tb-hud-col tb-hud-ctl">
         <div class="tb-hud-btns tb-hud-wpns"><small title="Пульт вооружения">STORES</small>${weaponButtons(d)}</div>
-        <div class="tb-hud-btns tb-hud-moves"><small>МАНЁВР</small>${moves}</div>
+        <div class="tb-hud-btns tb-hud-moves"><small>МАНЁВР</small>${moves}${d.ident ? `<button type="button" data-hud-act="ident" class="ident" title="Опознать захваченный контакт: Aim против 7, проверка хода (Стрэйнджриал 9.6)">ОПОЗН</button>` : ""}</div>
         <div class="tb-hud-btns tb-hud-acts${d.acts?.turn ? " turn" : ""}" title="Действия хода${d.acts?.rolled ? " · бросок уже был" : ""}"><small>ХОД</small>${actBoxes}${d.acts?.rolled ? `<i class="fas fa-dice-d10" title="Бросок за ход уже был"></i>` : ""}${button("end", BUTTONS.end)}</div>
         ${rollRowHtml(d)}
         ${planeRowHtml(d.planeRow)}

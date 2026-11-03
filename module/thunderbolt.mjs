@@ -65,6 +65,7 @@ import { registerQuietNotes } from "./quiet-notes.mjs";
 import { registerCallouts } from "./callouts.mjs";
 import { registerTurnStrip } from "./turn-strip.mjs";
 import { registerPing } from "./ping.mjs";
+import { registerIdent } from "./ident.mjs";
 import { registerInsignia } from "./insignia.mjs";
 import { registerSideColor } from "./sidecolor.mjs";
 import { registerLosses } from "./losses.mjs";
@@ -211,6 +212,7 @@ Hooks.once("init", () => {
   registerCallouts();
   registerTurnStrip();
   registerPing();
+  registerIdent();
   registerAltitude();
   registerInsignia();
   registerSideColor();

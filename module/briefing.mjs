@@ -91,11 +91,14 @@ export function publicMission(m, cat = {}) {
       name: String(u.name || markers.get(ref)?.n || entry?.name || ref || "Объект"), count: Math.max(1, Math.round(Number(u.count) || 1)), c, r };
     if (["L", "M", "H", "S"].includes(u.alt)) x.alt = u.alt;
     if (k === "sam" || k === "aa") x.rng = THREAT[ref] ?? (k === "sam" ? 115 : 65);
+    // неопознанный контакт (9.6): на брифинге без имени и стороны
+    if (u.unknown) Object.assign(x, { name: "Неопознанный контакт", side: "neutral", unknown: true });
     units.push(x);
   });
   return {
     name: String(m?.name ?? ""), type: String(m?.type ?? ""), cols, rows, base: String(m?.base ?? "steppe"), hexes, wx, units,
     objectives: (m?.objectives ?? []).map(o => String(o).trim()).filter(Boolean), briefing: String(m?.briefing ?? ""),
+    ...(m?.ident ? { ident: true } : {}),
     ...(retOf(m, cols, rows) ? { ret: retOf(m, cols, rows) } : {})
   };
 }
@@ -155,6 +158,10 @@ export function buildSteps(pm) {
   const rest = us.filter(u => u.side === "enemy" && !["air", "goal", "flight"].includes(u.k) && !owner.has(u.id));
   if (rest.length) steps.push({ title: "ПРОТИВНИК В РАЙОНЕ", focus: box(rest), show: ids(rest), blink: ids(rest), threat: rest.some(u => u.k === "sam" || u.k === "aa"),
     text: `Также в районе: ${rest.map(u => `${u.name}${u.count > 1 ? ` (${u.count})` : ""}`).join("; ")}.${rest.some(u => u.k === "sam" || u.k === "aa") ? " Обходите зоны ПВО." : ""}` });
+  // вылет с опознанием (9.6): контакты на радаре без опознавания
+  const unk = us.filter(u => u.unknown);
+  if (pm.ident || unk.length) steps.push({ title: "ОПОЗНАНИЕ", focus: unk.length ? box(unk) : "all", show: ids(unk), blink: ids(unk),
+    text: `Вылет с опознанием: контакты на радаре без опознавания${unk.length ? `, их ${unk.length}` : ""}. Под отметкой может быть противник, гражданский борт, свои или ложная цель. Опознайте визуально или по захвату, прежде чем стрелять.` });
   const allies = us.filter(u => u.side === "ally");
   if (allies.length) steps.push({ title: "СВОИ СИЛЫ", focus: box(allies), show: ids(allies), blink: ids(allies),
     text: take(/колонн|свои|союз|прикры|наши/i) || `Свои: ${allies.map(u => u.name).join(", ")}.` });

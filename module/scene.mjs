@@ -151,9 +151,20 @@ export function sideOf(actor) {
   return TB.sides[actor?.system?.side] ? actor.system.side : "enemy";
 }
 
-/** Можно ли стрелять: по своей стороне нельзя (игроки и союзники — одна сторона), по противнику и нейтралу можно. */
+/** Флаг токена «неопознанный контакт» (ident.mjs). */
+export const UNKNOWN_KEY = "unknown";
+/** Стоит ли на машине «?»: её токен — неопознанный контакт. */
+export function actorUnknown(actor) {
+  if (!actor) return false;
+  if (actor.isToken) return !!actor.token?.getFlag?.(SYSTEM_ID, UNKNOWN_KEY);
+  return (actor.getActiveTokens?.(false, true) ?? []).some(d => !!d.getFlag?.(SYSTEM_ID, UNKNOWN_KEY));
+}
+
+/** Можно ли стрелять: по своей стороне нельзя (игроки и союзники — одна сторона), по противнику и нейтралу можно.
+    Игрок может стрелять и по неопознанному контакту «?», даже если под ним свой (9.6). */
 export function canFireAt(shooter, target) {
   const team = s => (s === "player" ? "ally" : s);
+  if ((shooter?.type === "pilot" || shooter?.hasPlayerOwner) && actorUnknown(target)) return true;
   return team(sideOf(shooter)) !== team(sideOf(target));
 }
 

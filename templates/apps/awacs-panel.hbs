@@ -17,6 +17,7 @@
       <div class="tb-awacs-tools">
         <button type="button" data-sortie-all><i class="fas fa-plane-departure"></i> Все к вылету</button>
         <button type="button" data-all-fight title="Добавить в трекер боя всех пилотов и NPC на сцене (здания и объекты не добавляются, скрытые остаются скрытыми)"><i class="fas fa-jet-fighter"></i> Все в бой</button>
+        <label class="tb-awacs-ident" title="Вылет с опознанием (Стрэйнджриал 9.6): часть машин игроки видят как контакт «?». Контактом токен делает кнопка «?» в его меню; здесь их {{contacts}}."><input type="checkbox" data-ident-scene {{#if identScene}}checked{{/if}}> С опознанием{{#if contacts}} · «?» {{contacts}}{{/if}}</label>
       </div>
       <h3>Пилоты</h3>
       {{#if pilots.length}}

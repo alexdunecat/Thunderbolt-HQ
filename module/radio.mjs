@@ -91,8 +91,8 @@ function reinforcements(doc, userId) {
   if (userId !== game.user.id || !game.user.isGM || !game.combat?.started || doc.parent?.id !== (game.combat.scene ?? canvas?.scene)?.id) return;
   const a = doc.actor;
   if (a?.type !== "npc" || (a.system.side ?? "enemy") !== "enemy") return;
-  // Немезиду представляет nemesis.mjs: заставкой асов и с отметкой у её пилотов
-  if (a.system.nemesis) return;
+  // Немезиду представляет nemesis.mjs: заставкой асов и с отметкой у её пилотов; контакт «?» себя не выдаёт
+  if (a.system.nemesis || doc.getFlag?.(SYSTEM_ID, "unknown")) return;
   const boss = a.system.grp === "boss", ace = a.system.tier === "ace", squad = a.system.tier === "duelist" && a.system.squad;
   if (!boss && !ace && !squad) return;
   // безымянная эскадрилья дуэлянтов называется по выданному позывному («Ак-Буран»)

@@ -5,6 +5,8 @@ import { dimmed } from "./altitude.mjs";
 import { layoutChanged } from "./utils.mjs";
 
 export const SIDE_TINT = { player: 0x8ee6a0, ally: 0x6cc4ff, enemy: 0xff6b4a, neutral: 0xf2c14e };
+// неопознанный контакт «?» у игроков: серый, без цвета стороны
+const CONTACT_TINT = 0xb8c2c8;
 const OURS = /systems\/thunderbolt-shtab\/assets\/(planes|targets)\//;
 
 export function registerSideColor() {
@@ -33,8 +35,11 @@ function customTint(doc) {
 function paint(t) {
   const m = t.mesh, doc = t.document;
   if (!m || m.destroyed) return;
+  // контакт «?»: игрокам серая отметка без уголков приоритета; ведущему — настоящий силуэт цветом стороны
+  const unk = doc.getFlag?.("thunderbolt-shtab", "unknown");
+  if (unk && !game.user.isGM) { m.tint = CONTACT_TINT; brackets(t, false); return; }
   const tint = SIDE_TINT[sideOf(t.actor)];
-  if (tint !== undefined && OURS.test(doc.texture?.src ?? "") && !customTint(doc)) m.tint = tint;
+  if (tint !== undefined && OURS.test((unk?.src || doc.texture?.src) ?? "") && !customTint(doc)) m.tint = tint;
   brackets(t, !!t.actor?.system?.priority && t.actor.type !== "pilot", SIDE_TINT[sideOf(t.actor)] ?? SIDE_TINT.enemy);
 }
 

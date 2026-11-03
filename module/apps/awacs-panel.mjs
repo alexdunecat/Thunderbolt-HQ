@@ -141,6 +141,7 @@ export class AwacsPanel extends Application {
       skillHeads: Object.values(TB.skills).map(v => ({ label: v.label, en: v.en })),
       weather: Object.entries(TB.weather).map(([id, d]) => ({ id, ...d, on: sceneWeather.has(id) })),
       round: combat?.started ? combat.round : null, queued, campaignDate: campaignDateRaw(), today: todayDate(),
+      identScene: !!game.scenes.viewed?.getFlag(SYSTEM_ID, "ident"), contacts: (game.scenes.viewed?.tokens ?? []).filter(t => t.getFlag(SYSTEM_ID, "unknown")).length,
       glory: (() => { const g = gloryView(); return { ...g, pct: g.nextAt !== null ? Math.round(100 * g.points / g.nextAt) : 100,
         recent: (g.log ?? []).slice(-3).reverse().map(x => `${x.date} · ${x.op}: ${x.total >= 0 ? "+" : "−"}${Math.abs(x.total)}`) }; })(),
       tunnel: specialSections(scene),
@@ -245,6 +246,7 @@ export class AwacsPanel extends Application {
       if (await Dialog.confirm({ title: "Шкала угрозы", content: "<p>Убрать эту шкалу?</p>" })) deleteThreat(d.threatDel);
     });
     on("[data-all-fight]", () => allToCombat());
+    el.querySelector("[data-ident-scene]")?.addEventListener("change", ev => game.scenes.viewed?.setFlag(SYSTEM_ID, "ident", ev.target.checked));
     el.querySelector("[data-campaign-date]")?.addEventListener("change", ev => setCampaignDate(ev.target.value));
     on("[data-squad-form]", () => squadFromSelection());
     on("[data-squad-num]", d => numberSquad(d.squadNum));
@@ -309,8 +311,12 @@ async function writeDebrief({ op, objectives, rows, targets, date = campaignDate
   const goals = objectives.length ? `<h2>Задачи</h2><ul>${objectives.map(o => `<li>${o.done ? "✔" : "✘"} ${esc(o.text)}</li>`).join("")}</ul>` : "";
   const scene = game.scenes.viewed, marks = targetGoals(scene, scene?.getFlag(SYSTEM_ID, "lastBattle")?.losses ?? []);
   const aims = marks.length ? `<h2>Цели</h2>${li(marks)}` : "";
+  // огонь по гражданским и своим под «?» (9.6): Нервы и шкалу угрозы ставит ведущий
+  const { violationLines } = await import("../ident.mjs");
+  const bad = violationLines(scene);
+  const viol = bad.length ? `<h2>Нарушения</h2>${li(bad.map(esc))}<p><i>За каждое: +1 на шкалу угрозы, +1 Нервы стрелявшему.</i></p>` : "";
   const html = `<p><b>${esc(op)}</b> · ${esc(game.scenes.viewed?.name ?? "")} · ${esc(date)}${game.combat?.round ? ` · раундов: ${game.combat.round}` : ""}</p>
-    ${goals}${aims}<h2>Звено</h2>${pilots}
+    ${goals}${aims}${viol}<h2>Звено</h2>${pilots}
     <h2>Уничтожено</h2>${li(targets.down.map(esc))}${targets.retreat.length ? `<h2>Отступили</h2>${li(targets.retreat.map(esc))}` : ""}<h2>Уцелело</h2>${li(targets.alive.map(esc))}
     <h2>Потери авиакрыла и союзников</h2>${li(targets.ours.map(esc))}`;
   return JournalEntry.create({

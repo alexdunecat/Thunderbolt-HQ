@@ -242,6 +242,7 @@ export function renderCard(card) {
     btn.push(`<button type="button" data-tb-action="strain" class="tb-owner"${pool ? ` title="Запас эскадрильи «${esc(poolSquad(who))}»"` : ""}><i class="fas fa-bolt"></i> +1 Strain${pool ? ` · запас ${pool.value}/${pool.max}` : ""}</button>`);
   }
   if (c.type === "side" && c.success && c.onWin && !c.applied) btn.push(`<button type="button" data-tb-action="side-win" class="tb-owner"><i class="fas fa-door-open"></i> «${esc(c.onWin.name)}» выходит из боя</button>`);
+  if (c.ident) rows.push(`<div class="tb-note">${c.identDone ? `Контакт ${c.ident.n} опознан: AWACS сообщает, кто это.` : c.success ? `Контакт ${c.ident.n} опознаётся…` : `Контакт ${c.ident.n} не опознан.`}</div>`);
   if (c.type === "side" && c.success && c.onWin && c.applied) rows.push(`<div class="tb-note">«${esc(c.onWin.name)}» выходит из боя.</div>`);
   if (c.type === "side" && !c.success && !c.applied) {
     if (c.onFail === "engines") btn.push(`<button type="button" data-tb-action="side-engines" class="tb-owner"><i class="fas fa-fire"></i> Structure: Engines</button>`);
@@ -2293,10 +2294,18 @@ export async function onCardAction(message, action, button) {
       }
       card.strain = (card.strain ?? 0) + 1;
       await save();
+      if (card.ident) await onCardAction(message, "ident");
       if (card.type === "break") await applyBreak(actor, card);
       if (card.instant) await autoHit(message);
       if (card.type === "rail") await railHit(message);
       return;
+    }
+    case "ident": {
+      // опознание по радару (9.6) удалось: ведущий снимает «?», AWACS называет, кто это
+      if (!actor?.isOwner || !card.ident || card.identDone || !computeCard(card).success) return;
+      card.identDone = true; await save();
+      const { requestReveal } = await import("../ident.mjs");
+      return requestReveal(card.ident.uuid, "радар");
     }
     case "break-speed": {
       if (!actor?.isOwner || card.speedApplied) return;

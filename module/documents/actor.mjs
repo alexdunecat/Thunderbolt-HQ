@@ -197,6 +197,9 @@ export class TBActor extends Actor {
       if (amount <= 0) return;
     }
     const opts = { sourceUuid, roundKey, system, one };
+    // попадание по неопознанному контакту «?»: под ним гражданский или свой — нарушение (9.6); данные снимаю сейчас, до раскрытия
+    const unk = (this.isToken ? this.token : this.getActiveTokens?.(false, true)?.[0])?.getFlag?.(SYSTEM_ID, "unknown");
+    if (unk) import("../ident.mjs").then(m => m.onHitUnknown(this, sourceUuid, unk)).catch(err => console.warn(`${SYSTEM_ID} | опознание`, err));
     // «Рядом с тобой»: товарищ в той же зоне может принять удар на себя
     if (this.type === "pilot" && !guard && await offerGuard(this, amount, { source, sourceUuid, roundKey })) return;
     this.#alarm();
@@ -362,6 +365,8 @@ export class TBActor extends Actor {
   /** Засчитать сбитого или уничтоженного пилоту-стрелку (для итогов вылета). */
   async #creditKill(sourceUuid) {
     await this.markDown(sourceUuid);
+    // ложная цель (9.6): ни побед, ни Славы, ни медалей
+    if (this.system.key === "decoy") return;
     const shooter = sourceUuid ? R.resolveActor(sourceUuid) : null;
     // «Счёт к оплате»: сбит виновный; «Отличная работа!»: товарищ подбадривает стрелка
     await billPaid(this).catch(err => console.warn(`${SYSTEM_ID} | Счёт к оплате`, err));
