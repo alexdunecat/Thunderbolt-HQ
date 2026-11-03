@@ -840,9 +840,10 @@ const skillSum = (actor, skill) => { try { return sum(skillParts(actor, skill));
  * Прикидка Fox Two! по цели для совета ведущему: итог без броска (fox), прибавка к d10 с броском (imp), с чем сравнивать (dc),
  * попадёт ли без броска (hit) и доля бросков d10, что попадут (chance). Ракетой — стандартной, иначе первым подходящим спецоружием.
  */
-export function foxEstimate(actor, t) {
+export function foxEstimate(actor, t, weapon) {
   const s = actor.system, kind = targetKind(t), air = kind === "air";
-  const w = stdMissile(actor, kind) ? null : sysOff(s, "sw") ? null : actor.items.find(i => i.type === "weapon" && weaponFits(i, kind) && weaponReady(i)) ?? null;
+  // weapon: undefined — подобрать самому; null — стандартная ракета; предмет — это спецоружие
+  const w = weapon !== undefined ? weapon : stdMissile(actor, kind) ? null : sysOff(s, "sw") ? null : actor.items.find(i => i.type === "weapon" && weaponFits(i, kind) && weaponReady(i)) ?? null;
   let base = air ? s.aa : s.ag;
   if (actor.type === "npc" && s.kind === "ground") base = (air ? s.ground?.ga : s.ground?.gg) ?? 0;
   const ws = w?.system, wx = weatherAt(actor);
@@ -853,6 +854,41 @@ export function foxEstimate(actor, t) {
   const dc = t.defense === null ? null : defVs(actor, t, w);
   const chance = dc === null ? null : Math.max(0, Math.min(10, 11 - (dc - imp))) / 10;
   return { fox, imp, dc, hit: dc !== null && fox >= dc, chance, weapon: w?.name ?? null };
+}
+
+/** Доля бросков d10 (0..1), что дадут итог не меньше need при прибавке add. */
+export const d10Chance = (need, add) => Math.max(0, Math.min(10, 11 - (need - add))) / 10;
+
+/**
+ * Шанс для подсказки станции в HUD: по захваченной цели (иначе по метке T). station: "guns", "missile" или id спецоружия.
+ * Возвращает { name, text } или null (цели нет). Пушка — d10 + Strafe − Speed против защиты; ракета — без броска (сразу ясно,
+ * попадёт ли) и с броском (Improved: d10 + Aim или Deploy). По кораблю — против Occlusion системы, её выбирают на пульте.
+ */
+export function hudOdds(actor, station) {
+  let t = null;
+  try { t = lockedTarget(actor) ?? currentTarget(); } catch { t = null; }
+  if (!t?.actor || t.actor === actor) return null;
+  t = { ...t, name: t.token?.name || t.name || t.actor.name };
+  const pct = c => `${Math.round(c * 100)}%`;
+  const far = (range) => { try { return reachProblems(actor, t, range).problems[0] ?? ""; } catch { return ""; } };
+  if (station === "guns") {
+    if (t.defense === null || t.defense === undefined) return { name: t.name, text: "по кораблю — против Occlusion системы, её выбирают на пульте" };
+    const s = actor.system, speed = actor.type === "npc" && s.kind !== "air" ? 0 : (s.speed ?? 0);
+    const add = skillSum(actor, "strafe") - speed + sum(triggerAttack(actor, t.actor, { rolled: true, skill: "strafe", guns: true }).parts)
+      + sum(nemesisAttack(actor, t.actor, { rolled: true, skill: "strafe" }).parts) + sum([surprise(actor, t)]) + (casRun(actor, t) ? speed : 0);
+    const def = t.defense + nemesisDefense(actor, t.actor) + triggerDefense(actor, t.actor);
+    const need = def - add;
+    const out = far(TB.range.guns);
+    return { name: t.name, text: `DEF ${def}: нужно ${need <= 1 ? "любое" : need > 10 ? "больше 10" : `${need}+`} на d10, шанс ${pct(d10Chance(def, add))}${out ? `. ${out}` : ""}` };
+  }
+  const w = station === "missile" ? null : actor.items.get(station) ?? null;
+  if (station !== "missile" && !w) return null;
+  const kind = targetKind(t);
+  if (w && !weaponFits(w, kind)) return { name: t.name, text: `${w.name} не бьёт по ${kind === "air" ? "воздушной" : "наземной или морской"} цели` };
+  const e = foxEstimate(actor, t, w);
+  if (e.dc === null) return { name: t.name, text: "по кораблю — против Occlusion системы, её выбирают на пульте" };
+  const out = far(w?.system.reach ?? TB.range.missile);
+  return { name: t.name, text: `защита ${e.dc}: без броска итог ${e.fox} — ${e.hit ? "попадает" : "мимо"}; с броском шанс ${pct(e.chance)}${out ? `. ${out}` : ""}` };
 }
 
 /**

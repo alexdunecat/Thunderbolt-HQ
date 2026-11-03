@@ -11,7 +11,7 @@ Object.assign(globalThis, {
     data: { fields: { NumberField: F, StringField: F, BooleanField: F, SchemaField: F, ArrayField: F, HTMLField: F, ObjectField: F } } },
   CONST: { DOCUMENT_OWNERSHIP_LEVELS: { LIMITED: 1 }, GRID_TYPES: { GRIDLESS: 0 } },
   Hooks: { on() {}, once() {} }, CONFIG: { sounds: {}, specialStatusEffects: { DEFEATED: "dead" } },
-  game: { user: { id: "p1", isGM: false, character: null }, users: [], macros: [], folders: [], messages: { contents: msgs }, combat, settings: { get: () => true } },
+  game: { user: { id: "p1", isGM: false, character: null }, users: [], macros: [], folders: [], messages: { contents: msgs }, combat, settings: { get: (s, k) => (k === "threats" ? [] : true) } },
   ui: { notifications: { warn() {}, info() {} } },
   Actor: class {}, Item: class {}, Combat: class {}, Application: class {}, FormApplication: class {}, ActorSheet: class {}, Dialog: class {}, fromUuidSync: () => null
 });
@@ -19,6 +19,7 @@ const scene = { id: "S", getFlag: () => null };
 const mkTok = (id, actor, x, elevation) => ({ id, name: actor.name, actor, center: { x, y: 50 }, document: { parent: scene, elevation, width: 1, height: 1, x: x - 50, y: 0, texture: { src: process.env.HUD_IMG ?? "systems/thunderbolt-shtab/assets/planes/mig29.svg" } } });
 const mkActor = (name, type, system, items = []) => {
   const a = { name, type, uuid: "Actor." + name, isOwner: true, isToken: false, system, items, ...flags({}) };
+  items.get = id => items.find(i => i.id === id);
   a.getActiveTokens = () => (a.tok ? [a.tok] : []);
   return a;
 };
@@ -72,6 +73,8 @@ console.log("у ведущего с выделенным:", H.hudActor()?.name ?
   msgs.splice(0, 1, stallCard({ alt: "low" }));
   console.log("сваливание на Низкой:", (H.hudHtml(me).match(/data-hud-stall="S0"[^>]*>([^<]+)/) ?? [])[1] ?? "кнопки нет", "· исход уже применён:", (msgs.splice(0, 1, stallCard({ applied: true })), H.stallPending(me)));
   me.system.speed = sp; msgs.splice(0, msgs.length, ...keep); }
+{ const cases = [["4→3 та же", { uuid: "a", hp: 4 }, { uuid: "a", hp: 3 }], ["3→3", { uuid: "a", hp: 3 }, { uuid: "a", hp: 3 }], ["3→5 ремонт", { uuid: "a", hp: 3 }, { uuid: "a", hp: 5 }], ["4→2 другая машина", { uuid: "b", hp: 4 }, { uuid: "a", hp: 2 }], ["первый раз", null, { uuid: "a", hp: 2 }]];
+  console.log("удар по своей машине:", cases.map(([k, a, b]) => `${k}=${H.tookHit(a, b)}`).join(", ")); }
 console.log("кнопка Strain: у NPC без Strain", /data-hud-act="recover"/.test(H.hudHtml(foe)) ? "есть" : "нет", "· у пилота", /data-hud-act="recover"/.test(H.hudHtml(me)) ? "есть" : "нет");
 { const W = await import(R + "/module/rwr.mjs"), was = foe.system.lockUuid, gf = foe.getFlag;
   foe.system.lockUuid = "Actor.Гроза";

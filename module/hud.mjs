@@ -11,7 +11,7 @@ import { combatantOf, spentOf, declaredOf, endTurn } from "./actions.mjs";
 import { runAction, PILOT_BAR } from "./macros.mjs";
 import { lockersOf } from "./rwr.mjs";
 import { vmaxOf, kmhOf } from "./plane-speed.mjs";
-import { ejectNow, weaponReady, isGunPod, isOwnFire, computeCard, onCardAction } from "./dice/rolls.mjs";
+import { ejectNow, weaponReady, isGunPod, isOwnFire, computeCard, onCardAction, hudOdds } from "./dice/rolls.mjs";
 import { unitKind, unitHtml, onUnitClick, registerUnitHud } from "./unit-hud.mjs";
 import { hudTriggers, useCombatTrigger } from "./combat-triggers.mjs";
 import { adviceRow, runAdvice, showTarget } from "./npc-advice.mjs";
@@ -38,8 +38,12 @@ export function registerHud() {
     scope: "client", config: true, type: String, default: "corners", choices: { corners: "По углам, как в Ace Combat", panel: "Одной панелью" },
     onChange: () => { lastHtml = ""; refreshHud(); }
   });
+  game.settings.register(SYSTEM_ID, "hitFlash", {
+    name: "Удар по своей машине", hint: "Когда твоя машина в HUD получает урон, края экрана коротко вспыхивают красным, а HUD вздрагивает. При метке Doom красная кайма держится. Только у себя.",
+    scope: "client", config: true, type: Boolean, default: true, onChange: v => { if (!v) setDoomFrame(false); }
+  });
   game.settings.register(SYSTEM_ID, "hudScale", {
-    name: "Размер HUD по углам", hint: "Насколько крупно рисуются приборы, оружие и кнопки HUD по углам. Если места на экране не хватает, сначала прячется силуэт машины, потом сужаются колонки.",
+    name: "Размер HUD по углам", hint: "Насколько крупно рисуются приборы, оружие и кнопки HUD по углам. Если места на экране не хватает, сначала сужаются колонки, потом прячется силуэт машины.",
     scope: "client", config: true, type: String, default: "1.15", choices: { "1": "Обычный", "1.15": "Крупнее", "1.3": "Ещё крупнее", "1.45": "Самый крупный" },
     onChange: () => place()
   });
@@ -154,6 +158,8 @@ export function hudData(actor) {
     ct: pilot ? hudTriggers(actor) : null,
     // последний бросок, к которому можно добавить Strain прямо из HUD
     roll: c ? strainRoll(actor) : null,
+    // шанс по захваченной цели для подсказок станций: пушка, стандартная ракета, каждое спецоружие
+    odds: c ? oddsOf(actor) : {},
     // сваливание: бросок уже был, а исход не применён — кнопка прямо на плашке STALL
     stall: flying ? stallPending(actor) : null,
     // роль машины, лампы свойств, Angle of Attack Limiter и фирменный приём
@@ -177,6 +183,16 @@ export function strainRoll(actor, messages = game.messages?.contents ?? []) {
   }
   return null;
 }
+
+/** Шанс по цели для каждой станции HUD (подсказка при наведении); ошибка прикидки подсказку просто не даёт. */
+function oddsOf(actor) {
+  const out = {};
+  for (const st of ["guns", "missile", ...actor.items.filter(i => i.type === "weapon").map(i => i.id)]) {
+    try { const o = hudOdds(actor, st); if (o) out[st] = o; } catch (err) { /* без подсказки */ }
+  }
+  return out;
+}
+const oddsLine = o => (o ? `\nЦель «${o.name}»: ${o.text}` : "");
 
 /** Неразобранная карточка сваливания этой машины: { id, ok, low } — исход применяется кнопкой прямо из HUD. */
 export function stallPending(actor, messages = game.messages?.contents ?? []) {
@@ -306,13 +322,13 @@ function weaponButtons(d) {
     `<button type="button" ${attrs} class="wpn st ${cls}" title="${esc(title)}"><i class="st-led"></i><span class="st-name">${esc(code)}</span><span class="st-cnt">${esc(cnt)}</span>${tag ? `<small class="st-trait">${esc(tag)}</small>` : ""}${key ? `<b class="st-key">${key}</b>` : ""}</button>`;
   const dead = sys => d.systems.some(x => x.key === sys && x.broken);
   return [
-    station({ attrs: `data-hud-act="guns"`, cls: dead("gu") ? "dead" : "", code: "GUN", cnt: dead("gu") ? "FAIL" : "RDY", key: n("guns"), title: "Guns, Guns, Guns!" }),
-    station({ attrs: `data-hud-act="missile"`, cls: `${d.aimed ? "" : "aimed"} ${dead("ms") ? "dead" : ""}`, code: "FOX 2", cnt: dead("ms") ? "FAIL" : "RDY", key: n("missile"), title: "Fox Two! стандартной ракетой" }),
+    station({ attrs: `data-hud-act="guns"`, cls: dead("gu") ? "dead" : "", code: "GUN", cnt: dead("gu") ? "FAIL" : "RDY", key: n("guns"), title: `Guns, Guns, Guns!${oddsLine(d.odds?.guns)}` }),
+    station({ attrs: `data-hud-act="missile"`, cls: `${d.aimed ? "" : "aimed"} ${dead("ms") ? "dead" : ""}`, code: "FOX 2", cnt: dead("ms") ? "FAIL" : "RDY", key: n("missile"), title: `Fox Two! стандартной ракетой${oddsLine(d.odds?.missile)}` }),
     ...d.weapons.map(w => {
       const [ammo] = String(w.ammo).split("/");
       return station({ attrs: `data-hud-spw="${w.id}"`, cls: `spw ${w.aimed ? "aimed" : ""} ${w.empty ? "empty" : ""} ${w.winch ? "winch" : ""} ${dead("sw") ? "dead" : ""}`,
         code: w.name.split(" · ")[0], cnt: dead("sw") ? "FAIL" : pad(ammo), tag: w.trait?.tag,
-        title: `${w.name} ${w.ammo}: выбрать и пустить${w.trait ? `\n${w.trait.name}. ${w.trait.text}` : ""}` });
+        title: `${w.name} ${w.ammo}: выбрать и пустить${w.trait ? `\n${w.trait.name}. ${w.trait.text}` : ""}${oddsLine(d.odds?.[w.id])}` });
     })
   ].join("");
 }
@@ -388,10 +404,39 @@ export const corners = () => { try { return game.settings.get(SYSTEM_ID, "hudLay
 /** Разметка HUD для актёра (для тестов и проверки вида). */
 export const hudHtml = (actor, folded = false) => html(actor, hudData(actor), folded);
 
+/** Получила ли машина урон: HP упало с прошлого раза, а это та же машина (смена машины в HUD — не удар). */
+export const tookHit = (prev, now) => !!prev && prev.uuid === now.uuid && now.hp < prev.hp;
+
+/* Удар по своей машине: красная вспышка по краям экрана и дрожь HUD; Doom — красная кайма держится. */
+let lastHp = null, vignette = null;
+const flashOn = () => { try { return game.settings.get(SYSTEM_ID, "hitFlash") !== false; } catch { return true; } };
+function vig() {
+  if (!vignette || !vignette.isConnected) { vignette = document.createElement("div"); vignette.id = "tb-hit-vignette"; document.body.append(vignette); }
+  return vignette;
+}
+function hitFlash() {
+  if (!flashOn()) return;
+  const v = vig();
+  v.classList.remove("hit"); void v.offsetWidth; v.classList.add("hit");
+  if (el) { el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake"); }
+}
+function setDoomFrame(on) {
+  if (!on && !vignette) return;
+  vig().classList.toggle("doom", !!on && flashOn());
+}
+function watchHits(actor) {
+  if (!actor) { lastHp = null; setDoomFrame(false); return; }
+  const now = { uuid: actor.uuid, hp: Number(actor.system.hp?.value ?? 0) };
+  if (tookHit(lastHp, now)) hitFlash();
+  lastHp = now;
+  setDoomFrame(!!actor.system.markers?.doom);
+}
+
 function render() {
   const actor = game.settings.get(SYSTEM_ID, "pilotHud") && game.combat?.started && (!game.combat.scene || game.combat.scene.id === canvas?.scene?.id) ? hudActor() : null;
-  if (!actor || !tokenOf(actor)) { el?.remove(); el = null; shown = null; lastHtml = ""; return; }
+  if (!actor || !tokenOf(actor)) { el?.remove(); el = null; shown = null; lastHtml = ""; watchHits(null); return; }
   shown = actor;
+  watchHits(actor);
   let folded = false;
   try { folded = localStorage.getItem(FOLD_KEY) === "1"; } catch (err) { /* хранилище недоступно */ }
   if (!el) {

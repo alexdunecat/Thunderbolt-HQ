@@ -62,6 +62,8 @@ import { registerHoverCard } from "./hover-card.mjs";
 import { registerNightLights } from "./night-lights.mjs";
 import { registerCombatScreen } from "./combat-screen.mjs";
 import { registerQuietNotes } from "./quiet-notes.mjs";
+import { registerCallouts } from "./callouts.mjs";
+import { registerTurnStrip } from "./turn-strip.mjs";
 import { registerInsignia } from "./insignia.mjs";
 import { registerSideColor } from "./sidecolor.mjs";
 import { registerLosses } from "./losses.mjs";
@@ -205,6 +207,8 @@ Hooks.once("init", () => {
   registerNightLights();
   registerCombatScreen();
   registerQuietNotes();
+  registerCallouts();
+  registerTurnStrip();
   registerAltitude();
   registerInsignia();
   registerSideColor();

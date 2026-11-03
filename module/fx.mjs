@@ -9,6 +9,7 @@
 import { SYSTEM_ID } from "./config.mjs";
 import { resolveActor } from "./utils.mjs";
 import { isFlying, altOf } from "./scene.mjs";
+import { playCallouts, callout } from "./callouts.mjs";
 
 /* ---------- план: что показать по карточке (чистая часть, тесты) ---------- */
 
@@ -180,6 +181,8 @@ async function onCard(message) {
     else if (t && !seen(t)) report(`токен «${t.name}» не виден игроку (скрыт: ${!!t.document.hidden}, зрение токенов на сцене: ${!!canvas.visibility?.tokenVision})`);
   }
   playPlan(plan, message, card.type === "volley");
+  // HIT / MISS над целью, когда выстрел долетает
+  playCallouts(plan);
 }
 
 /** Очередь аса по куполу (parachute.mjs): трассеры от стрелка к точке купола. */
@@ -749,6 +752,7 @@ function blastZones(zones) {
 function downed(t) {
   const p = P(t)();
   if (!p) return;
+  callout(t, "DESTROYED", 250);
   boom(p, 0.2);
   later(180, () => boom({ x: p.x + rnd(-1, 1) * gs() * 0.06, y: p.y + rnd(-1, 1) * gs() * 0.06 }, 0.12));
   for (let i = 0; i < 10; i++) puff({ x: p.x + rnd(-4, 4), y: p.y }, { r: 0.04, life: 2200, color: 0x333333, alpha: 0.5, grow: 2.2, vx: rnd(-6, 6), vy: -gs() * 0.08, delay: 300 + i * 120 });
