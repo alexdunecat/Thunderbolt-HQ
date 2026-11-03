@@ -520,6 +520,17 @@ async function markDoomEject(actor) {
   return true;
 }
 
+/** Героическая гибель одной кнопкой (HUD при метке Doom): с подтверждением, карточка Doom отмечается, статус «погиб». */
+export async function heroNow(actor) {
+  if (!actor?.isOwner || actor.type !== "pilot" || !actor.system.markers?.doom) return null;
+  const doom = game.messages.contents.slice(-200).reverse().find(m => { const c = m.getFlag(SYSTEM_ID, "card"); return c?.type === "doomfate" && c.actorUuid === actor.uuid; });
+  const card = doom ? foundry.utils.deepClone(doom.getFlag(SYSTEM_ID, "card")) : null;
+  if (card?.chosen) return ui.notifications.warn(card.chosen === "eject" ? `${actor.name}: катапульта уже сработала.` : `${actor.name}: героическая гибель уже выбрана.`);
+  if (!(await Dialog.confirm({ title: "Героическая гибель", content: `<p>${esc(actor.name)} погибает с последними словами, статус в личном деле станет «${TB.status.kia}». Точно?</p>` }))) return null;
+  if (doom?.canUserModify(game.user, "update")) { card.chosen = "hero"; await doom.update({ content: renderCard(card), [`flags.${SYSTEM_ID}.card`]: card }); }
+  return actor.update({ "system.service.status": "kia" });
+}
+
 /**
  * Катапульта одной кнопкой (HUD при метке Doom): без окон. Карточка Doom отмечается выбором «катапульта»,
  * бросок Push против 7, при провале сам тратится Strain, если его хватает дотянуть до 7, исход сразу пишется в личное дело.

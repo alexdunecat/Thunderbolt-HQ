@@ -203,6 +203,8 @@ export class TBActor extends Actor {
     // «Рядом с тобой»: товарищ в той же зоне может принять удар на себя
     if (this.type === "pilot" && !guard && await offerGuard(this, amount, { source, sourceUuid, roundKey })) return;
     this.#alarm();
+    // HUD вздрагивает сразу при попадании, ещё до выбора метки (hud.mjs)
+    Hooks.callAll("thunderboltHit", this);
     if (this.type === "npc" && s.kind === "ship") return this.#damageShip(amount, opts);
     if (this.type === "npc" && s.kind === "ground") {
       const hp = s.hp.value - amount;
@@ -249,6 +251,7 @@ export class TBActor extends Actor {
     // «Летающий танк» (приём Су-25 и A-10A): вместо метки HP до максимума
     const tank = moveReady(this, "tank");
     const choice = m.grit && m.structure && !fake && !tank ? { marker: "doom" } : await this.#chooseMarker(fake, tank);
+    if (["tank", "fakeout"].includes(choice?.marker)) Hooks.callAll("thunderboltHitVoid", this);
     if (choice?.marker === "tank") {
       await this.setFlag(SYSTEM_ID, "sortie", { ...(this.getFlag(SYSTEM_ID, "sortie") ?? {}), move: sortieMark(this) });
       await this.update({ "system.hp.value": s.hp.max });
@@ -321,9 +324,15 @@ export class TBActor extends Actor {
   }
 
   #markerDialog(fake, again, tank = false) {
-    const m = this.system.markers;
     // сигнал «урон по системам» у того, кто выбирает метку
     if (!again) import("../sounds.mjs").then(x => x.playLocal("sysHit")).catch(() => null);
+    // выбор в стиле кабины (hit-pick.mjs); без него или с выключенной настройкой — обычное окно
+    const cockpit = again ? Promise.resolve(null) : import("../hit-pick.mjs").then(x => x.hitPick(this, { fake, tank })).catch(() => null);
+    return cockpit.then(d => d?.marker ? d : this.#markerForm(fake, again, tank));
+  }
+
+  #markerForm(fake, again, tank = false) {
+    const m = this.system.markers;
     const skills = Object.entries(TB.skills).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join("");
     const systems = Object.entries(TB.systems).map(([k, v]) => `<option value="${k}">${v.label}: ${v.hint}</option>`).join("");
     const radio = (v, label, extra, disabled) => `<div class="form-group"><label><input type="radio" name="marker" value="${v}" ${disabled ? "disabled" : ""}> ${label}</label>${extra}</div>`;

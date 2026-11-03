@@ -2018,3 +2018,54 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-pilot-hud.doom:not(.hit) { animation: tb-hud-doom 2.4s ease-in-out infinite; }
 @keyframes tb-hud-doom { 50% { opacity: .82; } }
 @keyframes tb-hud-shake { 0%, 100% { translate: 0 0; } 10% { translate: -7px 2px; } 22% { translate: 6px -3px; } 34% { translate: -5px 1px; } 48% { translate: 4px 2px; } 62% { translate: -3px -1px; } 78% { translate: 1px 1px; } }
+/* судьба при Doom: катапульта и героическая гибель рядом */
+#tb-pilot-hud .tb-hud-alert .tb-hud-fate { display: flex; gap: 6px; margin-left: auto; }
+#tb-pilot-hud .tb-hud-alert .tb-hud-fate .tb-hud-eject { margin-left: 0; }
+#tb-pilot-hud .tb-hud-alert .tb-hud-eject.hero { background: #1a0605; color: #ffb4a8; border: 4px solid #d23a2a; border-image: repeating-linear-gradient(-45deg, #d23a2a 0 6px, #111 6px 12px) 4; text-shadow: 0 0 6px rgba(255, 80, 60, .8); }
+#tb-pilot-hud .tb-hud-alert .tb-hud-eject.hero:hover { box-shadow: 0 0 14px #ff5a46; }
+
+/* выбор метки урона в стиле кабины (hit-pick.mjs) */
+#tb-hit-pick { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; padding: 16px;
+  background: radial-gradient(ellipse at center, rgba(60, 0, 0, .25) 0%, rgba(40, 0, 0, .55) 60%, rgba(25, 0, 0, .85) 100%);
+  animation: tb-hp-in .22s ease-out, tb-hp-pulse 1.6s ease-in-out .22s infinite; font-family: var(--tb-display, inherit); }
+#tb-hit-pick.out { animation: tb-hp-out .22s ease-in forwards; }
+@keyframes tb-hp-in { from { opacity: 0; } }
+@keyframes tb-hp-out { to { opacity: 0; } }
+@keyframes tb-hp-pulse { 50% { background-color: rgba(120, 0, 0, .12); } }
+#tb-hit-pick .tb-hp-glass { width: min(980px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 16px 18px 18px; color: #ffd9d2;
+  background: rgba(14, 4, 4, .78); backdrop-filter: blur(6px); border: 1px solid rgba(255, 90, 70, .55); border-radius: 4px;
+  box-shadow: 0 0 40px rgba(255, 40, 20, .35), inset 0 0 30px rgba(255, 40, 20, .12); animation: tb-hud-shake .5s linear; }
+#tb-hit-pick .tb-hp-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin-bottom: 12px; }
+#tb-hit-pick .tb-hp-alarm { font-size: 26px; letter-spacing: .28em; color: #ff6a55; text-shadow: 0 0 14px #ff2a1f, 0 0 2px #fff; animation: tb-ck-caution .45s ease-in-out infinite alternate; }
+#tb-hit-pick .tb-hp-who { font-size: 16px; letter-spacing: .12em; color: #ffe1db; }
+#tb-hit-pick .tb-hp-head small { flex-basis: 100%; color: #e8a89d; font-family: var(--tb-body, inherit); font-size: 13px; letter-spacing: 0; }
+#tb-hit-pick .tb-hp-cols { display: grid; grid-template-columns: 1fr 1fr .8fr; gap: 12px; }
+@media (max-width: 760px) { #tb-hit-pick .tb-hp-cols { grid-template-columns: 1fr; } }
+#tb-hit-pick .tb-hp-col { border: 1px solid rgba(255, 120, 100, .35); border-radius: 3px; padding: 10px; background: rgba(40, 8, 6, .5); }
+#tb-hit-pick .tb-hp-col header { display: flex; flex-direction: column; margin-bottom: 8px; }
+#tb-hit-pick .tb-hp-col header b { font-size: 18px; letter-spacing: .24em; color: #ffcf5a; }
+#tb-hit-pick .tb-hp-col.structure header b { color: #ffa040; }
+#tb-hit-pick .tb-hp-col.doom header b { color: #ff4a3a; }
+#tb-hit-pick .tb-hp-col header small { color: #d99a8f; font-family: var(--tb-body, inherit); font-size: 12px; }
+#tb-hit-pick .tb-hp-col.done { opacity: .4; }
+#tb-hit-pick .tb-hp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
+#tb-hit-pick .tb-hp-tile { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0 8px; text-align: left; min-height: 58px; padding: 6px 8px; margin: 0;
+  background: linear-gradient(#2a0d0a, #170605); border: 1px solid rgba(255, 140, 110, .4); border-left: 3px solid #ffcf5a; border-radius: 2px; color: #ffe1db; cursor: pointer; line-height: 1.15; }
+#tb-hit-pick .tb-hp-col.structure .tb-hp-tile { border-left-color: #ffa040; }
+#tb-hit-pick .tb-hp-tile i { grid-row: span 3; font-size: 18px; color: #ffa040; }
+#tb-hit-pick .tb-hp-tile b { font-size: 14px; letter-spacing: .12em; }
+#tb-hit-pick .tb-hp-tile span { font-size: 12px; color: #ffc8bd; font-family: var(--tb-body, inherit); }
+#tb-hit-pick .tb-hp-tile em { font-size: 11px; font-style: normal; color: #d99a8f; font-family: var(--tb-body, inherit); grid-column: 1 / -1; }
+#tb-hit-pick .tb-hp-col.structure .tb-hp-tile em { grid-column: 2; }
+#tb-hit-pick .tb-hp-tile:hover:not(:disabled), #tb-hit-pick .tb-hp-tile:focus-visible { background: linear-gradient(#4a1510, #2a0907); box-shadow: 0 0 12px rgba(255, 120, 80, .45); }
+#tb-hit-pick .tb-hp-tile:disabled, #tb-hit-pick .tb-hp-doom:disabled { cursor: not-allowed; }
+#tb-hit-pick .tb-hp-doom { width: 100%; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; margin: 0; cursor: pointer;
+  background: #1a0605; color: #ffb4a8; border: 5px solid #d23a2a; border-image: repeating-linear-gradient(-45deg, #d23a2a 0 8px, #111 8px 16px) 5; }
+#tb-hit-pick .tb-hp-doom i { font-size: 34px; color: #ff4a3a; }
+#tb-hit-pick .tb-hp-doom b { font-size: 26px; letter-spacing: .3em; color: #ff6a55; text-shadow: 0 0 10px #ff2a1f; }
+#tb-hit-pick .tb-hp-doom span { font-size: 12px; font-family: var(--tb-body, inherit); }
+#tb-hit-pick .tb-hp-doom:hover:not(:disabled) { box-shadow: 0 0 22px rgba(255, 60, 40, .6); }
+#tb-hit-pick .tb-hp-doom.armed { animation: tb-ck-caution .25s ease-in-out infinite alternate; background: #3a0807; }
+#tb-hit-pick .tb-hp-extras { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+#tb-hit-pick .tb-hp-extra { flex: 1 1 260px; margin: 0; padding: 8px 10px; background: #0d1a14; color: #a4ffcb; border: 1px solid rgba(164, 255, 203, .5); border-radius: 2px; cursor: pointer; }
+#tb-hit-pick .tb-hp-extra:hover { box-shadow: 0 0 12px rgba(164, 255, 203, .45); }

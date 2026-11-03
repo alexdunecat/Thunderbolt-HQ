@@ -11,6 +11,7 @@ import { resolveActor } from "./utils.mjs";
 import { isFlying, altOf, hasRule, WATER } from "./scene.mjs";
 import { playCallouts, callout } from "./callouts.mjs";
 import { enginesOf, contrailLines, CONTRAIL } from "./contrails.mjs";
+import { nightFlash, FLASH } from "./night-lights.mjs";
 
 /* ---------- план: что показать по карточке (чистая часть, тесты) ---------- */
 
@@ -814,8 +815,10 @@ function missile(a, b, { delay = 0, stop = 1, miss = false, color = 0xffffff, do
   const len = dist(A0, B0), dur = Math.min(1500, 380 + (len / gs()) * 260) * stop;
   const side = Math.random() < 0.5 ? -1 : 1, bend = rnd(0.6, 1.25) * curve * side;
   const off = miss ? { x: rnd(-1, 1) * gs() * 0.12, y: rnd(-1, 1) * gs() * 0.12 } : { x: 0, y: 0 };
-  let last = null, ang = 0, fin = null;
+  let last = null, ang = 0, fin = null, cur = null, lit = false;
   add((t, g) => {
+    // ночью двигатель ракеты освещает землю под собой
+    if (!lit) { lit = true; nightFlash(() => cur, { kind: "steady", r: 0.45, life: dur + 2500, a: 0.6, color: FLASH.missile, over: 0.5 }); }
     const A = a() ?? A0, B0b = b() ?? B0, B = { x: B0b.x + off.x, y: B0b.y + off.y };
     if (fin === null) {
       const u = Math.min(1, t / dur) * stop;
@@ -826,16 +829,18 @@ function missile(a, b, { delay = 0, stop = 1, miss = false, color = 0xffffff, do
       if (last) ang = Math.atan2(p.y - last.y, p.x - last.x);
       if (!last || dist(last, p) > gs() * 0.012) { puff(p, { r: 0.012, life: 650 }); last = p; }
       dart(g, p, ang, gs() * 0.07, color);
+      cur = p;
       if (t < dur) return true;
-      if (!miss) { done?.(p); return false; }
+      if (!miss) { cur = null; done?.(p); return false; }
       fin = { p, t };
     }
     // промах: дальше по прямой и гаснет
     const k = (t - fin.t) / 450;
-    if (k >= 1) return false;
+    if (k >= 1) { cur = null; return false; }
     const q = { x: fin.p.x + Math.cos(ang) * gs() * 0.45 * k, y: fin.p.y + Math.sin(ang) * gs() * 0.45 * k };
     if (dist(last, q) > gs() * 0.015) { puff(q, { r: 0.01, life: 500 }); last = q; }
     dart(g, q, ang, gs() * 0.07, color, 1 - k);
+    cur = q;
     return true;
   }, delay);
 }
@@ -843,6 +848,7 @@ function missile(a, b, { delay = 0, stop = 1, miss = false, color = 0xffffff, do
 function boom(p, size = 0.12) {
   if (!p) return;
   const R = gs() * size;
+  nightFlash(p, { r: Math.min(3.2, Math.max(0.7, size * 14)), life: 700 + size * 2500, a: 0.95, color: FLASH.boom, over: 0.4 });
   add((t, g) => {
     if (t > 520) return false;
     const k = t / 520;
@@ -872,6 +878,7 @@ function sparks(p, n = 6, size = 0.06) {
 /** Ловушки Break!: горящие точки веером назад от носа. */
 function flares(p, rot = 0) {
   const back = (rot + 90) * Math.PI / 180;   // нос вверх: хвост — по направлению +90° от «вправо»
+  if (p) nightFlash({ x: p.x + Math.cos(back) * gs() * 0.25, y: p.y + Math.sin(back) * gs() * 0.25 }, { kind: "fire", r: 1.3, life: 1300, a: 0.8, color: FLASH.flare, over: 0.5 });
   for (let i = 0; i < 8; i++) {
     const a = back + rnd(-0.9, 0.9), v = gs() * rnd(0.25, 0.45), life = rnd(700, 1000);
     let last = null;
@@ -894,12 +901,15 @@ function guns(a, b, { hit = null, n = 6, rockets = false, delay = 0, scar: mark 
       continue;
     }
     const life = Math.max(140, Math.min(320, dist(a, b() ?? a) / gs() * 160));
+    let cur = null, lit = false;
     add((t, g) => {
       const B0 = b();
-      if (!B0) return false;
+      if (!B0) { cur = null; return false; }
       const B = { x: B0.x + off.x, y: B0.y + off.y }, k = t / life, L = 0.12;
-      if (k >= 1 + (hit === false ? 0.35 : 0)) { if (hit !== false && i % 2 === 0) sparks(B, 4, 0.04); return false; }
+      if (k >= 1 + (hit === false ? 0.35 : 0)) { cur = null; if (hit !== false && i % 2 === 0) sparks(B, 4, 0.04); return false; }
       const p1 = lerp(a, B, k), p2 = lerp(a, B, Math.max(0, k - L));
+      cur = p1;
+      if (!lit) { lit = true; if (i % 2 === 0) nightFlash(() => cur, { kind: "steady", r: 0.35, life: life * 1.5, a: 0.5, color: FLASH.tracer, over: 0.4 }); }
       g.lineStyle(Math.max(1, gs() * 0.01), 0xffe36a, 0.95); g.moveTo(p2.x, p2.y); g.lineTo(p1.x, p1.y); g.lineStyle(0);
     }, delay + i * 55);
   }
@@ -910,6 +920,7 @@ function guns(a, b, { hit = null, n = 6, rockets = false, delay = 0, scar: mark 
 function muzzle(p, ang, delay = 0, size = 0.06) {
   if (!p) return;
   const R = gs() * size, f = { x: p.x + Math.cos(ang) * R * 0.8, y: p.y + Math.sin(ang) * R * 0.8 };
+  later(delay, () => nightFlash(f, { r: Math.max(0.5, size * 10), life: 220, a: 0.85, color: FLASH.muzzle, over: 0.5 }));
   add((t, g) => {
     if (t > 160) return false;
     const k = t / 160;
@@ -935,10 +946,12 @@ function shell(a, b, { hit = true, delay = 0, arc = 0, size = 0.09, flash = true
   const off = hit === false ? { x: rnd(-1, 1) * gs() * 0.16, y: rnd(-1, 1) * gs() * 0.16 } : { x: 0, y: 0 };
   if (flash) muzzle(a, Math.atan2(B0.y - a.y, B0.x - a.x), delay, arc ? 0.09 : 0.06);
   const at = (B, k) => { const p = lerp(a, B, k); if (arc) p.y -= arc * len * 4 * k * (1 - k); return p; };
-  let last = null;
+  let last = null, cur = null, lit = false;
   add((t, g) => {
     const Bb = b() ?? B0, B = { x: Bb.x + off.x, y: Bb.y + off.y }, k = Math.min(1, t / dur);
     const p = at(B, k), q = at(B, Math.max(0, k - (arc ? 0.04 : 0.1)));
+    cur = k < 1 ? p : null;
+    if (!lit) { lit = true; nightFlash(() => cur, { kind: "steady", r: 0.3, life: dur + 500, a: 0.5, color: FLASH.tracer, over: 0.4 }); }
     g.lineStyle(Math.max(1.5, gs() * 0.016), 0xffb850, 0.9); g.moveTo(q.x, q.y); g.lineTo(p.x, p.y); g.lineStyle(0);
     g.beginFill(0xfff0c0, 1); g.drawCircle(p.x, p.y, gs() * (arc ? 0.016 + 0.012 * Math.sin(Math.PI * k) : 0.014)); g.endFill();
     if (arc && (!last || dist(last, p) > gs() * 0.04)) { puff(p, { r: 0.006, life: 450, alpha: 0.3 }); last = p; }
@@ -953,6 +966,7 @@ function shell(a, b, { hit = true, delay = 0, arc = 0, size = 0.09, flash = true
 
 function beam(a, b, { color = 0x9fe8ff, delay = 0, width = 0.05, life = 480 } = {}) {
   if (!a || !b) return;
+  later(delay, () => { for (let k = 0; k <= 1; k += 0.25) nightFlash(lerp(a, b, k), { r: 0.6, life, a: 0.55, color: FLASH.beam, over: 0.4 }); });
   add((t, g) => {
     const k = t / life;
     if (k >= 1) return false;
@@ -995,6 +1009,8 @@ function downed(t) {
   boom(p, 0.2);
   // сгоревшая наземная техника и здания: большая подпалина
   if (onGround(t)) later(300, () => scar(p, 0.24, "scorch"));
+  // ночью обломки ещё долго горят и освещают округу; сбитый в воздухе — короткий огненный шар
+  later(400, () => nightFlash(p, { kind: "fire", r: onGround(t) || t.actor?.system?.kind === "ship" ? 1.4 : 1.1, life: onGround(t) || t.actor?.system?.kind === "ship" ? 45000 : 3500, a: 0.7, color: FLASH.fire, over: 0.3 }));
   later(180, () => boom({ x: p.x + rnd(-1, 1) * gs() * 0.06, y: p.y + rnd(-1, 1) * gs() * 0.06 }, 0.12));
   for (let i = 0; i < 10; i++) puff({ x: p.x + rnd(-4, 4), y: p.y }, { r: 0.04, life: 2200, color: 0x333333, alpha: 0.5, grow: 2.2, vx: rnd(-6, 6), vy: -gs() * 0.08, delay: 300 + i * 120 });
 }

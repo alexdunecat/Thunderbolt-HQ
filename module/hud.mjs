@@ -11,7 +11,7 @@ import { combatantOf, spentOf, declaredOf, endTurn } from "./actions.mjs";
 import { runAction, PILOT_BAR } from "./macros.mjs";
 import { lockersOf } from "./rwr.mjs";
 import { vmaxOf, kmhOf } from "./plane-speed.mjs";
-import { ejectNow, weaponReady, isGunPod, isOwnFire, computeCard, onCardAction, hudOdds } from "./dice/rolls.mjs";
+import { ejectNow, heroNow, weaponReady, isGunPod, isOwnFire, computeCard, onCardAction, hudOdds } from "./dice/rolls.mjs";
 import { unitKind, unitHtml, onUnitClick, registerUnitHud } from "./unit-hud.mjs";
 import { hudTriggers, useCombatTrigger } from "./combat-triggers.mjs";
 import { adviceRow, runAdvice, showTarget } from "./npc-advice.mjs";
@@ -51,6 +51,9 @@ export function registerHud() {
   // боевой экран спрятал или вернул окна Foundry, свернули чат, поменяли окно: углы HUD встают заново
   Hooks.on(`${SYSTEM_ID}.combatScreen`, () => setTimeout(place, 60));
   Hooks.on("collapseSidebar", () => setTimeout(place, 260));
+  Hooks.on("thunderboltHit", actor => onEarlyHit(actor));
+  // попадание отменили («Обманный манёвр», «Летающий танк»): следующий удар снова трясёт
+  Hooks.on("thunderboltHitVoid", actor => { if (earlyHit?.uuid === actor?.uuid) earlyHit = null; });
   globalThis.window?.addEventListener?.("resize", () => place());
   for (const ev of ["canvasReady", "controlToken", "updateActor", "updateActorDelta", "createToken", "deleteToken", "updateItem",
     "createCombat", "updateCombat", "deleteCombat", "updateCombatant"]) Hooks.on(ev, () => refreshHud());
@@ -344,6 +347,8 @@ function systemsStrip(d) {
 
 /** Ручка катапульты: в полосе DOOM, её не спрятать ни размером панели, ни прокруткой. */
 const ejectButton = `<button type="button" class="tb-hud-eject" data-hud-eject title="Бросок на катапультирование Push против 7: Strain добавится сам, если дотягивает, исход сразу в личное дело"><i class="fas fa-parachute-box"></i> КАТАПУЛЬТА</button>`;
+/** Вторая судьба при Doom: героическая гибель с последними словами (как на карточке Doom). */
+const heroButton = `<button type="button" class="tb-hud-eject hero" data-hud-hero title="Героическая гибель с последними словами: без броска, открывает «Победу любой ценой»"><i class="fas fa-skull"></i> DOOM</button>`;
 
 function html(actor, d, folded) {
   const actBoxes = d.acts && d.acts.declared !== null
@@ -364,7 +369,7 @@ function html(actor, d, folded) {
       <a class="tb-hud-dock" data-hud-dock title="Вернуть панель на место над панелью макросов и к обычному размеру"><i class="fas fa-thumbtack"></i></a>
       <i class="fas fa-chevron-${folded ? "up" : "down"}"></i>
     </header>
-    ${d.warn.filter(w => BIG.has(w.key)).map(w => `<div class="tb-hud-alert ${w.key}"><span>${w.key === "missile" ? "▲ " : ""}${w.text}${w.key === "missile" ? " ▲" : ""}</span><small>${BIG_HINT[w.key]}</small>${w.key === "doom" && d.canEject ? ejectButton : ""}${w.key === "stall" ? stallButton(d) : ""}</div>`).join("")}
+    ${d.warn.filter(w => BIG.has(w.key)).map(w => `<div class="tb-hud-alert ${w.key}"><span>${w.key === "missile" ? "▲ " : ""}${w.text}${w.key === "missile" ? " ▲" : ""}</span><small>${BIG_HINT[w.key]}</small>${w.key === "doom" && d.canEject ? `<span class="tb-hud-fate">${ejectButton}${heroButton}</span>` : ""}${w.key === "stall" ? stallButton(d) : ""}</div>`).join("")}
     ${folded ? "" : `<div class="tb-hud-grid${d.wing ? " wing" : ""}">
       <div class="tb-hud-col tb-hud-stat">
         <div class="tb-hud-row"><small>HP</small><span class="tb-hud-pips hp ${d.hp.value <= 1 ? "low" : ""}">${pips(d.hp.value, d.hp.max)}</span><span class="tb-hud-num">${d.hp.value}/${d.hp.max}</span></div>
@@ -456,11 +461,23 @@ function setDoom(on) {
   el.classList.toggle("doom", doom);
   if (!el.classList.contains("hit")) el.classList.toggle("red", doom);
 }
+/* Попадание, которое ещё ждёт выбора метки: HUD уже вздрогнул, метка потом не трясёт его второй раз. */
+let earlyHit = null;
+const EARLY_MS = 120000;
+function onEarlyHit(actor) {
+  if (!el || !shown || actor?.uuid !== shown.uuid) return;
+  earlyHit = { uuid: actor.uuid, t: performance.now() };
+  hitFlash();
+}
 function watchHits(actor) {
   if (!actor) { lastHp = null; return; }
   const now = hitSign(actor);
   setDoom(!!actor.system.markers?.doom);
-  if (tookHit(lastHp, now)) hitFlash();
+  if (tookHit(lastHp, now)) {
+    const early = earlyHit?.uuid === now.uuid && performance.now() - earlyHit.t < EARLY_MS;
+    earlyHit = null;
+    if (!early) hitFlash();
+  }
   lastHp = now;
 }
 
@@ -646,7 +663,7 @@ async function onClick(ev) {
   const hl = ev.target.closest("[data-hud-hl]");
   if (hl) { ev.preventDefault(); ev.stopPropagation(); return setHlMode(hl.dataset.hudHl); }
   if (dragged && ev.target.closest("header")) { dragged = false; return; }
-  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-tactic], [data-hud-ace], [data-hud-wing], [data-hud-strain], [data-hud-stall]");
+  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-hero], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-tactic], [data-hud-ace], [data-hud-wing], [data-hud-strain], [data-hud-stall]");
   if (!t || !shown) return;
   ev.preventDefault();
   const d = t.dataset, actor = shown;
@@ -682,6 +699,7 @@ async function onClick(ev) {
   if (d.hudMono !== undefined) return monologue()?.uuid === actor.uuid ? endMonologue() : startMonologue(actor);
   if (!hudFits(actor) && await onUnitClick(t, actor)) return;
   if (d.hudEject !== undefined) return ejectNow(actor);
+  if (d.hudHero !== undefined) return heroNow(actor);
   // скорость и высота как на листе и в меню токена: действие засчитывают хуки actions.mjs
   if (d.hudSpeed) {
     const v = Math.min(hudData(actor).maxSpeed, actor.system.speed + Number(d.hudSpeed));

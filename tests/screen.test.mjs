@@ -51,3 +51,19 @@ console.log("щелчок рации:", [[70, 1, false], [100, 0.5, false], [0, 
 const W = await import(R + "/module/weather-fx.mjs");
 console.log("штриховка под анимацией:", ["systems/x/map/weather/rain.svg", "systems/x/map/weather/rain-badge.svg", "systems/x/map/weather/clouds.svg", "systems/x/map/weather/eye.svg", "systems/x/map/weather/tornado.svg", "systems/x/map/terrain/city.svg", null]
   .map(s => `${s?.split("/").slice(-2).join("/") ?? "—"}=${W.hatchOf(s) ?? "остаётся"}`).join(", "));
+
+// вспышки ночью: кривые яркости и затемнение машин молнией
+console.log("вспышка boom:", [0, 0.03, 0.06, 0.3, 0.6, 0.99, 1].map(k => N.flashLevel(k, "boom").toFixed(2)).join(" "));
+console.log("вспышка steady:", [0, 0.025, 0.5, 0.9, 1].map(k => N.flashLevel(k, "steady").toFixed(2)).join(" "));
+console.log("молния:", [0.05, 0.2, 0.5, 0.9].map(k => N.flashLevel(k, "bolt").toFixed(2)).join(" "));
+const fire = [0.1, 0.5, 0.9].map(k => N.flashLevel(k, "fire", 1234, 1));
+console.log("пожар гаснет:", fire.every((v, i) => !i || v < fire[i - 1] + 0.3), fire.every(v => v > 0 && v <= 1));
+console.log("силуэт:", N.mixColor(0xffffff, 0x10141f, 0).toString(16), N.mixColor(0xffffff, 0x10141f, 1).toString(16), N.mixColor(0xffffff, 0x000000, 0.5).toString(16));
+
+// выбор метки в стиле кабины: плитки навыков и систем, занятые метки выключены
+const HP = await import(R + "/module/hit-pick.mjs");
+const pilotA = { name: "Тсой", system: { hp: { max: 4 }, skills: { aim: 2, dodge: 1 }, skillTotal: { aim: 3, dodge: 1, push: 0 }, markers: { grit: true } } };
+const hp = HP.hitPickHtml(pilotA, { fake: { name: "Обманный манёвр" } });
+console.log("выбор метки:", (hp.match(/data-pick="grit"/g) ?? []).length, "навыков,", (hp.match(/data-pick="structure"/g) ?? []).length, "систем,",
+  "Grit выключен:", /tb-hp-col grit done/.test(hp), "· Doom есть:", /data-pick="doom"/.test(hp), "· манёвр:", /data-pick="fakeout"/.test(hp), "· ранг Aim:", /ранг 3/.test(hp));
+console.log("без DOM — обычное окно:", await HP.hitPick(pilotA));

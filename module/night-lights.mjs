@@ -261,6 +261,85 @@ function cone(pool, x, y, ang, len, wid, color, alpha) {
   const s = pool.take(textures().cone, 0); s.position.set(x, y); s.rotation = ang; s.width = len; s.height = wid; s.tint = color; s.alpha = alpha;
 }
 
+/** Отсвет на карте: мягкое пятно без белой серёдки. */
+function wash(pool, x, y, color, r, alpha) {
+  if (alpha <= 0.01) return;
+  const h = pool.take(textures().glow); h.position.set(x, y); h.width = h.height = r * 3.2; h.tint = color; h.alpha = Math.min(1, alpha);
+}
+
+/* ---------- вспышки ночью: взрывы, выстрелы, трассеры, ракеты, ловушки, пожары и молнии подсвечивают карту ---------- */
+
+export const FLASH = { boom: 0xff9a3c, muzzle: 0xffd27a, tracer: 0xffcf5a, missile: 0xffe2b0, beam: 0x9fe8ff, flare: 0xfff0c8, fire: 0xff7a1a, bolt: 0xcfdcff };
+/**
+ * Яркость вспышки (0..1) на доле жизни k: boom — резкий подъём и спад, steady — ровный свет (трассер, ракета),
+ * fire — мерцание с медленным угасанием (горящие обломки, ловушки), bolt — двойное мерцание молнии.
+ */
+export function flashLevel(k, kind = "boom", t = 0, seed = 0) {
+  if (!(k >= 0) || k >= 1) return 0;
+  if (kind === "bolt") return k < 0.15 ? 1 : k < 0.3 ? 0.25 : (1 - k) * 0.9;
+  if (kind === "steady") return Math.min(1, k / 0.05) * (k > 0.85 ? (1 - k) / 0.15 : 1);
+  if (kind === "fire") return (0.72 + 0.28 * Math.sin(t / 83 + seed) * Math.sin(t / 31 + seed * 2.3)) * Math.min(1, k / 0.01) * Math.sqrt(1 - k);
+  return k < 0.06 ? k / 0.06 : (1 - (k - 0.06) / 0.94) ** 2;
+}
+/** Затемнение машин в свете молнии: силуэты на фоне вспышки. */
+export function mixColor(a, b, k) {
+  const ch = (c, sh) => (c >> sh) & 255, m = sh => Math.round(ch(a, sh) + (ch(b, sh) - ch(a, sh)) * k);
+  return (m(16) << 16) | (m(8) << 8) | m(0);
+}
+
+const flashes = [], MAX_FLASHES = 200;
+/**
+ * Вспышка на ночной карте. at — точка или функция точки (движется с трассером или ракетой; null — погасла).
+ * r — радиус отсвета в клетках, over — доля света поверх машин (их тоже освещает).
+ */
+export function nightFlash(at, { r = 1, life = 700, a = 0.8, color = FLASH.boom, kind = "boom", over = 0.3, near = 1 } = {}) {
+  if (!at || !night() || !isOn()) return;
+  if (flashes.length >= MAX_FLASHES) flashes.splice(0, flashes.findIndex(f => f.kind !== "fire") + 1 || 1);
+  flashes.push({ at, r, life, a, color, kind, over, near, t0: performance.now(), seed: Math.random() * 10 });
+  startTick();
+}
+
+const tinted = new Map();   // токен → его цвет до молнии
+function silhouettes(dark) {
+  if (dark > 0.02) {
+    const shade = mixColor(0xffffff, 0x10141f, Math.min(0.85, dark));
+    for (const tok of canvas.tokens?.placeables ?? []) {
+      const m = tok.mesh;
+      if (!m || m.destroyed) continue;
+      if (!tinted.has(tok)) tinted.set(tok, Number(m.tint ?? 0xffffff));
+      m.tint = mixColor(tinted.get(tok), 0x10141f, Math.min(0.85, dark)) || shade;
+    }
+    return;
+  }
+  for (const [tok, c] of tinted) {
+    try { if (tok.mesh && !tok.mesh.destroyed) { tok.mesh.tint = c; tok.renderFlags?.set?.({ refreshMesh: true }); } } catch { /* токен снят */ }
+  }
+  tinted.clear();
+}
+
+/** Отсветы вспышек: на карте (под машинами) и поверх машин; возвращает силу затемнения машин от молний. */
+function drawFlashes(t, gs, under) {
+  let dark = 0;
+  for (let i = flashes.length - 1; i >= 0; i--) {
+    const f = flashes[i], k = (t - f.t0) / f.life, p = typeof f.at === "function" ? f.at() : f.at;
+    if (k >= 1 || !p) { if (under) flashes.splice(i, 1); continue; }
+    const lv = flashLevel(k, f.kind, t, f.seed) * f.a;
+    if (f.kind === "bolt") {
+      if (under) {
+        // вся карта на миг светлеет, у самой молнии — ярче
+        const R = canvas.dimensions.sceneRect, s = gpool.take(PIXI.Texture.WHITE);
+        s.position.set(R.x + R.width / 2, R.y + R.height / 2); s.width = R.width; s.height = R.height; s.tint = f.color; s.alpha = lv * (0.12 + 0.16 * f.near);
+        wash(gpool, p.x, p.y, f.color, gs * f.r, lv * 0.7);
+      } else dark = Math.max(dark, lv * (0.45 + 0.4 * f.near));
+      continue;
+    }
+    if (under) wash(gpool, p.x, p.y, f.color, gs * f.r, lv);
+    else wash(pool, p.x, p.y, f.color, gs * f.r * 0.55, lv * f.over);
+  }
+  return dark;
+}
+export const flashCount = () => flashes.length;
+
 /* форма машины по картинке: считается один раз на картинку */
 const shapes = new Map();
 function shapeOf(mesh) {
@@ -291,12 +370,13 @@ function layers() {
   if (!canvas?.ready || !canvas.interface) return false;
   if (!root || root.destroyed) { root = canvas.interface.addChildAt(new PIXI.Container(), 0); root.eventMode = "none"; root.name = "tbNightLights"; pool = new Pool(root); }
   if (!ground || ground.destroyed) {
-    // огни поселений — под токенами, над плитками местности
+    // огни поселений и отсветы вспышек — под токенами, над картой
     const PG = foundry.canvas?.primary?.PrimaryGraphics ?? (typeof PrimaryGraphics === "function" ? PrimaryGraphics : null);
     if (PG && canvas.primary) {
       ground = canvas.primary.addChild(new PG({ name: "tbNightGround" }));
       const L = foundry.canvas?.groups?.PrimaryCanvasGroup?.SORT_LAYERS ?? (typeof PrimaryCanvasGroup === "function" ? PrimaryCanvasGroup.SORT_LAYERS : null);
-      ground.elevation = 0; ground.sortLayer = L?.TILES ?? 500; ground.sort = 1e6 - 1;
+      // над ночной заливкой (daytime.mjs), но под тенями и токенами: свет ложится на карту, а не тонет в темноте
+      ground.elevation = 0; ground.sortLayer = L?.TOKENS ?? 700; ground.sort = -1e7 + 50;
     } else ground = canvas.interface.addChildAt(new PIXI.Container(), 0);
     ground.eventMode = "none"; gpool = new Pool(ground);
     buildGround();
@@ -326,7 +406,7 @@ function draw() {
   if (!layers()) return;
   const show = night() && isOn();
   root.visible = ground.visible = show;
-  if (!show) return;
+  if (!show) { flashes.length = 0; silhouettes(0); return; }
   const t = performance.now(), gs = canvas.grid?.size ?? 100, u = gs / 200;
   // поселения
   gpool.begin();
@@ -335,6 +415,13 @@ function draw() {
     if (l.k === "haze") { glow(gpool, l.x, l.y, COLORS[l.c], l.s * 22 * u, 0.16); continue; }
     glow(gpool, l.x, l.y, COLORS[l.c] ?? COLORS.warm, l.s * 9 * u, lv * 0.95);
   }
+  // горящие машины (метка Doom) освещают всё вокруг, отсвет дрожит
+  for (const tok of canvas.tokens?.placeables ?? []) {
+    if (!tok.actor?.system?.markers?.doom || !seen(tok) || tok.document.hidden && !game.user.isGM) continue;
+    const c = tok.center, ph = phaseOf(tok.id), fl = 0.7 + 0.3 * Math.sin(t / 77 + ph) * Math.sin(t / 29 + ph * 1.7);
+    wash(gpool, c.x, c.y, FLASH.fire, Math.max(tok.w, tok.h) * 0.9, 0.75 * fl);
+  }
+  drawFlashes(t, gs, true);
   gpool.end();
   // машины
   pool.begin();
@@ -369,6 +456,7 @@ function draw() {
       glow(pool, p.x, p.y, COLORS[l.c], b * 5 * l.s, lv * a);
     }
   }
+  silhouettes(drawFlashes(t, gs, false));
   pool.end();
 }
 
@@ -391,11 +479,17 @@ export function refreshNightLights() {
 
 export function registerNightLights() {
   game.settings.register(SYSTEM_ID, "fxNight", {
-    name: "Огни ночью", hint: "На ночной карте у самолётов горят бортовые огни, стробы и маяк, у кораблей топовые и бортовые огни, у техники фары, у зениток ходят прожекторы, в городах, портах и на аэродромах горят окна, фонари и огни полосы. Только у себя.",
+    name: "Огни ночью", hint: "На ночной карте у самолётов горят бортовые огни, стробы и маяк, у кораблей топовые и бортовые огни, у техники фары, у зениток ходят прожекторы, в городах, портах и на аэродромах горят окна, фонари и огни полосы. Взрывы, выстрелы, трассеры, ракеты, ловушки и пожары подсвечивают карту вокруг, молния на миг заливает её светом. Только у себя.",
     scope: "client", config: true, type: Boolean, default: true, onChange: () => refreshNightLights()
   });
   Hooks.on("canvasReady", () => { root = ground = null; refreshNightLights(); });
-  Hooks.on("canvasTearDown", () => { stopTick(); root = ground = null; });
+  Hooks.on("canvasTearDown", () => { stopTick(); root = ground = null; flashes.length = 0; tinted.clear(); });
+  // молния в грозу: ночью заливает карту светом, машины на миг становятся силуэтами
+  import("./weather-fx.mjs").then(W => W.onFlash(({ c, r, near }) => {
+    const gs = canvas?.grid?.size, d = canvas?.dimensions;
+    if (!gs || !d) return;
+    nightFlash({ x: (d.sceneX ?? 0) + (c + 0.5) * gs, y: (d.sceneY ?? 0) + (r + 0.5) * gs }, { kind: "bolt", r: 4, life: W.BOLT_MS, a: 1, color: FLASH.bolt, near });
+  })).catch(() => { /* без погоды */ });
   Hooks.on("updateScene", (scene, change) => {
     if (scene.id !== canvas?.scene?.id) return;
     if (foundry.utils.hasProperty(change, `flags.${SYSTEM_ID}.terrainCells`)) buildGround();
