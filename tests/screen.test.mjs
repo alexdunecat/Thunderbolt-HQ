@@ -83,4 +83,4 @@ console.log("окно ведущего:", /data-vd-force="win"/.test(V.verdictHt
 // судьба пилота при Doom: катапульта или гибель, исход на стекле
 const fh = HP.fatePickHtml({ name: "Тсой", system: { skillTotal: { push: 2 }, strain: { value: 3 } } });
 console.log("судьба:", /data-fate="eject"/.test(fh), /data-fate="hero"/.test(fh), "отложить:", /data-fate="later"/.test(fh), /d10 \+ 2/.test(fh), /есть 3/.test(fh));
-console.log("исход:", ["ok", "hurt", "mia", "kia"].map(k => HP.fateResultHtml({ name: "Тсой", system: {} }, { d10: 5, d4: 2, total: 7, strain: 1 }, { key: k, text: "" }).match(/tb-fate-stamp \w+">([^<]+)/)?.[1]).join(" · "));
+console.log("исход:", ["ok", "hurt", "mia", "kia"].map(k => { const h = HP.fateResultHtml({ name: "Тсой", system: {} }, { d10: 5, d4: 2, total: 7, strain: 1, parts: [["Push", 1]] }, { key: k }); return `${h.match(/tb-fate-stamp \w+">([^<]+)/)?.[1]} (шаг 2: ${/tb-fate-step two/.test(h) ? h.match(/class="(\w+) on"/)?.[1] : "нет"})`; }).join(" · "));

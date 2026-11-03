@@ -103,14 +103,28 @@ export function fatePickHtml(actor) {
   </div>`;
 }
 
-/** Исход катапульты на стекле: кубики, итог против 7, штамп исхода. */
+/** Что дальше по исходу катапульты: одна короткая строка. */
+export const FATE_NEXT = { ok: "Дальше три проверки на земле: Push, Dodge, Aim или Lead.", hurt: "Жив, подобран своими. Госпиталь.", mia: "Пропал или в плену. Спасение становится миссией.", kia: "Последние слова за пилотом." };
+const D4_SCALE = [["kia", "1", "гибель"], ["mia", "2–3", "пропал"], ["hurt", "4", "ранен"]];
+
+/**
+ * Исход катапульты на стекле в два шага. 1 — рукоятка: d10 + Push (+ Strain) против 7, успех или провал.
+ * 2 — только при провале: d4 по шкале 1 гибель · 2–3 пропал · 4 ранен, выпавшее деление подсвечено. Потом штамп.
+ */
 export function fateResultHtml(actor, r, fate) {
+  const ok = fate.key === "ok", bonus = (r.parts ?? []).filter(p => p?.[1]).map(([n, v]) => `<span>${esc(n)} ${v > 0 ? "+" : "−"}${Math.abs(v)}</span>`).join("");
   return `<div class="tb-hp-glass fate result ${fate.key}">
     <div class="tb-hp-head"><span class="tb-hp-alarm"><i class="fas fa-parachute-box"></i> КАТАПУЛЬТА</span><span class="tb-hp-who">${esc(actor.token?.name ?? actor.name)}</span></div>
-    <div class="tb-fate-roll"><span class="tb-fate-dice"><i class="d10">${r.d10 ?? "?"}</i>${r.d4 !== null && r.d4 !== undefined ? `<i class="d4">${r.d4}</i>` : ""}</span>
-      <span class="tb-fate-sum"><b>${r.total}</b><em>/ 7</em></span>${r.strain ? `<small>Strain +${r.strain}</small>` : ""}</div>
+    <div class="tb-fate-step one ${ok ? "ok" : "bad"}"><small>1 · РУКОЯТКА</small>
+      <span class="tb-fate-dice"><i class="d10">${r.d10 ?? "?"}</i></span>
+      <span class="tb-fate-parts">${bonus}${r.strain ? `<span class="st">Strain +${r.strain}</span>` : ""}</span>
+      <span class="tb-fate-sum"><b>${r.total}</b><em>/ 7</em></span>
+      <strong>${ok ? "СРАБОТАЛА" : "НЕ ВЫШЛО"}</strong></div>
+    ${ok ? "" : `<div class="tb-fate-step two"><small>2 · ЧТО С ПИЛОТОМ</small>
+      <span class="tb-fate-dice"><i class="d4">${r.d4 ?? "?"}</i></span>
+      <span class="tb-fate-scale">${D4_SCALE.map(([k, n, w]) => `<span class="${k}${k === fate.key ? " on" : ""}"><b>${n}</b>${w}</span>`).join("")}</span></div>`}
     <div class="tb-fate-stamp ${fate.key}">${FATE_SHORT[fate.key] ?? esc(fate.title)}</div>
-    <p class="tb-fate-text">${esc(fate.text)}</p>
+    <p class="tb-fate-text">${esc(FATE_NEXT[fate.key] ?? "")}</p>
     <div class="tb-fate-later"><button type="button" data-fate="close">Принято</button></div>
   </div>`;
 }
@@ -155,9 +169,22 @@ export function fatePick(actor) {
       await new Promise(ok => setTimeout(ok, 350));
       root.innerHTML = fateResultHtml(actor, r, fate);
       root.classList.add("result");
-      const die = root.querySelector(".d10"), real = die?.textContent, t0 = performance.now();
-      const spin = now => { if (!die?.isConnected) return; if (now - t0 > 700) { die.textContent = real; die.classList.add("land"); root.querySelector(".tb-fate-stamp")?.classList.add("in"); return; } die.textContent = String(1 + Math.floor(Math.random() * 10)); requestAnimationFrame(spin); };
-      requestAnimationFrame(spin);
+      // шаг за шагом: d10 рукоятки, вердикт, потом (при провале) d4 по шкале, потом штамп
+      const roll = (die, max, ms) => new Promise(done => {
+        if (!die) return done();
+        const real = die.textContent, t0 = performance.now();
+        const spin = now => { if (!die.isConnected) return done(); if (now - t0 > ms) { die.textContent = real; die.classList.add("land"); return done(); } die.textContent = String(1 + Math.floor(Math.random() * max)); requestAnimationFrame(spin); };
+        requestAnimationFrame(spin);
+      });
+      const pause = ms => new Promise(ok => setTimeout(ok, ms));
+      const one = root.querySelector(".tb-fate-step.one"), two = root.querySelector(".tb-fate-step.two");
+      one?.classList.add("show");
+      await roll(one?.querySelector(".d10"), 10, 700);
+      one?.classList.add("done");
+      if (two) { await pause(500); two.classList.add("show"); await roll(two.querySelector(".d4"), 4, 600); two.classList.add("done"); }
+      await pause(250);
+      root.querySelector(".tb-fate-stamp")?.classList.add("in");
+      root.querySelector(".tb-fate-text")?.classList.add("in");
       busy = false;
       timer = setTimeout(() => finish("eject"), 20000);
     });

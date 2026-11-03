@@ -245,7 +245,7 @@ export function rollPlateHtml(d) {
       ${gap > 1 && gap <= left ? `<button type="button" class="reach" data-hud-strain-n="${r.id}:${gap}" title="Потратить ${gap} Strain и дотянуть бросок до успеха"><b>+${gap}</b> ДО УСПЕХА</button>` : ""}</span>`
     : can && has && !r.success ? `<span class="tb-hud-none">Strain 0</span>` : "";
   return `<div class="tb-hud-rollplate ${cls}" data-roll-id="${r.id}">
-    ${r.eject ? `<i class="fas fa-parachute-box tb-hud-chute"></i>` : ""}<span class="tb-hud-dice"><i class="d10" title="d10">${r.d10}</i>${r.d4 !== null && r.d4 !== undefined ? `<i class="d4${r.perk ? " perk" : r.comp ? " comp" : ""}" title="d4${r.perk ? ": Perk" : r.comp ? ": Complication" : ""}">${r.d4}</i>` : ""}</span>
+    ${r.eject ? `<i class="fas fa-parachute-box tb-hud-chute"></i>` : ""}<span class="tb-hud-dice"><i class="d10" title="d10">${r.d10}</i>${r.d4 !== null && r.d4 !== undefined && r.eject !== "ok" ? `<i class="d4${r.perk ? " perk" : r.comp ? " comp" : ""}" title="d4${r.perk ? ": Perk" : r.comp ? ": Complication" : ""}">${r.d4}</i>` : ""}</span>
     <span class="tb-hud-rollsum"><b>${r.brk ? r.total : r.total}</b>${has ? `<em>/ ${r.dc}</em>` : ""}</span>
     <span class="tb-hud-rollinfo"><strong>${esc(verdict)}</strong><small>${esc(r.label)}${r.parts?.length ? ` · ${esc(r.parts.join(" · "))}` : ""}${r.strain ? ` · Strain +${r.strain}` : ""}${r.perk ? " · PERK" : r.comp ? " · COMPLICATION" : ""}${r.delayed && r.success && !r.eject ? " · долетит в залпе конца раунда" : ""}</small></span>
     ${btns}</div>`;

@@ -2202,3 +2202,26 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-pilot-hud.corners > .tb-hud-rollplate { zoom: var(--tb-hud-zoom, 1.15); align-self: flex-end; pointer-events: auto; width: min(520px, 46%); margin: 0; backdrop-filter: blur(3px); }
 #tb-pilot-hud .tb-hud-rollplate .tb-hud-chute { font-size: 26px; color: #ffd76a; text-shadow: 0 0 8px rgba(242, 193, 78, .7); }
 #tb-pilot-hud .tb-hud-rollplate.eject { border-width: 2px; }
+
+/* исход катапульты по шагам: 1 рукоятка (d10 против 7), 2 при провале d4 по шкале */
+#tb-fate-pick .tb-fate-step { display: flex; align-items: center; gap: 14px; margin: 8px auto; padding: 10px 14px; max-width: 620px; text-align: left;
+  border: 1px solid rgba(255, 255, 255, .14); background: rgba(0, 0, 0, .3); opacity: 0; transform: translateY(6px); transition: opacity .3s, transform .3s; }
+#tb-fate-pick .tb-fate-step.show { opacity: 1; transform: none; }
+#tb-fate-pick .tb-fate-step > small { flex: 0 0 120px; font-size: 11px; letter-spacing: .2em; color: #b9c6c1; }
+#tb-fate-pick .tb-fate-step .tb-fate-dice i { width: 46px; height: 46px; font-size: 24px; }
+#tb-fate-pick .tb-fate-step .tb-fate-dice i.d4 { width: 42px; height: 42px; font-size: 20px; padding-top: 12px; background: #e8d9c0; }
+#tb-fate-pick .tb-fate-parts { display: flex; flex-wrap: wrap; gap: 4px 8px; flex: 1 1 auto; font-family: var(--tb-data, monospace); font-size: 13px; color: #cfdad5; }
+#tb-fate-pick .tb-fate-parts .st { color: #ffc94a; }
+#tb-fate-pick .tb-fate-step .tb-fate-sum b { font-size: 34px; }
+#tb-fate-pick .tb-fate-step strong { flex: 0 0 auto; min-width: 120px; text-align: right; font-size: 16px; letter-spacing: .16em; opacity: 0; transition: opacity .25s; }
+#tb-fate-pick .tb-fate-step.done strong { opacity: 1; }
+#tb-fate-pick .tb-fate-step.ok strong { color: #a4ffcb; text-shadow: 0 0 8px rgba(164, 255, 203, .6); }
+#tb-fate-pick .tb-fate-step.bad strong { color: #ff8a73; text-shadow: 0 0 8px rgba(255, 90, 70, .6); }
+#tb-fate-pick .tb-fate-scale { display: flex; flex: 1 1 auto; gap: 4px; }
+#tb-fate-pick .tb-fate-scale span { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; padding: 4px 6px; font-size: 12px; color: #8a9a94; border: 1px solid rgba(255, 255, 255, .12); font-family: var(--tb-body, inherit); transition: all .25s; }
+#tb-fate-pick .tb-fate-scale b { font-size: 18px; font-family: var(--tb-data, monospace); }
+#tb-fate-pick .tb-fate-step.done .tb-fate-scale span.on.kia { color: #fff; background: rgba(210, 58, 42, .55); border-color: #ff5a46; box-shadow: 0 0 12px rgba(255, 60, 40, .5); }
+#tb-fate-pick .tb-fate-step.done .tb-fate-scale span.on.mia, #tb-fate-pick .tb-fate-step.done .tb-fate-scale span.on.hurt { color: #1a1404; background: #ffc94a; border-color: #ffc94a; box-shadow: 0 0 12px rgba(255, 201, 74, .5); }
+#tb-fate-pick .tb-fate-text { opacity: 0; transition: opacity .3s; }
+#tb-fate-pick .tb-fate-text.in { opacity: 1; }
+@media (max-width: 640px) { #tb-fate-pick .tb-fate-step { flex-wrap: wrap; } #tb-fate-pick .tb-fate-step > small { flex-basis: 100%; } }
