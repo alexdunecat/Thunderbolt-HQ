@@ -25,6 +25,10 @@ console.log("прожектор: от", r1(Math.min(...angs) * 180 / Math.PI), "
 
 const Fx = await import(R + "/module/fx.mjs");
 console.log("след по земле:", list.map(([n, a]) => `${n}=${Fx.groundTrailOf(a) ?? "—"}`).join(", "), "· объект", Fx.groundTrailOf(actor("npc", { kind: "ground", grp: "obj" })) ?? "—");
+{ const tarpan = actor("npc", { kind: "ship", grp: "boss", props: [{ key: "landship" }] });
+  console.log("Тарпан:", ["plains", "coast", "sea", null].map(t => `${t ?? "без карты"}=${Fx.groundTrailOf(tarpan, t)}`).join(", "));
+  const m = Fx.treadMarks({ x: 0, y: 0 }, { x: 100, y: 0 }, 100);
+  console.log("колея: отпечатков", m.length, "· полосы по y", [...new Set(m.map(o => r1((o.y1 + o.y2) / 2)))].join(" "), "· длина отпечатка", r1(Math.hypot(m[0].x2 - m[0].x1, m[0].y2 - m[0].y1)), "· стоит на месте", Fx.treadMarks({ x: 5, y: 5 }, { x: 5, y: 6 }, 100).length); }
 const pts = Fx.surfPoints({ x: 0, y: 0 }, { x: 100, y: 0 }, 100);
 console.log("точки кильватера на восток:", pts.length, "· первая", r1(pts[0].x), "· последняя", r1(pts.at(-1).x), "· направление", pts[0].ux, pts[0].uy, "· на месте:", Fx.surfPoints({ x: 0, y: 0 }, { x: 1, y: 0 }, 100).length);
 

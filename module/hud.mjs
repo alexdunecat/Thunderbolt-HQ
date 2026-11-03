@@ -39,8 +39,8 @@ export function registerHud() {
     onChange: () => { lastHtml = ""; refreshHud(); }
   });
   game.settings.register(SYSTEM_ID, "hitFlash", {
-    name: "Удар по своей машине", hint: "Когда твоя машина в HUD получает урон, края экрана коротко вспыхивают красным, а HUD вздрагивает. При метке Doom красная кайма держится. Только у себя.",
-    scope: "client", config: true, type: Boolean, default: true, onChange: v => { if (!v) setDoomFrame(false); }
+    name: "Удар по своей машине", hint: "Когда твоя машина в HUD получает урон, HUD краснеет, идёт рябью помех и вздрагивает, как в Ace Combat. При метке Doom HUD остаётся красным. Только у себя.",
+    scope: "client", config: true, type: Boolean, default: true, onChange: v => { if (!v) setDoom(false); }
   });
   game.settings.register(SYSTEM_ID, "hudScale", {
     name: "Размер HUD по углам", hint: "Насколько крупно рисуются приборы, оружие и кнопки HUD по углам. Если места на экране не хватает, сначала сужаются колонки, потом прячется силуэт машины.",
@@ -407,36 +407,61 @@ export const hudHtml = (actor, folded = false) => html(actor, hudData(actor), fo
 /** Получила ли машина урон: HP упало с прошлого раза, а это та же машина (смена машины в HUD — не удар). */
 export const tookHit = (prev, now) => !!prev && prev.uuid === now.uuid && now.hp < prev.hp;
 
-/* Удар по своей машине: красная вспышка по краям экрана и дрожь HUD; Doom — красная кайма держится. */
-let lastHp = null, vignette = null;
+/* Удар по своей машине, как в Ace Combat: символика HUD краснеет, идёт горизонтальной рябью помех и вздрагивает;
+   при метке Doom HUD остаётся красным и медленно мерцает. Края экрана не трогаю. */
+let lastHp = null, hitTimer = null, rippleSvg = null;
 const flashOn = () => { try { return game.settings.get(SYSTEM_ID, "hitFlash") !== false; } catch { return true; } };
-function vig() {
-  if (!vignette || !vignette.isConnected) { vignette = document.createElement("div"); vignette.id = "tb-hit-vignette"; document.body.append(vignette); }
-  return vignette;
+const HIT_MS = 900;
+/** Сила ряби в момент k (0..1 от начала удара): резкий всплеск и затухание с подёргиваниями. */
+export const rippleAt = k => (k <= 0 || k >= 1 ? 0 : Math.round(26 * (k < 0.08 ? k / 0.08 : Math.pow(1 - (k - 0.08) / 0.92, 1.6)) * (0.75 + 0.25 * Math.abs(Math.sin(k * 37)))));
+/** SVG-фильтр ряби: шум полосами по горизонтали сдвигает символику вбок; рисую один раз. */
+function ripple() {
+  if (rippleSvg?.isConnected) return rippleSvg;
+  rippleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  rippleSvg.setAttribute("width", "0"); rippleSvg.setAttribute("height", "0");
+  rippleSvg.style.cssText = "position:absolute;width:0;height:0;pointer-events:none";
+  rippleSvg.innerHTML = `<filter id="tb-hud-ripple" x="-5%" y="-10%" width="110%" height="120%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="0.004 0.18" numOctaves="1" seed="3" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="1 0 0 0 0  0 0 0 0 0.5  0 0 0 0 0  0 0 0 0 1" result="d"/>
+    <feDisplacementMap in="SourceGraphic" in2="d" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter>`;
+  document.body.append(rippleSvg);
+  return rippleSvg;
 }
 function hitFlash() {
-  if (!flashOn()) return;
-  const v = vig();
-  v.classList.remove("hit"); void v.offsetWidth; v.classList.add("hit");
-  if (el) { el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake"); }
+  if (!flashOn() || !el) return;
+  const svg = ripple(), map = svg.querySelector("feDisplacementMap"), noise = svg.querySelector("feTurbulence");
+  clearTimeout(hitTimer);
+  el.classList.remove("hit"); void el.offsetWidth; el.classList.add("hit", "red");
+  const t0 = performance.now();
+  const step = now => {
+    const k = (now - t0) / HIT_MS;
+    if (!el || k >= 1) { map.setAttribute("scale", "0"); return; }
+    map.setAttribute("scale", String(rippleAt(k)));
+    // полосы помех бегут: шум каждый кадр чуть другой
+    noise.setAttribute("seed", String(1 + Math.floor(k * 14)));
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+  hitTimer = setTimeout(() => { if (!el) return; el.classList.remove("hit"); el.classList.toggle("red", el.classList.contains("doom")); }, HIT_MS);
 }
-function setDoomFrame(on) {
-  if (!on && !vignette) return;
-  vig().classList.toggle("doom", !!on && flashOn());
+function setDoom(on) {
+  if (!el) return;
+  const doom = !!on && flashOn();
+  el.classList.toggle("doom", doom);
+  if (!el.classList.contains("hit")) el.classList.toggle("red", doom);
 }
 function watchHits(actor) {
-  if (!actor) { lastHp = null; setDoomFrame(false); return; }
+  if (!actor) { lastHp = null; return; }
   const now = { uuid: actor.uuid, hp: Number(actor.system.hp?.value ?? 0) };
+  setDoom(!!actor.system.markers?.doom);
   if (tookHit(lastHp, now)) hitFlash();
   lastHp = now;
-  setDoomFrame(!!actor.system.markers?.doom);
 }
 
 function render() {
   const actor = game.settings.get(SYSTEM_ID, "pilotHud") && game.combat?.started && (!game.combat.scene || game.combat.scene.id === canvas?.scene?.id) ? hudActor() : null;
   if (!actor || !tokenOf(actor)) { el?.remove(); el = null; shown = null; lastHtml = ""; watchHits(null); return; }
   shown = actor;
-  watchHits(actor);
   let folded = false;
   try { folded = localStorage.getItem(FOLD_KEY) === "1"; } catch (err) { /* хранилище недоступно */ }
   if (!el) {
@@ -467,6 +492,7 @@ function render() {
   el.classList.toggle("pinned", readPos().x !== undefined);
   el.classList.toggle("tb-unit-hud", !hudFits(actor));
   el.classList.toggle("corners", corners() && hudFits(actor));
+  watchHits(actor);
   const markup = hudFits(actor) ? html(actor, hudData(actor), folded) : unitHtml(actor, folded);
   // та же разметка: не трогать DOM и не пересчитывать раскладку
   if (markup === lastHtml) return;

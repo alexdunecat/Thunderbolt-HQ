@@ -8,7 +8,7 @@
    Невидимое для игрока (скрытый токен, вне обзора) не рисуется: схема не выдаёт засаду. */
 import { SYSTEM_ID } from "./config.mjs";
 import { resolveActor } from "./utils.mjs";
-import { isFlying, altOf } from "./scene.mjs";
+import { isFlying, altOf, hasRule, WATER } from "./scene.mjs";
 import { playCallouts, callout } from "./callouts.mjs";
 
 /* ---------- план: что показать по карточке (чистая часть, тесты) ---------- */
@@ -91,10 +91,12 @@ export function burnOf(actor) {
 /** Тянет ли машина инверсионный след: летит на Высокой или в стратосфере. */
 export const trailOf = (token, actor = token?.actor) => isFlying(actor) && ["high", "strat"].includes(altOf(token, actor));
 /** След по земле и воде: корабль на ходу оставляет кильватер, наземная техника поднимает пыль (на Севере снежную).
+    Сухопутный линкор («Тарпан») на суше оставляет колею гусениц, на воде (terrain — местность под ним) — кильватер.
     Летающие корабли, подлодка под водой и объекты следа не оставляют. */
-export function groundTrailOf(actor) {
+export function groundTrailOf(actor, terrain = null) {
   if (actor?.type !== "npc" || isFlying(actor)) return null;
   const s = actor.system;
+  if (s.kind === "ship" && hasRule(actor, "landship")) return terrain && WATER.includes(terrain) ? "wake" : "tracks";
   if (s.kind === "ship") return actor.getFlag?.(SYSTEM_ID, "unit")?.sub ? null : "wake";
   if (s.kind === "ground" && s.grp !== "obj" && s.grp !== "boss") return "dust";
   return null;
@@ -116,7 +118,7 @@ export function registerFx() {
     scope: "client", config: true, type: Boolean, default: true, onChange: () => trailAt.clear()
   });
   game.settings.register(SYSTEM_ID, "fxWake", {
-    name: "Кильватер и пыль", hint: "Корабль на ходу оставляет белый расходящийся след на воде, наземная техника поднимает пыль (на Севере снег). Только у себя, вместе с анимацией.",
+    name: "Кильватер, пыль и колея", hint: "Корабль на ходу оставляет белый расходящийся след на воде, наземная техника поднимает пыль (на Севере снег), сухопутный линкор оставляет колею гусениц. Только у себя, вместе с анимацией.",
     scope: "client", config: true, type: Boolean, default: true
   });
   game.settings.register(SYSTEM_ID, "fxBurner", {
@@ -421,12 +423,14 @@ function trailTick() {
   const live = new Set(), cold = canvas.scene?.getFlag?.(SYSTEM_ID, "place") === "cold";
   for (const t of canvas.tokens?.placeables ?? []) {
     if (t.document.hidden || !seen(t)) continue;
-    const surf = wake ? groundTrailOf(t.actor) : null;
+    const surf = wake ? groundTrailOf(t.actor, terrainAt(t.center)) : null;
     if (surf) {
       live.add(t.id);
       const now = { x: t.center.x, y: t.center.y }, was = trailAt.get(t.id);
       trailAt.set(t.id, now);
-      if (was && Math.hypot(now.x - was.x, now.y - was.y) <= gs() * 2.5) surfTrail(surf, was, now, t.w ?? gs(), cold);
+      // колея — по узкой стороне корпуса (линкор длинный), остальное — по ширине токена
+      const size = surf === "tracks" ? Math.min(t.w ?? gs(), t.h ?? gs()) : t.w ?? gs();
+      if (was && Math.hypot(now.x - was.x, now.y - was.y) <= gs() * 2.5) surfTrail(surf, was, now, size, cold);
       continue;
     }
     if (!isFlying(t.actor)) continue;
@@ -471,8 +475,51 @@ export function surfPoints(a, b, size, step = 0.07) {
   return Array.from({ length: k }, (_, i) => ({ x: n.x - (b.x - a.x) * (1 - (i + 1) / k), y: n.y - (b.y - a.y) * (1 - (i + 1) / k), ux: n.ux, uy: n.uy, i, k }));
 }
 
+/** Местность под точкой из карты местности сцены (импорт миссии) или null. */
+function terrainAt(p) {
+  const cells = canvas.scene?.getFlag?.(SYSTEM_ID, "terrainCells"), g = gs();
+  return cells && g ? cells[`${Math.floor(p.x / g)},${Math.floor(p.y / g)}`] ?? null : null;
+}
+
+/** Колея гусениц: TRACKS полос по ширине корпуса, на каждой — поперечные отпечатки траков с шагом step доли клетки.
+    Возвращает отрезки отпечатков [{ x1, y1, x2, y2 }] по пройденному пути a → b. */
+export const TRACKS = [-0.38, -0.2, 0.2, 0.38];
+export function treadMarks(a, b, size, step = 0.055) {
+  const d = Math.hypot(b.x - a.x, b.y - a.y);
+  if (d < 2) return [];
+  const ux = (b.x - a.x) / d, uy = (b.y - a.y) / d, nx = -uy, ny = ux, half = size * 0.065, k = Math.max(1, Math.floor(d / (size * step)));
+  const out = [];
+  for (let i = 0; i < k; i++) {
+    const cx = a.x + ux * d * (i / k), cy = a.y + uy * d * (i / k);
+    for (const o of TRACKS) {
+      const x = cx + nx * size * o, y = cy + ny * size * o;
+      out.push({ x1: x - nx * half, y1: y - ny * half, x2: x + nx * half, y2: y + ny * half });
+    }
+  }
+  return out;
+}
+const TRACK_MS = 9000;
+/** Колея линкора: тёмные отпечатки траков ложатся на землю (на снегу — серо-голубые) и долго тают; над ними немного пыли. */
+function tracks(a, b, size, cold) {
+  const marks = treadMarks(a, b, size);
+  if (!marks.length) return;
+  const color = cold ? 0x7d8a9c : 0x3a2f22, w = Math.max(1.5, size * 0.03);
+  add((t, g) => {
+    const k = t / TRACK_MS;
+    if (k >= 1) return false;
+    g.lineStyle(w, color, 0.5 * (k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3));
+    for (const m of marks) { g.moveTo(m.x1, m.y1); g.lineTo(m.x2, m.y2); }
+    g.lineStyle(0);
+  });
+  // гусеницы взбивают пыль (снег) по краям корпуса
+  const n = nozzleAt(a, b, size);
+  if (n) for (const s of [-1, 1]) puff({ x: b.x - n.uy * size * 0.45 * s - n.ux * size * 0.3, y: b.y + n.ux * size * 0.45 * s - n.uy * size * 0.3 },
+    { r: 0.03, life: 1900, color: cold ? 0xf2f6fb : 0xa89478, alpha: 0.28, grow: 2.4, vx: -n.ux * gs() * 0.05 + rnd(-4, 4), vy: -n.uy * gs() * 0.05 + rnd(-4, 4) });
+}
+
 /** Кильватер: белая пена за кормой расходится в обе стороны клином; пыль: бурые клубы оседают за техникой. */
 function surfTrail(kind, a, b, size, cold) {
+  if (kind === "tracks") return tracks(a, b, size, cold);
   const pts = surfPoints(a, b, size);
   for (const p of pts) {
     const delay = (p.i / p.k) * 120;

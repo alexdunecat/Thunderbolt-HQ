@@ -75,6 +75,7 @@ console.log("у ведущего с выделенным:", H.hudActor()?.name ?
   me.system.speed = sp; msgs.splice(0, msgs.length, ...keep); }
 { const cases = [["4→3 та же", { uuid: "a", hp: 4 }, { uuid: "a", hp: 3 }], ["3→3", { uuid: "a", hp: 3 }, { uuid: "a", hp: 3 }], ["3→5 ремонт", { uuid: "a", hp: 3 }, { uuid: "a", hp: 5 }], ["4→2 другая машина", { uuid: "b", hp: 4 }, { uuid: "a", hp: 2 }], ["первый раз", null, { uuid: "a", hp: 2 }]];
   console.log("удар по своей машине:", cases.map(([k, a, b]) => `${k}=${H.tookHit(a, b)}`).join(", ")); }
+console.log("рябь удара:", [0, 0.04, 0.08, 0.3, 0.6, 0.9, 1].map(k => `${k}=${H.rippleAt(k)}`).join(" "));
 console.log("кнопка Strain: у NPC без Strain", /data-hud-act="recover"/.test(H.hudHtml(foe)) ? "есть" : "нет", "· у пилота", /data-hud-act="recover"/.test(H.hudHtml(me)) ? "есть" : "нет");
 { const W = await import(R + "/module/rwr.mjs"), was = foe.system.lockUuid, gf = foe.getFlag;
   foe.system.lockUuid = "Actor.Гроза";
