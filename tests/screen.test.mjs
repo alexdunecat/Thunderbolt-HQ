@@ -29,7 +29,7 @@ const pts = Fx.surfPoints({ x: 0, y: 0 }, { x: 100, y: 0 }, 100);
 console.log("точки кильватера на восток:", pts.length, "· первая", r1(pts[0].x), "· последняя", r1(pts.at(-1).x), "· направление", pts[0].ux, pts[0].uy, "· на месте:", Fx.surfPoints({ x: 0, y: 0 }, { x: 1, y: 0 }, 100).length);
 
 const S = await import(R + "/module/sounds.mjs");
-console.log("щелчок рации:", [[70, 1, false], [100, 0.5, false], [0, 1, false], [70, 1, true]].map(([o, c, m]) => `${o}×${c}${m ? " выкл" : ""}=${r1(S.squelchVolume(o, c, m))}`).join(" "), "· без файла:", !!S.COCKPIT_SOUNDS.squelch.synth);
+console.log("щелчок рации:", [[70, 1, false], [100, 0.5, false], [0, 1, false], [70, 1, true]].map(([o, c, m]) => `${o}×${c}${m ? " выкл" : ""}=${r1(S.squelchVolume(o, c, m))}`).join(" "), "· файл:", S.SRC("squelch").split("/").pop());
 
 const W = await import(R + "/module/weather-fx.mjs");
 console.log("штриховка под анимацией:", ["systems/x/map/weather/rain.svg", "systems/x/map/weather/rain-badge.svg", "systems/x/map/weather/clouds.svg", "systems/x/map/weather/eye.svg", "systems/x/map/weather/tornado.svg", "systems/x/map/terrain/city.svg", null]
