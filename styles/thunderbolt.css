@@ -2286,3 +2286,5 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-declare-pick .tb-dp-foot .tb-dp-go { padding: 2px 22px; font-size: 15px; letter-spacing: .24em; color: #07100d; background: #a4ffcb; border-color: #a4ffcb; }
 #tb-declare-pick .tb-dp-foot .tb-dp-go:disabled { opacity: .35; cursor: default; }
 #tb-declare-pick .tb-dp-foot small { font-size: 11px; color: #8fb8a6; font-family: var(--tb-body, inherit); }
+/* HUD: заявка не сделана («Позже»), трекер спрятан — кнопка открывает её снова */
+#tb-pilot-hud .tb-hud-declare { width: auto; flex: 0 0 auto; margin: 0; padding: 0 10px; line-height: 22px; font-size: 12px; letter-spacing: .14em; color: #ffd76a; background: rgba(40, 30, 6, .6); border: 1px solid #f2c14e; border-radius: 2px; animation: tb-ck-caution .7s ease-in-out infinite alternate; cursor: pointer; }

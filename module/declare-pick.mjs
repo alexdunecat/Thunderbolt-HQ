@@ -2,7 +2,7 @@
    «РАУНД N · ЗАЯВКА». Сверху контакты врага с их заявками и уже заявившееся звено, ниже у каждой машины игрока
    четыре плитки: 1, 2, 3 действия и ПАС. На каждой плитке — место в очереди против врага: «раньше всех врагов»,
    «после 2 врагов». Одна машина: щелчок или клавиша 1/2/3/0 сразу заявляет. Несколько: выбрать у каждой и «ЗАЯВИТЬ».
-   «Позже» (Esc) закрывает: заявка остаётся за кнопкой в трекере. У ведущего и без DOM — обычная форма. */
+   «Позже» (Esc) закрывает: заявку открывает снова кнопка ЗАЯВКА на HUD (или трекер). У ведущего и без DOM — обычная форма. */
 import { SYSTEM_ID } from "./config.mjs";
 import { esc } from "./utils.mjs";
 
@@ -57,7 +57,7 @@ export function declarePickHtml(d) {
     ${mates}
     ${rows}
     <div class="tb-dp-foot">${many ? `<button type="button" class="tb-dp-go" data-go disabled>ЗАЯВИТЬ</button>` : ""}
-      <button type="button" class="tb-dp-later" data-later>Позже</button><small>${many ? "1/2/3 или 0 — для первой машины без выбора, Enter — заявить" : "Клавиши 1, 2, 3 или 0 (пас). Esc — позже, заявка останется в трекере"}</small></div>
+      <button type="button" class="tb-dp-later" data-later>Позже</button><small>${many ? "1/2/3 или 0 — для первой машины без выбора, Enter — заявить" : "Клавиши 1, 2, 3 или 0 (пас). Esc — позже: кнопка ЗАЯВКА на HUD откроет снова"}</small></div>
   </div>`;
 }
 
@@ -120,6 +120,8 @@ export function declarePick(data) {
     };
     const onKey = ev => {
       if (ev.target?.closest?.("input, textarea, [contenteditable]")) return;
+      // поверх открыт выбор метки или судьбы пилота: клавиши его, а не заявки
+      if (document.querySelector("#tb-hit-pick, #tb-fate-pick")) return;
       if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); return finish(null); }
       if (ev.key === "Enter" && many && go && !go.disabled) { ev.preventDefault(); return finish({ ...picked }); }
       const k = ev.code?.replace(/^(Digit|Numpad)/, "");

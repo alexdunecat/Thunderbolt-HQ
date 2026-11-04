@@ -436,7 +436,13 @@ function draw() {
     const len = Math.abs(mesh.texture.height * mesh.scale.y), wid = Math.abs(mesh.texture.width * mesh.scale.x), size = Math.max(len, wid);
     const b = Math.max(1.6, size * 0.024), fwd = (mesh.rotation ?? 0) - Math.PI / 2 * Math.sign(mesh.scale.y || 1);
     const key = tok.actor?.system?.key ?? "", sil = silhouette(tok.document.texture?.src);
-    const lay = layoutFor(kind, kind === "light" ? null : shapeOf(mesh), { carrier: /carrier/.test(sil) || CARRIERS.includes(key) || /carrier/.test(key), tall: TALL.includes(key), seed: ph });
+    // раскладка огней зависит только от вида, формы картинки и машины: считается раз, а не 30 раз в секунду
+    const shape = kind === "light" ? null : shapeOf(mesh), lk = `${kind}|${sil}|${key}|${ph}`;
+    let lay = tok._tbLights?.k === lk && tok._tbLights.shape === shape ? tok._tbLights.lay : null;
+    if (!lay) {
+      lay = layoutFor(kind, shape, { carrier: /carrier/.test(sil) || CARRIERS.includes(key) || /carrier/.test(key), tall: TALL.includes(key), seed: ph });
+      tok._tbLights = { k: lk, shape, lay };
+    }
     for (const l of lay) {
       if (l.k === "sky") {
         const ang = beamAngle(t, ph % 7), o = tok.center, L = gs * 1.7;

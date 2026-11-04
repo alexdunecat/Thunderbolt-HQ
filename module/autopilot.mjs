@@ -776,7 +776,24 @@ async function applyWingOrder(leaderUuid, kind, userId = game.user.id) {
 
 /* ---------- меню токена, значок и маршрут выделенного ---------- */
 
+/**
+ * «Чутьё аса» у аса на автопилоте: в него пустили ракету, которая сейчас попадает, — он сам делает Break! вне хода
+ * (раз в раунд, при рабочем MAWS), как сделал бы ведущий кнопкой. Только главный ведущий.
+ */
+async function autoInstinct(message) {
+  if (!game.users?.activeGM?.isSelf) return;
+  const c = message.getFlag?.(SYSTEM_ID, "card");
+  if (!c?.attack || !c.delayed || c.resolved || c.dmgApplied || !c.targetUuid) return;
+  const target = resolveActor(c.targetUuid);
+  if (!autopilotOn(target) || gone(target)) return;
+  const K = await import("./ace-kit.mjs"), R = await import("./dice/rolls.mjs");
+  if (K.instinctProblem(target) || !R.computeCard(c).success) return;
+  const res = await R.autoBreak(target, { instinct: true });
+  if (res && typeof res === "object") await target.setFlag(SYSTEM_ID, "instinct", K.roundKeyNow());
+}
+
 export function registerAutopilot() {
+  Hooks.on("createChatMessage", (m, options) => { if (!options?.tbUndo) autoInstinct(m).catch(err => console.warn(`${SYSTEM_ID} | чутьё аса`, err)); });
   game.settings.register(SYSTEM_ID, "autopilotVsPlayers", {
     name: "Автопилот воюет с игроками", hint: "Включено: NPC на автопилоте, выцелив машину игрока, не снимаются с автопилота, а берут её на захват, стреляют и воюют дальше сами (игрок отвечает на карточки как обычно). Выключено: автопилот снимается и ход отдаётся ведущему. Машины игроков по-прежнему самые последние в очереди целей.",
     scope: "world", config: true, type: Boolean, default: false

@@ -108,7 +108,14 @@ function vote(id, choice) {
   if (isLead()) return record(id, game.user.id, choice);
   game.socket?.emit(CHANNEL, { type: "verdictVote", id, user: game.user.id, choice });
 }
-async function record(id, user, choice) {
+/* голоса пишутся строго по очереди: два голоса в одну секунду читали бы одну и ту же карточку, и второй стёр бы первый */
+let queue = Promise.resolve();
+function record(id, user, choice) {
+  const run = () => recordNow(id, user, choice);
+  queue = queue.then(run, run);
+  return queue;
+}
+async function recordNow(id, user, choice) {
   const m = msgOf(id), v = foundry.utils.deepClone(stateOf(m));
   if (!v || v.result || !OUTCOMES[choice]) return;
   if (!v.voters.some(x => x.id === user)) {
@@ -123,7 +130,7 @@ async function record(id, user, choice) {
 }
 function decide(id, choice) {
   if (!game.user.isGM || !OUTCOMES[choice]) return;
-  if (isLead()) return finish(msgOf(id), foundry.utils.deepClone(stateOf(msgOf(id))), choice, true);
+  if (isLead()) return (queue = queue.then(() => finish(msgOf(id), foundry.utils.deepClone(stateOf(msgOf(id))), choice, true)));
   game.socket?.emit(CHANNEL, { type: "verdictForce", id, choice, user: game.user.id });
 }
 async function finish(m, v, choice, forced = false) {
@@ -155,7 +162,7 @@ export function registerVerdict() {
     game.socket?.on(CHANNEL, msg => {
       if (msg?.type === "verdictOpen") return setTimeout(() => render(msg.id, { reopen: true }), 150);
       if (msg?.type === "verdictVote" && isLead()) return record(msg.id, msg.user, msg.choice);
-      if (msg?.type === "verdictForce" && isLead() && game.users.get(msg.user ?? "")?.isGM) return finish(msgOf(msg.id), foundry.utils.deepClone(stateOf(msgOf(msg.id))), msg.choice, true);
+      if (msg?.type === "verdictForce" && isLead() && game.users.get(msg.user ?? "")?.isGM) return (queue = queue.then(() => finish(msgOf(msg.id), foundry.utils.deepClone(stateOf(msgOf(msg.id))), msg.choice, true)));
     });
     // перезагрузился посреди голосования — окно снова открыто
     const open = game.messages?.contents.slice(-40).reverse().find(m => { const v = stateOf(m); return v && !v.result; });

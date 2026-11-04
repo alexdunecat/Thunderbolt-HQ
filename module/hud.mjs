@@ -66,7 +66,6 @@ export function registerHud() {
   Hooks.on(`${SYSTEM_ID}.monologue`, () => refreshHud());
   // запас Strain и тактики эскадрилий дуэлянтов
   Hooks.on(`${SYSTEM_ID}.squadrons`, () => refreshHud());
-  globalThis.window?.addEventListener("resize", () => place());
   registerUnitHud();
 }
 
@@ -152,7 +151,7 @@ export function hudData(actor) {
     canEject: pilot && !!m.doom && !["ejected", "kia", "mia", "hospital"].includes(s.service?.status),
     alt: TB.altitudes[alt] ?? alt ?? "", altKey: alt, flying, defense: defenseWithWeather(actor, w),
     alts: ALT_ORDER.map(k => ({ key: k, label: TB.altitudes[k] ?? k, m: ALT_METERS[k], on: k === alt, can: allowed.includes(k) })).reverse(),
-    acts: c ? { declared, used: spent.used, rolled: spent.rolled, list: spent.list, turn: c.parent.combatant?.id === c.id } : null,
+    acts: c ? { id: c.id, canDeclare: declared === null && c.parent.getFlag?.(SYSTEM_ID, "npcDone") === c.parent.round, declared, used: spent.used, rolled: spent.rolled, list: spent.list, turn: c.parent.combatant?.id === c.id } : null,
     lock: s.lockUuid || s.lock ? { name: target?.token?.name ?? tTok?.name ?? target?.name ?? s.lock, uuid: s.lockUuid, gone: !tTok,
       dist: dist === null ? "" : dist === 0 ? "своя зона" : `${dist} ${dist === 1 ? "зона" : dist < 5 ? "зоны" : "зон"}` } : null,
     weapons, aimed: aim, warn,
@@ -386,6 +385,7 @@ const heroButton = `<button type="button" class="tb-hud-eject hero" data-hud-her
 function html(actor, d, folded) {
   const actBoxes = d.acts && d.acts.declared !== null
     ? Array.from({ length: Math.max(d.acts.declared, d.acts.used) }, (_, i) => `<span class="${i < d.acts.used ? "used" : ""}" title="${esc(d.acts.list[i] ?? "")}">${esc(d.acts.list[i]?.replace(/ \(заодно\)$/, "") ?? String(i + 1))}</span>`).join("")
+    : d.acts?.canDeclare && actor.isOwner ? `<button type="button" class="tb-hud-declare" data-hud-declare="${d.acts.id}" title="Открыть заявку действий на этот раунд">ЗАЯВКА</button>`
     : `<span class="tb-hud-none">${d.acts ? "заявки ещё нет" : "вне боя"}</span>`;
   const button = (act, label) => {
     const n = PILOT_BAR.indexOf(act) + 1;
@@ -721,7 +721,7 @@ async function onClick(ev) {
   const hl = ev.target.closest("[data-hud-hl]");
   if (hl) { ev.preventDefault(); ev.stopPropagation(); return setHlMode(hl.dataset.hudHl); }
   if (dragged && ev.target.closest("header")) { dragged = false; return; }
-  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-hero], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-tactic], [data-hud-ace], [data-hud-wing], [data-hud-strain], [data-hud-strain-n], [data-hud-stall]");
+  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-hero], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-tactic], [data-hud-ace], [data-hud-wing], [data-hud-strain], [data-hud-strain-n], [data-hud-stall], [data-hud-declare]");
   if (!t || !shown) return;
   ev.preventDefault();
   const d = t.dataset, actor = shown;
@@ -743,6 +743,8 @@ async function onClick(ev) {
   if (d.hudNemtrig) return useTrigger(actor, actor.items.get(d.hudNemtrig));
   if (d.hudCtrig) return useCombatTrigger(actor, actor.items.get(d.hudCtrig));
   if (d.hudStall) { const m = game.messages.get(d.hudStall), c = m?.getFlag(SYSTEM_ID, "card"); return c ? onCardAction(m, computeCard(c).success ? "stall-ok" : "stall-fail") : null; }
+  // заявка закрыта «Позже», а трекер спрятан боевым экраном: открыть её снова прямо из HUD
+  if (d.hudDeclare) return game.combat?.rollInitiative([d.hudDeclare], { updateTurn: false });
   if (d.hudStrain) { const m = game.messages.get(d.hudStrain); return m ? onCardAction(m, "strain") : null; }
   if (d.hudStrainN) {
     // «+N до успеха»: N раз по 1 Strain, как N нажатий «+1»

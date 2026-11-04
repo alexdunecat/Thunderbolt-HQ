@@ -1705,6 +1705,9 @@ export async function fireSam(actor, sysIndex, { target = null, free = false, ta
     if (!(await confirmReach(problems, label))) return;
   }
   const parts = [[air ? "G-A" : "G-G", ga ?? 0]];
+  // тактики эскадрильи и триггеры аса — как у самолётов (без броска)
+  const bonus = t ? attackBonus(actor, t.actor, { rolled: false }) : null;
+  if (bonus) parts.push(...bonus.parts);
   // «Наведение» РЛС рядом и «Радар ДРЛО» своей стороны
   const cue = air ? radarCue(actor) : null, aw = awacsCue(actor);
   if (cue) parts.push(cue);
@@ -1721,12 +1724,23 @@ export async function fireSam(actor, sysIndex, { target = null, free = false, ta
       : forceKey ? AUTO_NOTE : key ? "Ракета долетит в конце раунда: залп посчитается сам." : "Ракета долетает в конце раунда."]
   };
   await revealAmbush(actor);
-  return postCard(actor, card);
+  const msg = await postCard(actor, card);
+  await bonus?.take();
+  return msg;
 }
 
 /* ---------- автопилот: те же действия без окон ---------- */
 
 const AUTO_NOTE = "Пуск автопилота в конце раунда: ракета долетит в конце следующего раунда, цель успеет Break!.";
+
+/**
+ * Прибавки к атаке NPC, как в окне ведущего: триггеры аса («Удар в спину», «Я тебя помню»), тактики эскадрильи дуэлянтов,
+ * Немезида. take() отмечает сработавшее (триггер аса — раз за вылет) — звать после карточки.
+ */
+function attackBonus(actor, ta, opts) {
+  const n = nemesisAttack(actor, ta, opts), c = triggerAttack(actor, ta, opts);
+  return { parts: [...n.parts, ...c.parts], take: async () => { await n.take(); await c.take(); } };
+}
 
 /** Ключ следующего раунда: ракеты автопилота, пущенные в конце раунда, бьют залпом следующего. */
 export function nextRoundKey() {
@@ -1821,13 +1835,16 @@ export async function autoFox(actor, tok, { sys = null, canRoll = true } = {}) {
   const aim = autoAim(actor, t, { missile: true });
   if (aim) parts.push(...aim.parts);
   if (s.speed) parts.push(["Speed", -s.speed]);
+  const skill = foxSkill(actor, air);
+  const bBasic = attackBonus(actor, t.actor, { rolled: false, skill }), bRoll = attackBonus(actor, t.actor, { rolled: true, skill });
+  parts.push(...bBasic.parts);
   const hard = !w && hardened(t);
   const notes = [...(hard ? [HARD_NOTE] : [])];
   if (ws?.trait) notes.push(`<b>${esc(ws.trait.name)}.</b> ${esc(ws.trait.text)}`);
   else if (ws?.fx) notes.push(esc(ws.fx));
   const vs = shipDc(t, aim, defVs(actor, t, w), ws?.key === "GPB" ? 2 : 0);
   // Improved Fox Two!: навык (Aim по воздуху, Deploy по земле) + d10 вместо A-A / A-G, когда это выгоднее; бросок раз за ход
-  const skill = foxSkill(actor, air), struck = !!struckBy(actor);
+  const struck = !!struckBy(actor);
   const iparts = [];
   if (!s.skillBlocked?.[skill]) {
     try { iparts.push(...skillParts(actor, skill)); } catch { /* у машины нет навыков */ }
@@ -1837,6 +1854,7 @@ export async function autoFox(actor, tok, { sys = null, canRoll = true } = {}) {
     if (cue) iparts.push(cue);
     if (aim) iparts.push(...aim.parts);
     if (s.speed) iparts.push(["Speed", -s.speed]);
+    iparts.push(...bRoll.parts);
   }
   const improved = !s.skillBlocked?.[skill] && preferImproved({ basic: sum(parts), imp: sum(iparts), dc: vs.dc ?? null, canRoll, forced: struck });
   if (!improved && struck) return "после удара молнии ракета только с броском, а бросок уже был";
@@ -1858,7 +1876,9 @@ export async function autoFox(actor, tok, { sys = null, canRoll = true } = {}) {
     delayed: true, atTurn: false, combatKey: key, targetUuid: t.uuid, targetName: t.name, maws: mawsOn(t), tkind: air ? "air" : "ground", bomb: ws?.key === "GPB",
     notes
   };
-  return postCard(actor, card, dice?.rolls ?? []);
+  const msg = await postCard(actor, card, dice?.rolls ?? []);
+  await (improved ? bRoll : bBasic).take();
+  return msg;
 }
 
 /**
@@ -1881,7 +1901,8 @@ export async function autoSysGun(actor, tok, i) {
   if (problems.length) return problems[0];
   const dice = await rollDice(actor, false, { turnRoll: false });
   if (!dice) return "бросок не прошёл";
-  const parts = [[y.beam ? "Луч" : "Пушка", sysStrafe(actor, y)], ...(aim?.parts ?? [])];
+  const bonus = attackBonus(actor, t.actor, { rolled: true, skill: "strafe" });
+  const parts = [[y.beam ? "Луч" : "Пушка", sysStrafe(actor, y)], ...(aim?.parts ?? []), ...bonus.parts];
   const gun = y.gun ?? 0;
   const card = {
     type: "attack", attack: true, label: `${y.beam ? "Луч" : "Огонь"}: ${y.name}`, rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, shotKey: combatKey(),
@@ -1890,6 +1911,7 @@ export async function autoSysGun(actor, tok, i) {
     notes: [...(hardened(t) ? [HARD_NOTE] : []), "Огонь автопилота."], ...thresholds(actor, "strafe")
   };
   const msg = await postCard(actor, card, dice.rolls);
+  await bonus.take();
   await revealAmbush(actor);
   await autoHit(msg);
   return msg;
@@ -1950,6 +1972,8 @@ export async function autoGuns(actor, tok) {
   const parts = ground ? [["Пушка", s.ground.strafe ?? 0]] : skillParts(actor, "strafe", "Пушка");
   const speed = ground ? 0 : (s.speed ?? 0);
   if (speed) parts.push(["Speed", -speed]);
+  const bonus = attackBonus(actor, t.actor, { rolled: true, skill: "strafe" });
+  parts.push(...bonus.parts);
   const gun = ground ? s.ground.gun ?? 0 : s.gun ?? 0;
   const card = {
     type: "attack", attack: true, label: "Guns, Guns, Guns!", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, shotKey: combatKey(),
@@ -1958,12 +1982,13 @@ export async function autoGuns(actor, tok) {
     notes: [...(hardened(t) ? [HARD_NOTE] : []), "Очередь автопилота."], ...thresholds(actor, "strafe")
   };
   const msg = await postCard(actor, card, dice.rolls);
+  await bonus.take();
   await autoHit(msg);
   return msg;
 }
 
 /** Break! автопилота: Dodge с броском, без окна; защита от ракет этого раунда. */
-export async function autoBreak(actor) {
+export async function autoBreak(actor, { instinct = false } = {}) {
   if (blocked(actor, "dodge")) return "навык под меткой";
   if (inNarrowTunnel(tokenOf(actor), actor) && !hasTrigger(actor, "nevercome")) return "в туннеле";
   const dice = await rollDice(actor, false, { turnRoll: false });
@@ -1971,9 +1996,10 @@ export async function autoBreak(actor) {
   const parts = skillParts(actor, "dodge", "Уклонение");
   const tvc = actor.system.planeProps?.has?.("tvc") || actor.system.props?.some?.(p => p.key === "tvc");
   const card = {
-    type: "break", label: "Break!", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: null,
+    type: "break", label: instinct ? `Break! · ${TB.aceInstinct.name}` : "Break!", rolled: true, d10: dice.d10, d4: dice.d4, parts, strain: 0, dc: null,
     ev: actor.system.evasion ?? actor.system.stats?.ev ?? 0, strainable: false,
-    speedDrop: (tvc ? 1 : 2) + (actor.system.alt === "strat" ? 1 : 0), combatKey: combatKey(), ...thresholds(actor, "dodge")
+    speedDrop: (tvc ? 1 : 2) + (actor.system.alt === "strat" ? 1 : 0), combatKey: combatKey(), ...thresholds(actor, "dodge"),
+    ...(instinct ? { noTurnRoll: true, notes: [`<b>${esc(TB.aceInstinct.name)}.</b> Автопилот аса: Break! вне хода, действие не тратится.`] } : {})
   };
   const msg = await postCard(actor, card, dice.rolls);
   await applyBreak(actor, card);
@@ -2323,7 +2349,19 @@ function damageFailed(r, err) {
 
 /* ---------- кнопки на карточках ---------- */
 
-export async function onCardAction(message, action, button) {
+/* +1 Strain по одной карточке — строго по очереди: двойной щелчок (на HUD или в чате) иначе читал бы одну и ту же карточку,
+   и Strain списался бы дважды, а к броску прибавилась бы единица */
+const strainQueue = new Map();
+export function onCardAction(message, action, button) {
+  if (action !== "strain" || !message?.id) return cardAction(message, action, button);
+  const prev = strainQueue.get(message.id) ?? Promise.resolve();
+  const run = () => cardAction(game.messages?.get?.(message.id) ?? message, action, button);
+  const p = prev.then(run, run);
+  strainQueue.set(message.id, p);
+  p.finally(() => { if (strainQueue.get(message.id) === p) strainQueue.delete(message.id); }).catch(() => null);
+  return p;
+}
+async function cardAction(message, action, button) {
   const card = foundry.utils.deepClone(message.getFlag(SYSTEM_ID, "card"));
   if (!card) return;
   const actor = resolveActor(card.actorUuid);
