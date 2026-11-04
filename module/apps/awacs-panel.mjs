@@ -27,7 +27,7 @@ import { lineOf, lineHint, escapedOf, bringBack, forgetEscaped, setLineSettings,
 import { RET_ENEMY, RET_ESCORT, RET_PILOTS, rearmText } from "../return-rules.mjs";
 import { openBrush, clearReturnLine } from "../cell-brush.mjs";
 import { setInactive } from "../inactive.mjs";
-import { repView, repStep, refuseOrder, debriefFields, applyDebrief } from "../reputation.mjs";
+import { repView, repStep, repGrant, refuseOrder, debriefFields, applyDebrief } from "../reputation.mjs";
 const TIMER_SHORT = { 50: "половина", left2: "осталось 2", left1: "последний раунд" };
 
 let panel = null;
@@ -246,6 +246,7 @@ export class AwacsPanel extends Application {
     on("[data-glory-add]", () => gloryDialog());
     on("[data-rep-step]", d => repStep(game.actors.get(d.repStep), Number(d.delta)));
     on("[data-rep-refuse]", d => refuseOrder(game.actors.get(d.repRefuse)));
+    on("[data-rep-grant]", d => repGrant(game.actors.get(d.repGrant)));
     on("[data-glory-step]", d => setGlory({ points: gloryView().points + Number(d.gloryStep) }));
     el.querySelectorAll("[data-tun-state]").forEach(n => n.addEventListener("change", () => setSectionState(game.scenes.viewed, n.dataset.tunState, n.value)));
     el.querySelector("[data-glory-nick]")?.addEventListener("change", ev => setGlory({ nickname: ev.target.value.trim() }));

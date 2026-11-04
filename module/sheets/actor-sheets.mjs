@@ -12,7 +12,7 @@ import { openDossierExchange } from "../dossier-sync.mjs";
 import { aimedWeapon, toggleAim } from "../range.mjs";
 import { rollGround, chooseEdge, edgeLabel, dropBond, useBond, useEdge, threats, clockPips, stepThreat, bondCap } from "../downtime.mjs";
 import { gloryView } from "../glory.mjs";
-import { repView, repStep } from "../reputation.mjs";
+import { repView, repStep, repGrant } from "../reputation.mjs";
 import { openChatterEditor, nameOf, setCallsign } from "../chatter.mjs";
 import { openCivilRadio, RADIO_TRIGGER } from "../civil-radio.mjs";
 import { rack, openMedals } from "../medals.mjs";
@@ -511,6 +511,7 @@ export class PilotSheet extends TBActorSheet {
       this.actor.update({ "system.service.log": log });
     }));
     this.#downtimeListeners(el);
+    el.querySelector("[data-rep-grant]")?.addEventListener("click", ev => { ev.preventDefault(); repGrant(this.actor); });
     el.querySelectorAll("[data-rep-step]").forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); repStep(this.actor, Number(n.dataset.repStep)); }));
     el.querySelector("[data-dossier-add]")?.addEventListener("click", ev => {
       ev.preventDefault();

@@ -499,6 +499,21 @@ export async function repStep(pilot, delta) {
   if (r && r.before.key !== r.after.key) ui.notifications.info(`${pilot.name}: теперь «${r.after.name}».`);
 }
 
+/** Ведущий начисляет сам: любое число от −10 до +10 и причина. Лимит разбора (+2 за вылет) не действует. */
+export async function repGrant(pilot) {
+  if (!game.user.isGM || pilot?.type !== "pilot") return;
+  const { formDialog } = await import("./dice/rolls.mjs");
+  const v = repView(pilot);
+  const d = await formDialog(`Репутация: ${pilot.name}`, `<p class="tb-hint">Сейчас <b>${esc(v.sign)}</b>, «${esc(v.name)}». Сдвиг ведущего идёт сразу и в журнал, без лимита разбора.</p>
+    <div class="form-group"><label>Сколько</label><input type="number" name="delta" value="1" min="-20" max="20" step="1"></div>
+    <div class="form-group"><label>За что</label><input type="text" name="why" placeholder="спас колонну беженцев, сбил санитарный вертолёт…"></div>`, { ok: "Начислить" });
+  const delta = Math.round(Number(d?.delta) || 0);
+  if (!d || !delta) return;
+  const r = await shiftRep(pilot, delta, d.why || "решение ведущего");
+  if (!r) return;
+  ui.notifications.info(`${pilot.name}: Репутация ${delta > 0 ? "+" : "−"}${Math.abs(delta)}, теперь ${r.points}${r.before.key !== r.after.key ? `, «${r.after.name}»` : ""}.`);
+}
+
 /** «Отказался от приказа» (кнопка ведущего): +2 на разборе и +1 на шкалу «Особый отдел присматривается». */
 export async function refuseOrder(pilot) {
   if (!game.user.isGM || pilot?.type !== "pilot") return;
@@ -520,7 +535,8 @@ export function debriefFields(list) {
     const ev = repSuggest(a.getFlag(SYSTEM_ID, "repEvents") ?? []);
     const v = repView(a);
     const items = [...ev.map(e => `<label><input type="checkbox" name="rep_${a.id}_${e.i}" ${e.on ? "checked" : ""}> ${e.delta > 0 ? "+" : "−"}${Math.abs(e.delta)} ${esc(e.why)}</label>`),
-      `<label title="Сорвал удар по мирным или спас гражданских (условие медали «За мирное небо»): решает AWACS"><input type="checkbox" name="rep_${a.id}_saved"> +1 спас мирных</label>`];
+      `<label title="Сорвал удар по мирным или спас гражданских (условие медали «За мирное небо»): решает AWACS"><input type="checkbox" name="rep_${a.id}_saved"> +1 спас мирных</label>`,
+      `<label class="tb-rep-gm" title="Ведущий сам: любое число и причина, без лимита +2">ведущий <input type="number" name="rep_${a.id}_gm" value="0" min="-20" max="20" step="1"> за <input type="text" name="rep_${a.id}_gmwhy" placeholder="за что"></label>`];
     return `<div class="tb-rep-row"><b>${esc(a.name)}</b> <span class="tb-rep-chip lv-${v.key}">${esc(v.name)} ${esc(v.sign)}</span> ${items.join(" ") || `<small class="tb-muted">сдвигов нет</small>`}</div>`;
   }).join("");
   return `<details class="tb-glory-block tb-rep-block" open><summary>Репутация пилотов <small class="tb-muted">подсказки по событиям вылета; без галочки шкала не меняется, вверх не больше +${UP_CAP} за вылет</small></summary>${rows}</details>`;
@@ -534,8 +550,13 @@ export async function applyDebrief(pilot, data, date) {
   await pilot.unsetFlag(SYSTEM_ID, "repEvents");
   const notes = [];
   let r = null;
-  const total = repTotal(picked);
-  if (total) r = await shiftRep(pilot, total, picked.map(e => `${e.delta > 0 ? "+" : "−"}${Math.abs(e.delta)} ${e.why}`).join("; "), date);
+  // ведущий сам: поверх подсказок и без лимита вверх
+  const gm = Math.round(Number(data[`rep_${pilot.id}_gm`]) || 0);
+  const gmWhy = String(data[`rep_${pilot.id}_gmwhy`] ?? "").trim() || "решение ведущего";
+  const total = repTotal(picked) + gm;
+  const capped = repTotal(picked) !== picked.reduce((n, e) => n + e.delta, 0) ? [`вверх по подсказкам не больше +${UP_CAP}`] : [];
+  const why = [...picked.map(e => `${e.delta > 0 ? "+" : "−"}${Math.abs(e.delta)} ${e.why}`), ...capped, ...(gm ? [`${gm > 0 ? "+" : "−"}${Math.abs(gm)} ${gmWhy}`] : [])].join("; ");
+  if (total) r = await shiftRep(pilot, total, why, date);
   if (r) notes.push(`Репутация ${total > 0 ? "+" : "−"}${Math.abs(total)} (${r.points}${r.before.key !== r.after.key ? `, теперь «${r.after.name}»` : ""})`);
   const lv = repOf(pilot);
   const hints = [];

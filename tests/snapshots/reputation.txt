@@ -33,4 +33,6 @@
 след: soldier={"color":16054527,"alpha":1,"width":1} knight={"color":16777215,"alpha":1.25,"width":1.05} white={"color":16777215,"alpha":1.55,"width":1.15,"glow":14413567} punisher={"color":9208696,"alpha":1.1,"width":1.1} monster={"color":4866106,"alpha":1.3,"width":1.25,"glow":8003090}
 банк Репутации: rep_knight enemy/ally, rep_white enemy/ally/civil, rep_punisher enemy/ally, rep_monster enemy/ally/civil дыр 0
 тип по уровню: monster=rep_monster punisher=rep_punisher soldier=null knight=rep_knight white=rep_white
+в форме разбора: name="rep_Разбор_0" name="rep_Разбор_1" name="rep_Разбор_2" name="rep_Разбор_saved" name="rep_Разбор_gm" name="rep_Разбор_gmwhy"
+итог разбора: Репутация +5 (7, теперь «Рыцарь неба») | журнал: [{"date":"12.05.2010","delta":5,"why":"+1 отпустил «Кобру»; +1 координаты спасателям; +1 заслонил лайнер; вверх по подсказкам не больше +2; +3 вывел колонну беженцев"}]
 all ok (2)

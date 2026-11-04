@@ -96,4 +96,17 @@ for (const [type, sides] of Object.entries(B.REP_BANK)) for (const [side, evs] o
 console.log("банк Репутации:", Object.entries(B.REP_BANK).map(([t, s]) => `${t} ${Object.keys(s).join("/")}`).join(", "), "дыр", holes);
 console.log("тип по уровню:", ["monster", "punisher", "soldier", "knight", "white"].map(k => `${k}=${B.repType(k)}`).join(" "));
 
+// разбор: подсказки с галочками и сдвиг ведущего без лимита
+{
+  const upd = [];
+  const p = pilot("Разбор", 2, { repEvents: [{ kind: "mercy", delta: 1, why: "отпустил «Кобру»" }, { kind: "rescue", delta: 1, why: "координаты спасателям" }, { kind: "shield", delta: 1, why: "заслонил лайнер" }] });
+  p.unsetFlag = async () => { flags[p.uuid] = {}; };
+  p.update = async u => { upd.push(u); p.system.reputation = { points: u["system.reputation.points"], log: u["system.reputation.log"] }; };
+  p.items = [];
+  const html = Rep.debriefFields([p]);
+  console.log("в форме разбора:", (html.match(/name="rep_[^"]+"/g) ?? []).join(" "));
+  const r = await Rep.applyDebrief(p, { rep_Разбор_0: true, rep_Разбор_1: true, rep_Разбор_2: true, rep_Разбор_gm: "3", rep_Разбор_gmwhy: "вывел колонну беженцев" }, "12.05.2010");
+  console.log("итог разбора:", r.notes.join("; "), "| журнал:", JSON.stringify(p.system.reputation.log));
+}
+
 console.log(process.exitCode ? "FAILED" : "all ok (" + log.filter(l => l.startsWith("ok")).length + ")");

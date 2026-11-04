@@ -203,7 +203,7 @@
         {{#each reps as |r|}}
         <tr><td><a data-open="{{r.id}}"><b>{{r.name}}</b></a></td>
           <td><span class="tb-rep-chip lv-{{r.key}}">{{r.name2}}</span>{{#if r.broken}} <small class="tb-warn" title="Нарушил кодекс в этом вылете">кодекс</small>{{/if}}{{#if r.feud}} <small class="tb-warn" title="Стрелял по куполу в этом вылете">месть</small>{{/if}}</td>
-          <td class="tb-num"><a data-rep-step="{{r.id}}" data-delta="-1" title="−1 с причиной">−</a> <b>{{r.sign}}</b> <a data-rep-step="{{r.id}}" data-delta="1" title="+1 с причиной">+</a></td>
+          <td class="tb-num"><a data-rep-step="{{r.id}}" data-delta="-1" title="−1 с причиной">−</a> <b>{{r.sign}}</b> <a data-rep-step="{{r.id}}" data-delta="1" title="+1 с причиной">+</a> <a data-rep-grant="{{r.id}}" title="Начислить сколько угодно с причиной"><i class="fas fa-pen"></i></a></td>
           <td><button type="button" class="tb-inline-btn" data-rep-refuse="{{r.id}}" title="Пилот отказался от приказа, который бьёт по мирным, пленным или сбитым: +2 на разборе (галочкой), +1 на шкалу «Особый отдел присматривается»"><i class="fas fa-hand"></i> Отказ от приказа</button></td>
           <td><small class="tb-muted">{{#if r.pending}}на разбор: {{r.pending}} · {{/if}}{{#if r.last}}{{r.last}}{{else}}журнал пуст{{/if}}</small></td></tr>
         {{/each}}

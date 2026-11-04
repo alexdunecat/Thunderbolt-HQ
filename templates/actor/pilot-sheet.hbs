@@ -275,7 +275,7 @@
       {{#if rep}}
       <fieldset class="tb-box tb-rep-sheet">
         <legend>Репутация <span class="tb-budget">{{rep.sign}}</span> <span class="tb-muted">личная, от −10 до +10, меняется на разборе вылета</span>
-          {{#if @root.isGM}}<a class="tb-icon" data-rep-step="-1" title="Ведущий: −1 Репутации с причиной"><i class="fas fa-minus"></i></a><a class="tb-icon" data-rep-step="1" title="Ведущий: +1 Репутации с причиной"><i class="fas fa-plus"></i></a>{{/if}}</legend>
+          {{#if @root.isGM}}<a class="tb-icon" data-rep-step="-1" title="Ведущий: −1 Репутации с причиной"><i class="fas fa-minus"></i></a><a class="tb-icon" data-rep-step="1" title="Ведущий: +1 Репутации с причиной"><i class="fas fa-plus"></i></a><a class="tb-icon" data-rep-grant title="Ведущий: начислить сколько угодно с причиной"><i class="fas fa-pen"></i></a>{{/if}}</legend>
         <p><b class="tb-rep-chip lv-{{rep.key}}">{{rep.name}}</b> <span class="tb-muted">{{rep.mean}}.</span>
           {{#if rep.broken}} <b class="tb-warn">Кодекс нарушен в этом вылете: бонусов уровня нет.</b>{{/if}}
           {{#if rep.feud}} <b class="tb-warn">Кровная месть: враги этого вылета охотятся за ним.</b>{{/if}}
