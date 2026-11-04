@@ -87,17 +87,18 @@ export const REP_SHIFTS = {
   saved: { delta: 1, why: "сорвал удар по мирным или спас гражданских" },
   shield: { delta: 1, why: "заслонил мирных: принял атаку на себя" },
   rescue: { delta: 1, why: "передал спасателям координаты вражеского купола" },
+  trap: { delta: -5, why: "«Ловушка»: сам вызвал спасателей к куполу и расстрелял его" },
   refuse: { delta: 2, why: "отказался выполнить приказ, который бьёт по мирным, пленным или сбитым" }
 };
 export const UP_CAP = 2;
 
 /** Записать событие вылета для подсказки на разборе. Владелец пишет сам, иначе через ведущего. once — не повторять (ключ). */
-export async function noteRep(pilot, kind, { why = "", once = "" } = {}) {
+export async function noteRep(pilot, kind, { why = "", once = "", delta = null } = {}) {
   if (pilot?.type !== "pilot" || !REP_SHIFTS[kind]) return;
-  if (!pilot.isOwner) return game.socket?.emit(CHANNEL, { type: "rep", op: "note", uuid: pilot.uuid, kind, why, once });
+  if (!pilot.isOwner) return game.socket?.emit(CHANNEL, { type: "rep", op: "note", uuid: pilot.uuid, kind, why, once, delta });
   const list = foundry.utils.deepClone(pilot.getFlag(SYSTEM_ID, "repEvents") ?? []);
   if (once && list.some(e => e.once === once)) return;
-  list.push({ kind, delta: REP_SHIFTS[kind].delta, why: why || REP_SHIFTS[kind].why, combat: combatId(), once });
+  list.push({ kind, delta: Number.isFinite(delta) ? delta : REP_SHIFTS[kind].delta, why: why || REP_SHIFTS[kind].why, combat: combatId(), once });
   return pilot.setFlag(SYSTEM_ID, "repEvents", list);
 }
 
@@ -380,6 +381,16 @@ export const CHUTE_ENEMY = [
   "Нет... Только не так. Он же уже выпрыгнул...",
   "Пленных не брать. Слышали? Ни одного из них!"
 ];
+/* Купол расстрелян после вызова спасателей: реакция на то, что происходит сейчас, поступок можно назвать. */
+export const CHUTE_BETRAY = [
+  "Он сам нас позвал... Сам позвал, и стреляет! Нелюдь!",
+  "Спасатели, назад! Это ловушка, назад!",
+  "Больше никому из них не верить. Никогда."
+];
+export const CHUTE_BETRAY_ALLY = [
+  "Ты... ты же сам их позвал.",
+  "Это уже не война. Я не знаю, что это."
+];
 export const CHUTE_ALLY = [
   "{who}, прекратить огонь по куполу! Немедленно! Это пойдёт в рапорт.",
   "Ты что творишь?! Он уже не в бою!",
@@ -416,19 +427,31 @@ async function speakerNear(pilot, wantAlly) {
 }
 
 /** Ведущий: пилот выстрелил по куполу (попал или нет). Эфир, CAUTION, кровная месть, сдвиг или нарушение кодекса. */
-export async function chuteShotByPilot(pilot) {
+/**
+ * Пилот стрелял по куполу (ведущий). trap — «Ловушка»: этот же пилот в этом вылете сам вызвал спасателей к этому куполу.
+ * Тогда −5 вместо −2, его +1 за вызов снимается, в эфир реплики ловушки. Стрелял другой пилот — обычный выстрел.
+ */
+export async function chuteShotByPilot(pilot, { trap = false, name = "" } = {}) {
   if (!isLead() || !pilot) return;
   const who = callsignOf(pilot);
   const { sendRadio } = await import("./radio.mjs");
   const foe = await speakerNear(pilot, false);
-  await sendRadio({ speaker: foe?.name ?? "Противник", side: "enemy", text: pickNoRepeat("chuteEnemy", CHUTE_ENEMY), caution: { title: "CAUTION", sub: "Расстрел купола" } });
-  const line = pickNoRepeat("chuteAlly", CHUTE_ALLY);
+  await sendRadio({ speaker: foe?.name ?? "Противник", side: "enemy", text: trap ? pickNoRepeat("chuteBetray", CHUTE_BETRAY) : pickNoRepeat("chuteEnemy", CHUTE_ENEMY),
+    caution: { title: "CAUTION", sub: trap ? "Ловушка: расстрел купола после вызова спасателей" : "Расстрел купола" } });
+  const line = trap ? pickNoRepeat("chuteBetrayAlly", CHUTE_BETRAY_ALLY) : pickNoRepeat("chuteAlly", CHUTE_ALLY);
   const mate = line.includes("{who}") ? null : await speakerNear(pilot, true);
   await sendRadio({ speaker: mate?.name ?? "AWACS", side: "ally", text: line.replace("{who}", who) });
   await pilot.setFlag(SYSTEM_ID, "feud", { combat: combatId() });
   // Белый рыцарь: нарушение кодекса (−4 сразу) вместо обычного сдвига
-  if (rankOf(pilot) === 4 && !codeBroken(pilot)) await breakCode(pilot, "выстрел по куполу");
-  else await noteRep(pilot, "chute");
+  const white = rankOf(pilot) === 4 && !codeBroken(pilot);
+  // по одному куполу сдвиг один, сколько бы очередей ни ушло
+  if (!trap) return white ? breakCode(pilot, "выстрел по куполу") : noteRep(pilot, "chute", { once: name ? `chute:${name}` : "" });
+  // «Ловушка»: +1 за вызов спасателей снимается; у Белого рыцаря кодекс (−4 сразу) и ещё −1 на разборе, всего −5
+  const list = (pilot.getFlag(SYSTEM_ID, "repEvents") ?? []).filter(e => !(e.kind === "rescue" && e.combat === combatId()));
+  await pilot.setFlag(SYSTEM_ID, "repEvents", list);
+  const why = `«Ловушка»: сам вызвал спасателей к куполу${name ? ` «${name}»` : ""} и расстрелял его`;
+  if (white) { await breakCode(pilot, "«Ловушка»: расстрел купола после вызова спасателей"); await noteRep(pilot, "trap", { why, delta: -1, once: `trap:${name}` }); }
+  else await noteRep(pilot, "trap", { why, once: `trap:${name}` });
 }
 
 /* ---------- цвет HUD, след и надписи по уровню ---------- */
@@ -579,7 +602,7 @@ export function registerReputation() {
       if (msg?.type !== "rep" || !isLead()) return;
       const a = msg.uuid ? resolveActor(msg.uuid) : null;
       if (!a) return;
-      if (msg.op === "note") noteRep(a, msg.kind, { why: msg.why, once: msg.once }).catch(err => console.warn(`${SYSTEM_ID} | репутация`, err));
+      if (msg.op === "note") noteRep(a, msg.kind, { why: msg.why, once: msg.once, delta: msg.delta }).catch(err => console.warn(`${SYSTEM_ID} | репутация`, err));
       if (msg.op === "shift") shiftRep(a, msg.delta, msg.why, msg.date).catch(err => console.warn(`${SYSTEM_ID} | репутация`, err));
       if (msg.op === "code") breakCode(a, msg.why).catch(err => console.warn(`${SYSTEM_ID} | репутация`, err));
       if (msg.op === "shield") shieldApply(game.messages.get(msg.msg), a).catch(err => console.warn(`${SYSTEM_ID} | Заслонить`, err));

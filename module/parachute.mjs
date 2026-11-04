@@ -233,9 +233,12 @@ export async function pilotShootChute(pilot, chute = null) {
   chute ??= await pickChute(pilot, "Расстрелять купол");
   if (!chute) return null;
   const f = chute.getFlag(SYSTEM_ID, KEY);
+  const called = chute.getFlag(SYSTEM_ID, "chuteRescue");
+  const trap = !!called && called.by === pilot.uuid && called.combat === game.combat?.id;
+  if (trap && !(await Dialog.confirm({ title: "Ловушка", content: `<p>Вы сами вызвали спасателей к этому куполу. Выстрел сейчас — «Ловушка»: −5 Репутации на разборе вместо −2, а +1 за вызов спасателей снимается. Стрелять?</p>` }))) return null;
   const R = await import("./dice/rolls.mjs");
   const msg = await R.rollSideCheck(pilot, "strafe", { dc: SHOOT_DC, turnRoll: true, label: `По куполу «${f.name}»: Strafe против ${SHOOT_DC}`,
-    notes: ["Пилот уже сбит: ни победы, ни Славы. Сам выстрел уже считается: −2 Репутации на разборе, «кровная месть» до конца вылета."],
+    notes: [`Пилот уже сбит: ни победы, ни Славы. Сам выстрел уже считается: ${trap ? "«Ловушка», −5 Репутации на разборе" : "−2 Репутации на разборе"}, «кровная месть» до конца вылета.`],
     extra: { chute: { tile: chute.id, scene: chute.parent.id, name: f.name } } });
   const card = msg?.getFlag?.(SYSTEM_ID, "card");
   if (!card) return null;
@@ -277,6 +280,8 @@ async function onLead({ op, pilot, tile, scene: sceneId, hit }) {
   const { sendRadio } = await import("./radio.mjs");
   if (op === "rescue") {
     if (!f) return;
+    // купол помнит вызов: выстрел по нему потом — подлость (chuteShotByPilot)
+    await chute.setFlag(SYSTEM_ID, "chuteRescue", { by: a.uuid, combat: game.combat?.id ?? "" });
     return sendRadio({ speaker: who, side: "ally", text: `Всем, кто слышит: купол противника, квадрат ${cellName(f.cell)}. Пусть его заберут.` });
   }
   if (op === "shot") {
@@ -287,7 +292,9 @@ async function onLead({ op, pilot, tile, scene: sceneId, hit }) {
       if (f) await sendRadio({ speaker: f.name, text: chuteLine(f, !!hit, game.combat?.round ?? 0), side: f.side === "player" ? "ally" : f.side });
     }
     const { chuteShotByPilot } = await import("./reputation.mjs");
-    await chuteShotByPilot(a);
+    const called = chute?.getFlag(SYSTEM_ID, "chuteRescue");
+    // «Ловушка» — только если стрелок сам звал спасателей к этому куполу в этом вылете
+    await chuteShotByPilot(a, { trap: !!called && called.by === a.uuid && called.combat === game.combat?.id, name: f?.name ?? "" });
     if (hit) await removeChute(chute);
     return;
   }

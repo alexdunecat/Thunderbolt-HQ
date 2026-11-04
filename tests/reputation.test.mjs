@@ -14,7 +14,7 @@ Object.assign(globalThis, {
   ChatMessage: { create: async d => d, getSpeaker: () => ({}) },
   game: { users, user: users[0], actors: [], settings: { get: () => "" }, combat: { started: true, id: "c1", round: 3 }, socket: { emit() {} } },
   ui: { notifications: { warn() {}, info() {} } },
-  fromUuidSync: u => byUuid[u] ?? null, Dialog: { confirm: async () => true }, Combat: class {}, Actor: class {}, Item: class {}, Application: class {}, ActorSheet: class {}
+  fromUuidSync: u => byUuid[u] ?? null, Dialog: { confirm: async () => true }, Combat: class {}, Actor: class {}, Item: class {}, Application: class {}, FormApplication: class {}, ActorSheet: class {}
 });
 const byUuid = {};
 const Rep = await import(R + "/module/reputation.mjs");
@@ -107,6 +107,21 @@ console.log("тип по уровню:", ["monster", "punisher", "soldier", "kni
   console.log("в форме разбора:", (html.match(/name="rep_[^"]+"/g) ?? []).join(" "));
   const r = await Rep.applyDebrief(p, { rep_Разбор_0: true, rep_Разбор_1: true, rep_Разбор_2: true, rep_Разбор_gm: "3", rep_Разбор_gmwhy: "вывел колонну беженцев" }, "12.05.2010");
   console.log("итог разбора:", r.notes.join("; "), "| журнал:", JSON.stringify(p.system.reputation.log));
+}
+
+// «Ловушка»: сам позвал спасателей к куполу и расстрелял его — −5, +1 за вызов снимается; чужой купол — обычные −2
+{
+  const mkP = (id, f) => { const p = pilot(id, 0, f); p.setFlag = async (sc, k, v) => { flags[p.uuid][k] = v; }; p.testUserPermission = () => true; return p; };
+  const radio = [];
+  globalThis.canvas = { ready: false, tokens: { placeables: [] } };
+  const trapper = mkP("Ловец", { repEvents: [{ kind: "rescue", delta: 1, why: "координаты", combat: "c1" }] });
+  const other = mkP("Другой", { repEvents: [] });
+  try {
+    await Rep.chuteShotByPilot(trapper, { trap: true, name: "Кобра" });
+    await Rep.chuteShotByPilot(trapper, { trap: true, name: "Кобра" });
+    await Rep.chuteShotByPilot(other, { trap: false, name: "Гюрза" });
+    console.log("ловушка:", JSON.stringify(trapper.getFlag("", "repEvents").map(e => [e.kind, e.delta])), "| чужой купол:", JSON.stringify(other.getFlag("", "repEvents").map(e => [e.kind, e.delta])));
+  } catch (err) { console.log("ловушка: ошибка", err.message); }
 }
 
 console.log(process.exitCode ? "FAILED" : "all ok (" + log.filter(l => l.startsWith("ok")).length + ")");

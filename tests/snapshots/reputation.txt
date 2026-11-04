@@ -6,7 +6,7 @@
 эффекты monster: Страх., Ужас. | Ненависть., Свои отворачиваются., Охота., Пленных не берут., Никто не летит с ним., Кошмары.
 подсказки: mercy+1✓ rescue+1✓ shield+1☐ chute-2✓
 итог всех: 0 итог отмеченных: 0 отказ от приказа: 2
-сдвиги: chute -2, civil -2, friendly -1, retreat -1, mercy 1, saved 1, shield 1, rescue 1, refuse 2
+сдвиги: chute -2, civil -2, friendly -1, retreat -1, mercy 1, saved 1, shield 1, rescue 1, trap -5, refuse 2
 по куполу стреляют:
   Солдат: Ас, Дуэлянт, Немезида
   Рыцарь: Немезида
@@ -35,4 +35,5 @@
 тип по уровню: monster=rep_monster punisher=rep_punisher soldier=null knight=rep_knight white=rep_white
 в форме разбора: name="rep_Разбор_0" name="rep_Разбор_1" name="rep_Разбор_2" name="rep_Разбор_saved" name="rep_Разбор_gm" name="rep_Разбор_gmwhy"
 итог разбора: Репутация +5 (7, теперь «Рыцарь неба») | журнал: [{"date":"12.05.2010","delta":5,"why":"+1 отпустил «Кобру»; +1 координаты спасателям; +1 заслонил лайнер; вверх по подсказкам не больше +2; +3 вывел колонну беженцев"}]
+ловушка: [["trap",-5]] | чужой купол: [["chute",-2]]
 all ok (2)
