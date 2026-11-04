@@ -2288,3 +2288,8 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-declare-pick .tb-dp-foot small { font-size: 11px; color: #8fb8a6; font-family: var(--tb-body, inherit); }
 /* HUD: заявка не сделана («Позже»), трекер спрятан — кнопка открывает её снова */
 #tb-pilot-hud .tb-hud-declare { width: auto; flex: 0 0 auto; margin: 0; padding: 0 10px; line-height: 22px; font-size: 12px; letter-spacing: .14em; color: #ffd76a; background: rgba(40, 30, 6, .6); border: 1px solid #f2c14e; border-radius: 2px; animation: tb-ck-caution .7s ease-in-out infinite alternate; cursor: pointer; }
+/* окно «Эффекты по отдельности» (fx-quality.mjs): уровни сверху, как в играх */
+.tb-fx-menu .tb-fx-levels { display: flex; gap: 6px; margin: 0 0 10px; }
+.tb-fx-menu .tb-fx-levels button { flex: 1; margin: 0; line-height: 26px; }
+.tb-fx-menu .tb-fx-levels button.active { border-color: #a4ffcb; color: #a4ffcb; box-shadow: 0 0 8px rgba(164, 255, 203, .35); }
+.tb-hud-plane .tb-hud-role i { font-style: normal; font-size: 8px; opacity: .7; letter-spacing: .1em; }

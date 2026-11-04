@@ -109,31 +109,31 @@ export const burnerOf = actor => isFlying(actor) && Number(actor.system?.maxSpee
 export function registerFx() {
   game.settings.register(SYSTEM_ID, "fxOn", {
     name: "Анимация ракет и попаданий", hint: "Схема боя на карте: ракеты с дымным следом, трассеры, лучи, ловушки, взрывы и сбитые машины. Только у себя.",
-    scope: "client", config: true, type: Boolean, default: true, onChange: v => { if (!v) clearAll(); else syncAir(); }
+    scope: "client", config: false, type: Boolean, default: true, onChange: v => { if (!v) clearAll(); else syncAir(); }
   });
   game.settings.register(SYSTEM_ID, "fxBurn", {
     name: "Дым и огонь у повреждённых", hint: "Машина с меткой Structure тянет за собой дымный след, с меткой Doom горит. Только у себя, вместе с анимацией.",
-    scope: "client", config: true, type: Boolean, default: true
+    scope: "client", config: false, type: Boolean, default: true
   });
   game.settings.register(SYSTEM_ID, "fxTrail", {
     name: "Инверсионные следы", hint: "Машины на Высокой и в стратосфере тянут белый след от своих двигателей: у истребителя одна-две тонкие нитки, которые быстро сливаются и тают, у тяжёлых и транспортных — широкие полосы от каждой гондолы, которые держатся долго. Поршневые и вертолёты следа не тянут. Только у себя, вместе с анимацией.",
-    scope: "client", config: true, type: Boolean, default: true, onChange: () => trailAt.clear()
+    scope: "client", config: false, type: Boolean, default: true, onChange: () => trailAt.clear()
   });
   game.settings.register(SYSTEM_ID, "fxWake", {
     name: "Кильватер, пыль и колея", hint: "Корабль на ходу оставляет белый расходящийся след на воде, наземная техника поднимает пыль (на Севере снег), сухопутный линкор оставляет колею гусениц. Только у себя, вместе с анимацией.",
-    scope: "client", config: true, type: Boolean, default: true
+    scope: "client", config: false, type: Boolean, default: true
   });
   game.settings.register(SYSTEM_ID, "fxBurner", {
     name: "Форсаж", hint: "У машины на своей максимальной скорости при движении из сопла бьёт короткое пламя. Только у себя, вместе с анимацией.",
-    scope: "client", config: true, type: Boolean, default: true
+    scope: "client", config: false, type: Boolean, default: true
   });
   game.settings.register(SYSTEM_ID, "fxVapor", {
     name: "Пар и вихри", hint: "Машина, которая разгоняется до своей максимальной Speed, на миг одевается конусом пара, а по карте расходится хлопок. На Break! с концов крыльев срываются белые нити вихрей. Только у себя, вместе с анимацией.",
-    scope: "client", config: true, type: Boolean, default: true
+    scope: "client", config: false, type: Boolean, default: true
   });
   game.settings.register(SYSTEM_ID, "fxCraters", {
     name: "Воронки после ударов", hint: "Бомбы, ракеты и снаряды по наземным целям оставляют на земле воронки и подпалины, которые тают за три раунда (вне боя — за пару минут). На воде воронок нет. Только у себя, вместе с анимацией.",
-    scope: "client", config: true, type: Boolean, default: true, onChange: () => drawScars()
+    scope: "client", config: false, type: Boolean, default: true, onChange: () => drawScars()
   });
   // разгон до максимальной Speed: конус пара и хлопок (изменение видят все клиенты, сокет не нужен)
   Hooks.on("updateActor", (actor, change, options) => { if (!options?.tbUndo) onSpeed(actor, change); });

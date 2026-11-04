@@ -56,6 +56,7 @@ import { registerWinchester } from "./winchester.mjs";
 import { registerCallsigns } from "./callsigns.mjs";
 import { registerHitPick } from "./hit-pick.mjs";
 import { registerDeclarePick } from "./declare-pick.mjs";
+import { registerFxQuality } from "./fx-quality.mjs";
 import { registerVerdict } from "./verdict.mjs";
 import { registerDaytime } from "./daytime.mjs";
 import { registerKeys } from "./keys.mjs";
@@ -195,6 +196,7 @@ Hooks.once("init", () => {
   registerPopout();
   registerMapInfo();
   registerRotate();
+  registerFxQuality();
   registerFx();
   registerAutopilot();
   registerReinforce();

@@ -90,7 +90,7 @@ export function playCallouts(plan) {
 export function registerCallouts() {
   game.settings.register(SYSTEM_ID, "fxCallouts", {
     name: "Надписи HIT / MISS / DESTROYED", hint: "Над целью на секунду вспыхивает исход выстрела или ракеты залпа: HIT, MISS, у сбитой — DESTROYED. Только у себя, вместе с анимацией.",
-    scope: "client", config: true, type: Boolean, default: true
+    scope: "client", config: false, type: Boolean, default: true
   });
   Hooks.on("canvasTearDown", () => { layer = null; live.clear(); });
 }

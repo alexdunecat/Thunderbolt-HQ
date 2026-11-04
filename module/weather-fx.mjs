@@ -227,7 +227,7 @@ const hatchAll = () => { for (const t of canvas?.tiles?.placeables ?? []) if (ha
 export function registerWeatherFx() {
   game.settings.register(SYSTEM_ID, "fxWeather", {
     name: "Осадки и молнии", hint: "В клетках погоды идёт дождь (на Севере снег), метёт пыль и ветер, крутится торнадо, бьют молнии; статичная штриховка этих клеток тогда не рисуется, остаётся значок. Только у себя.",
-    scope: "client", config: true, type: Boolean, default: true, onChange: () => { refreshWeatherFx(); hatchAll(); }
+    scope: "client", config: false, type: Boolean, default: true, onChange: () => { refreshWeatherFx(); hatchAll(); }
   });
   Hooks.on("refreshTile", tile => hatch(tile));
   Hooks.on("canvasReady", () => { gfx = null; refreshWeatherFx(); hatchAll(); });

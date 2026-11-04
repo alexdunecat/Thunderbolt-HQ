@@ -276,7 +276,8 @@ export function hudPlane(actor) {
 /** Разметка строки «МАШИНА» для HUD. */
 export function planeRowHtml(p) {
   if (!p) return "";
-  const role = p.role?.trait ? `<span class="tb-hud-role" title="${esc(p.role.name)}. ${esc(p.role.trait)}: ${esc(p.role.text)}">${esc(p.role.tag)} · ${esc(p.role.trait)}</span>` : "";
+  const role = p.role?.trait ? `<span class="tb-hud-role" title="${esc(p.role.name)}. ${esc(p.role.trait)}: ${esc(p.role.text)}
+Срабатывает само, кнопки нет.">${esc(p.role.tag)} · ${esc(p.role.trait)} <i>АВТО</i></span>` : "";
   const lamps = p.lamps.map(l => `<span class="tb-hud-plamp ${l.on ? "on" : ""}" title="${esc(l.title)}">${esc(l.text)}</span>`).join("");
   const aoa = p.aoa ? `<button type="button" class="tb-hud-aoa ${p.aoa.on ? "on" : ""}" data-hud-aoa ${p.aoa.can || p.aoa.on ? "" : "disabled"} title="Angle of Attack Limiter: в свой ход −2 Strain, до конца хода +1 к Evasion, A-A, Aim, Dodge, Push">AOA${p.aoa.on ? " +1" : ""}</button>` : "";
   const m = p.move;

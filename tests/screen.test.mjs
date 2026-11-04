@@ -96,3 +96,8 @@ const dd = DP.declareData({ round: 4, combatants: all }, [me], { npcSide: c => c
 console.log("стекло заявки:", JSON.stringify(dd.foes), JSON.stringify(dd.mates), dd.rows[0].plane, dd.rows[0].wso);
 const dh = DP.declarePickHtml(dd);
 console.log("плитки:", (dh.match(/class="tb-dp-tile[ "]/g) ?? []).length, "· одна машина без кнопки ЗАЯВИТЬ:", !/data-go/.test(dh), "· две:", /data-go/.test(DP.declarePickHtml({ ...dd, rows: [...dd.rows, { ...dd.rows[0], id: "x" }] })), "· без DOM:", await DP.declarePick(dd));
+
+// эффекты одной настройкой: уровни и «свои»
+const FQ = await import(R + "/module/fx-quality.mjs");
+console.log("эффекты:", ["high", "medium", "low", "off"].map(l => `${l}=${Object.values(FQ.presetValues(l)).filter(Boolean).length}/${FQ.FX_LIST.length}→${FQ.presetOf(FQ.presetValues(l))}`).join(" · "),
+  "| свои:", FQ.presetOf({ ...FQ.presetValues("medium"), fxVapor: true }));

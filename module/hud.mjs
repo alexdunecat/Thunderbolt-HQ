@@ -41,7 +41,7 @@ export function registerHud() {
   });
   game.settings.register(SYSTEM_ID, "hitFlash", {
     name: "Удар по своей машине", hint: "Когда твоя машина в HUD получает урон, HUD краснеет, идёт рябью помех и вздрагивает, как в Ace Combat. При метке Doom HUD остаётся красным. Только у себя.",
-    scope: "client", config: true, type: Boolean, default: true, onChange: v => { if (!v) setDoom(false); }
+    scope: "client", config: false, type: Boolean, default: true, onChange: v => { if (!v) setDoom(false); }
   });
   game.settings.register(SYSTEM_ID, "hudScale", {
     name: "Размер HUD по углам", hint: "Насколько крупно рисуются приборы, оружие и кнопки HUD по углам. Если места на экране не хватает, сначала сужаются колонки, потом прячется силуэт машины.",

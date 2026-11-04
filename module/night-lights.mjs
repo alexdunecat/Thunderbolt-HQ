@@ -486,7 +486,7 @@ export function refreshNightLights() {
 export function registerNightLights() {
   game.settings.register(SYSTEM_ID, "fxNight", {
     name: "Огни ночью", hint: "На ночной карте у самолётов горят бортовые огни, стробы и маяк, у кораблей топовые и бортовые огни, у техники фары, у зениток ходят прожекторы, в городах, портах и на аэродромах горят окна, фонари и огни полосы. Взрывы, выстрелы, трассеры, ракеты, ловушки и пожары подсвечивают карту вокруг, молния на миг заливает её светом. Только у себя.",
-    scope: "client", config: true, type: Boolean, default: true, onChange: () => refreshNightLights()
+    scope: "client", config: false, type: Boolean, default: true, onChange: () => refreshNightLights()
   });
   Hooks.on("canvasReady", () => { root = ground = null; refreshNightLights(); });
   Hooks.on("canvasTearDown", () => { stopTick(); root = ground = null; flashes.length = 0; tinted.clear(); });
