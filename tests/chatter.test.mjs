@@ -225,7 +225,7 @@ pilot.system.reputation.points = 0;
 settings.glory = { points: 0 };
 scene.flags.nations = { enemy: "sotoa", ally: "yuk" };
 fire(msg({ card: { attack: true, delayed: true, actorUuid: mig1.uuid, targetUuid: ship.uuid, targetName: "Адмирал", parts: [] } }));
-step("противник из Сотоа пускает ракету по кораблю: МиГ по-сотоански, корабль общим банком");
+step("противник из Сотоа пускает ракету по кораблю: МиГ по-сотоански, корабль по-юктобански");
 fire(msg({ rwr: { target: mig1.uuid, from: "Сокол-2", fromUuid: ally.uuid } }));
 step("союзник из Юктобании берёт захват");
 liner.flags = {};

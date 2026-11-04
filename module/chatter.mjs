@@ -287,7 +287,12 @@ function nest(flat) {
 export function defaultLines(type, side, event) {
   if (REP_TYPES[type]) return REP_BANK[type]?.[side]?.[event] ?? [];
   if (FAME_TYPES[type]) return FAME_CHATTER[FAME_TYPES[type].level]?.[side]?.[event] ?? [];
-  if (NATION_TYPES[type]) return NATION_CHATTER[NATION_TYPES[type].nation]?.[event] ?? [];
+  // страна: сторона в ключе — тип техники; нет реплик у типа — запасной тип той же страны (вертолёт → самолёт)
+  if (NATION_TYPES[type]) {
+    const bank = NATION_CHATTER[NATION_TYPES[type].nation] ?? {};
+    for (let t = side; t; t = CHATTER_TYPES[t]?.fallback) if (bank[t]?.[event]?.length) return bank[t][event];
+    return [];
+  }
   const own = CHATTER_BANK[type]?.[side]?.[event];
   if (own) return own;
   const fb = CHATTER_TYPES[type]?.fallback;
@@ -358,9 +363,9 @@ function lineFor(e) {
     if (Array.isArray(sq) && sq.length) text = pickLine(`squad:${name}:${sq === here ? "scene" : "all"}:${event}`, sq, vars);
   }
   if (!text && muted(scene)[type]) return null;
-  // банк страны говорящего (только авиация): из миссии или со сцены
+  // банк страны говорящего по типу техники: из миссии или со сцены
   const nt = text ? null : nationType(actor, type, scene);
-  if (nt && !muted(scene)[nt]) text = pickLine(bankKey(nt, "all", event), linesFor(nt, "all", event, scene), vars);
+  if (nt && !muted(scene)[nt]) text = pickLine(bankKey(nt, type, event), linesFor(nt, type, event, scene), vars);
   text ??= pickLine(bankKey(type, side, event), linesFor(type, side, event, scene), vars);
   return text ? { speaker: self, text, side: sideOf(actor) } : null;
 }
@@ -413,7 +418,7 @@ export const FAME_EVENTS = {
   }
 };
 export const NATION_TYPES = Object.fromEntries(Object.keys(NATION_CHATTER).map(n => [`nat_${n}`,
-  { nation: n, label: NATIONS[n]?.name ?? n, hint: "манера речи страны: самолёты и вертолёты союзников и противника этой страны" }]));
+  { nation: n, label: NATIONS[n]?.name ?? n, hint: "манера речи страны: военная техника союзников и противника этой страны" }]));
 const FAME_MAP = { enemy: { wingmanDown: "wingmanDown", hit: "hit" }, ally: { cheer: "cheer" } };
 const gloryNow = () => { try { return gloryView(); } catch { return { key: "none", nickname: "" }; } };
 const nickname = () => String(gloryNow().nickname ?? "").trim();
@@ -432,7 +437,7 @@ export function fameLine(e, speaker, type = chatterType(speaker)) {
   return { type: ft, side, event, pilot: null };
 }
 
-/** Страна говорящего: флаг токена (миссия из Планшета), иначе страна его стороны на сцене. Только авиация, не нейтралы. */
+/** Страна говорящего: флаг токена (миссия из Планшета), иначе страна его стороны на сцене. Нейтралы и гражданские — без страны. */
 export function nationOf(actor, scene = editScene()) {
   const s = sideOf(actor);
   if (s === "neutral") return "";
@@ -441,7 +446,7 @@ export function nationOf(actor, scene = editScene()) {
   const n = (scene?.getFlag?.(SYSTEM_ID, "nations") ?? {})[team(s) === "ally" ? "ally" : "enemy"];
   return NATION_CHATTER[n] ? n : "";
 }
-const nationType = (actor, type, scene) => (["air", "heli"].includes(type) && nationOf(actor, scene) ? `nat_${nationOf(actor, scene)}` : null);
+const nationType = (actor, type, scene) => (!isCivil(type) && nationOf(actor, scene) ? `nat_${nationOf(actor, scene)}` : null);
 
 /** Окно «Реплики NPC»: стороны и события особых банков (Репутация, Слава, страны). */
 export function specialMeta(type) {
@@ -452,7 +457,8 @@ export function specialMeta(type) {
   }
   if (NATION_TYPES[type]) {
     const bank = NATION_CHATTER[NATION_TYPES[type].nation] ?? {};
-    return { ...NATION_TYPES[type], group: "nation", sides: [{ key: "all", events: Object.fromEntries(Object.keys(bank).map(ev => [ev, CHATTER_EVENTS[ev] ?? { label: ev, hint: "" }])) }] };
+    return { ...NATION_TYPES[type], group: "nation", sides: Object.keys(bank).filter(t => CHATTER_TYPES[t]).map(t => ({ key: t, label: CHATTER_TYPES[t].label,
+      events: Object.fromEntries(Object.keys(bank[t]).map(ev => [ev, CHATTER_EVENTS[ev] ?? { label: ev, hint: "" }])) })) };
   }
   return null;
 }
@@ -708,9 +714,9 @@ class ChatterEditor extends FormApplication {
   #repView(ov, mute, scene) {
     const t = specialMeta(this.type), sides = t.sides.map(x => x.key);
     const side = sides.includes(this.side) ? this.side : sides[0];
-    const labels = { enemy: "Враги", ally: "Свои", civil: "Гражданские", all: "Все" };
-    const tabs = sides.length > 1 ? `<div class="tb-chatter-sides">${sides.map(k =>
-      `<button type="button" data-side="${k}" class="tb-side-${k === "civil" ? "neutral" : k} ${k === side ? "on" : ""}">${labels[k]}</button>`).join("")}</div>` : "";
+    const labels = { enemy: "Враги", ally: "Свои", civil: "Гражданские" };
+    const tabs = sides.length > 1 ? `<div class="tb-chatter-sides">${t.sides.map(({ key: k, label }) =>
+      `<button type="button" data-side="${k}" class="tb-side-${k === "civil" ? "neutral" : labels[k] ? k : "type"} ${k === side ? "on" : ""}">${esc(label ?? labels[k] ?? k)}</button>`).join("")}</div>` : "";
     const rows = Object.entries(t.sides.find(x => x.key === side)?.events ?? {}).map(([ev, e]) => {
       const key = bankKey(this.type, side, ev);
       return this.#row({ key, label: e.label, hint: e.hint, value: linesFor(this.type, side, ev, scene).join("\n"), changed: Array.isArray(ov[key]), resetTitle: "Вернуть стандартные фразы" });
@@ -719,7 +725,7 @@ class ChatterEditor extends FormApplication {
     const how = {
       rep: `Что говорят NPC ${t.hint}. Звучат, только когда событие вызвал сам этот пилот, вместо общих фраз типа (личные реплики аса важнее). У Солдата их нет.`,
       fame: `Что говорят NPC ${t.hint}. Звучат, когда событие вызвал любой пилот эскадрильи и пилот не на особом уровне Репутации: узнавание раз за вылет, остальное примерно в одном случае из трёх. {nickname} — прозвище эскадрильи от врага (фраза с ним молчит, пока прозвища нет).`,
-      nation: `Манера речи страны: самолёты и вертолёты, у которых в миссии эта страна (Планшет или окно «Позывные»). Важнее общих фраз типа, но Репутация, Слава, личные реплики асов и эскадрилий звучат раньше.`
+      nation: `Манера речи страны по типу техники: союзники и противник, у которых в миссии эта страна (Планшет или окно «Позывные»). Нет фраз у типа — берутся фразы запасного типа (вертолёт → самолёт, ПВО → наземка, супероружие → корабль), потом общие. Важнее общих фраз типа, но Репутация, Слава, личные реплики асов и эскадрилий звучат раньше.`
     }[t.group];
     return `<header><h3>${esc(head)} <small class="tb-muted">· сцена «${esc(scene.name)}»</small></h3>
         <label class="tb-chatter-voice"><input type="checkbox" data-voice ${mute[this.type] ? "" : "checked"}> Звучат в эфире</label>
@@ -820,7 +826,7 @@ class ChatterEditor extends FormApplication {
         const self = who ? nameOf(who) : squad ?? (CHATTER_TYPES[type] ?? specialMeta(type))?.label ?? "";
         const text = pickLine(`test:${key}`, lines, { ...SAMPLE, nickname: nickname() || SAMPLE.nickname, self });
         if (!text) return ui.notifications.info("В этом поле нет фраз: в этом случае NPC молчит.");
-        say(self, text, who ? sideOf(who) : side === "civil" ? "neutral" : side === "all" ? "enemy" : side, { log: false });
+        say(self, text, who ? sideOf(who) : side === "civil" ? "neutral" : ["ally", "enemy"].includes(side) ? side : "enemy", { log: false });
       });
     });
     root.querySelector("[data-enabled]")?.addEventListener("change", ev => game.settings.set(SYSTEM_ID, "npcChatter", ev.target.checked));
