@@ -13,3 +13,7 @@ console.log("стабильно", JSON.stringify(a) === JSON.stringify(b), "· �
 console.log("без сцены:", opLines({})[2][1]);
 console.log(opHtml([["OP INFO", "<b>"]]));
 console.log("hash", hashOf("abc"));
+// низкий логотип: строки не обрезаются, а уходят по важности
+const { fitLines, fitFont } = await import(R + "/module/opcode.mjs");
+console.log("высота → строк, шрифт:", [100, 80, 60, 48, 34, 20].map(h => { const f = fitFont(h); return `${h}px→${f.max} ${f.size.toFixed(1)}`; }).join(" · "));
+console.log("при 3 строках:", fitLines(a, 3).map(([k]) => k).join(", "), "| при 1:", fitLines(a, 1).map(([k]) => k).join(", "));

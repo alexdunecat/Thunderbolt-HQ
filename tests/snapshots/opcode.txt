@@ -8,3 +8,5 @@ LOCAL: 09:05:07
 без сцены: STANDBY
 <div class="tb-op-line"><span class="k">OP INFO:</span><span class="v">&lt;b&gt;</span></div>
 hash 440920331
+высота → строк, шрифт: 100px→6 11.0 · 80px→6 9.5 · 60px→5 8.6 · 48px→4 8.6 · 34px→3 8.1 · 20px→1 11.0
+при 3 строках: OP INFO, AWACS LINK, LOCAL | при 1: OP INFO

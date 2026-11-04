@@ -25,6 +25,19 @@ export function opLines({ userId = "", sceneId = "", sceneName = "", worldId = "
   ];
 }
 
+/** Сколько строк влезает и какие: при низком логотипе (маленькое разрешение, масштаб интерфейса) лишние строки уходят,
+    а не обрезаются сверху и снизу. Порядок важности: OP INFO, LOCAL, AWACS LINK, SAT INFO, ключ, USR.CONF; на экране — исходный. */
+const PRIORITY = ["OP INFO", "LOCAL", "AWACS LINK", "SAT INFO", "ENCRYPTION SV TAG", "USR.CONF"];
+export function fitLines(lines, max = lines.length) {
+  const keep = new Set(PRIORITY.slice(0, Math.max(1, max)));
+  return lines.filter(([k]) => keep.has(k));
+}
+/** Строк и шрифт под высоту h: шрифт не мельче 8 px, межстрочный 1.4. */
+export function fitFont(h) {
+  const max = Math.max(1, Math.min(6, Math.floor(h / (8 * 1.4))));
+  return { max, size: Math.max(7, Math.min(11, h / max / 1.4)) };
+}
+
 export function opHtml(lines) {
   return lines.map(([k, v], i) => `<div class="tb-op-line${i === 2 ? " op" : ""}"><span class="k">${esc(k)}${k === "USR.CONF" ? "" : ":"}</span><span class="v">${esc(v)}</span></div>`).join("");
 }
@@ -47,8 +60,9 @@ function place() {
   const nav = document.getElementById("navigation")?.getBoundingClientRect();
   const room = nav?.left > r.left ? nav.left - r.left - 10 : 190;
   const h = r.height || 80, w = Math.max(r.width || 100, Math.min(room, 230));
-  Object.assign(box.style, { top: `${r.top}px`, left: `${r.left}px`, width: `${w}px`, height: `${h}px`,
-    fontSize: `${Math.max(7, Math.min(11, h / 6 / 1.4)).toFixed(1)}px` });
+  const fit = fitFont(h);
+  Object.assign(box.style, { top: `${r.top}px`, left: `${r.left}px`, width: `${w}px`, height: `${h}px`, fontSize: `${fit.size.toFixed(1)}px` });
+  if (box.tbMax !== fit.max) { box.tbMax = fit.max; box.tbHtml = ""; draw(); }
 }
 
 function draw() {
@@ -57,7 +71,7 @@ function draw() {
   box.hidden = !on;
   if (!on) return;
   // раз в секунду меняются только часы: строку переписываю, только когда разметка другая
-  const html = opHtml(opLines(state()));
+  const html = opHtml(fitLines(opLines(state()), box.tbMax ?? 6));
   if (html !== box.tbHtml) box.innerHTML = box.tbHtml = html;
 }
 
