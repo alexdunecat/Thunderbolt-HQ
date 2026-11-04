@@ -21,6 +21,7 @@ import { aceRowHtml, aceClick } from "./ace-play.mjs";
 import { justEmptied } from "./winchester.mjs";
 import { wingmenOf, wingOrderOf, wingSpwOf, giveWingOrder, WING_ORDERS, WING_SPW } from "./autopilot.mjs";
 import { isUnknown } from "./ident.mjs";
+import { uiScale } from "./ui-scale.mjs";
 import { hudNemesis, isNemesis, pilotsOf, monologue, startMonologue, endMonologue, appear, useTrigger, STATE_TEXT } from "./nemesis.mjs";
 
 const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, POS_KEY = `${SYSTEM_ID}.hudPos`;
@@ -44,13 +45,14 @@ export function registerHud() {
     scope: "client", config: false, type: Boolean, default: true, onChange: v => { if (!v) setDoom(false); }
   });
   game.settings.register(SYSTEM_ID, "hudScale", {
-    name: "Размер HUD по углам", hint: "Насколько крупно рисуются приборы, оружие и кнопки HUD по углам. Если места на экране не хватает, сначала сужаются колонки, потом прячется силуэт машины.",
+    name: "Размер HUD по углам", hint: "Насколько крупно рисуются приборы, оружие и кнопки HUD по углам, поверх «Масштаба окон системы». Если места на экране не хватает, сначала сужаются колонки, потом прячется силуэт машины.",
     scope: "client", config: true, type: String, default: "1.15", choices: { "1": "Обычный", "1.15": "Крупнее", "1.3": "Ещё крупнее", "1.45": "Самый крупный" },
     onChange: () => place()
   });
   // боевой экран спрятал или вернул окна Foundry, свернули чат, поменяли окно: углы HUD встают заново
   Hooks.on(`${SYSTEM_ID}.combatScreen`, () => setTimeout(place, 60));
   Hooks.on("collapseSidebar", () => setTimeout(place, 260));
+  Hooks.on(`${SYSTEM_ID}.uiScale`, () => place());
   Hooks.on("thunderboltHit", actor => onEarlyHit(actor));
   // попадание отменили («Обманный манёвр», «Летающий танк»): следующий удар снова трясёт
   Hooks.on("thunderboltHitVoid", actor => { if (earlyHit?.uuid === actor?.uuid) earlyHit = null; });
@@ -647,13 +649,14 @@ export function fitOf(width, zoom = 1, wing = false) {
   const w = width / (zoom || 1) - (wing ? WING_NEED : 0);
   return w >= FIT_NEED.full ? "full" : w >= FIT_NEED.compact ? "compact" : w >= FIT_NEED.narrow ? "narrow" : "stack";
 }
-/** Масштаб по углам: выбранный, но если с ним кнопки ушли бы под приборы, а мельче (не меньше 100%) влезают в строку — мельче. */
-export function fitZoom(width, zoom, wing = false) {
+/** Масштаб по углам: выбранный, но если с ним кнопки ушли бы под приборы, а мельче (не меньше floor, обычно 100%) влезают в строку — мельче. */
+export function fitZoom(width, zoom, wing = false, floor = 1) {
   if (fitOf(width, zoom, wing) !== "stack") return zoom;
   const z = Math.floor(width / (FIT_NEED.narrow + (wing ? WING_NEED : 0)) * 100) / 100;
-  return Math.max(1, Math.min(zoom, z));
+  return Math.max(Math.min(floor, zoom), Math.min(zoom, z));
 }
-const zoomNow = () => { try { const z = Number(game.settings.get(SYSTEM_ID, "hudScale")); return z > 0.5 && z < 2 ? z : 1.15; } catch { return 1.15; } };
+/** «Размер HUD по углам» × масштаб окон системы (разрешение и «Размер шрифта» Foundry). */
+const zoomNow = () => { let z = 1.15; try { const v = Number(game.settings.get(SYSTEM_ID, "hudScale")); if (v > 0.5 && v < 2) z = v; } catch { /* по умолчанию */ } return Math.round(z * uiScale() * 100) / 100; };
 
 const LEFT_COLS = ".tb-hud-stat, .tb-hud-speed, .tb-hud-alt", RIGHT_COLS = ".tb-hud-arm, .tb-hud-ctl, .tb-hud-wingx";
 /** Крайние x видимых колонок группы или null. */
@@ -665,7 +668,7 @@ function spanOf(sel) {
 function placeCorners() {
   const win = { w: window.innerWidth, h: window.innerHeight };
   const b = cornerBox(win, { sidebar: shownRect("sidebar"), controls: shownRect("controls") });
-  const wing = !!el.querySelector(".tb-hud-grid.wing"), width = win.w - b.left - b.right, z = fitZoom(width, zoomNow(), wing);
+  const wing = !!el.querySelector(".tb-hud-grid.wing"), width = win.w - b.left - b.right, z = fitZoom(width, zoomNow(), wing, Math.min(1, uiScale()));
   el.style.setProperty("--tb-hud-zoom", String(z));
   el.dataset.fit = fitOf(width, z, wing);
   Object.assign(el.style, { left: `${b.left}px`, right: `${b.right}px`, bottom: `${b.bottom}px`, top: "auto", width: "auto", height: "auto" });

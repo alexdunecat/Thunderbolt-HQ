@@ -111,3 +111,8 @@ console.log("задачи:", gv.groups.map(g => `${g.task} ${g.done}/${g.total} 
 const gh = MH.goalsHtml(gv);
 console.log("панель:", /ЗАДАЧИ/.test(gh), !/Скрытый/.test(gh), /1 из 3/.test(gh), /провалено/.test(gh), "| свёрнута:", MH.goalsHtml(gv, { collapsed: true }).includes("<ul>") ? "список" : "строка", "| пусто:", MH.goalsHtml(MH.goalsView()) === "");
 console.log("камера:", [{ mine: true }, { mine: true, isGM: true }, { mine: false }, { mine: true, sinceTouch: 500 }, { mine: true, on: false }].map(o => MH.wantCamera(o) ? "едет" : "нет").join(" "));
+
+// масштаб окон системы: высота окна браузера к 1080 × «Размер шрифта» Foundry к 14 px, или постоянный процент
+const UI = await import(R + "/module/ui-scale.mjs");
+console.log("масштаб окон:", [[720, 14], [900, 14], [1080, 14], [1440, 14], [2160, 14], [1080, 16], [1080, 12], [1440, 18], [600, 10]].map(([h, f]) => `${h}p/${f}px=${UI.uiScaleOf({ height: h, rootPx: f })}`).join(" · "),
+  "| постоянный:", UI.uiScaleOf({ mode: "1.25", height: 720 }), UI.uiScaleOf({ mode: "мусор", height: 1080 }), "| сейчас:", UI.uiScale());

@@ -116,6 +116,6 @@ console.log("HUD по углам, всё спрятано:", JSON.stringify(H.co
 console.log("HUD по углам, окна Foundry видны:", JSON.stringify(H.cornerBox(win, { sidebar: { left: 1615 }, controls: { right: 95 }, players: { right: 215 }, hotbar: { top: 1018 } })));
 { const players = { left: 8, right: 257, top: 940 }, hotbar = { left: 265, right: 1025, top: 950 };
   console.log("подъём групп над окнами внизу (окно 1016): левая", H.liftOf(127, 780, [players, hotbar], 1016), "· правая над краем панели макросов", H.liftOf(975, 1515, [players, hotbar], 1016), "· правая правее панели", H.liftOf(1040, 1515, [players, hotbar], 1016)); }
-console.log("масштаб, чтобы не уходить в две строки:", [[1096, 1.15], [1096, 1.45], [1500, 1.3], [1000, 1.15]].map(([w, z]) => `${w}/${z}→${H.fitZoom(w, z)}`).join(" "));
+console.log("масштаб, чтобы не уходить в две строки:", [[1096, 1.15], [1096, 1.45], [1500, 1.3], [1000, 1.15]].map(([w, z]) => `${w}/${z}→${H.fitZoom(w, z)}`).join(" "), "| мелкий экран:", H.fitZoom(900, 0.95, false, 0.8), H.fitZoom(700, 0.92, false, 0.8));
 console.log("HUD по углам, чат свёрнут:", JSON.stringify(H.cornerBox(win, { sidebar: { left: 1880 } })), "· вид по умолчанию:", H.corners() ? "углы" : "панель");
 console.log("раскладка по ширине:", [[1900, 1], [1532, 1.15], [1300, 1], [1200, 1], [1060, 1], [1060, 1.15], [1500, 1, true], [1500, 1.3]].map(([w, z, wing]) => `${w}/${z}${wing ? "+крест" : ""}=${H.fitOf(w, z, wing)}`).join(" "));

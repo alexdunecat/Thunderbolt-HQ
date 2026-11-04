@@ -57,6 +57,7 @@ import { registerCallsigns } from "./callsigns.mjs";
 import { registerHitPick } from "./hit-pick.mjs";
 import { registerDeclarePick } from "./declare-pick.mjs";
 import { registerFxQuality } from "./fx-quality.mjs";
+import { registerUiScale } from "./ui-scale.mjs";
 import { registerMissionHud } from "./mission-hud.mjs";
 import { registerVerdict } from "./verdict.mjs";
 import { registerDaytime } from "./daytime.mjs";
@@ -197,6 +198,7 @@ Hooks.once("init", () => {
   registerPopout();
   registerMapInfo();
   registerRotate();
+  registerUiScale();
   registerFxQuality();
   registerFx();
   registerAutopilot();

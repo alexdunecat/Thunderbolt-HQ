@@ -2325,3 +2325,15 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 /* «Ваш ход»: HUD коротко вспыхивает */
 #tb-pilot-hud.tb-turn-flash { animation: tb-turn-flash 1.2s ease-out; }
 @keyframes tb-turn-flash { 0% { filter: brightness(1.9); box-shadow: 0 0 30px rgba(255, 215, 106, .8); } 100% { filter: none; } }
+
+/* Масштаб окон системы: --tb-ui ставит ui-scale.mjs (высота окна браузера × «Размер шрифта» Foundry, или процент из настройки).
+   У стёкол растёт коробка по ширине, а содержимое — через zoom у детей: высоты в vh и отступы от краёв экрана считаются как прежде. */
+:is(#tb-hit-pick, #tb-fate-pick) .tb-hp-glass { width: min(calc(980px * var(--tb-ui, 1)), 100%); }
+#tb-fate-pick .tb-hp-glass.fate { width: min(calc(760px * var(--tb-ui, 1)), 100%); }
+#tb-verdict .tb-vd-glass { width: min(calc(860px * var(--tb-ui, 1)), 100%); }
+#tb-declare-pick .tb-dp-glass { width: min(calc(780px * var(--tb-ui, 1)), 100%); }
+:is(#tb-hit-pick, #tb-fate-pick) .tb-hp-glass > *, #tb-verdict .tb-vd-glass > *, #tb-declare-pick .tb-dp-glass > *, #tb-goals > * { zoom: var(--tb-ui, 1); }
+#tb-goals { width: calc(270px * var(--tb-ui, 1)); }
+#tb-goals.folded { width: auto; }
+/* надписи поверх карты: масштаб у всего окна (центр по translate держится) */
+#tb-radio, #tb-caution, #tb-turn-strip, #tb-monologue, #tb-quiet-notes, #tb-verdict-pill { zoom: var(--tb-ui, 1); }
