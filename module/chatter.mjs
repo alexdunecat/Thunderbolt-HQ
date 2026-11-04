@@ -12,6 +12,9 @@ import { CHATTER_BANK, CHATTER_TYPES, CHATTER_SIDES, CHATTER_EVENTS, eventsFor }
 import { allSquads, squadMembers } from "./squadrons.mjs";
 import { REP_TYPES, REP_EVENTS, REP_BANK, repType } from "./data/rep-chatter-bank.mjs";
 import { repOf } from "./reputation.mjs";
+import { FAME_CHATTER, NATION_CHATTER } from "./data/fame-nation-chatter-bank.mjs";
+import { NATIONS } from "./data/callsign-bank.mjs";
+import { gloryView } from "./glory.mjs";
 
 const CHANNEL = `system.${SYSTEM_ID}`;
 const FLUSH_MS = 700, MAX_LINES = 3;
@@ -162,7 +165,7 @@ export function flush() {
     if (lines.length >= MAX_LINES) break;
     if (spoke.has(e.speaker)) continue;
     // реплики о пилоте по Репутации звучат всегда: их и так немного
-    if (CHATTER_EVENTS[e.event]?.minor && !repLevelType(resolveActor(e.by)) && Math.random() * 100 >= chance()) continue;
+    if (CHATTER_EVENTS[e.event]?.minor && !e.rep && !e.fame && !repLevelType(resolveActor(e.by)) && Math.random() * 100 >= chance()) continue;
     const line = lineFor(e);
     if (!line) continue;
     spoke.add(e.speaker);
@@ -283,6 +286,8 @@ function nest(flat) {
 /** Стандартные фразы (с подстановкой из запасного типа: вертолёт → самолёт и т. п.). */
 export function defaultLines(type, side, event) {
   if (REP_TYPES[type]) return REP_BANK[type]?.[side]?.[event] ?? [];
+  if (FAME_TYPES[type]) return FAME_CHATTER[FAME_TYPES[type].level]?.[side]?.[event] ?? [];
+  if (NATION_TYPES[type]) return NATION_CHATTER[NATION_TYPES[type].nation]?.[event] ?? [];
   const own = CHATTER_BANK[type]?.[side]?.[event];
   if (own) return own;
   const fb = CHATTER_TYPES[type]?.fallback;
@@ -298,7 +303,7 @@ export function linesFor(type, side, event, scene = editScene()) {
 /** Подставить имена; фраза с подстановкой, которой нет, не годится. */
 export function fill(text, vars) {
   let ok = true;
-  const out = text.replace(/\{(target|fallen|killer|self)\}/g, (_, k) => { if (!vars[k]) ok = false; return vars[k] ?? ""; });
+  const out = text.replace(/\{(target|fallen|killer|self|nickname)\}/g, (_, k) => { if (!vars[k]) ok = false; return vars[k] ?? ""; });
   return ok ? out : null;
 }
 
@@ -318,11 +323,14 @@ function lineFor(e) {
   if (!type) return null;
   if (quiet(actor)) return null;
   const rep = repLine(e, actor, type);
-  // реплики только по Репутации (узнали, появился рядом, подбит рядом): без неё молчат
-  if (e.rep && !rep) return null;
+  // Слава эскадрильи — следующая после Репутации
+  const fame = rep ? null : fameLine(e, actor, type);
+  // реплики только по Репутации или Славе (узнали, появился рядом, подбит рядом): без них молчат
+  const only = !!(e.rep || e.fame);
+  if (only && !rep && !fame) return null;
   // удар по земле у тех, у кого его нет (наземная техника, корабли), звучит как обычный пуск
   let event = e.event;
-  if (!rep && !eventsFor(type, bankSide(actor, type)).includes(event)) {
+  if (!rep && !fame && !eventsFor(type, bankSide(actor, type)).includes(event)) {
     event = CHATTER_EVENTS[event]?.instead;
     if (!event || !eventsFor(type, bankSide(actor, type)).includes(event)) return null;
   }
@@ -332,14 +340,16 @@ function lineFor(e) {
   if (e.event !== "destroyed" && dead(actor)) return null;
   const side = bankSide(actor, type);
   const self = nameOf(actor);
-  const vars = { target: e.target, fallen: e.fallen, killer: e.killer, self };
+  const vars = { target: e.target, fallen: e.fallen, killer: e.killer, self, nickname: nickname() };
   // ас со своими репликами говорит ими (и когда его тип молчит); если ни одна не подошла, общими фразами
   const own = isAce(actor) ? actor.getFlag?.(SYSTEM_ID, "replies")?.[event] : null;
   let text = Array.isArray(own) && own.length ? pickLine(`ace:${actor.uuid}:${event}`, own, vars) : null;
   const scene = tok.parent ?? editScene();
   // о пилоте игрока по его Репутации, если событие вызвал он сам (после личных реплик аса, раньше эскадрильи и общих)
   if (!text && rep) text = repText(rep, scene, vars);
-  if (!text && e.rep) return null;
+  // по Славе: узнавание всегда (раз за вылет), остальное примерно в одном случае из трёх
+  if (!text && fame && (e.fame === "arrive" || Math.random() < 1 / 3)) text = repText(fame, scene, vars);
+  if (!text && only) return null;
   // машина эскадрильи дуэлянтов говорит репликами эскадрильи (и когда её тип молчит): сначала этой сцены, потом общими
   if (!text && isSquad(actor)) {
     const name = actor.system.squad;
@@ -348,6 +358,9 @@ function lineFor(e) {
     if (Array.isArray(sq) && sq.length) text = pickLine(`squad:${name}:${sq === here ? "scene" : "all"}:${event}`, sq, vars);
   }
   if (!text && muted(scene)[type]) return null;
+  // банк страны говорящего (только авиация): из миссии или со сцены
+  const nt = text ? null : nationType(actor, type, scene);
+  if (nt && !muted(scene)[nt]) text = pickLine(bankKey(nt, "all", event), linesFor(nt, "all", event, scene), vars);
   text ??= pickLine(bankKey(type, side, event), linesFor(type, side, event, scene), vars);
   return text ? { speaker: self, text, side: sideOf(actor) } : null;
 }
@@ -376,7 +389,72 @@ export function repLine(e, speaker, type = chatterType(speaker)) {
 
 function repText(rep, scene, vars) {
   if (muted(scene)[rep.type]) return null;
-  return pickLine(bankKey(rep.type, rep.side, rep.event), linesFor(rep.type, rep.side, rep.event, scene), { ...vars, killer: vars.killer || nameOf(rep.pilot) });
+  return pickLine(bankKey(rep.type, rep.side, rep.event), linesFor(rep.type, rep.side, rep.event, scene), { ...vars, killer: vars.killer || (rep.pilot ? nameOf(rep.pilot) : "") });
+}
+
+/* ---------- Слава эскадрильи и страна говорящего (радио-фейм) ---------- */
+
+export const FAME_TYPES = {
+  fame_noticed: { level: "noticed", label: "Замечены", hint: "о вашей эскадрилье при Славе 20+: свои знают по сводкам, враг ещё нет" },
+  fame_known: { level: "known", label: "На слуху", hint: "при Славе 50+: враг зовёт по прозвищу, свои гордятся" },
+  fame_terror: { level: "terror", label: "Гроза", hint: "при Славе 90+: враг боится и собирается толпой, свои рвутся в бой" },
+  fame_legend: { level: "legend", label: "Легенда", hint: "при Славе 130+: у врага ужас и отчаянная решимость, свои уверены в победе" }
+};
+export const FAME_EVENTS = {
+  enemy: {
+    arrive: { label: "Узнали", hint: "в начале боя, раз за вылет" },
+    wingmanDown: { label: "Сбили своего", hint: "пилот эскадрильи сбил товарища говорящего" },
+    hit: { label: "Попал", hint: "говорящий попал по пилоту эскадрильи" }
+  },
+  ally: {
+    arrive: { label: "Узнали", hint: "в начале боя, раз за вылет" },
+    cheer: { label: "Сбил", hint: "пилот эскадрильи сбил врага" },
+    damaged: { label: "Подбит", hint: "пилота эскадрильи подбили, говорит ближайший союзник" }
+  }
+};
+export const NATION_TYPES = Object.fromEntries(Object.keys(NATION_CHATTER).map(n => [`nat_${n}`,
+  { nation: n, label: NATIONS[n]?.name ?? n, hint: "манера речи страны: самолёты и вертолёты союзников и противника этой страны" }]));
+const FAME_MAP = { enemy: { wingmanDown: "wingmanDown", hit: "hit" }, ally: { cheer: "cheer" } };
+const gloryNow = () => { try { return gloryView(); } catch { return { key: "none", nickname: "" }; } };
+const nickname = () => String(gloryNow().nickname ?? "").trim();
+/** Тип банка Славы эскадрильи сейчас (fame_known …) или null ниже «Замечены». */
+export const fameType = () => (FAME_CHATTER[gloryNow().key] ? `fame_${gloryNow().key}` : null);
+
+/** Реплика по Славе: событие вызвал пилот эскадрильи. Сторона — относительно эскадрильи. */
+export function fameLine(e, speaker, type = chatterType(speaker)) {
+  const ft = fameType();
+  const pilot = e.by ? resolveActor(e.by) : null;
+  if (!ft || !type || isCivil(type) || pilot?.type !== "pilot") return null;
+  const s = sideOf(speaker);
+  const side = team(s) === "ally" ? "ally" : s === "neutral" ? null : "enemy";
+  const event = side && (e.fame ?? FAME_MAP[side]?.[e.event]);
+  if (!event || !FAME_CHATTER[FAME_TYPES[ft].level]?.[side]?.[event]) return null;
+  return { type: ft, side, event, pilot: null };
+}
+
+/** Страна говорящего: флаг токена (миссия из Планшета), иначе страна его стороны на сцене. Только авиация, не нейтралы. */
+export function nationOf(actor, scene = editScene()) {
+  const s = sideOf(actor);
+  if (s === "neutral") return "";
+  const own = String(tokenDoc(actor)?.getFlag?.(SYSTEM_ID, "nation") ?? "");
+  if (NATION_CHATTER[own]) return own;
+  const n = (scene?.getFlag?.(SYSTEM_ID, "nations") ?? {})[team(s) === "ally" ? "ally" : "enemy"];
+  return NATION_CHATTER[n] ? n : "";
+}
+const nationType = (actor, type, scene) => (["air", "heli"].includes(type) && nationOf(actor, scene) ? `nat_${nationOf(actor, scene)}` : null);
+
+/** Окно «Реплики NPC»: стороны и события особых банков (Репутация, Слава, страны). */
+export function specialMeta(type) {
+  if (REP_TYPES[type]) return { ...REP_TYPES[type], group: "rep", sides: Object.keys(REP_BANK[type] ?? {}).map(k => ({ key: k, events: REP_EVENTS[k] ?? {} })) };
+  if (FAME_TYPES[type]) {
+    const bank = FAME_CHATTER[FAME_TYPES[type].level] ?? {};
+    return { ...FAME_TYPES[type], group: "fame", sides: Object.keys(bank).map(k => ({ key: k, events: Object.fromEntries(Object.entries(FAME_EVENTS[k] ?? {}).filter(([ev]) => bank[k][ev])) })) };
+  }
+  if (NATION_TYPES[type]) {
+    const bank = NATION_CHATTER[NATION_TYPES[type].nation] ?? {};
+    return { ...NATION_TYPES[type], group: "nation", sides: [{ key: "all", events: Object.fromEntries(Object.keys(bank).map(ev => [ev, CHATTER_EVENTS[ev] ?? { label: ev, hint: "" }])) }] };
+  }
+  return null;
 }
 
 // раз за вылет: «узнали», «появился рядом», «сбил рядом», «подбит рядом»
@@ -400,13 +478,13 @@ function civilNear(pilot, kind) {
 /** Пилота подбили: ближайший союзник и (раз за вылет) гражданские рядом говорят о нём; враг, который попал, — тоже. */
 function expandPilotHit(ev) {
   const pilot = resolveActor(ev.speaker);
-  if (!repLevelType(pilot)) return [];
+  if (!repLevelType(pilot) && !fameType()) return [];
   const out = [];
   const name = nameOf(pilot);
   const src = ev.by ? resolveActor(ev.by) : null;
   if (src?.type === "npc" && team(sideOf(src)) !== "ally") out.push({ event: "hit", speaker: src.uuid, target: name, by: pilot.uuid });
   const mate = nearestSpeaker(pilot, a => !isCivil(chatterType(a)) && team(sideOf(a)) === "ally");
-  if (mate) out.push({ event: "damaged", rep: "damaged", speaker: mate.actor.uuid, by: pilot.uuid });
+  if (mate) out.push({ event: "damaged", rep: "damaged", fame: "damaged", speaker: mate.actor.uuid, by: pilot.uuid });
   const civ = civilNear(pilot, "hitNear");
   if (civ) out.push({ event: "damaged", rep: "hitNear", speaker: civ.actor.uuid, by: pilot.uuid });
   return out;
@@ -416,6 +494,21 @@ function expandPilotHit(ev) {
 export function repScan() {
   const scene = game.combat?.scene ?? canvas?.scene;
   if (!enabled() || !scene) return;
+  // Слава: враг и свои узнают эскадрилью, раз за вылет каждая сторона
+  const ft = fameType();
+  if (ft) for (const side of ["enemy", "ally"]) {
+    const k = `${game.combat?.id ?? ""}:fame:${side}`;
+    if (repOnce.has(k) || !FAME_CHATTER[FAME_TYPES[ft].level]?.[side]?.arrive) continue;
+    for (const t of scene.tokens) {
+      const pilot = t.actor;
+      if (pilot?.type !== "pilot" || t.hidden || dead(pilot)) continue;
+      const sp = nearestSpeaker(pilot, a => !isCivil(chatterType(a)) && (side === "ally" ? team(sideOf(a)) === "ally" : team(sideOf(a)) !== "ally" && sideOf(a) !== "neutral") && (zoneOf(pilot, a) ?? 9) <= 2);
+      if (!sp) continue;
+      repOnce.add(k);
+      queue({ event: "arrive", fame: "arrive", speaker: sp.actor.uuid, by: pilot.uuid });
+      break;
+    }
+  }
   for (const t of scene.tokens) {
     const pilot = t.actor;
     if (pilot?.type !== "pilot" || t.hidden || dead(pilot) || !repLevelType(pilot)) continue;
@@ -489,7 +582,7 @@ export function openSquadChatter(name) {
   editor.render(true);
 }
 
-const SAMPLE = { target: "Цель", fallen: "Ведомый", killer: "Гроза-1", self: "" };
+const SAMPLE = { target: "Цель", fallen: "Ведомый", killer: "Гроза-1", self: "", nickname: "Демоны Разора" };
 const splitLines = v => v.split("\n").map(s => s.trim()).filter(Boolean);
 
 /** Асы: на сцене боя (или открытой) — токены, у каждого свои реплики; в актёрах — заготовка для всех его токенов. */
@@ -548,10 +641,11 @@ class ChatterEditor extends FormApplication {
       const gap = t.civil && !all[i - 1]?.[1].civil ? `<h4>Гражданские</h4>` : i === 0 ? `<h4>Военные</h4>` : "";
       return `${gap}<button type="button" data-type="${k}" class="${k === this.type ? "on" : ""}${mute[k] ? " muted" : ""}">${esc(t.label)}${changed ? ` <i class="fas fa-pen" title="есть правки"></i>` : ""}${mute[k] ? ` <i class="fas fa-volume-xmark" title="молчит"></i>` : ""}</button>`;
     }).join("");
-    const repNav = `<h4>Репутация пилота</h4>${Object.entries(REP_TYPES).map(([k, t]) => {
+    const specialNav = (title, types) => `<h4>${title}</h4>${Object.entries(types).map(([k, t]) => {
       const changed = Object.keys(ov).some(x => x.startsWith(`${k}.`));
       return `<button type="button" data-type="${k}" class="${k === this.type ? "on" : ""}${mute[k] ? " muted" : ""}" title="${esc(t.hint)}">${esc(t.label)}${changed ? ` <i class="fas fa-pen" title="есть правки"></i>` : ""}${mute[k] ? ` <i class="fas fa-volume-xmark" title="молчат"></i>` : ""}</button>`;
     }).join("")}`;
+    const repNav = specialNav("Репутация пилота", REP_TYPES) + specialNav("Слава эскадрильи", FAME_TYPES) + specialNav("Страны", NATION_TYPES);
     const aceBtn = x => {
       const own = Object.values(x.actor.getFlag?.(SYSTEM_ID, "replies") ?? {}).some(l => Array.isArray(l) && l.length);
       const key = `ace:${x.actor.uuid}`;
@@ -591,7 +685,7 @@ class ChatterEditor extends FormApplication {
   }
 
   #typeView(ov, mute, scene) {
-    if (REP_TYPES[this.type]) return this.#repView(ov, mute, scene);
+    if (specialMeta(this.type)) return this.#repView(ov, mute, scene);
     const civil = isCivil(this.type);
     const side = civil ? "civil" : this.side;
     const events = eventsFor(this.type, side);
@@ -612,18 +706,24 @@ class ChatterEditor extends FormApplication {
 
   /** Реплики о пилоте по его Репутации: стороны относительно пилота, свои события (раздел 3.1). */
   #repView(ov, mute, scene) {
-    const t = REP_TYPES[this.type], sides = Object.keys(REP_BANK[this.type] ?? {});
+    const t = specialMeta(this.type), sides = t.sides.map(x => x.key);
     const side = sides.includes(this.side) ? this.side : sides[0];
-    const labels = { enemy: "Враги", ally: "Свои", civil: "Гражданские" };
-    const tabs = `<div class="tb-chatter-sides">${sides.map(k =>
-      `<button type="button" data-side="${k}" class="tb-side-${k === "civil" ? "neutral" : k} ${k === side ? "on" : ""}">${labels[k]}</button>`).join("")}</div>`;
-    const rows = Object.entries(REP_EVENTS[side] ?? {}).map(([ev, e]) => {
+    const labels = { enemy: "Враги", ally: "Свои", civil: "Гражданские", all: "Все" };
+    const tabs = sides.length > 1 ? `<div class="tb-chatter-sides">${sides.map(k =>
+      `<button type="button" data-side="${k}" class="tb-side-${k === "civil" ? "neutral" : k} ${k === side ? "on" : ""}">${labels[k]}</button>`).join("")}</div>` : "";
+    const rows = Object.entries(t.sides.find(x => x.key === side)?.events ?? {}).map(([ev, e]) => {
       const key = bankKey(this.type, side, ev);
       return this.#row({ key, label: e.label, hint: e.hint, value: linesFor(this.type, side, ev, scene).join("\n"), changed: Array.isArray(ov[key]), resetTitle: "Вернуть стандартные фразы" });
     }).join("");
-    return `<header><h3>О пилоте: ${esc(t.label)} <small class="tb-muted">· сцена «${esc(scene.name)}»</small></h3>
+    const head = { rep: `О пилоте: ${t.label}`, fame: `Слава эскадрильи: ${t.label}`, nation: `Страна: ${t.label}` }[t.group];
+    const how = {
+      rep: `Что говорят NPC ${t.hint}. Звучат, только когда событие вызвал сам этот пилот, вместо общих фраз типа (личные реплики аса важнее). У Солдата их нет.`,
+      fame: `Что говорят NPC ${t.hint}. Звучат, когда событие вызвал любой пилот эскадрильи и пилот не на особом уровне Репутации: узнавание раз за вылет, остальное примерно в одном случае из трёх. {nickname} — прозвище эскадрильи от врага (фраза с ним молчит, пока прозвища нет).`,
+      nation: `Манера речи страны: самолёты и вертолёты, у которых в миссии эта страна (Планшет или окно «Позывные»). Важнее общих фраз типа, но Репутация, Слава, личные реплики асов и эскадрилий звучат раньше.`
+    }[t.group];
+    return `<header><h3>${esc(head)} <small class="tb-muted">· сцена «${esc(scene.name)}»</small></h3>
         <label class="tb-chatter-voice"><input type="checkbox" data-voice ${mute[this.type] ? "" : "checked"}> Звучат в эфире</label>
-        <p class="tb-hint">Что говорят NPC ${esc(t.hint)}. Звучат, только когда событие вызвал сам этот пилот, вместо общих фраз типа (личные реплики аса важнее). У Солдата их нет. Одна фраза на строку. Пустое поле: в этом случае общие фразы.</p>${tabs}</header>
+        <p class="tb-hint">${esc(how)} Одна фраза на строку. Пустое поле: в этом случае общие фразы.</p>${tabs}</header>
       <div class="tb-chatter-list${mute[this.type] ? " muted" : ""}">${rows}</div>`;
   }
 
@@ -717,10 +817,10 @@ class ChatterEditor extends FormApplication {
         const who = ace ?? sample;
         const type = who ? chatterType(who) ?? "air" : squad ? "air" : key.split(".")[0];
         const side = who ? bankSide(who, type) : squad ? "enemy" : key.split(".")[1];
-        const self = who ? nameOf(who) : squad ?? (CHATTER_TYPES[type] ?? REP_TYPES[type])?.label ?? "";
-        const text = pickLine(`test:${key}`, lines, { ...SAMPLE, self });
+        const self = who ? nameOf(who) : squad ?? (CHATTER_TYPES[type] ?? specialMeta(type))?.label ?? "";
+        const text = pickLine(`test:${key}`, lines, { ...SAMPLE, nickname: nickname() || SAMPLE.nickname, self });
         if (!text) return ui.notifications.info("В этом поле нет фраз: в этом случае NPC молчит.");
-        say(self, text, who ? sideOf(who) : side === "civil" ? "neutral" : side, { log: false });
+        say(self, text, who ? sideOf(who) : side === "civil" ? "neutral" : side === "all" ? "enemy" : side, { log: false });
       });
     });
     root.querySelector("[data-enabled]")?.addEventListener("change", ev => game.settings.set(SYSTEM_ID, "npcChatter", ev.target.checked));
@@ -783,10 +883,10 @@ export function fullBank(scene = editScene()) {
     for (const side of civil ? ["civil"] : Object.keys(CHATTER_SIDES))
       for (const ev of eventsFor(type, side)) out[bankKey(type, side, ev)] = linesFor(type, side, ev, scene);
   }
-  // реплики о пилоте по Репутации
-  for (const type of Object.keys(REP_TYPES))
-    for (const [side, evs] of Object.entries(REP_BANK[type] ?? {}))
-      for (const ev of Object.keys(evs)) if (REP_EVENTS[side]?.[ev]) out[bankKey(type, side, ev)] = linesFor(type, side, ev, scene);
+  // реплики о пилоте по Репутации, по Славе эскадрильи и по странам
+  for (const type of [...Object.keys(REP_TYPES), ...Object.keys(FAME_TYPES), ...Object.keys(NATION_TYPES)])
+    for (const { key: side, events } of specialMeta(type).sides)
+      for (const ev of Object.keys(events)) out[bankKey(type, side, ev)] = linesFor(type, side, ev, scene);
   return out;
 }
 

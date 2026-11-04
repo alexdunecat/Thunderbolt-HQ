@@ -464,7 +464,7 @@ export async function importMission(input) {
       const spot = pack(fp, u.c, u.r);
       // строка Планшета — во флаге токена: по ней ставятся приказ автопилота и выход подкреплением
       const td = await actor.getTokenDocument({ ...spot, texture: { ...actor.prototypeToken.texture.toObject(), ...spot.texture }, elevation,
-        name: count > 1 ? `${actor.name} ${i + 1}` : actor.name, hidden: !!(u.arrive?.round || u.arrive?.after), flags: { [SYSTEM_ID]: { unitId: u.id ?? "", ...(calls[i] ? { radioCall: calls[i] } : {}) } } });
+        name: count > 1 ? `${actor.name} ${i + 1}` : actor.name, hidden: !!(u.arrive?.round || u.arrive?.after), flags: { [SYSTEM_ID]: { unitId: u.id ?? "", ...(calls[i] ? { radioCall: calls[i] } : {}), ...(nationFor(u) ? { nation: nationFor(u) } : {}) } } });
       // неопознанный контакт «?» (9.6): имя «Контакт N» и радарная отметка, настоящее — во флаге
       tokens.push(u.unknown ? foundry.utils.mergeObject(td.toObject(), contactData(td.toObject(), ++contacts)) : td.toObject());
     }

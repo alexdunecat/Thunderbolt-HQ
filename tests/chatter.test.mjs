@@ -206,3 +206,28 @@ pilot.system.reputation.points = 0;
 fire(msg({ card: { attack: true, delayed: true, actorUuid: pilot.uuid, targetUuid: liner.uuid, targetName: "Рейс 707", parts: [] } }));
 step("Солдат: обычные фразы");
 console.log("ключи Репутации в банке:", Object.keys(C.fullBank()).filter(k => k.startsWith("rep_")).length);
+
+// Слава эскадрильи и страна говорящего (радио-фейм): Репутация > Слава > страна > общий банк
+settings.glory = { points: 95, nickname: "Демоны" };
+console.log("Слава:", C.fameType(), "| ключи Славы и стран:", Object.keys(C.fullBank()).filter(k => /^(fame|nat)_/.test(k)).length);
+for (let i = 0; i < 4; i++) {
+  const m = npc(`f${i}`, `Кобра-${i + 1}`, {}, { x: 140 + i });
+  C.chatter({ event: "down", victim: m.uuid, killer: pilot.uuid });
+  m.statuses.add("dead");
+  step(`Солдат эскадрильи «Гроза» сбил Кобру-${i + 1}: Слава говорит примерно раз из трёх`);
+}
+C.chatter({ event: "damaged", speaker: pilot.uuid, by: mig1.uuid });
+step("пилота эскадрильи подбили");
+pilot.system.reputation.points = 9;
+C.chatter({ event: "damaged", speaker: pilot.uuid, by: mig1.uuid });
+step("Белого рыцаря подбили: Репутация важнее Славы");
+pilot.system.reputation.points = 0;
+settings.glory = { points: 0 };
+scene.flags.nations = { enemy: "sotoa", ally: "yuk" };
+fire(msg({ card: { attack: true, delayed: true, actorUuid: mig1.uuid, targetUuid: ship.uuid, targetName: "Адмирал", parts: [] } }));
+step("противник из Сотоа пускает ракету по кораблю: МиГ по-сотоански, корабль общим банком");
+fire(msg({ rwr: { target: mig1.uuid, from: "Сокол-2", fromUuid: ally.uuid } }));
+step("союзник из Юктобании берёт захват");
+liner.flags = {};
+console.log("страна лайнера:", C.nationOf(liner, scene) || "нет", "| МиГа:", C.nationOf(mig1, scene));
+delete scene.flags.nations;
