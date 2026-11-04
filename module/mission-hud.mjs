@@ -153,7 +153,7 @@ export function registerMissionHud() {
   globalThis.window?.addEventListener?.("resize", () => place());
   // игрок сам двигает карту — камера не перехватывает
   Hooks.once("ready", () => {
-    const board = document.getElementById("board");
+    const board = globalThis.document?.getElementById?.("board");
     for (const ev of ["pointerdown", "wheel"]) board?.addEventListener(ev, () => { touched = performance.now(); }, { passive: true });
     refreshGoals();
   });
