@@ -57,6 +57,7 @@ import { registerCallsigns } from "./callsigns.mjs";
 import { registerHitPick } from "./hit-pick.mjs";
 import { registerDeclarePick } from "./declare-pick.mjs";
 import { registerFxQuality } from "./fx-quality.mjs";
+import { registerReputation } from "./reputation.mjs";
 import { registerUiScale } from "./ui-scale.mjs";
 import { registerMissionHud } from "./mission-hud.mjs";
 import { registerVerdict } from "./verdict.mjs";
@@ -177,6 +178,7 @@ Hooks.once("init", () => {
   registerRwr();
   registerRadio();
   registerChatter();
+  registerReputation();
   registerMission();
   registerSounds();
   registerHud();

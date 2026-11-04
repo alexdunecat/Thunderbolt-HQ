@@ -174,6 +174,8 @@ export async function onHitUnknown(actor, sourceUuid, u) {
   const list = foundry.utils.deepClone(scene?.getFlag(SYSTEM_ID, "violations") ?? []);
   list.push({ kind: v, who, target: u.name, n: u.n, round: game.combat?.round ?? null, uuid: actor.uuid });
   await scene?.setFlag(SYSTEM_ID, "violations", list);
+  // Репутация: огонь по своим −1 на разборе (по мирным — −2, пишет сам урон)
+  if (v !== "civil" && shooter.type === "pilot") import("./reputation.mjs").then(m => m.noteRep(shooter, "friendly", { why: `огонь по своим: ${u.name}`, once: `friendly:${actor.uuid}` })).catch(() => null);
   await ChatMessage.create({
     speaker: { alias: "AWACS" },
     content: `<div class="tb-card tb-card-damage"><header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">${v === "civil" ? "Огонь по гражданскому борту" : "Огонь по своим"}</span></header>

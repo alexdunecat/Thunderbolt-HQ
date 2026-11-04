@@ -272,6 +272,22 @@
         {{#if glory.effects.length}}<ul class="tb-list tb-small">{{#each glory.effects as |e|}}<li><b>{{e.title}}</b> {{e.text}}</li>{{/each}}</ul>{{/if}}
       </fieldset>
 
+      {{#if rep}}
+      <fieldset class="tb-box tb-rep-sheet">
+        <legend>Репутация <span class="tb-budget">{{rep.sign}}</span> <span class="tb-muted">личная, от −10 до +10, меняется на разборе вылета</span>
+          {{#if @root.isGM}}<a class="tb-icon" data-rep-step="-1" title="Ведущий: −1 Репутации с причиной"><i class="fas fa-minus"></i></a><a class="tb-icon" data-rep-step="1" title="Ведущий: +1 Репутации с причиной"><i class="fas fa-plus"></i></a>{{/if}}</legend>
+        <p><b class="tb-rep-chip lv-{{rep.key}}">{{rep.name}}</b> <span class="tb-muted">{{rep.mean}}.</span>
+          {{#if rep.broken}} <b class="tb-warn">Кодекс нарушен в этом вылете: бонусов уровня нет.</b>{{/if}}
+          {{#if rep.feud}} <b class="tb-warn">Кровная месть: враги этого вылета охотятся за ним.</b>{{/if}}
+          {{#if rep.pending}} <span class="tb-muted">Событий вылета на разбор: {{rep.pending}}.</span>{{/if}}</p>
+        <div class="tb-rep-scale" title="Чудовище −10…−8 · Каратель −7…−4 · Солдат −3…+3 · Рыцарь неба +4…+7 · Белый рыцарь +8…+10"><i style="left: {{rep.pct}}%"></i></div>
+        <div class="tb-rep-ticks"><span>−10</span><span>−5</span><span>0</span><span>+5</span><span>+10</span></div>
+        {{#if rep.bonus.length}}<h4>Даёт</h4><ul class="tb-list tb-small">{{#each rep.bonus as |e|}}<li><b>{{e.title}}</b> {{e.text}}</li>{{/each}}</ul>{{/if}}
+        {{#if rep.minus.length}}<h4>Чем платит</h4><ul class="tb-list tb-small">{{#each rep.minus as |e|}}<li><b>{{e.title}}</b> {{e.text}}</li>{{/each}}</ul>{{/if}}
+        {{#if rep.log.length}}<h4>Журнал</h4><ul class="tb-list tb-small tb-rep-log">{{#each rep.log as |x|}}<li><b>{{x.sign}}</b> {{x.why}}{{#if x.date}} <span class="tb-muted">{{x.date}}</span>{{/if}}</li>{{/each}}</ul>{{/if}}
+      </fieldset>
+      {{/if}}
+
       <fieldset class="tb-box">
         <legend>Заделы на следующий вылет <span class="tb-budget {{#if dt.edgesOver}}over{{/if}}">{{system.edgeCount}} из {{dt.maxEdges}}</span> <span class="tb-muted">сгорают после вылета</span></legend>
         {{#if dt.edges.length}}

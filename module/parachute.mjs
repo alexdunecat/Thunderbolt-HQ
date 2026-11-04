@@ -3,10 +3,16 @@
    по уровню: конскрипт 5 из 10, дуэлянт 6, ас 8. Парашютов нет у бомбардировщиков, транспортников, самолётов ДРЛО,
    вертолётов и беспилотников, гражданских, боссов, ракет, наземной техники и кораблей.
    Ас или дуэлянт противника (NPC в той же или соседней клетке) может расстрелять купол: Strafe против 6, вне броска хода. Очередь видна трассерами и слышна всем, сбитый пилот кричит по радио.
-   Попал — купол исчезает, пилот игрока погибает. Купол — плитка сцены (Tile), без актёра; всё делает главный ведущий. */
+   Попал — купол исчезает, пилот игрока погибает. Купол — плитка сцены (Tile), без актёра; всё делает главный ведущий.
+   Пилот игрока тоже может расстрелять вражеский купол рядом (Strafe против 6, проверка хода): эфир шокирован, CAUTION у всех,
+   «кровная месть» до конца вылета и −2 Репутации на разборе (reputation.mjs). Или передать спасателям координаты купола (+1).
+   Кто из NPC стреляет по куполу, зависит и от Репутации пилота под ним: chuteShooterOk. */
 import { SYSTEM_ID, SYS_PATH } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
 import { COL_LETTERS } from "./briefing.mjs";
+import { chuteShooterOk, ejectBonus, noteRep, CHUTE_OURS_DOWN, pickNoRepeat } from "./reputation.mjs";
+
+const CHANNEL = `system.${SYSTEM_ID}`;
 
 const KEY = "parachute";
 /** Купол в стиле карты: контур цвета стороны пилота (игрок, союзник, враг, нейтрал). */
@@ -35,11 +41,9 @@ export function canEject(actor) {
 /** Шанс NPC (из 10). */
 export const ejectChance = actor => EJECT_CHANCE[actor?.system?.tier] ?? EJECT_CHANCE.conscript;
 
-/** Может ли стрелять по куполу: ас или дуэлянт NPC, самолёт, не сбит. */
-export function canShootChutes(actor) {
-  if (actor?.type !== "npc" || actor.system?.kind !== "air" || !["ace", "duelist"].includes(actor.system?.tier)) return false;
-  if (actor.hasPlayerOwner) return false;
-  return !actor.getFlag?.(SYSTEM_ID, "down") && !actor.statuses?.has?.(CONFIG.specialStatusEffects.DEFEATED);
+/** Может ли NPC стрелять по куполу f: обычно ас или дуэлянт; Репутация пилота под куполом меняет круг (reputation.mjs). */
+export function canShootChutes(actor, f = {}) {
+  return chuteShooterOk(actor, f);
 }
 
 /** Пора ли снять купол в раунде round. */
@@ -69,7 +73,7 @@ export function shootersFor(chute, tokens, gs) {
   const at = [Math.floor((chute.x + chute.width / 2) / gs), Math.floor((chute.y + chute.height / 2) / gs)];
   return tokens.filter(t => {
     const a = t.actor;
-    if (!canShootChutes(a) || t.hidden) return false;
+    if (!canShootChutes(a, f) || t.hidden) return false;
     if (team(sideOfActor(a)) === team(f.side)) return false;
     const c = cellOfDoc(t, gs);
     return Math.max(Math.abs(c[0] - at[0]), Math.abs(c[1] - at[1])) <= 1;
@@ -139,8 +143,11 @@ async function npcDown(actor) {
   const k = `${game.combat.id}:${actor.uuid}`;
   if (rolled.has(k)) return;
   rolled.add(k);
+  // «Сдаюсь!» Белому рыцарю: сел с выпущенным шасси, купола нет
+  if (actor.getFlag(SYSTEM_ID, "surrendered")) return;
   const r = await new Roll("1d10").evaluate();
-  if (r.total > ejectChance(actor)) return;
+  // Рыцарь неба: сбитые им прыгают охотнее
+  if (r.total > ejectChance(actor) + ejectBonus(actor)) return;
   await dropChute(actor);
 }
 
@@ -180,7 +187,122 @@ export async function shootChute(chute, shooter) {
   await new Promise(r => setTimeout(r, 700));
   if (chute.parent?.tiles?.get?.(chute.id)) await chute.parent.deleteEmbeddedDocuments("Tile", [chute.id]);
   if (f.pilot && victim) await victim.update({ "system.service.status": "kia" });
-  if (f.pilot) await sendRadio({ text: `Маяк ${f.name} молчит. Всем бортам: ${who} расстрелял нашего пилота под куполом.`, caution: { title: "CAUTION", sub: "Расстрел купола" } });
+  if (f.pilot) {
+    await sendRadio({ text: `Маяк ${f.name} молчит. Всем бортам: ${who} расстрелял нашего пилота под куполом.`, caution: { title: "CAUTION", sub: "Расстрел купола" } });
+    const mate = await allyNear(chute);
+    await sendRadio({ speaker: mate ?? "Звено", side: "ally", text: pickNoRepeat("chuteOurs", CHUTE_OURS_DOWN) });
+  }
+}
+
+/** Союзный NPC рядом с куполом (позывной в эфире) или null. */
+async function allyNear(chute) {
+  const C = await import("./chatter.mjs");
+  const at = { x: chute.x, y: chute.y };
+  const list = (chute.parent?.tokens ?? []).filter(t => t.actor?.type === "npc" && !t.hidden && ["ally", "player"].includes(t.actor.system?.side)
+    && !t.actor.statuses?.has?.(CONFIG.specialStatusEffects.DEFEATED) && C.chatterType(t.actor));
+  const tok = list.sort((a, b) => Math.hypot(a.x - at.x, a.y - at.y) - Math.hypot(b.x - at.x, b.y - at.y))[0];
+  return tok ? C.nameOf(tok.actor) : null;
+}
+
+/* ---------- пилот игрока и вражеский купол ---------- */
+
+/** Вражеские куполы в клетке пилота и соседних. */
+export function pilotChutes(pilot, token = null) {
+  const doc = token?.document ?? token ?? (pilot?.isToken ? pilot.token : pilot?.getActiveTokens?.(false, true)?.[0]);
+  const scene = doc?.parent;
+  if (!scene || pilot?.type !== "pilot") return [];
+  const gs = scene.grid?.size ?? 100, me = cellOfDoc(doc, gs);
+  return chutesOf(scene).filter(c => {
+    const f = c.getFlag(SYSTEM_ID, KEY);
+    if (!f || team(f.side) === "ally" || f.side === "neutral") return false;
+    const at = [Math.floor((c.x + c.width / 2) / gs), Math.floor((c.y + c.height / 2) / gs)];
+    return Math.max(Math.abs(at[0] - me[0]), Math.abs(at[1] - me[1])) <= 1;
+  });
+}
+
+async function pickChute(pilot, title) {
+  const list = pilotChutes(pilot);
+  if (!list.length) { ui.notifications.warn("Рядом нет вражеского купола (своя или соседняя клетка)."); return null; }
+  const pick = await pickOne(title, "Купол", list.map(c => ({ label: `${c.getFlag(SYSTEM_ID, KEY).name} (${cellName(c.getFlag(SYSTEM_ID, KEY).cell)})`, c })));
+  return pick?.c ?? null;
+}
+
+/** Пилот игрока стреляет по вражескому куполу: Strafe против 6, проверка хода. Сам выстрел уже считается. */
+export async function pilotShootChute(pilot, chute = null) {
+  if (!pilot?.isOwner || pilot.type !== "pilot") return null;
+  chute ??= await pickChute(pilot, "Расстрелять купол");
+  if (!chute) return null;
+  const f = chute.getFlag(SYSTEM_ID, KEY);
+  const R = await import("./dice/rolls.mjs");
+  const msg = await R.rollSideCheck(pilot, "strafe", { dc: SHOOT_DC, turnRoll: true, label: `По куполу «${f.name}»: Strafe против ${SHOOT_DC}`,
+    notes: ["Пилот уже сбит: ни победы, ни Славы. Сам выстрел уже считается: −2 Репутации на разборе, «кровная месть» до конца вылета."],
+    extra: { chute: { tile: chute.id, scene: chute.parent.id, name: f.name } } });
+  const card = msg?.getFlag?.(SYSTEM_ID, "card");
+  if (!card) return null;
+  const hit = R.computeCard(card).success;
+  if (hit) await msg.update({ [`flags.${SYSTEM_ID}.card.applied`]: true, content: R.renderCard({ ...card, applied: true }) });
+  toLead({ op: "shot", pilot: pilot.uuid, tile: chute.id, scene: chute.parent.id, hit });
+  return msg;
+}
+
+/** Кнопка на карточке: с добавленным Strain бросок дотянул — купол расстрелян. */
+export function chuteCardHit(pilot, c) {
+  if (!c?.tile) return;
+  toLead({ op: "kill", pilot: pilot.uuid, tile: c.tile, scene: c.scene });
+}
+
+/** «Координаты спасателям»: любой пилот игрока, без броска, раз за вылет. +1 Репутации на разборе. */
+export async function rescueCall(pilot, chute = null) {
+  if (!pilot?.isOwner || pilot.type !== "pilot") return null;
+  const c = game.combat;
+  if (pilot.getFlag(SYSTEM_ID, "rescueCall") === c?.id) return ui.notifications.warn("Координаты спасателям вы уже передавали в этом вылете.");
+  chute ??= await pickChute(pilot, "Координаты спасателям");
+  if (!chute) return null;
+  await pilot.setFlag(SYSTEM_ID, "rescueCall", c?.id ?? "");
+  await noteRep(pilot, "rescue", { why: `передал спасателям координаты купола «${chute.getFlag(SYSTEM_ID, KEY).name}»` });
+  toLead({ op: "rescue", pilot: pilot.uuid, tile: chute.id, scene: chute.parent.id });
+}
+
+const isLeadGM = () => !!game.user?.isGM && (game.users?.activeGM?.isSelf ?? true);
+function toLead(msg) {
+  if (isLeadGM()) return onLead(msg).catch(err => console.error(`${SYSTEM_ID} | купол`, err));
+  game.socket.emit(CHANNEL, { type: "chute", ...msg });
+}
+
+async function onLead({ op, pilot, tile, scene: sceneId, hit }) {
+  const a = resolveActor(pilot), scene = game.scenes.get(sceneId), chute = scene?.tiles?.get(tile);
+  if (!a) return;
+  const f = chute?.getFlag(SYSTEM_ID, KEY);
+  const who = a.system?.callsign || a.name;
+  const { sendRadio } = await import("./radio.mjs");
+  if (op === "rescue") {
+    if (!f) return;
+    return sendRadio({ speaker: who, side: "ally", text: `Всем, кто слышит: купол противника, квадрат ${cellName(f.cell)}. Пусть его заберут.` });
+  }
+  if (op === "shot") {
+    if (chute) {
+      const at = { x: chute.x + chute.width / 2, y: chute.y + chute.height / 2 };
+      await ChatMessage.create({ speaker: { alias: "AWACS" }, flags: { [SYSTEM_ID]: { chuteFire: { from: a.uuid, ...at, hit: !!hit } } },
+        content: `<div class="tb-card tb-card-chute"><div class="tb-note"><b>${esc(who)}</b> ${hit ? "расстреливает купол" : "бьёт по куполу"} «${esc(f?.name ?? "")}»${hit ? "." : " и промахивается."}</div></div>` });
+      if (f) await sendRadio({ speaker: f.name, text: chuteLine(f, !!hit, game.combat?.round ?? 0), side: f.side === "player" ? "ally" : f.side });
+    }
+    const { chuteShotByPilot } = await import("./reputation.mjs");
+    await chuteShotByPilot(a);
+    if (hit) await removeChute(chute);
+    return;
+  }
+  if (op === "kill") {
+    if (!f) return;
+    await sendRadio({ speaker: f.name, text: chuteLine(f, true, game.combat?.round ?? 0), side: f.side === "player" ? "ally" : f.side });
+    await ChatMessage.create({ speaker: { alias: "AWACS" }, content: `<div class="tb-card tb-card-chute"><div class="tb-note"><b>${esc(who)}</b> добивает купол «${esc(f.name)}».</div></div>` });
+    await removeChute(chute);
+  }
+}
+
+async function removeChute(chute) {
+  if (!chute) return;
+  await new Promise(r => setTimeout(r, 700));
+  if (chute.parent?.tiles?.get?.(chute.id)) await chute.parent.deleteEmbeddedDocuments("Tile", [chute.id]);
 }
 
 const CHUTE_LAST = [
@@ -208,7 +330,7 @@ async function fromCard(tileId, sceneId) {
   const chute = scene?.tiles?.get(tileId);
   if (!chute) return ui.notifications.warn("Купола уже нет на карте.");
   const list = shootersFor(chute, [...scene.tokens], scene.grid.size);
-  if (!list.length) return ui.notifications.warn("Рядом с куполом нет аса или дуэлянта противника (своя или соседняя клетка).");
+  if (!list.length) return ui.notifications.warn("Рядом с куполом нет NPC противника, который стал бы по нему стрелять (своя или соседняя клетка; обычно ас или дуэлянт).");
   const pick = await pickOne("Расстрелять купол", "Кто стреляет", list.map(t => ({ label: t.name, t })));
   if (pick) await shootChute(chute, pick.t);
 }
@@ -223,6 +345,8 @@ async function fromToken(token) {
 }
 
 export function registerParachute() {
+  // куполы появились или пропали: HUD показывает кнопки у купола
+  for (const ev of ["createTile", "deleteTile"]) Hooks.on(ev, doc => { if (doc.getFlag?.(SYSTEM_ID, KEY)) import("./hud.mjs").then(m => m.refreshHud?.()).catch(() => null); });
   // сбитый NPC: катапульта по шансу; пилот игрока: удачный бросок на катапультирование
   const onChange = (actor, change) => {
     if (!actor || !lead()) return;
@@ -249,12 +373,27 @@ export function registerParachute() {
       b.addEventListener("click", ev => { ev.preventDefault(); fromCard(b.dataset.tbChute, b.dataset.scene).catch(err => console.error(`${SYSTEM_ID} | купол`, err)); });
     }
   });
+  Hooks.once("ready", () => game.socket.on(CHANNEL, msg => {
+    if (msg?.type === "chute" && isLeadGM()) onLead(msg).catch(err => console.error(`${SYSTEM_ID} | купол`, err));
+  }));
   Hooks.on("renderTokenHUD", (hud, html) => {
     const token = hud.object;
-    if (!game.user.isGM || !canShootChutes(token?.actor)) return;
+    const col = (html[0] ?? html).querySelector(".col.left");
+    // пилот игрока у вражеского купола: расстрелять или передать координаты спасателям
+    if (col && token?.actor?.type === "pilot" && token.actor.isOwner && pilotChutes(token.actor, token).length) {
+      for (const [cls, icon, title, fn] of [["tb-chute-shoot", "fa-parachute-box", `Расстрелять купол рядом: Strafe против ${SHOOT_DC}, проверка хода. Эфир это запомнит`, pilotShootChute],
+        ["tb-chute-rescue", "fa-life-ring", "Координаты спасателям: передать в открытый эфир, где вражеский купол (раз за вылет, без броска)", rescueCall]]) {
+        const b = document.createElement("div");
+        b.className = `control-icon ${cls}`;
+        b.title = title;
+        b.innerHTML = `<i class="fas ${icon}"></i>`;
+        b.addEventListener("click", ev => { ev.preventDefault(); ev.stopPropagation(); hud.clear(); fn(token.actor).catch(err => console.error(`${SYSTEM_ID} | купол`, err)); });
+        col.append(b);
+      }
+    }
+    if (!game.user.isGM || token?.actor?.type !== "npc") return;
     const scene = token.document.parent;
     if (!chutesOf(scene).some(c => shootersFor(c, [token.document], scene.grid.size).length)) return;
-    const col = (html[0] ?? html).querySelector(".col.left");
     if (!col) return;
     const b = document.createElement("div");
     b.className = "control-icon tb-chute-shoot";

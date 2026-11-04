@@ -45,6 +45,16 @@ export const CONTRAIL = {
   heavy: { width: 0.017, life: 7500, spread: 3.2, merge: 0.08, alpha: 0.46 }
 };
 
+/** След по Репутации пилота (виден всем): Рыцари — белее и ярче, Каратель и Чудовище — темнее, с копотью. Солдат как раньше. */
+export const TRAIL_LOOK = {
+  soldier: { color: 0xf4f8ff, alpha: 1, width: 1 },
+  knight: { color: 0xffffff, alpha: 1.25, width: 1.05 },
+  white: { color: 0xffffff, alpha: 1.55, width: 1.15, glow: 0xdbeeff },
+  punisher: { color: 0x8c8378, alpha: 1.1, width: 1.1 },
+  monster: { color: 0x4a403a, alpha: 1.3, width: 1.25, glow: 0x7a1e12 }
+};
+export const trailLook = key => TRAIL_LOOK[key] ?? TRAIL_LOOK.soldier;
+
 /** Имя силуэта из пути картинки: «…/assets/planes/su27.svg» → «su27». */
 export const silhouetteOf = src => /\/([\w-]+)\.(?:svg|webp|png)(?:\?.*)?$/i.exec(String(src ?? ""))?.[1] ?? null;
 

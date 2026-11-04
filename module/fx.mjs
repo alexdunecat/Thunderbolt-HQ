@@ -10,7 +10,8 @@ import { SYSTEM_ID } from "./config.mjs";
 import { resolveActor } from "./utils.mjs";
 import { isFlying, altOf, hasRule, WATER } from "./scene.mjs";
 import { playCallouts, callout } from "./callouts.mjs";
-import { enginesOf, contrailLines, CONTRAIL } from "./contrails.mjs";
+import { enginesOf, contrailLines, CONTRAIL, trailLook } from "./contrails.mjs";
+import { repOf } from "./reputation.mjs";
 import { nightFlash, FLASH } from "./night-lights.mjs";
 
 /* ---------- план: что показать по карточке (чистая часть, тесты) ---------- */
@@ -450,7 +451,7 @@ function trailTick() {
     if (high) {
       const eng = enginesOf(t.document.texture?.src ?? t.actor?.img, t.actor);
       const lines = contrailLines(was, now, t.h ?? size, size, eng);
-      if (lines.length) contrail(lines, eng, size);
+      if (lines.length) contrail(lines, eng, size, trailLook(repOf(t.actor)?.key));
     }
     if (fast) afterburner(was, now, size);
   }
@@ -544,17 +545,22 @@ function surfTrail(kind, a, b, size, cold) {
 }
 
 /** Нитки следа: со временем толще и бледнее; близкие нитки (спарка истребителя) сходятся в одну, у тяжёлых держатся порознь. */
-function contrail(lines, eng, size) {
-  const st = CONTRAIL[eng.cls] ?? CONTRAIL.jet, base = Math.max(1, size * st.width * (eng.w ?? 1));
-  add((t, g) => {
-    const k = t / st.life;
-    if (k >= 1) return false;
-    g.lineStyle(base * (1 + st.spread * k), 0xf4f8ff, st.alpha * (1 - k) ** 1.5);
-    const m = 1 - st.merge * Math.min(1, k * 1.2);
+function contrail(lines, eng, size, look = trailLook("soldier")) {
+  const st = CONTRAIL[eng.cls] ?? CONTRAIL.jet, base = Math.max(1, size * st.width * (eng.w ?? 1) * look.width);
+  const draw = (g, w, color, a, m) => {
+    g.lineStyle(w, color, a);
     for (const l of lines) {
       const ox = l.nx * l.off * m, oy = l.ny * l.off * m;
       g.moveTo(l.from.x + ox, l.from.y + oy); g.lineTo(l.to.x + ox, l.to.y + oy);
     }
+  };
+  add((t, g) => {
+    const k = t / st.life;
+    if (k >= 1) return false;
+    const m = 1 - st.merge * Math.min(1, k * 1.2), w = base * (1 + st.spread * k);
+    // ореол: у Белого рыцаря голубоватое сияние, у Чудовища красноватая копоть вокруг
+    if (look.glow) draw(g, w * 2.2, look.glow, Math.min(1, st.alpha * look.alpha * 0.35) * (1 - k) ** 2, m);
+    draw(g, w, look.color, Math.min(1, st.alpha * look.alpha) * (1 - k) ** 1.5, m);
     g.lineStyle(0);
   });
 }

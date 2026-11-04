@@ -7,6 +7,7 @@ import { esc, resolveActor } from "./utils.mjs";
 import { tokenOf, zoneDistance, canFireAt, isFlying, altOf, ALT_ORDER, reachProblems, isAirTarget, flyingBoss, hasRule, ceilingOf } from "./scene.mjs";
 import { describeTarget, foxEstimate, strikeMeans, weaponReady } from "./dice/rolls.mjs";
 import { triggerAttack } from "./combat-triggers.mjs";
+import { targetPull, hasFeud } from "./reputation.mjs";
 import { isNemesis, pilotsOf } from "./nemesis.mjs";
 import { presetPick, selectTarget } from "./pick.mjs";
 import { combatantOf, declaredOf, spentOf, allowAction, spendAction } from "./actions.mjs";
@@ -79,6 +80,9 @@ export function candidates(actor, token = tokenOf(actor)) {
     if (a.system.priority) { score += 4; why.push("приоритетная цель"); }
     if (nem.some(p => same(p, a))) { score += 10; why.push("пилот Немезиды"); }
     else if (nem.length) score -= 4;
+    // Репутация: «кровная месть» стрелявшему по куполу, «Достойный противник» для асов
+    const pull = targetPull(actor, a);
+    if (pull) { score += pull * 4; why.push(hasFeud(a) ? "стрелял по куполу: кровная месть" : "достойный противник"); }
     if (ban.length) score -= 100;
     list.push({ token: t, actor: a, info, kind, dist, est, score, why, ban, canMissile, canGuns });
   }

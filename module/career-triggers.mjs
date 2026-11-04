@@ -1,5 +1,5 @@
 /* Небоевые триггеры: гибель пилота («Всё, чему я научился», «Я продолжу твоё дело», «Наследие проекта», «Голос в эфире»),
-   «Наставник» (урок на вылет, замена при гибели наставника), «Без лишних вопросов» (Репутация вместо Нервов),
+   «Наставник» (урок на вылет, замена при гибели наставника), «Без лишних вопросов» (Дурная слава вместо Нервов),
    «Пересмотр условий» (доплата или «ухожу»). Гибель замечает ведущий: статус пилота «погиб» в личном деле.
    Кнопки приходят карточками в чат; на листе у триггеров кнопки через combat-triggers.mjs. */
 import { SYSTEM_ID, TB, DT } from "./config.mjs";
@@ -223,10 +223,10 @@ export async function useLifeTrigger(pilot, item) {
   const key = item.system.key, name = item.name, who = callsign(pilot);
   switch (key) {
     case "noquestions": {
-      if (!(await Dialog.confirm({ title: name, content: `<p>Тяжёлое решение или увиденное военное преступление? Вместо Нервов: деление на шкалу «Репутация» (6).</p>` }))) return null;
+      if (!(await Dialog.confirm({ title: name, content: `<p>Тяжёлое решение или увиденное военное преступление? Вместо Нервов: деление на шкалу «Дурная слава» (6).</p>` }))) return null;
       await reputation(pilot);
-      const g = (pilot.system.goals ?? []).find(x => /репутац/i.test(x.name));
-      return say(`${esc(who)}: «${esc(name)}». Нервов нет, «Репутация» ${g?.value ?? 1}/${g?.size ?? 6}.${g && g.value >= g.size ? " Шкала заполнена: о пилоте узнали, и это аукнется." : ""}`, pilot, name);
+      const g = (pilot.system.goals ?? []).find(x => /дурная слава|репутац/i.test(x.name));
+      return say(`${esc(who)}: «${esc(name)}». Нервов нет, «Дурная слава» ${g?.value ?? 1}/${g?.size ?? 6}.${g && g.value >= g.size ? " Шкала заполнена: о пилоте узнали, и это аукнется." : ""}`, pilot, name);
     }
     case "renegotiate": {
       const r = await cockpitDialog(name, `<p class="tb-hint">Контракт такого не предусматривал.</p><div class="tb-ck-fire tb-ct-pick">

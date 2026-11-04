@@ -35,6 +35,11 @@ function downtimeFields() {
     breakdown: str(),              // срыв в этом вылете: stupor, rage, panic ("" — ещё не было)
     resolve: int(0, { min: 0, max: DT.maxResolve }),
     fee: int(0, { min: 0, max: 5 }),   // Гонорар Наёмника (лимит 3, «Счёт к оплате» даёт сверх лимита)
+    // Репутация пилота (Стрэйнджриал 10): −10…+10, журнал сдвигов (дата, сдвиг, за что)
+    reputation: new f.SchemaField({
+      points: int(0, { min: -10, max: 10 }),
+      log: new f.ArrayField(new f.SchemaField({ date: str(), delta: int(0), why: str() }))
+    }),
     downtime: new f.SchemaField({
       actions: int(2, { min: 0, max: 2 }),   // сколько действий осталось в этом даунтайме
       resolveGot: bool(),                     // Решимость за этот даунтайм уже получена

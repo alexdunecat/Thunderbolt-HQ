@@ -6,10 +6,12 @@
    (флаги сцены chatterBank и chatterMuted), новая сцена начинает со стандартных фраз. */
 import { SYSTEM_ID } from "./config.mjs";
 import { esc, resolveActor } from "./utils.mjs";
-import { sideOf, hasRule } from "./scene.mjs";
+import { sideOf, hasRule, zoneDistance } from "./scene.mjs";
 import { say } from "./radio.mjs";
 import { CHATTER_BANK, CHATTER_TYPES, CHATTER_SIDES, CHATTER_EVENTS, eventsFor } from "./data/chatter-bank.mjs";
 import { allSquads, squadMembers } from "./squadrons.mjs";
+import { REP_TYPES, REP_EVENTS, REP_BANK, repType } from "./data/rep-chatter-bank.mjs";
+import { repOf } from "./reputation.mjs";
 
 const CHANNEL = `system.${SYSTEM_ID}`;
 const FLUSH_MS = 700, MAX_LINES = 3;
@@ -55,6 +57,9 @@ export function registerChatter() {
   // подкрепление или засада: NPC появился на сцене боя или ведущий его открыл
   Hooks.on("createToken", (doc, options) => { if (isLead() && !options?.tbUndo && inCombat(doc) && !doc.hidden) queue({ event: "arrive", speaker: doc.actor?.uuid }); });
   Hooks.on("updateToken", (doc, change, options) => { if (isLead() && !options?.tbUndo && change.hidden === false && inCombat(doc)) queue({ event: "arrive", speaker: doc.actor?.uuid }); });
+  // Репутация: враги узнают пилота, гражданские видят его рядом (раз за вылет), в начале раунда и когда пилот подлетел
+  Hooks.on("updateCombat", (c, change) => { if (isLead() && c.started && "round" in change) setTimeout(repScan, 300); });
+  Hooks.on("updateToken", (doc, change) => { if (isLead() && doc.actor?.type === "pilot" && ("x" in change || "y" in change) && inCombat(doc)) setTimeout(repScan, 300); });
   // окно показывает фразы открытой сцены
   Hooks.on("canvasReady", () => { if (editor?.rendered) editor.render(false); });
 }
@@ -78,7 +83,7 @@ function fromMessage(message) {
   if (f.rwr) {
     if (f.rwr.fromUuid) queue({ event: "lock", speaker: f.rwr.fromUuid, target: nameOf(resolveActor(f.rwr.target)) });
     // дальше цели берутся по uuid: имя в эфире, а не имя на карточке
-    queue({ event: "locked", speaker: f.rwr.target });
+    queue({ event: "locked", speaker: f.rwr.target, by: f.rwr.fromUuid });
     return;
   }
   const c = f.card;
@@ -86,9 +91,12 @@ function fromMessage(message) {
   if (c.type === "volley") {
     for (const r of c.targets ?? []) {
       if (r.missing || r.ship) continue;
-      const shooter = [r.sourceUuid, ...(r.shooterUuids ?? [])].find(u => resolveActor(u)?.type === "npc");
-      if (shooter) queue({ event: r.hit ? "hit" : "miss", speaker: shooter, target: radioName(r.uuid, r.name) });
-      if (!r.hit) queue({ event: "evade", speaker: r.uuid });
+      const shooters = [r.sourceUuid, ...(r.shooterUuids ?? [])];
+      const shooter = shooters.find(u => resolveActor(u)?.type === "npc");
+      const pilot = shooters.find(u => resolveActor(u)?.type === "pilot");
+      // попал по пилоту: «by» — сам пилот (реплика о нём по его Репутации)
+      if (shooter) queue({ event: r.hit ? "hit" : "miss", speaker: shooter, target: radioName(r.uuid, r.name), by: r.uuid });
+      if (!r.hit) queue({ event: "evade", speaker: r.uuid, by: pilot });
     }
     return;
   }
@@ -96,12 +104,12 @@ function fromMessage(message) {
   // пушка: стрелок кричит «огонь», исход слышен от цели (ушёл, подбит, сбит — урон и сбитого пришлёт actor.mjs)
   if (c.instant) {
     queue({ event: "guns", speaker: c.actorUuid, target: radioName(c.targetUuid, c.targetName) });
-    if (c.targetUuid && c.dc !== null && c.dc !== undefined && !succeeded(c)) queue({ event: "evade", speaker: c.targetUuid });
+    if (c.targetUuid && c.dc !== null && c.dc !== undefined && !succeeded(c)) queue({ event: "evade", speaker: c.targetUuid, by: c.actorUuid });
     return;
   }
   // ракета по наземной или морской цели: у авиации это удар по земле (бомбы, ракеты по объекту)
   queue({ event: c.tkind === "ground" ? "bomb" : "fire", speaker: c.actorUuid, target: radioName(c.targetUuid, c.targetName) });
-  if (c.targetUuid) queue({ event: "incoming", speaker: c.targetUuid });
+  if (c.targetUuid) queue({ event: "incoming", speaker: c.targetUuid, by: c.actorUuid });
 }
 
 const radioName = (uuid, fallback) => (uuid && nameOf(resolveActor(uuid))) || fallback || "";
@@ -125,22 +133,26 @@ function expandDown(ev) {
   const victim = resolveActor(ev.victim);
   if (!victim) return [];
   const name = nameOf(victim);
-  const out = [{ event: "destroyed", speaker: ev.victim }];
+  const by = ev.killer || undefined;
+  const out = [{ event: "destroyed", speaker: ev.victim, by }];
   const killer = ev.killer ? resolveActor(ev.killer) : null;
   if (ev.killer) out.push({ event: "kill", speaker: ev.killer, target: name });
   const mate = nearestMate(victim);
-  if (mate) out.push({ event: "wingmanDown", speaker: mate.actor.uuid, fallen: name });
+  if (mate) out.push({ event: "wingmanDown", speaker: mate.actor.uuid, fallen: name, by });
   const vType = chatterType(victim);
   if (killer?.type === "pilot" && team(sideOf(victim)) !== "ally" && !isCivil(vType)) {
     const fan = nearestSpeaker(killer, a => !isCivil(chatterType(a)) && team(sideOf(a)) === "ally");
-    if (fan) out.push({ event: "cheer", speaker: fan.actor.uuid, target: name, killer: nameOf(killer) });
+    if (fan) out.push({ event: "cheer", speaker: fan.actor.uuid, target: name, killer: nameOf(killer), by });
+    // Репутация: гражданские рядом видели, как он сбил врага (раз за вылет)
+    const civ = repLevelType(killer) && civilNear(killer, "killNear");
+    if (civ) out.push({ event: "cheer", rep: "killNear", speaker: civ.actor.uuid, by });
   }
   return out;
 }
 
 /** Выбрать реплики из накопившихся событий и разослать. */
 export function flush() {
-  const evs = pending.splice(0).flatMap(e => (e.event === "down" ? expandDown(e) : [e]));
+  const evs = pending.splice(0).flatMap(e => (e.event === "down" ? expandDown(e) : e.event === "damaged" && resolveActor(e.speaker)?.type === "pilot" ? expandPilotHit(e) : [e]));
   const down = new Set(evs.filter(e => e.event === "destroyed").map(e => e.speaker));
   const kills = new Set(evs.filter(e => e.event === "kill").map(e => `${e.speaker}>${e.target}`));
   const keep = evs.filter(e => !(down.has(e.speaker) && SILENT_WHEN_DOWN.includes(e.event)) && !(e.event === "hit" && kills.has(`${e.speaker}>${e.target}`)));
@@ -149,7 +161,8 @@ export function flush() {
   for (const e of keep) {
     if (lines.length >= MAX_LINES) break;
     if (spoke.has(e.speaker)) continue;
-    if (CHATTER_EVENTS[e.event]?.minor && Math.random() * 100 >= chance()) continue;
+    // реплики о пилоте по Репутации звучат всегда: их и так немного
+    if (CHATTER_EVENTS[e.event]?.minor && !repLevelType(resolveActor(e.by)) && Math.random() * 100 >= chance()) continue;
     const line = lineFor(e);
     if (!line) continue;
     spoke.add(e.speaker);
@@ -269,6 +282,7 @@ function nest(flat) {
 
 /** Стандартные фразы (с подстановкой из запасного типа: вертолёт → самолёт и т. п.). */
 export function defaultLines(type, side, event) {
+  if (REP_TYPES[type]) return REP_BANK[type]?.[side]?.[event] ?? [];
   const own = CHATTER_BANK[type]?.[side]?.[event];
   if (own) return own;
   const fb = CHATTER_TYPES[type]?.fallback;
@@ -303,9 +317,12 @@ function lineFor(e) {
   const type = chatterType(actor);
   if (!type) return null;
   if (quiet(actor)) return null;
+  const rep = repLine(e, actor, type);
+  // реплики только по Репутации (узнали, появился рядом, подбит рядом): без неё молчат
+  if (e.rep && !rep) return null;
   // удар по земле у тех, у кого его нет (наземная техника, корабли), звучит как обычный пуск
   let event = e.event;
-  if (!eventsFor(type, bankSide(actor, type)).includes(event)) {
+  if (!rep && !eventsFor(type, bankSide(actor, type)).includes(event)) {
     event = CHATTER_EVENTS[event]?.instead;
     if (!event || !eventsFor(type, bankSide(actor, type)).includes(event)) return null;
   }
@@ -320,6 +337,9 @@ function lineFor(e) {
   const own = isAce(actor) ? actor.getFlag?.(SYSTEM_ID, "replies")?.[event] : null;
   let text = Array.isArray(own) && own.length ? pickLine(`ace:${actor.uuid}:${event}`, own, vars) : null;
   const scene = tok.parent ?? editScene();
+  // о пилоте игрока по его Репутации, если событие вызвал он сам (после личных реплик аса, раньше эскадрильи и общих)
+  if (!text && rep) text = repText(rep, scene, vars);
+  if (!text && e.rep) return null;
   // машина эскадрильи дуэлянтов говорит репликами эскадрильи (и когда её тип молчит): сначала этой сцены, потом общими
   if (!text && isSquad(actor)) {
     const name = actor.system.squad;
@@ -330,6 +350,84 @@ function lineFor(e) {
   if (!text && muted(scene)[type]) return null;
   text ??= pickLine(bankKey(type, side, event), linesFor(type, side, event, scene), vars);
   return text ? { speaker: self, text, side: sideOf(actor) } : null;
+}
+
+/* ---------- Репутация пилота: реплики о нём ---------- */
+
+/** Какое событие банка Репутации у говорящего этой стороны (раздел 3.1): только то, что вызвал сам пилот. */
+const REP_MAP = {
+  enemy: { locked: "locked", wingmanDown: "wingmanDown", hit: "hit" },
+  ally: { cheer: "cheer" },
+  civil: { locked: "locked", incoming: "incoming", evade: "evade", damaged: "damaged", destroyed: "destroyed", wingmanDown: "wingmanDown" }
+};
+/** Тип банка Репутации пилота (rep_knight …) или null: не пилот или Солдат. */
+export const repLevelType = pilot => (pilot?.type === "pilot" ? repType(repOf(pilot)?.key) : null);
+
+/** Ключ реплики о пилоте: { type, side, event, pilot } или null. Сторона — относительно пилота. */
+export function repLine(e, speaker, type = chatterType(speaker)) {
+  const pilot = e.by ? resolveActor(e.by) : null;
+  const rt = repLevelType(pilot);
+  if (!rt || !type) return null;
+  const side = isCivil(type) ? "civil" : team(sideOf(speaker)) === "ally" ? "ally" : "enemy";
+  const event = e.rep ?? REP_MAP[side]?.[e.event];
+  if (!event || !REP_EVENTS[side]?.[event] || !REP_BANK[rt]?.[side]) return null;
+  return { type: rt, side, event, pilot };
+}
+
+function repText(rep, scene, vars) {
+  if (muted(scene)[rep.type]) return null;
+  return pickLine(bankKey(rep.type, rep.side, rep.event), linesFor(rep.type, rep.side, rep.event, scene), { ...vars, killer: vars.killer || nameOf(rep.pilot) });
+}
+
+// раз за вылет: «узнали», «появился рядом», «сбил рядом», «подбит рядом»
+const repOnce = new Set();
+const onceKey = (kind, pilot) => `${game.combat?.id ?? ""}:${kind}:${pilot.uuid}`;
+function firstTime(kind, pilot) {
+  const k = onceKey(kind, pilot);
+  if (repOnce.has(k)) return false;
+  repOnce.add(k);
+  return true;
+}
+const zoneOf = (a, b) => { const x = tokenDoc(a)?.object, y = tokenDoc(b)?.object; return x && y ? zoneDistance(x, y) : null; };
+
+/** Ближайший гражданский в зоне пилота или соседней; null, если такого нет или уже говорили в этом вылете. */
+function civilNear(pilot, kind) {
+  const civ = nearestSpeaker(pilot, a => isCivil(chatterType(a)) && (zoneOf(pilot, a) ?? 9) <= 1);
+  if (!civ || !REP_BANK[repLevelType(pilot)]?.civil) return null;
+  return firstTime(kind, pilot) ? civ : null;
+}
+
+/** Пилота подбили: ближайший союзник и (раз за вылет) гражданские рядом говорят о нём; враг, который попал, — тоже. */
+function expandPilotHit(ev) {
+  const pilot = resolveActor(ev.speaker);
+  if (!repLevelType(pilot)) return [];
+  const out = [];
+  const name = nameOf(pilot);
+  const src = ev.by ? resolveActor(ev.by) : null;
+  if (src?.type === "npc" && team(sideOf(src)) !== "ally") out.push({ event: "hit", speaker: src.uuid, target: name, by: pilot.uuid });
+  const mate = nearestSpeaker(pilot, a => !isCivil(chatterType(a)) && team(sideOf(a)) === "ally");
+  if (mate) out.push({ event: "damaged", rep: "damaged", speaker: mate.actor.uuid, by: pilot.uuid });
+  const civ = civilNear(pilot, "hitNear");
+  if (civ) out.push({ event: "damaged", rep: "hitNear", speaker: civ.actor.uuid, by: pilot.uuid });
+  return out;
+}
+
+/** Начало раунда или пилот подлетел: враг узнаёт его (раз за вылет), гражданские видят рядом (раз за вылет). */
+export function repScan() {
+  const scene = game.combat?.scene ?? canvas?.scene;
+  if (!enabled() || !scene) return;
+  for (const t of scene.tokens) {
+    const pilot = t.actor;
+    if (pilot?.type !== "pilot" || t.hidden || dead(pilot) || !repLevelType(pilot)) continue;
+    if (!repOnce.has(onceKey("arrive", pilot))) {
+      const foe = nearestSpeaker(pilot, a => !isCivil(chatterType(a)) && team(sideOf(a)) !== "ally" && sideOf(a) !== "neutral" && (zoneOf(pilot, a) ?? 9) <= 2);
+      if (foe && firstTime("arrive", pilot)) queue({ event: "arrive", rep: "arrive", speaker: foe.actor.uuid, by: pilot.uuid });
+    }
+    if (!repOnce.has(onceKey("near", pilot))) {
+      const civ = civilNear(pilot, "near");
+      if (civ) queue({ event: "arrive", rep: "near", speaker: civ.actor.uuid, by: pilot.uuid });
+    }
+  }
 }
 
 /* ---------- эскадрильи дуэлянтов: свои реплики ---------- */
@@ -450,6 +548,10 @@ class ChatterEditor extends FormApplication {
       const gap = t.civil && !all[i - 1]?.[1].civil ? `<h4>Гражданские</h4>` : i === 0 ? `<h4>Военные</h4>` : "";
       return `${gap}<button type="button" data-type="${k}" class="${k === this.type ? "on" : ""}${mute[k] ? " muted" : ""}">${esc(t.label)}${changed ? ` <i class="fas fa-pen" title="есть правки"></i>` : ""}${mute[k] ? ` <i class="fas fa-volume-xmark" title="молчит"></i>` : ""}</button>`;
     }).join("");
+    const repNav = `<h4>Репутация пилота</h4>${Object.entries(REP_TYPES).map(([k, t]) => {
+      const changed = Object.keys(ov).some(x => x.startsWith(`${k}.`));
+      return `<button type="button" data-type="${k}" class="${k === this.type ? "on" : ""}${mute[k] ? " muted" : ""}" title="${esc(t.hint)}">${esc(t.label)}${changed ? ` <i class="fas fa-pen" title="есть правки"></i>` : ""}${mute[k] ? ` <i class="fas fa-volume-xmark" title="молчат"></i>` : ""}</button>`;
+    }).join("")}`;
     const aceBtn = x => {
       const own = Object.values(x.actor.getFlag?.(SYSTEM_ID, "replies") ?? {}).some(l => Array.isArray(l) && l.length);
       const key = `ace:${x.actor.uuid}`;
@@ -468,7 +570,7 @@ class ChatterEditor extends FormApplication {
     const main = ace ? this.#aceView(ace) : squad ? this.#squadView(squad) : scene ? this.#typeView(ov, mute, scene) : `<p class="tb-hint">Откройте сцену: фразы по типам у каждой сцены свои.</p>`;
     const pct = chance();
     return $(`<form class="tb-chatter-body">
-      <nav class="tb-chatter-nav">${nav}${aceNav}${squadNav}</nav>
+      <nav class="tb-chatter-nav">${nav}${repNav}${aceNav}${squadNav}</nav>
       <section class="tb-chatter-main">${main}</section>
       <footer class="tb-chatter-foot">
         <label><input type="checkbox" data-enabled ${enabled() ? "checked" : ""}> Переговоры в эфире</label>
@@ -489,6 +591,7 @@ class ChatterEditor extends FormApplication {
   }
 
   #typeView(ov, mute, scene) {
+    if (REP_TYPES[this.type]) return this.#repView(ov, mute, scene);
     const civil = isCivil(this.type);
     const side = civil ? "civil" : this.side;
     const events = eventsFor(this.type, side);
@@ -504,6 +607,23 @@ class ChatterEditor extends FormApplication {
     return `<header><h3>${esc(t.label)} <small class="tb-muted">· сцена «${esc(scene.name)}»</small>${carry}</h3>
         <label class="tb-chatter-voice"><input type="checkbox" data-voice ${mute[this.type] ? "" : "checked"}> Говорит в эфире</label>
         <p class="tb-hint">${esc(t.hint)}. Одна фраза на строку, из них выбирается случайная. {target} — цель, {fallen} — сбитый свой, {killer} — пилот игрока, {self} — сам говорящий. Пустое поле: в этом случае молчит. Фразы и галочка действуют только на этой сцене, новая сцена начинает со стандартных.${civil ? "" : " Асы со своими репликами говорят ими, даже если тип молчит."}</p>${sides}</header>
+      <div class="tb-chatter-list${mute[this.type] ? " muted" : ""}">${rows}</div>`;
+  }
+
+  /** Реплики о пилоте по его Репутации: стороны относительно пилота, свои события (раздел 3.1). */
+  #repView(ov, mute, scene) {
+    const t = REP_TYPES[this.type], sides = Object.keys(REP_BANK[this.type] ?? {});
+    const side = sides.includes(this.side) ? this.side : sides[0];
+    const labels = { enemy: "Враги", ally: "Свои", civil: "Гражданские" };
+    const tabs = `<div class="tb-chatter-sides">${sides.map(k =>
+      `<button type="button" data-side="${k}" class="tb-side-${k === "civil" ? "neutral" : k} ${k === side ? "on" : ""}">${labels[k]}</button>`).join("")}</div>`;
+    const rows = Object.entries(REP_EVENTS[side] ?? {}).map(([ev, e]) => {
+      const key = bankKey(this.type, side, ev);
+      return this.#row({ key, label: e.label, hint: e.hint, value: linesFor(this.type, side, ev, scene).join("\n"), changed: Array.isArray(ov[key]), resetTitle: "Вернуть стандартные фразы" });
+    }).join("");
+    return `<header><h3>О пилоте: ${esc(t.label)} <small class="tb-muted">· сцена «${esc(scene.name)}»</small></h3>
+        <label class="tb-chatter-voice"><input type="checkbox" data-voice ${mute[this.type] ? "" : "checked"}> Звучат в эфире</label>
+        <p class="tb-hint">Что говорят NPC ${esc(t.hint)}. Звучат, только когда событие вызвал сам этот пилот, вместо общих фраз типа (личные реплики аса важнее). У Солдата их нет. Одна фраза на строку. Пустое поле: в этом случае общие фразы.</p>${tabs}</header>
       <div class="tb-chatter-list${mute[this.type] ? " muted" : ""}">${rows}</div>`;
   }
 
@@ -597,7 +717,7 @@ class ChatterEditor extends FormApplication {
         const who = ace ?? sample;
         const type = who ? chatterType(who) ?? "air" : squad ? "air" : key.split(".")[0];
         const side = who ? bankSide(who, type) : squad ? "enemy" : key.split(".")[1];
-        const self = who ? nameOf(who) : squad ?? CHATTER_TYPES[type].label;
+        const self = who ? nameOf(who) : squad ?? (CHATTER_TYPES[type] ?? REP_TYPES[type])?.label ?? "";
         const text = pickLine(`test:${key}`, lines, { ...SAMPLE, self });
         if (!text) return ui.notifications.info("В этом поле нет фраз: в этом случае NPC молчит.");
         say(self, text, who ? sideOf(who) : side === "civil" ? "neutral" : side, { log: false });
@@ -663,6 +783,10 @@ export function fullBank(scene = editScene()) {
     for (const side of civil ? ["civil"] : Object.keys(CHATTER_SIDES))
       for (const ev of eventsFor(type, side)) out[bankKey(type, side, ev)] = linesFor(type, side, ev, scene);
   }
+  // реплики о пилоте по Репутации
+  for (const type of Object.keys(REP_TYPES))
+    for (const [side, evs] of Object.entries(REP_BANK[type] ?? {}))
+      for (const ev of Object.keys(evs)) if (REP_EVENTS[side]?.[ev]) out[bankKey(type, side, ev)] = linesFor(type, side, ev, scene);
   return out;
 }
 

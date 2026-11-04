@@ -27,6 +27,7 @@ import { lineOf, lineHint, escapedOf, bringBack, forgetEscaped, setLineSettings,
 import { RET_ENEMY, RET_ESCORT, RET_PILOTS, rearmText } from "../return-rules.mjs";
 import { openBrush, clearReturnLine } from "../cell-brush.mjs";
 import { setInactive } from "../inactive.mjs";
+import { repView, repStep, refuseOrder, debriefFields, applyDebrief } from "../reputation.mjs";
 const TIMER_SHORT = { 50: "половина", left2: "осталось 2", left1: "последний раунд" };
 
 let panel = null;
@@ -158,6 +159,12 @@ export class AwacsPanel extends Application {
       bossClocks: allThreats.filter(t => t.kind === "boss").map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size,
         pct: Math.round(100 * t.value / t.size),
         marks: marksOf(t).filter(([k]) => k !== "full" && (t.lines?.[k] ?? "").trim()).map(([k, label]) => `${t.timer ? TIMER_SHORT[k] ?? k : label} на ${bossMarkAt(k, t.size)}`).join(", ") })),
+      reps: game.actors.filter(inCampaign).sort((a, b) => a.name.localeCompare(b.name, "ru")).map(a => {
+        const v = repView(a);
+        if (!v) return null;
+        const x = v.log[0];
+        return { id: a.id, name: a.name, name2: v.name, key: v.key, sign: v.sign, broken: v.broken, feud: v.feud, pending: v.pending, last: x ? `${x.sign} ${x.why}` : "" };
+      }).filter(Boolean),
       ground: game.actors.filter(inCampaign).sort((a, b) => a.name.localeCompare(b.name, "ru")).map(a => {
         const s = a.system;
         return { id: a.id, name: a.name, nerves: s.nerves, nervesCls: s.nerves >= 5 ? "edge" : s.nerves >= 3 ? "high" : "", edgeFly: s.edgeFly,
@@ -237,6 +244,8 @@ export class AwacsPanel extends Application {
     on("[data-strike-del]", d => cancelStrike(d.strikeDel));
     el.querySelector("[data-ops-done]")?.addEventListener("change", ev => setOperationsDone(ev.target.value));
     on("[data-glory-add]", () => gloryDialog());
+    on("[data-rep-step]", d => repStep(game.actors.get(d.repStep), Number(d.delta)));
+    on("[data-rep-refuse]", d => refuseOrder(game.actors.get(d.repRefuse)));
     on("[data-glory-step]", d => setGlory({ points: gloryView().points + Number(d.gloryStep) }));
     el.querySelectorAll("[data-tun-state]").forEach(n => n.addEventListener("change", () => setSectionState(game.scenes.viewed, n.dataset.tunState, n.value)));
     el.querySelector("[data-glory-nick]")?.addEventListener("change", ev => setGlory({ nickname: ev.target.value.trim() }));
@@ -344,7 +353,7 @@ export async function sortieResults() {
       <td><input type="number" name="gnd_${a.id}" value="${k.ground ?? 0}" min="0"></td>
       <td><input type="checkbox" name="eject_${a.id}" ${a.system.markers.doom ? "checked" : ""}></td>
       <td><input type="number" name="pts_${a.id}" value="1" min="0"></td>
-      <td><input type="number" name="nerves_${a.id}" value="${nh.up}" min="0" max="2" title="${esc(nh.why || (noq(a) ? "две метки урона или гибель товарища со Связью; тяжёлые решения у него идут в «Репутацию» (кнопка на листе)" : "две метки урона, гибель товарища со Связью или тяжёлое решение"))}" ${a.system.edgeFly ? "disabled" : ""}> <small>${a.system.nerves}${nh.why ? ` · ${esc(nh.why)}` : ""}</small></td>
+      <td><input type="number" name="nerves_${a.id}" value="${nh.up}" min="0" max="2" title="${esc(nh.why || (noq(a) ? "две метки урона или гибель товарища со Связью; тяжёлые решения у него идут в «Дурную славу» (кнопка на листе)" : "две метки урона, гибель товарища со Связью или тяжёлое решение"))}" ${a.system.edgeFly ? "disabled" : ""}> <small>${a.system.nerves}${nh.why ? ` · ${esc(nh.why)}` : ""}</small></td>
       <td>${mentor ? `<label title="Урок наставника выполнен: +1 очко"><input type="checkbox" name="lesson_${a.id}" ${lessonDone(a) ? "checked" : ""}> урок</label>` : ""}</td>
     </tr>`;
   }).join("");
@@ -360,6 +369,7 @@ export async function sortieResults() {
     <table class="tb-results"><tr><th>Летал</th><th>Сбито в воздухе</th><th>Уничтожено на земле</th><th>Катапульта</th><th>Очки</th><th>Нервы +</th><th></th></tr>${rows}</table>
     ${goals}
     ${gloryBlock}
+    ${debriefFields(pilots)}
     <div class="form-group"><label>Операция</label><input type="text" name="op" value="${esc(scene?.getFlag(SYSTEM_ID, "mission") || scene?.name || "")}" placeholder="название вылета"></div>
     <div class="form-group"><label>Дата</label><input type="text" name="date" value="${esc(campaignDate())}" placeholder="${esc(todayDate())}" maxlength="40" title="Игровая дата вылета: попадёт в личные дела, разбор полёта и Славу и станет датой кампании"></div>
     <div class="form-group"><label title="Книга, стр. 31: после операции каждый пилот добавляет новый триггер"><input type="checkbox" name="opDone"> Операция завершена: каждому летавшему пилоту новый триггер</label></div>
@@ -369,7 +379,7 @@ export async function sortieResults() {
   // дату поменяли в форме: она становится датой кампании для следующих записей
   const date = String(data.date ?? "").trim() || campaignDate();
   if (date !== campaignDate()) await setCampaignDate(date);
-  const lines = [], report = [], flown = [];
+  const lines = [], report = [], flown = [], repHints = [], repNotes = new Map();
   for (const a of pilots) {
     if (!data[`fly_${a.id}`]) { await a.unsetFlag(SYSTEM_ID, "kills"); continue; }
     const sv = a.system.service, k = a.getFlag(SYSTEM_ID, "kills") ?? {};
@@ -392,9 +402,16 @@ export async function sortieResults() {
       [`flags.${SYSTEM_ID}.-=kills`]: null
     });
     flown.push({ pilot: a, kills: k.list ?? [], eject });
-    lines.push(`<b>${esc(a.name)}</b>: вылет ${sortie}${air ? `, сбито ${air}` : ""}${gnd ? `, на земле ${gnd}` : ""}${eject ? ", катапультировался" : ""}${pts ? `, +${pts} ${pts === 1 ? "очко" : "очка"} навыков` : ""}${data.opDone && !["kia", "mia"].includes(a.system.service?.status) ? ", новый триггер за операцию" : ""}${dt.notes.length ? `, ${dt.notes.map(esc).join(", ")}` : ""}`);
+    // Репутация: отмеченные сдвиги этого вылета (галочки в форме)
+    const rep = await applyDebrief(a, data, date);
+    repHints.push(...rep.hints);
+    repNotes.set(a.id, rep.notes);
+    lines.push(`<b>${esc(a.name)}</b>: вылет ${sortie}${air ? `, сбито ${air}` : ""}${gnd ? `, на земле ${gnd}` : ""}${eject ? ", катапультировался" : ""}${pts ? `, +${pts} ${pts === 1 ? "очко" : "очка"} навыков` : ""}${data.opDone && !["kia", "mia"].includes(a.system.service?.status) ? ", новый триггер за операцию" : ""}${dt.notes.length ? `, ${dt.notes.map(esc).join(", ")}` : ""}${repNotes.get(a.id)?.length ? `, ${repNotes.get(a.id).map(esc).join(", ")}` : ""}`);
   }
   if (data.g_on) await applyGlory(data, op, date);
+  // что Репутация требует от ведущего в следующих вылетах: только ему
+  if (repHints.length) await ChatMessage.create({ speaker: { alias: "AWACS" }, whisper: ChatMessage.getWhisperRecipients("GM"),
+    content: `<div class="tb-card"><header class="tb-card-head"><span class="tb-card-who">AWACS</span><span class="tb-card-what">Репутация: ведущему</span></header><div class="tb-note">${repHints.map(esc).join("<br>")}</div></div>` });
   if (!lines.length) return;
   const entry = data.journal ? await writeDebrief({ op, rows: report, targets: sceneTargets(), date,
     objectives: objectives.map((text, i) => ({ text, done: !!data[`obj_${i}`] })) }) : null;

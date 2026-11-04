@@ -3,6 +3,8 @@
 import { fileURLToPath as __f } from "node:url";
 process.argv[2] ??= __f(new URL("..", import.meta.url)).replace(/\/$/, "");
 const R = process.argv[2];
+// реплики выбираются случайно: в проверке всегда первая
+Math.random = () => 0;
 const F = class { constructor(...a) { this.a = a; } };
 const log = [], messages = [];
 const getp = (o, p) => p.split(".").reduce((x, k) => x?.[k], o);

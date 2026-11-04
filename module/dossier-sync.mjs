@@ -209,7 +209,12 @@ function groundFrom(g, weaponIds, raw = {}) {
     "downtime.actions": clamp(g.actions ?? 2, 0, 2), "downtime.resolveGot": !!g.resolveGot,
     edges, bonds,
     goals: (g.goals ?? []).filter(x => x?.name || x?.value).map(x => { const size = num(x.size) === 6 ? 6 : 4; return { name: x.name ?? "", size, value: clamp(x.value, 0, size) }; }),
-    debts: (g.debts ?? []).filter(x => x?.text).map(x => ({ text: x.text, struck: !!x.struck }))
+    debts: (g.debts ?? []).filter(x => x?.text).map(x => ({ text: x.text, struck: !!x.struck })),
+    // Репутация (Стрэйнджриал 10): в деле без неё остаётся та, что на листе
+    ...(g.reputation && typeof g.reputation === "object" ? { reputation: {
+      points: clamp(num(g.reputation.points) ?? 0, -10, 10),
+      log: (g.reputation.log ?? []).filter(x => x && (x.why || x.delta)).map(x => ({ date: String(x.date ?? ""), delta: Math.round(num(x.delta) ?? 0), why: String(x.why ?? "") }))
+    } } : {})
   };
 }
 
@@ -232,7 +237,8 @@ function groundTo(actor, weapons) {
       return { name: b.name, value: b.value, was: b.was ?? [], npc: b.npc, dead: b.dead, ...(other ? { pid: shtabId(other) } : {}) };
     }),
     goals: s.goals.map(g => ({ name: g.name, size: g.size, value: g.value })),
-    debts: s.debts.map(d => ({ text: d.text, struck: d.struck }))
+    debts: s.debts.map(d => ({ text: d.text, struck: d.struck })),
+    reputation: { points: s.reputation?.points ?? 0, log: (s.reputation?.log ?? []).map(x => ({ date: x.date, delta: x.delta, why: x.why })) }
   };
 }
 

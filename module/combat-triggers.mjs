@@ -13,6 +13,7 @@ import { giveNext } from "./squad.mjs";
 import { isNemesisFor } from "./nemesis.mjs";
 import { aceReady, aceUsedPatch, aceMarks, isAce } from "./ace-kit.mjs";
 import { tacticAttack } from "./duelists.mjs";
+import { repAttack, noteRep, hatedZone } from "./reputation.mjs";
 
 const CHANNEL = `system.${SYSTEM_ID}`;
 /* Флаги пилота: ctSure — «Один на миллион» (следующий выстрел попадёт), ctFired — уже атаковал в этом вылете,
@@ -63,7 +64,7 @@ export const CT = {
   limiter: { use: "Снять ограничитель", once: true, fx: "Max Speed +2 до конца хода, в конце хода Push против 7" },
   notatthis: { twist: true, toggle: true, fx: "переключатель работает только после Поворота" },
   guns: { fx: "серия Strafe считается сама: успех +1, промах или пропуск хода — сброс" },
-  noquestions: { use: "Тяжёлое решение", life: true, fx: "тяжёлое решение или увиденное военное преступление: вместо Нервов деление на шкалу «Репутация» (6)" },
+  noquestions: { use: "Тяжёлое решение", life: true, fx: "тяжёлое решение или увиденное военное преступление: вместо Нервов деление на шкалу «Дурная слава» (6)" },
   renegotiate: { use: "Пересмотр условий", once: true, twist: true, life: true, fx: "доплата (+1 Гонорар сверх лимита, если задача выполнена) или «ухожу»: выход из зоны операции без проверок" },
   mentor: { use: "Урок", life: true, fx: "наставник и урок на вылет; выполненный урок сам отмечается в «Итогах вылета» (+1 очко). Гибель наставника меняет триггер на «Всё, чему я научился»" },
   everything: { use: "Ученик", life: true, fx: "впишите ученика; при гибели пилота кнопка в чате создаёт его новым пилотом" },
@@ -304,6 +305,11 @@ export function triggerAttack(attacker, target, { rolled = false, skill = "", gu
   const tac = tacticAttack(attacker, ta);
   out.parts.push(...tac.parts);
   later.push(...tac.later);
+  // Репутация (Стрэйнджриал 10): кровная месть, «Охота», страх конскриптов, кодекс Белого рыцаря
+  const rep = repAttack(attacker, ta);
+  out.parts.push(...rep.parts);
+  out.problems.push(...rep.problems);
+  later.push(...rep.later);
   out.take = async () => { for (const f of later) await f(); };
   return out;
 }
@@ -412,6 +418,7 @@ export async function offerMercy(target, sourceUuid) {
   await target.update({ "system.hp.value": Math.max(1, target.system.hp.value) });
   await target.toggleStatusEffect("retreat", { active: true });
   await target.setFlag(SYSTEM_ID, "spared", { by: who });
+  await noteRep(by, "mercy", { why: `«Пощада»: отпустил «${name}»`, once: `mercy:${target.uuid}` });
   await say(`«${esc(t.name)}»: ${esc(who)} отпускает «${esc(name)}». Он выпускает шасси, отворачивает или прыгает и выбывает из вылета, «на уровень выше» в этом бою не вернётся. Как он вернёт долг, решает AWACS.`, by, t.name);
   return true;
 }
@@ -575,7 +582,7 @@ export async function useCombatTrigger(pilot, item) {
       const fee = pilot.system.fee ?? 0;
       if (fee > 0) await pilot.update({ "system.fee": fee - 1 });
       else await reputation(pilot);
-      await say(`${esc(who)} вызывает старых знакомых («${esc(name)}»): наёмное звено проходит через зону операции и бьёт «${esc(tok.name)}», 5 урона без броска. ${fee > 0 ? "Плата: −1 Гонорар." : "Гонорара нет: +1 на шкалу «Репутация»."}`, pilot, name);
+      await say(`${esc(who)} вызывает старых знакомых («${esc(name)}»): наёмное звено проходит через зону операции и бьёт «${esc(tok.name)}», 5 урона без броска. ${fee > 0 ? "Плата: −1 Гонорар." : "Гонорара нет: +1 на шкалу «Дурная слава»."}`, pilot, name);
       return viaOwner(tok.actor, "dmg", { uuid: tok.actor.uuid, dmg: 5, source: "Наёмное звено" });
     }
     case "trash": {
@@ -632,6 +639,8 @@ export async function useCombatTrigger(pilot, item) {
         if (why) return why === "нужен вражеский самолёт." ? "уговорить можно только вражеского лётчика: самолёт или вертолёт." : why;
         if (a.system.priority) return "цель задания так не уговорить.";
         if (a.system.grp === "boss" || (a.system.systems?.length ?? 0) > 0) return "это не лётчик, а супероружие или летающий корабль.";
+        const hate = hatedZone(a);
+        if (hate) return `рядом ${hate.system?.callsign || hate.name}: в его зоне враги не сдаются (Репутация).`;
         return "";
       });
       if (!tok) return null;
@@ -690,12 +699,12 @@ export async function useCombatTrigger(pilot, item) {
   }
 }
 
-/** Шкала «Репутация» (6) в личных целях: +1 деление. */
+/** Шкала «Дурная слава» Наёмника (6) в личных целях: +1 деление. Старая шкала «Репутация» переименовывается. */
 export async function reputation(pilot) {
   const goals = foundry.utils.deepClone(pilot.system.goals ?? []);
-  const g = goals.find(x => /репутац/i.test(x.name));
-  if (g) g.value = Math.min(g.size, g.value + 1);
-  else goals.push({ name: "Репутация", size: 6, value: 1 });
+  const g = goals.find(x => /дурная слава|репутац/i.test(x.name));
+  if (g) { g.value = Math.min(g.size, g.value + 1); g.name = "Дурная слава"; }
+  else goals.push({ name: "Дурная слава", size: 6, value: 1 });
   return pilot.update({ "system.goals": goals });
 }
 
@@ -830,6 +839,7 @@ async function combatOver(combat) {
 
 /** Успех «Без границ»: враг выходит из боя (кнопка на карточке проверки). */
 export function letGo(pilot, win) {
+  noteRep(pilot, "mercy", { why: `отпустил «${win.name}»`, once: `mercy:${win.uuid}` }).catch(err => console.warn(`${SYSTEM_ID} | репутация`, err));
   return gm("retreat", { uuid: win.uuid, note: `${esc(callsign(pilot))} по открытому каналу: «${esc(win.name)}» выходит из боя и покидает зону операции.` });
 }
 

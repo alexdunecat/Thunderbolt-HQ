@@ -5,6 +5,7 @@ import { esc } from "../utils.mjs";
 import { resetSortie } from "../nemesis.mjs";
 import { resetCombatTriggers, fakeoutReady, offerMercy, offerGuard, afterKill, billPaid } from "../combat-triggers.mjs";
 import { startStrain } from "../downtime.mjs";
+import { noteRep, surrenders, repCivil } from "../reputation.mjs";
 
 
 const PORTRAITS = `systems/${SYSTEM_ID}/assets/portraits/`;
@@ -197,6 +198,8 @@ export class TBActor extends Actor {
       if (amount <= 0) return;
     }
     const opts = { sourceUuid, roundKey, system, one };
+    // Репутация: удар пилота игрока по мирным — −2 на разборе (раз на цель)
+    if (repCivil(this) && sourceUuid) { const by = R.resolveActor(sourceUuid); if (by?.type === "pilot") noteRep(by, "civil", { why: `удар по мирным: ${this.token?.name ?? this.name}`, once: `civil:${this.uuid}` }).catch(() => null); }
     // попадание по неопознанному контакту «?»: под ним гражданский или свой — нарушение (9.6); данные снимаю сейчас, до раскрытия
     const unk = (this.isToken ? this.token : this.getActiveTokens?.(false, true)?.[0])?.getFlag?.(SYSTEM_ID, "unknown");
     if (unk) import("../ident.mjs").then(m => m.onHitUnknown(this, sourceUuid, unk)).catch(err => console.warn(`${SYSTEM_ID} | опознание`, err));
@@ -216,14 +219,14 @@ export class TBActor extends Actor {
         await this.#say(`<b>${esc(this.name)}</b> уничтожена.`);
         return this.#explode();
       }
-      this.#chatter("damaged");
+      this.#chatter("damaged", { by: sourceUuid });
       return this.#say(`<b>${esc(this.name)}</b>: −${amount} HP, осталось ${hp}.`);
     }
 
     const hp = s.hp.value - amount;
     if (hp > 0) {
       await this.update({ "system.hp.value": hp });
-      this.#chatter("damaged");
+      this.#chatter("damaged", { by: sourceUuid });
       return this.#say(`<b>${esc(this.name)}</b>: −${amount} HP, осталось ${hp} из ${s.hp.max}.`);
     }
     const key = roundKey ?? this.roundKey;
@@ -232,11 +235,13 @@ export class TBActor extends Actor {
       return this.#say(`<b>${esc(this.name)}</b>: HP до нуля, но метку в этом раунде уже ставили. Лишний урон сгорает, HP 1.`);
     }
     const full = this.type === "pilot" || this.system.fullMarkers;
+    // «Сдаюсь!» (Репутация, Белый рыцарь): вместо первой метки дуэлянт выпускает шасси и уходит; для задач и Славы он сбит
+    if (this.type === "npc" && !s.markers.structure && surrenders(this, sourceUuid)) return this.#surrender(sourceUuid);
     // дуэлянт именной эскадрильи (Стрэйнджриал 9.1): сначала Structure (систему выбирает ведущий), потом Doom; Grit нет
     if (airDuelist(this) && !s.markers.structure) {
       const sys = await this.#duelistSystem();
       await this.update({ "system.hp.value": s.hp.max, "system.markers.lastRound": key, "system.markers.structure": true, "system.markers.sys": sys });
-      this.#chatter("damaged");
+      this.#chatter("damaged", { by: sourceUuid });
       return this.#say(`<b>${esc(this.name)}</b> получает метку Structure: сломано «${TB.systems[sys]?.label}» (${TB.systems[sys]?.hint}). HP восстановлен до ${s.hp.max}. Следующая метка — Doom.`);
     }
     if (!full) {
@@ -275,7 +280,7 @@ export class TBActor extends Actor {
     if (choice.marker === "grit") Object.assign(upd, { "system.markers.grit": true, "system.markers.gritSkill": choice.skill });
     if (choice.marker === "structure") Object.assign(upd, { "system.markers.structure": true, "system.markers.sys": choice.sys });
     await this.update(upd);
-    this.#chatter("damaged");
+    this.#chatter("damaged", { by: sourceUuid });
     const what = choice.marker === "grit" ? `Grit: недоступен навык «${TB.skills[choice.skill]?.label}»`
       : `Structure: сломано «${TB.systems[choice.sys]?.label}» (${TB.systems[choice.sys]?.hint})`;
     return this.#say(`<b>${esc(this.name)}</b> получает метку ${what}. HP восстановлен до ${s.hp.max}.${this.system.markerCount >= 2 ? " После двух меток пора уходить из боя." : ""}`);
@@ -305,6 +310,20 @@ export class TBActor extends Actor {
       return msg;
     }
     return this.#say(`<b>${esc(this.name)}</b>: метка <b>Doom</b>${reason ? ` (${esc(reason)})` : ""}. Машина сбита.`);
+  }
+
+  /** «Сдаюсь!»: дуэлянт сдаётся Белому рыцарю — сбит без купола, по радио сдаётся. */
+  async #surrender(sourceUuid) {
+    await this.setFlag(SYSTEM_ID, "surrendered", true);
+    await this.#creditKill(sourceUuid);
+    await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
+    const by = sourceUuid ? R.resolveActor(sourceUuid) : null;
+    const name = this.token?.name ?? this.name;
+    if (game.user.isGM) {
+      const { sendRadio } = await import("../radio.mjs");
+      await sendRadio({ speaker: name, side: this.system?.side ?? "enemy", text: `${by?.system?.callsign || by?.name || "Юктобания"}, не стреляй! Сдаюсь. Выпускаю шасси, выхожу из боя.` });
+    }
+    return this.#say(`<b>${esc(name)}</b>: «Сдаюсь!» Перед Белым рыцарем дуэлянт выпускает шасси и уходит из боя. Для задач и Славы он сбит.`);
   }
 
   /** Метка Structure дуэлянта: систему выбирает ведущий (у него и идёт урон по NPC). Окно закрыли — Двигатели. */
@@ -380,6 +399,9 @@ export class TBActor extends Actor {
     // ложная цель (9.6): ни побед, ни Славы, ни медалей
     if (this.system.key === "decoy") return;
     const shooter = sourceUuid ? R.resolveActor(sourceUuid) : null;
+    // Репутация: добит отступивший из боя — −1 на разборе
+    if (shooter?.type === "pilot" && this.statuses?.has?.("retreat") && !this.getFlag(SYSTEM_ID, "surrendered"))
+      await noteRep(shooter, "retreat", { why: `добит отступивший: ${this.token?.name ?? this.name}`, once: `retreat:${this.uuid}` });
     // «Счёт к оплате»: сбит виновный; «Отличная работа!»: товарищ подбадривает стрелка
     await billPaid(this).catch(err => console.warn(`${SYSTEM_ID} | Счёт к оплате`, err));
     if (shooter?.type !== "pilot") return;
@@ -423,7 +445,7 @@ export class TBActor extends Actor {
     }
     await this.update({ "system.systems": systems });
     const alive = systems.filter(s => s.value > 0).length;
-    if (alive) this.#chatter("damaged");
+    if (alive) this.#chatter("damaged", { by: sourceUuid });
     if (!alive) {
       await this.#creditKill(sourceUuid);
       await this.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });

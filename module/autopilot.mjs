@@ -316,6 +316,9 @@ async function viewOf(actor, token, order, state) {
   if (pref !== "any") list.sort((a, b) => (b.kind === pref) - (a.kind === pref));
   // машины игроков — последними (свободная охота идёт к ним, только если больше некого)
   list.sort((a, b) => isPlayerUnit(a.actor) - isPlayerUnit(b.actor));
+  // Репутация: стрелявший по куполу (кровная месть) и Рыцарь для аса в его зоне — первыми
+  const { targetPull } = await import("./reputation.mjs");
+  list.sort((a, b) => targetPull(actor, b.actor) - targetPull(actor, a.actor));
   const gunsVs = systems ? null : S.gunVs(actor, null), gunsOk = !systems && !sysOff(s, "gu") && ((s.kind === "ground" ? s.ground?.gun : s.gun) ?? 0) > 0;
   const taskNowV = taskNow(order, { targetGone: withTarget(order.task) && !tgtTok });
   // охрана: кто бьёт охраняемого (ракеты в воздухе по нему) или держит его на захвате, и кто рядом с ним
@@ -752,6 +755,9 @@ export function wingOrderOf(leader, tokens) {
 export async function giveWingOrder(leader, kind) {
   if (!leader?.isOwner) return;
   if (!(kind in WING_ORDERS) && kind !== "" && kind !== "spw") return;
+  const { ordersRefused } = await import("./reputation.mjs");
+  const refused = ordersRefused(leader);
+  if (refused) return ui.notifications.warn(`${leader.name}: ${refused}.`);
   if (!wingmenOf(leader, combatDocs()).length) return ui.notifications.warn("Ведомых на автопилоте за вами нет: ведущий игры назначает их кнопкой с роботом, задача «Ведомый».");
   const docs = combatDocs();
   const next = kind === "spw" ? (wingSpwOf(leader, docs) ? "spw-off" : "spw") : wingOrderOf(leader, docs) === kind ? "" : kind;

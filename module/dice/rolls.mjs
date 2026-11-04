@@ -15,6 +15,7 @@ import { renderGround, renderBreakdown, resolveButton, groundAction, checkBreakd
 import { strikeShip } from "../strikes.mjs";
 import { schematicHtml, bindSchematic, aimAt, cockpitDialog, defaultSys } from "../aim.mjs";
 import { poolSquad, poolOf, spendPool, sunOn } from "../duelists.mjs";
+import { repCivil, repRank, shieldPilotSync } from "../reputation.mjs";
 
 const sign = n => (n >= 0 ? "+" : "−") + Math.abs(n);
 /** Strain могут тратить пилоты и асы-NPC. */
@@ -171,6 +172,11 @@ const PROX_DMG = 4;
 /** Урон попадания карточки: HPAA неконтактным взрывом — 4, UGB на Perk «×2» — вдвое. */
 const hitDmg = c => (c.proxHit && !c.success ? PROX_DMG : c.dmg ?? 0) * (c.ugbPerk === "double" ? 2 : 1);
 
+/** Атака врага по мирным: её можно «Заслонить» (без документов — нет). */
+function shieldable(c) {
+  try { return repCivil(resolveActor(c.targetUuid)) && resolveActor(c.actorUuid)?.type === "npc"; } catch { return false; }
+}
+
 export function renderCard(card) {
   if (card.type === "tunnel") return renderTunnel(card);
   if (card.type === "alarm") return renderAlarm(card);
@@ -241,6 +247,12 @@ export function renderCard(card) {
     const pool = poolOf(who);
     btn.push(`<button type="button" data-tb-action="strain" class="tb-owner"${pool ? ` title="Запас эскадрильи «${esc(poolSquad(who))}»"` : ""}><i class="fas fa-bolt"></i> +1 Strain${pool ? ` · запас ${pool.value}/${pool.max}` : ""}</button>`);
   }
+  // «Заслонить» (Репутация): ракета врага по мирным ещё в воздухе — пилот игрока в той же зоне принимает её на себя
+  if (c.shielded) rows.push(`<div class="tb-note">${esc(c.shielded)} заслоняет «${esc(c.shieldedFrom ?? "")}»: атака идёт по нему.</div>`);
+  else if (c.attack && c.delayed && !c.resolved && !c.dmgApplied && c.targetUuid && shieldable(c))
+    btn.push(`<button type="button" data-tb-action="shield" class="tb-shield" title="Пилот игрока в зоне этой цели принимает атаку на себя: по его Defense, урон ему (раз за раунд)"><i class="fas fa-shield-halved"></i> Заслонить</button>`);
+  if (c.type === "side" && c.chute && c.success && !c.applied) btn.push(`<button type="button" data-tb-action="chute-hit" class="tb-owner"><i class="fas fa-parachute-box"></i> Купол «${esc(c.chute.name)}» расстрелян</button>`);
+  if (c.type === "side" && c.chute && c.success && c.applied) rows.push(`<div class="tb-note">Купол «${esc(c.chute.name)}» расстрелян.</div>`);
   if (c.type === "side" && c.success && c.onWin && !c.applied) btn.push(`<button type="button" data-tb-action="side-win" class="tb-owner"><i class="fas fa-door-open"></i> «${esc(c.onWin.name)}» выходит из боя</button>`);
   if (c.ident) rows.push(`<div class="tb-note">${c.identDone ? `Контакт ${c.ident.n} опознан: AWACS сообщает, кто это.` : c.success ? `Контакт ${c.ident.n} опознаётся…` : `Контакт ${c.ident.n} не опознан.`}</div>`);
   if (c.type === "side" && c.success && c.onWin && c.applied) rows.push(`<div class="tb-note">«${esc(c.onWin.name)}» выходит из боя.</div>`);
@@ -490,6 +502,8 @@ export function ejectFate(c) {
   if (c.success) return { key: "ok", status: "ejected", title: "Катапультировался",
     text: "Как пилот вернётся, решают три проверки на земле: выжить при приземлении (Push), уйти от поисковых групп (Dodge), выйти к своим (Aim или Lead). Ни одной 3 и ниже: вернулся к следующему вылету; одна: пропускает вылет; две и больше: плен или окружение, спасение становится миссией." };
   if (c.d4 >= 4) return { key: "hurt", status: "hospital", title: "Провал, d4 = 4: ранен, но подобран", text: "Пилот жив и попадает в госпиталь." };
+  // Чудовище (Репутация): «Пленных не берут» — вместо плена гибель
+  if (c.d4 >= 2 && c.noPrison) return { key: "kia", status: "kia", title: `Провал, d4 = ${c.d4}: пленных не берут`, text: "О нём пишут в листовках обе стороны: в плен его не взяли. Последние слова остаются за пилотом." };
   if (c.d4 >= 2) return { key: "mia", status: "mia", title: `Провал, d4 = ${c.d4}: пропал без вести или в плену`, text: "Спасение становится миссией. Если пилот в плену, поменяйте статус в личном деле." };
   return { key: "kia", status: "kia", title: "Провал, d4 = 1: гибель", text: "Последние слова остаются за пилотом. Стол получает «Достойное отступление»." };
 }
@@ -547,7 +561,7 @@ export async function ejectNow(actor, { marked = false } = {}) {
     type: "eject", label: "Катапультирование: Push против 7", rolled: true, d10: dice.d10, d4: dice.d4,
     // Push под Grit: ранги Push не идут, бросок остаётся (d10 + Strain)
     parts: [...(actor.system.skillBlocked?.push ? [["Push недоступен (Grit)", 0]] : skillParts(actor, "push", "Форсаж")), ...await takeNext(actor)], strain: 0, dc: 7, strainable: true,
-    skill: "push", perkOn: 4, compOn: 1
+    skill: "push", perkOn: 4, compOn: 1, noPrison: repRank(actor) === 0
   };
   // не хватает до 7, а Strain дотягивает: тратится сам
   const gap = card.dc - computeCard(card).total, have = actor.system.strain.value ?? 0;
@@ -2445,6 +2459,19 @@ async function cardAction(message, action, button) {
       card.dodged = true; await save();
       return rollSideCheck(actor, "dodge", { dc: 7, label: "Тревога: Dodge против 7", notes: card.dodge, onFail: "alarm" });
     }
+    case "shield": {
+      if (card.shielded || card.resolved || card.dmgApplied) return;
+      const { shieldPilot, shieldCard } = await import("../reputation.mjs");
+      const pilot = shieldPilot(card);
+      if (!pilot) return ui.notifications.warn("Заслонить может пилот игрока в зоне атакованной цели, раз за раунд.");
+      return shieldCard(message, pilot);
+    }
+    case "chute-hit": {
+      if (!actor?.isOwner || card.applied || !card.chute) return;
+      card.applied = true; await save();
+      const { chuteCardHit } = await import("../parachute.mjs");
+      return chuteCardHit(actor, card.chute);
+    }
     case "side-win": {
       if (!actor?.isOwner || card.applied || !card.onWin) return;
       card.applied = true; await save();
@@ -2601,6 +2628,8 @@ export function decorateCard(message, html) {
   const canEdit = message.isAuthor || game.user.isGM;
   root.querySelectorAll(".tb-owner").forEach(b => { if (!(actor?.isOwner && canEdit)) b.remove(); });
   root.querySelectorAll(".tb-gm").forEach(b => { if (!game.user.isGM) b.remove(); });
+  // «Заслонить»: только у того, чей пилот рядом с целью
+  root.querySelectorAll(".tb-shield").forEach(b => { if (!shieldPilotSync(card)) b.remove(); });
   // кнопки владельца другой машины на карточке залпа («104:0» стрелка, «Вираж» цели); выбор «Виража» уже сделан — прячутся
   root.querySelectorAll(".tb-uuid-owner").forEach(b => {
     const a = resolveActor(b.dataset.owner);

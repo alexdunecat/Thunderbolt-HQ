@@ -1849,7 +1849,6 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
    narrow — уже колонки; stack — кнопки под приборами. */
 #tb-pilot-hud.corners { width: auto; min-width: 0; max-width: none; max-height: none; resize: none; overflow: visible; container-type: normal;
   display: flex; flex-direction: column; align-items: stretch; gap: 4px; background: none; border: 0; border-radius: 0; box-shadow: none; pointer-events: none;
-  --hud: #a4ffcb; --hud-dim: #6fd39e; --hud-line: rgba(164, 255, 203, .55); --hud-glass: rgba(2, 10, 12, .64);
   --tb-glow: 0 0 1px #000, 0 0 3px #000, 0 0 7px var(--hud-glow, rgba(110, 255, 170, .35)); color: var(--hud); }
 #tb-pilot-hud.corners > header, #tb-pilot-hud.corners > .tb-hud-alert, #tb-pilot-hud.corners > .tb-hud-grid { zoom: var(--tb-hud-zoom, 1.15); }
 #tb-pilot-hud.corners:has(.tb-hud-alert.missile) { box-shadow: none; }
@@ -1921,23 +1920,23 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-pilot-hud.corners .tb-hud-sil img { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--hud, #a4ffcb) 45%, transparent)) brightness(1.1); }
 /* кнопки — стеклянные, с тонкой рамкой; наведение заливает фосфором */
 #tb-pilot-hud.corners .tb-hud-btns button, #tb-pilot-hud.corners .tb-hud-readout a, #tb-pilot-hud.corners .tb-hud-altbtn {
-  background: rgba(2, 14, 12, .55); color: var(--hud); border: 1px solid var(--hud-line); text-shadow: var(--tb-glow); box-shadow: none; }
+  background: var(--hud-btn); color: var(--hud); border: 1px solid var(--hud-line); text-shadow: var(--tb-glow); box-shadow: none; }
 #tb-pilot-hud.corners .tb-hud-btns button { line-height: 24px; font-size: 12px; }
-#tb-pilot-hud.corners .tb-hud-btns button b { color: #03140c; background: var(--hud); text-shadow: none; }
+#tb-pilot-hud.corners .tb-hud-btns button b { color: var(--hud-ink); background: var(--hud); text-shadow: none; }
 #tb-pilot-hud.corners .tb-hud-btns button:hover, #tb-pilot-hud.corners .tb-hud-readout a:hover, #tb-pilot-hud.corners .tb-hud-altbtn:hover {
-  background: var(--hud); color: #03140c; text-shadow: none; box-shadow: 0 0 10px color-mix(in srgb, var(--hud, #a4ffcb) 60%, transparent); }
+  background: var(--hud); color: var(--hud-ink); text-shadow: none; box-shadow: 0 0 10px color-mix(in srgb, var(--hud, #a4ffcb) 60%, transparent); }
 #tb-pilot-hud.corners .tb-hud-btns button:hover b { color: inherit; }
 #tb-pilot-hud.corners .tb-hud-btns button.end { color: var(--tb-warn); border-color: color-mix(in srgb, var(--tb-warn) 70%, transparent); }
 #tb-pilot-hud.corners .tb-hud-btns button.end:hover { background: var(--tb-warn); color: #1a1404; }
 /* станции оружия: рамка-строка индикатора, остаток крупно */
-#tb-pilot-hud.corners .tb-hud-btns button.st { background: rgba(2, 14, 12, .55); border: 1px solid var(--hud-line); border-radius: 2px; box-shadow: none; color: var(--hud); }
+#tb-pilot-hud.corners .tb-hud-btns button.st { background: var(--hud-btn); border: 1px solid var(--hud-line); border-radius: 2px; box-shadow: none; color: var(--hud); }
 #tb-pilot-hud.corners .tb-hud-btns button.st:hover { background: color-mix(in srgb, var(--hud, #a4ffcb) 14%, transparent); color: var(--hud); box-shadow: 0 0 0 1px var(--hud), 0 0 10px color-mix(in srgb, var(--hud, #a4ffcb) 40%, transparent); }
 #tb-pilot-hud.corners button.st .st-name { color: var(--hud); text-shadow: var(--tb-glow); }
 #tb-pilot-hud.corners button.st.spw .st-name { color: #ffe08a; }
 #tb-pilot-hud.corners button.st .st-cnt { color: var(--hud); background: none; border: 0; box-shadow: none; font-size: 13px; text-shadow: var(--tb-glow); }
 #tb-pilot-hud.corners button.st.aimed { border-color: #ffc94a; box-shadow: 0 0 8px rgba(255, 201, 74, .45); }
 #tb-pilot-hud.corners button.st.dead .st-cnt, #tb-pilot-hud.corners button.st.winch .st-cnt { color: #ff6a56; }
-#tb-pilot-hud.corners .tb-hud-acts span { background: rgba(2, 14, 12, .55); border-color: var(--hud-line); color: var(--hud); }
+#tb-pilot-hud.corners .tb-hud-acts span { background: var(--hud-btn); border-color: var(--hud-line); color: var(--hud); }
 #tb-pilot-hud.corners .tb-hud-acts span.used { color: var(--hud-dim); }
 #tb-pilot-hud.corners .tb-hud-sys span { background: rgba(2, 14, 12, .5); }
 /* боевые триггеры: готовые — янтарные кнопки, остальные видны тусклыми с причиной в подсказке */
@@ -1947,7 +1946,7 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-pilot-hud.corners .tb-hud-btns button.tb-hud-cttrig { color: #ffe7a8; border-color: #e0b030; background: rgba(46, 36, 8, .7); }
 #tb-pilot-hud.corners .tb-hud-btns button.tb-hud-cttrig:hover { background: #e0b030; color: #1a1404; }
 #tb-pilot-hud.corners.folded .tb-hud-grid { display: none; }
-#tb-pilot-hud.corners .tb-hud-hl a.on { background: var(--hud); color: #03140c; text-shadow: none; }
+#tb-pilot-hud.corners .tb-hud-hl a.on { background: var(--hud); color: var(--hud-ink); text-shadow: none; }
 /* шкалы: много делений (Strain аса) сжимаются и не вылезают за прибор */
 #tb-pilot-hud.corners .tb-hud-stat .tb-hud-row { min-width: 0; }
 #tb-pilot-hud.corners .tb-hud-stat .tb-hud-pips { flex: 0 1 auto; min-width: 0; gap: 2px; overflow: hidden; }
@@ -1956,8 +1955,8 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-pilot-hud.corners .tb-hud-moves { flex-wrap: nowrap; }
 #tb-pilot-hud.corners .tb-hud-moves button { flex: 1 1 auto; min-width: 0; padding: 0 3px; font-size: 11.5px; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; }
 /* ход: оставшиеся действия — светящиеся лампы, потраченные гаснут; в свой ход «Конец хода» залит янтарём */
-#tb-pilot-hud.corners .tb-hud-acts span:not(.tb-hud-none) { flex: 0 0 auto; min-width: 28px; padding: 0 7px; text-align: center; font-size: 13px; font-weight: 700; line-height: 24px; color: #03140c; background: var(--hud); border: 1px solid var(--hud); text-shadow: none; box-shadow: 0 0 8px color-mix(in srgb, var(--hud, #a4ffcb) 60%, transparent); }
-#tb-pilot-hud.corners .tb-hud-acts span.used { color: var(--hud-dim); background: rgba(2, 14, 12, .55); border-color: var(--hud-line); box-shadow: none; text-decoration: line-through; font-weight: 400; }
+#tb-pilot-hud.corners .tb-hud-acts span:not(.tb-hud-none) { flex: 0 0 auto; min-width: 28px; padding: 0 7px; text-align: center; font-size: 13px; font-weight: 700; line-height: 24px; color: var(--hud-ink); background: var(--hud); border: 1px solid var(--hud); text-shadow: none; box-shadow: 0 0 8px color-mix(in srgb, var(--hud, #a4ffcb) 60%, transparent); }
+#tb-pilot-hud.corners .tb-hud-acts span.used { color: var(--hud-dim); background: var(--hud-btn); border-color: var(--hud-line); box-shadow: none; text-decoration: line-through; font-weight: 400; }
 #tb-pilot-hud.corners .tb-hud-acts .tb-hud-none { color: var(--hud); font-size: 12px; text-shadow: var(--tb-glow); }
 #tb-pilot-hud.corners .tb-hud-acts > small:first-child { color: var(--hud); font-weight: 700; }
 #tb-pilot-hud.corners .tb-hud-acts button.end { font-size: 13px; line-height: 26px; font-weight: 700; border-width: 1.5px; }
@@ -1969,8 +1968,8 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-pilot-hud.corners .tb-hud-arm, #tb-pilot-hud.corners .tb-hud-ctl, #tb-pilot-hud.corners .tb-hud-wingx { margin-bottom: var(--tb-hud-lift-r, 0px); }
 /* тихие подсказки в бою (quiet-notes.mjs): строка вверху по центру, под субтитрами радио */
 #tb-quiet-notes { position: fixed; top: 136px; left: 50%; transform: translateX(-50%); z-index: 90; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; max-width: min(720px, 70vw); }
-#tb-quiet-notes .tb-qn { padding: 3px 14px; border-radius: 2px; background: rgba(2, 14, 12, .55); backdrop-filter: blur(2px); color: #a4ffcb; font-family: var(--tb-data, monospace); font-size: 13px; letter-spacing: .02em; text-align: center;
-  text-shadow: 0 0 6px rgba(164, 255, 203, .45), 0 0 2px #000; box-shadow: 0 0 0 1px rgba(164, 255, 203, .18); animation: tb-qn-in .25s ease-out; transition: opacity .6s; }
+#tb-quiet-notes .tb-qn { padding: 3px 14px; border-radius: 2px; background: var(--hud-btn); backdrop-filter: blur(2px); color: var(--hud); font-family: var(--tb-data, monospace); font-size: 13px; letter-spacing: .02em; text-align: center;
+  text-shadow: 0 0 6px color-mix(in srgb, var(--hud) 45%, transparent), 0 0 2px #000; box-shadow: 0 0 0 1px color-mix(in srgb, var(--hud) 18%, transparent); animation: tb-qn-in .25s ease-out; transition: opacity .6s; }
 #tb-quiet-notes .tb-qn.out { opacity: 0; }
 @keyframes tb-qn-in { from { opacity: 0; transform: translateY(-4px); } }
 /* строка броска: итог последнего броска и «+1 Strain» прямо из HUD */
@@ -1994,21 +1993,21 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 @keyframes tb-hud-pulse { 50% { opacity: .45; } }
 /* исход сваливания прямо на плашке STALL */
 #tb-pilot-hud .tb-hud-stallbtn { flex: 0 0 auto; width: auto; margin-left: 10px; padding: 0 10px; line-height: 24px; font-family: var(--tb-data); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; border-radius: 2px; cursor: pointer; }
-#tb-pilot-hud .tb-hud-stallbtn.ok { color: #03140c; background: var(--hud, #a4ffcb); border: 1px solid var(--hud, #a4ffcb); box-shadow: 0 0 10px color-mix(in srgb, var(--hud, #a4ffcb) 50%, transparent); }
+#tb-pilot-hud .tb-hud-stallbtn.ok { color: var(--hud-ink); background: var(--hud, #a4ffcb); border: 1px solid var(--hud, #a4ffcb); box-shadow: 0 0 10px color-mix(in srgb, var(--hud, #a4ffcb) 50%, transparent); }
 #tb-pilot-hud .tb-hud-stallbtn.bad { color: #1a1404; background: #ffc94a; border: 1px solid #ffc94a; box-shadow: 0 0 10px rgba(255, 201, 74, .5); }
 #tb-pilot-hud .tb-hud-stallbtn:hover { filter: brightness(1.15); }
 /* полоска очереди ходов (turn-strip.mjs): вверху по центру */
 #tb-turn-strip { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 6px; padding: 2px 10px; pointer-events: none;
-  background: rgba(2, 14, 12, .55); backdrop-filter: blur(3px); border-radius: 2px; box-shadow: 0 0 0 1px rgba(164, 255, 203, .18); font-family: var(--tb-data, monospace); font-size: 12px; letter-spacing: .04em; color: #a4ffcb; white-space: nowrap; }
-#tb-turn-strip small { color: rgba(164, 255, 203, .55); }
-#tb-turn-strip i { font-style: normal; color: rgba(164, 255, 203, .45); }
+  background: var(--hud-btn); backdrop-filter: blur(3px); border-radius: 2px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--hud) 18%, transparent); font-family: var(--tb-data, monospace); font-size: 12px; letter-spacing: .04em; color: var(--hud); white-space: nowrap; }
+#tb-turn-strip small { color: color-mix(in srgb, var(--hud) 55%, transparent); }
+#tb-turn-strip i { font-style: normal; color: color-mix(in srgb, var(--hud) 45%, transparent); }
 #tb-turn-strip .ts { padding: 0 6px; line-height: 20px; border-radius: 2px; }
 #tb-turn-strip .ts.next { opacity: .75; }
-#tb-turn-strip .ts.end { color: rgba(164, 255, 203, .5); }
+#tb-turn-strip .ts.end { color: color-mix(in srgb, var(--hud) 50%, transparent); }
 #tb-turn-strip .ts.player, #tb-turn-strip .ts.ally { color: #8fd3ff; }
 #tb-turn-strip .ts.enemy { color: #ff9a85; }
 #tb-turn-strip .ts.neutral { color: #e8e0b0; }
-#tb-turn-strip .ts.now { font-weight: 700; font-size: 13px; color: #03140c; background: #a4ffcb; box-shadow: 0 0 8px rgba(164, 255, 203, .55); }
+#tb-turn-strip .ts.now { font-weight: 700; font-size: 13px; color: var(--hud-ink); background: var(--hud); box-shadow: 0 0 8px color-mix(in srgb, var(--hud) 55%, transparent); }
 #tb-turn-strip .ts.now.enemy { background: #ff9a85; box-shadow: 0 0 8px rgba(255, 154, 133, .55); }
 #tb-turn-strip .ts.now.player, #tb-turn-strip .ts.now.ally { background: #8fd3ff; box-shadow: 0 0 8px rgba(143, 211, 255, .55); }
 /* удар по своей машине, как в Ace Combat: символика HUD краснеет, идёт рябью и вздрагивает; при Doom HUD остаётся красным */
@@ -2169,13 +2168,13 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 
 /* табло броска над HUD: кубики, итог против защиты, вердикт, Strain прямо отсюда */
 #tb-pilot-hud .tb-hud-rollplate { margin: 5px 9px 0; padding: 6px 12px; border-radius: 3px; font-family: var(--tb-display); display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; animation: none; background: rgba(4, 16, 12, .82); color: #dff7ea;
-  border: 1px solid rgba(164, 255, 203, .45); box-shadow: inset 0 0 12px rgba(0, 0, 0, .6), 0 0 12px rgba(164, 255, 203, .18); }
+  border: 1px solid color-mix(in srgb, var(--hud) 45%, transparent); box-shadow: inset 0 0 12px rgba(0, 0, 0, .6), 0 0 12px color-mix(in srgb, var(--hud) 18%, transparent); }
 #tb-pilot-hud .tb-hud-rollplate.miss { background: rgba(26, 6, 4, .85); border-color: rgba(255, 120, 100, .55); box-shadow: inset 0 0 12px rgba(0, 0, 0, .6), 0 0 12px rgba(255, 90, 70, .25); }
 #tb-pilot-hud .tb-hud-rollplate.fresh { animation: tb-roll-in .45s cubic-bezier(.2, 1.4, .4, 1); }
 @keyframes tb-roll-in { from { transform: scale(.92); opacity: 0; } }
 #tb-pilot-hud .tb-hud-dice { display: flex; gap: 6px; flex: none; }
 #tb-pilot-hud .tb-hud-dice i { display: grid; place-items: center; width: 34px; height: 34px; font-style: normal; font-family: var(--tb-data, monospace); font-size: 20px; font-weight: 700;
-  color: #0b1a12; background: #a4ffcb; clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%); }
+  color: #0b1a12; background: var(--hud); clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%); }
 #tb-pilot-hud .tb-hud-dice i.d4 { width: 26px; height: 26px; font-size: 14px; background: #cfe3da; clip-path: polygon(50% 0, 100% 100%, 0 100%); padding-top: 6px; }
 #tb-pilot-hud .tb-hud-dice i.d4.perk { background: #ffd76a; }
 #tb-pilot-hud .tb-hud-dice i.d4.comp { background: #ff7a66; }
@@ -2183,12 +2182,12 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 @keyframes tb-die-land { 40% { transform: scale(1.25); filter: brightness(1.4); } }
 #tb-pilot-hud .tb-hud-rollplate.miss .tb-hud-dice i.d10 { background: #ffb4a8; }
 #tb-pilot-hud .tb-hud-rollsum { display: flex; align-items: baseline; gap: 6px; flex: none; font-family: var(--tb-data, monospace); }
-#tb-pilot-hud .tb-hud-rollsum b { font-size: 30px; line-height: 1; color: #fff; text-shadow: 0 0 10px rgba(164, 255, 203, .7); }
+#tb-pilot-hud .tb-hud-rollsum b { font-size: 30px; line-height: 1; color: #fff; text-shadow: 0 0 10px color-mix(in srgb, var(--hud) 70%, transparent); }
 #tb-pilot-hud .tb-hud-rollplate.miss .tb-hud-rollsum b { text-shadow: 0 0 10px rgba(255, 90, 70, .8); }
 #tb-pilot-hud .tb-hud-rollsum em { font-style: normal; font-size: 16px; color: #9fbcae; }
 #tb-pilot-hud .tb-hud-rollinfo { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; }
 #tb-pilot-hud .tb-hud-rollinfo strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#tb-pilot-hud .tb-hud-rollinfo strong { font-size: 15px; letter-spacing: .18em; color: #a4ffcb; text-shadow: 0 0 8px rgba(164, 255, 203, .6); }
+#tb-pilot-hud .tb-hud-rollinfo strong { font-size: 15px; letter-spacing: .18em; color: var(--hud); text-shadow: 0 0 8px color-mix(in srgb, var(--hud) 60%, transparent); }
 #tb-pilot-hud .tb-hud-rollplate.miss .tb-hud-rollinfo strong { color: #ff8a73; text-shadow: 0 0 8px rgba(255, 90, 70, .7); }
 #tb-pilot-hud .tb-hud-rollplate.plain .tb-hud-rollinfo strong { color: #dff7ea; }
 #tb-pilot-hud .tb-hud-rollinfo small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #9fbcae; font-family: var(--tb-data, monospace); letter-spacing: 0; text-transform: none; }
@@ -2337,3 +2336,32 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-goals.folded { width: auto; }
 /* надписи поверх карты: масштаб у всего окна (центр по translate держится) */
 #tb-radio, #tb-caution, #tb-turn-strip, #tb-monologue, #tb-quiet-notes, #tb-verdict-pill { zoom: var(--tb-ui, 1); }
+
+
+/* Репутация пилота (reputation.mjs): цвет HUD, полосы очереди, тихих подсказок и табло броска по уровню своего пилота.
+   Солдат — фосфорно-зелёный, как раньше. Жёлтое «Конец хода» и красные предупреждения не меняются. */
+:root { --hud: #a4ffcb; --hud-dim: #6fd39e; --hud-line: rgba(164, 255, 203, .55); --hud-glass: rgba(2, 10, 12, .64); --hud-glow: rgba(110, 255, 170, .35);
+  --hud-ink: #03140c; --hud-btn: rgba(2, 14, 12, .55); }
+body.tb-rep-knight { --hud: #8fd3ff; --hud-dim: #5fa8d6; --hud-line: rgba(143, 211, 255, .55); --hud-glass: rgba(10, 24, 38, .7); --hud-glow: rgba(110, 190, 255, .4);
+  --hud-ink: #04121c; --hud-btn: rgba(10, 26, 40, .6); }
+body.tb-rep-white { --hud: #eef6ff; --hud-dim: #b6cde0; --hud-line: rgba(220, 236, 255, .6); --hud-glass: rgba(28, 40, 56, .72); --hud-glow: rgba(200, 225, 255, .5);
+  --hud-ink: #0a1420; --hud-btn: rgba(26, 38, 54, .62); }
+body.tb-rep-punisher { --hud: #ffa040; --hud-dim: #d0802e; --hud-line: rgba(255, 92, 60, .65); --hud-glass: rgba(22, 9, 4, .68); --hud-glow: rgba(255, 140, 40, .4);
+  --hud-ink: #1a0a02; --hud-btn: rgba(28, 11, 4, .6); }
+body.tb-rep-monster { --hud: #ff6a3a; --hud-dim: #c24a2a; --hud-line: rgba(255, 56, 36, .72); --hud-glass: rgba(46, 5, 3, .74); --hud-glow: rgba(255, 50, 30, .5);
+  --hud-ink: #1a0402; --hud-btn: rgba(44, 6, 4, .62); }
+#tb-pilot-hud .tb-hud-rep .tb-hud-ctchip.bad { color: #ffd0c8; border-color: #d23a2a; background: rgba(60, 10, 6, .6); }
+#tb-pilot-hud .tb-hud-rep .tb-rep-lv { color: var(--hud); border-color: var(--hud-line); }
+#tb-pilot-hud.corners .tb-hud-btns button.tb-hud-chute-shoot { color: #ffb4a8; border-color: #d23a2a; }
+#tb-pilot-hud.corners .tb-hud-btns button.tb-hud-chute-shoot:hover { background: #d23a2a; color: #fff; }
+.tb-rep-chip { display: inline-block; padding: 0 6px; border-radius: 2px; border: 1px solid currentColor; font-size: 11px; letter-spacing: .04em; white-space: nowrap; }
+.tb-rep-chip.lv-white { color: #3d6f99; } .tb-rep-chip.lv-knight { color: #2f86c4; } .tb-rep-chip.lv-soldier { color: #4b7a5f; }
+.tb-rep-chip.lv-punisher { color: #c46a1a; } .tb-rep-chip.lv-monster { color: #b02a1a; }
+.tb-rep-block .tb-rep-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 3px 0; border-bottom: 1px dashed rgba(0, 0, 0, .12); }
+.tb-rep-block .tb-rep-row label { font-size: 12px; }
+.tb-rep-sheet .tb-rep-scale { position: relative; height: 10px; margin: 6px 0 4px; border-radius: 5px; background: linear-gradient(90deg, #8a1e12 0 12.5%, #c46a1a 12.5% 32.5%, #6f8f7c 32.5% 67.5%, #2f86c4 67.5% 87.5%, #cfe4f6 87.5%); }
+.tb-rep-sheet .tb-rep-scale i { position: absolute; top: -3px; width: 4px; height: 16px; margin-left: -2px; background: #111; border: 1px solid #fff; border-radius: 1px; }
+.tb-rep-sheet .tb-rep-ticks { display: flex; justify-content: space-between; font-size: 10px; opacity: .7; }
+.tb-rep-sheet h4 { margin: 6px 0 2px; font-size: 12px; }
+.tb-rep-sheet .tb-rep-log { max-height: 120px; overflow: auto; }
+.tb-rep-table .tb-num a { cursor: pointer; padding: 0 4px; }

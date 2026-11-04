@@ -22,6 +22,8 @@ import { justEmptied } from "./winchester.mjs";
 import { wingmenOf, wingOrderOf, wingSpwOf, giveWingOrder, WING_ORDERS, WING_SPW } from "./autopilot.mjs";
 import { isUnknown } from "./ident.mjs";
 import { uiScale } from "./ui-scale.mjs";
+import { hudRep, repRowHtml, paintHud, honorWord } from "./reputation.mjs";
+import { pilotChutes, pilotShootChute, rescueCall } from "./parachute.mjs";
 import { hudNemesis, isNemesis, pilotsOf, monologue, startMonologue, endMonologue, appear, useTrigger, STATE_TEXT } from "./nemesis.mjs";
 
 const FOLD_KEY = `${SYSTEM_ID}.hudFolded`, POS_KEY = `${SYSTEM_ID}.hudPos`;
@@ -163,6 +165,7 @@ export function hudData(actor) {
     nem: pilot ? hudNemesis(actor) : null,
     // боевые триггеры: что можно задействовать сейчас и что действует
     ct: pilot ? hudTriggers(actor) : null,
+    rep: pilot ? hudRep(actor, pilotChutes(actor).length) : null,
     // последний бросок, к которому можно добавить Strain прямо из HUD
     roll: c ? strainRoll(actor) : null,
     // шанс по захваченной цели для подсказок станций: пушка, стандартная ракета, каждое спецоружие
@@ -435,6 +438,7 @@ function html(actor, d, folded) {
         ${actor.type === "npc" ? aceRowHtml(actor) : ""}
         ${actor.type === "npc" ? squadRowHtml(actor) : ""}
         ${ctRow(d)}
+        ${repRowHtml(d.rep)}
         ${nemRow(d)}
         ${actor.type === "npc" ? adviceRow(actor) : ""}
       </div>
@@ -519,6 +523,8 @@ function watchHits(actor) {
 
 function render() {
   const actor = game.settings.get(SYSTEM_ID, "pilotHud") && game.combat?.started && (!game.combat.scene || game.combat.scene.id === canvas?.scene?.id) ? hudActor() : null;
+  // цвет HUD, полосы очереди и тихих подсказок по Репутации своего пилота
+  try { paintHud(actor ?? (game.user.character?.type === "pilot" ? game.user.character : null)); } catch { /* без DOM */ }
   if (!actor || !tokenOf(actor)) { el?.remove(); el = null; shown = null; lastHtml = ""; watchHits(null); return; }
   shown = actor;
   let folded = false;
@@ -724,7 +730,7 @@ async function onClick(ev) {
   const hl = ev.target.closest("[data-hud-hl]");
   if (hl) { ev.preventDefault(); ev.stopPropagation(); return setHlMode(hl.dataset.hudHl); }
   if (dragged && ev.target.closest("header")) { dragged = false; return; }
-  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-hero], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-tactic], [data-hud-ace], [data-hud-wing], [data-hud-strain], [data-hud-strain-n], [data-hud-stall], [data-hud-declare]");
+  const t = ev.target.closest("[data-u-sam], [data-u-gun], [data-u-hp], [data-u-scale], [data-u-flag], [data-u-count], [data-u-launch], [data-u-strike], [data-hud-eject], [data-hud-hero], [data-hud-act], [data-hud-spw], [data-hud-speed], [data-hud-alt], [data-hud-alt-to], [data-hud-lock], [data-hud-fold], [data-hud-nem], [data-hud-nemtrig], [data-hud-ctrig], [data-hud-appear], [data-hud-mono], [data-hud-adv], [data-hud-adv-target], [data-hud-move], [data-hud-aoa], [data-hud-booster], [data-hud-deck], [data-hud-tactic], [data-hud-ace], [data-hud-wing], [data-hud-strain], [data-hud-strain-n], [data-hud-stall], [data-hud-declare], [data-hud-rep]");
   if (!t || !shown) return;
   ev.preventDefault();
   const d = t.dataset, actor = shown;
@@ -756,6 +762,9 @@ async function onClick(ev) {
     t.disabled = true;
     return (async () => { for (let k = 0; k < (Number(n) || 0); k++) await onCardAction(game.messages.get(id), "strain"); })();
   }
+  if (d.hudRep === "honor") return honorWord(actor);
+  if (d.hudRep === "chute") return pilotShootChute(actor);
+  if (d.hudRep === "rescue") return rescueCall(actor);
   if (d.hudMove !== undefined) return useMove(actor);
   if (d.hudAoa !== undefined) return useAoa(actor);
   if (d.hudBooster !== undefined) return pickBooster(actor);

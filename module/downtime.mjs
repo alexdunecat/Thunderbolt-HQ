@@ -74,6 +74,18 @@ export async function addThreat() {
   return changeThreats(list => ({ list: [...list, t], result: t }));
 }
 
+/** Шкала по названию (без учёта регистра, по началу): сдвинуть, а если её нет — завести (size делений). Только ведущий. */
+export async function bumpThreat(name, delta, { size = 6, note = "" } = {}) {
+  if (!game.user.isGM) return null;
+  const re = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").slice(0, 14)}`, "i");
+  let t = threats().find(x => x.kind !== "boss" && re.test(x.name));
+  if (!t) {
+    t = { id: randomID(), name, size, value: 0, note };
+    await changeThreats(list => ({ list: [...list, t], result: t }));
+  }
+  return stepThreat(t.id, delta);
+}
+
 /** Сдвинуть шкалу на delta делений; заполненная шкала объявляется в чате. */
 export async function stepThreat(id, delta) {
   if (!game.user.isGM) return game.socket.emit(CHANNEL, { type: "threatStep", id, delta });

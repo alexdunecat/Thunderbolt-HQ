@@ -12,6 +12,7 @@ import { openDossierExchange } from "../dossier-sync.mjs";
 import { aimedWeapon, toggleAim } from "../range.mjs";
 import { rollGround, chooseEdge, edgeLabel, dropBond, useBond, useEdge, threats, clockPips, stepThreat, bondCap } from "../downtime.mjs";
 import { gloryView } from "../glory.mjs";
+import { repView, repStep } from "../reputation.mjs";
 import { openChatterEditor, nameOf, setCallsign } from "../chatter.mjs";
 import { openCivilRadio, RADIO_TRIGGER } from "../civil-radio.mjs";
 import { rack, openMedals } from "../medals.mjs";
@@ -481,6 +482,8 @@ export class PilotSheet extends TBActorSheet {
     ctx.dt = downtimeView(a);
     ctx.medals = rack(a);
     ctx.glory = gloryView();
+    ctx.rep = repView(a);
+    ctx.isGM = game.user.isGM;
     // открытые шкалы боя (Тревога стелс-миссии): игроки видят их на боевой карточке
     ctx.openClocks = threats().filter(t => t.kind === "boss" && t.open).map(t => ({ ...t, pips: clockPips(t.value, t.size), full: t.value >= t.size }));
     return ctx;
@@ -508,6 +511,7 @@ export class PilotSheet extends TBActorSheet {
       this.actor.update({ "system.service.log": log });
     }));
     this.#downtimeListeners(el);
+    el.querySelectorAll("[data-rep-step]").forEach(n => n.addEventListener("click", ev => { ev.preventDefault(); repStep(this.actor, Number(n.dataset.repStep)); }));
     el.querySelector("[data-dossier-add]")?.addEventListener("click", ev => {
       ev.preventDefault();
       const list = foundry.utils.deepClone(this.actor.system.dossier);

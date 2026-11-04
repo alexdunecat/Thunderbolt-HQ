@@ -4,6 +4,7 @@
    Выключается у себя («Надписи HIT / MISS / DESTROYED»). */
 import { SYSTEM_ID } from "./config.mjs";
 import { resolveActor } from "./utils.mjs";
+import { REP_CALLOUT, localRep } from "./reputation.mjs";
 
 export const CALLOUT = { HIT: { color: 0xffd27a, size: 0.2 }, MISS: { color: 0xc9d4d8, size: 0.17 }, DESTROYED: { color: 0xff5a4a, size: 0.24 },
   // ложная цель (9.6): вместо DESTROYED
@@ -57,7 +58,9 @@ export function callout(token, text, delay = 0) {
     if (!box) return;
     // прежняя надпись этого токена уступает место новой
     for (const c of [...box.children]) if (c.tbFor === token.id) c.destroy();
-    const gs = canvas.grid?.size ?? 100, st = CALLOUT[text];
+    // у клиента пилота с Репутацией не «Солдат» надписи в цвете его HUD
+    const tint = REP_CALLOUT[localRep()]?.[text];
+    const gs = canvas.grid?.size ?? 100, st = tint ? { ...CALLOUT[text], color: tint } : CALLOUT[text];
     const label = new PIXI.Text(text, { fontFamily: "Jura, 'Exo 2', monospace", fontSize: Math.round(gs * st.size), fontWeight: "700", letterSpacing: Math.round(gs * 0.02),
       fill: st.color, stroke: 0x050a08, strokeThickness: Math.max(3, Math.round(gs * 0.03)), dropShadow: true, dropShadowColor: st.color, dropShadowBlur: Math.round(gs * 0.06), dropShadowDistance: 0, dropShadowAlpha: 0.6 });
     label.anchor.set(0.5, 1);

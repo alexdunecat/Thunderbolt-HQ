@@ -183,3 +183,26 @@ const { ov, n } = C.bankFromFile(file);
 console.log("из файла:", n, "полей, правки:", JSON.stringify(ov));
 console.log("подстановка без цели:", C.fill("Захват! {target}.", {}), "|", C.fill("Захват! {target}.", { target: "Гроза" }));
 console.log("субтитры у ведущего:", said.length, "журнал:", JSON.parse(Object.values(ls)[0]).length);
+
+// Репутация пилота: реплики о нём, только когда событие вызвал он сам (Стрэйнджриал 10, раздел 3.1)
+pilot.system.reputation = { points: 9, log: [] };
+const ally = npc("al", "Сокол-2", { side: "ally" }, { x: 200 });
+const mig3 = npc("m3", "Беркут-3", {}, { x: 120 });
+fire(msg({ rwr: { target: mig3.uuid, from: "Гроза", fromUuid: pilot.uuid } }));
+step("Белый рыцарь взял МиГ на захват: реплика о нём");
+fire(msg({ rwr: { target: mig3.uuid, from: "Беркут-1", fromUuid: mig1.uuid } }));
+step("захват от другого NPC: обычная фраза");
+fire(msg({ rwr: { target: liner.uuid, from: "Гроза", fromUuid: pilot.uuid } }));
+step("Белый рыцарь взял лайнер на захват");
+C.chatter({ event: "damaged", speaker: pilot.uuid, by: mig3.uuid });
+step("МиГ попал по Белому рыцарю: МиГ и ближайший союзник о нём");
+C.chatter({ event: "down", victim: mig3.uuid, killer: pilot.uuid });
+mig3.statuses.add("dead");
+step("Белый рыцарь сбил МиГ: сбитый, его ведомый и союзник");
+pilot.system.reputation.points = -9;
+fire(msg({ card: { attack: true, delayed: true, actorUuid: pilot.uuid, targetUuid: liner.uuid, targetName: "Рейс 707", parts: [] } }));
+step("Чудовище пускает ракету по лайнеру");
+pilot.system.reputation.points = 0;
+fire(msg({ card: { attack: true, delayed: true, actorUuid: pilot.uuid, targetUuid: liner.uuid, targetName: "Рейс 707", parts: [] } }));
+step("Солдат: обычные фразы");
+console.log("ключи Репутации в банке:", Object.keys(C.fullBank()).filter(k => k.startsWith("rep_")).length);
