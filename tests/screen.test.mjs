@@ -101,3 +101,13 @@ console.log("плитки:", (dh.match(/class="tb-dp-tile[ "]/g) ?? []).length, 
 const FQ = await import(R + "/module/fx-quality.mjs");
 console.log("эффекты:", ["high", "medium", "low", "off"].map(l => `${l}=${Object.values(FQ.presetValues(l)).filter(Boolean).length}/${FQ.FX_LIST.length}→${FQ.presetOf(FQ.presetValues(l))}`).join(" · "),
   "| свои:", FQ.presetOf({ ...FQ.presetValues("medium"), fxVapor: true }));
+
+// задачи на экране: группы целей, скрытые не называются, лимит времени; камера своего хода
+const MH = await import(R + "/module/mission-hud.mjs");
+const gv = MH.goalsView({ objectives: ["Разрушить РЛС у перевала", ""], timers: [{ name: "Лимит времени", value: 3, size: 6 }],
+  goals: [{ name: "РЛС «Купол»", task: "destroy", out: "down" }, { name: "ЗРК-1", task: "destroy", out: null }, { name: "ЗРК-2", task: "destroy", out: "retreat" },
+    { name: "Скрытый", task: "destroy", out: null, hidden: true }, { name: "Конвой", task: "protect", out: null }, { name: "Танкер", task: "escort", out: "down" }] });
+console.log("задачи:", gv.groups.map(g => `${g.task} ${g.done}/${g.total} ${g.state} [${g.items.map(x => x.mark).join(",")}]`).join(" · "), "| текст:", gv.text.length, "| время:", JSON.stringify(gv.clocks), "| итог", `${gv.done}/${gv.total}`);
+const gh = MH.goalsHtml(gv);
+console.log("панель:", /ЗАДАЧИ/.test(gh), !/Скрытый/.test(gh), /1 из 3/.test(gh), /провалено/.test(gh), "| свёрнута:", MH.goalsHtml(gv, { collapsed: true }).includes("<ul>") ? "список" : "строка", "| пусто:", MH.goalsHtml(MH.goalsView()) === "");
+console.log("камера:", [{ mine: true }, { mine: true, isGM: true }, { mine: false }, { mine: true, sinceTouch: 500 }, { mine: true, on: false }].map(o => MH.wantCamera(o) ? "едет" : "нет").join(" "));

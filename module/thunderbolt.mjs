@@ -57,6 +57,7 @@ import { registerCallsigns } from "./callsigns.mjs";
 import { registerHitPick } from "./hit-pick.mjs";
 import { registerDeclarePick } from "./declare-pick.mjs";
 import { registerFxQuality } from "./fx-quality.mjs";
+import { registerMissionHud } from "./mission-hud.mjs";
 import { registerVerdict } from "./verdict.mjs";
 import { registerDaytime } from "./daytime.mjs";
 import { registerKeys } from "./keys.mjs";
@@ -209,6 +210,7 @@ Hooks.once("init", () => {
   registerHitPick();
   registerDeclarePick();
   registerVerdict();
+  registerMissionHud();
   registerDaytime();
   registerKeys();
   registerWeatherFx();

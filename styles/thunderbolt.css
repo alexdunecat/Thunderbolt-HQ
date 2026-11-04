@@ -2293,3 +2293,35 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 .tb-fx-menu .tb-fx-levels button { flex: 1; margin: 0; line-height: 26px; }
 .tb-fx-menu .tb-fx-levels button.active { border-color: #a4ffcb; color: #a4ffcb; box-shadow: 0 0 8px rgba(164, 255, 203, .35); }
 .tb-hud-plane .tb-hud-role i { font-style: normal; font-size: 8px; opacity: .7; letter-spacing: .1em; }
+/* задачи на экране (mission-hud.mjs): правый верхний угол, стекло кабины */
+#tb-goals { position: fixed; top: 12px; right: 12px; z-index: 69; width: 270px; max-height: 62vh; overflow: auto; padding: 6px 10px 8px; color: #dff7ea; font-family: var(--tb-display, inherit);
+  background: rgba(4, 14, 12, .62); backdrop-filter: blur(3px); border: 1px solid rgba(164, 255, 203, .3); border-left: 3px solid #a4ffcb; border-radius: 2px; box-shadow: 0 4px 16px rgba(0, 0, 0, .45); }
+#tb-goals.folded { width: auto; padding: 3px 10px; }
+#tb-goals.flash { animation: tb-goals-flash 1.2s ease-out; }
+@keyframes tb-goals-flash { 0%, 40% { box-shadow: 0 0 22px rgba(164, 255, 203, .75); border-color: #a4ffcb; } }
+#tb-goals header { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+#tb-goals header b { font-size: 12px; letter-spacing: .3em; color: #a4ffcb; text-shadow: 0 0 8px rgba(164, 255, 203, .5); }
+#tb-goals header span { font-size: 13px; color: #fff; }
+#tb-goals header i { margin-left: auto; font-size: 10px; opacity: .6; }
+#tb-goals ul { list-style: none; margin: 6px 0 0; padding: 0; }
+#tb-goals > ul > li { margin-top: 6px; font-family: var(--tb-body, inherit); font-size: 12px; }
+#tb-goals li.obj { padding-left: 12px; position: relative; color: #c9e6d8; }
+#tb-goals li.obj::before { content: "▸"; position: absolute; left: 0; color: #a4ffcb; }
+#tb-goals li > div { display: flex; justify-content: space-between; gap: 8px; }
+#tb-goals li > div b { font-family: var(--tb-display, inherit); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #ffd76a; }
+#tb-goals li > div span { color: #fff; }
+#tb-goals li.goal.done > div b, #tb-goals li.goal.done > div span { color: #a4ffcb; }
+#tb-goals li.goal.failed > div b, #tb-goals li.goal.failed > div span { color: #ff6a55; }
+#tb-goals li ul { margin: 2px 0 0; }
+#tb-goals li ul li { display: flex; gap: 6px; padding-left: 4px; color: #dff7ea; }
+#tb-goals li ul li i { font-style: normal; width: 12px; text-align: center; color: #ffd76a; }
+#tb-goals li ul li.done { color: #7fa896; text-decoration: line-through; }
+#tb-goals li ul li.done i { color: #a4ffcb; }
+#tb-goals li ul li.lost { color: #c98a80; }
+#tb-goals li ul li.lost i { color: #ff6a55; }
+#tb-goals li.clock em { display: flex; gap: 3px; margin-top: 3px; }
+#tb-goals li.clock em i { flex: 1; height: 6px; border: 1px solid rgba(255, 106, 85, .5); }
+#tb-goals li.clock em i.on { background: #ff6a55; box-shadow: 0 0 6px rgba(255, 106, 85, .6); }
+/* «Ваш ход»: HUD коротко вспыхивает */
+#tb-pilot-hud.tb-turn-flash { animation: tb-turn-flash 1.2s ease-out; }
+@keyframes tb-turn-flash { 0% { filter: brightness(1.9); box-shadow: 0 0 30px rgba(255, 215, 106, .8); } 100% { filter: none; } }
