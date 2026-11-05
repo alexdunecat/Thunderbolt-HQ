@@ -8,6 +8,7 @@ import { tokenOf, altOf, ecmCover, firedThisRound, zoneDistance, canFireAt, hasR
 import { sysCount, unitFlag } from "./scales.mjs";
 import { combatantOf, actionProblem, allowAction, spendAction, turnKey, twoZones, zoeOf } from "./actions.mjs";
 import { reconState, reconTargets } from "./sylph.mjs";
+import { sweepActive } from "./data/models.mjs";
 
 const CHANNEL = `system.${SYSTEM_ID}`;
 const isLead = () => !!game.user?.isGM && (game.users?.activeGM?.isSelf ?? true);
@@ -49,6 +50,7 @@ export function moveState(actor) {
     case "phoenix": out.why = actionProblem(actor, "lock") ?? ""; break;
     case "g12": out.why = actionProblem(actor, "break") ?? ""; break;
     case "tank": out.passive = true; out.why = "срабатывает сам: кнопка в окне метки урона"; break;
+    case "sweep": if (inCombat && !turn) out.why = "только в свой ход"; break;
     case "zoe": out.passive = true; out.why = zoeOf(actor) ? "включён в этом раунде" : "объявляется при заявке: плитка Z.O.E. в окне заявки"; break;
     case "ace104": out.passive = true; out.why = "срабатывает сам: кнопка на промахе ракеты на 1–2"; break;
     case "ghost": case "salvo": out.why = actionProblem(actor, "missile") ?? ""; break;
@@ -82,11 +84,40 @@ export async function useMove(actor) {
       return say("Бросок на рубеж: перетащите токен до 3 зон одним Move. Speed станет равной Max Speed, потом бесплатный Lock On! по цели в зоне прибытия или соседней.");
     }
     case "hmd": return hmdStrike(actor);
+    case "sweep": {
+      const max = Math.max(1, actor.system.maxSpeed ?? 1), cur = actor.system.speed ?? 0;
+      const { formDialog } = await import("./dice/rolls.mjs");
+      const opts = Array.from({ length: max }, (_, i) => i + 1).map(n => `<option value="${n}" ${n === Math.max(1, Math.min(max, cur)) ? "selected" : ""}>${n}${n === cur ? " (сейчас)" : n === max ? " (Max)" : ""}</option>`).join("");
+      const d = await formDialog(`${st.name}: Speed`, `<p class="tb-hint">${esc(st.text)}</p><div class="form-group"><label>Speed</label><select name="speed">${opts}</select></div>`, { ok: "Переложить" });
+      if (!d) return;
+      return sweepTo(actor, Math.max(1, Math.min(max, Number(d.speed) || cur || 1)));
+    }
     case "phoenix": return runAction(actor, "lock", { opts: { phoenix: true } });
     case "g12": return runAction(actor, "break", { opts: { g12: true } });
     case "ghost": case "salvo": return runAction(actor, "missile", { opts: { preMove: st.key } });
     default: return ui.notifications.info(`«${st.name}»: ${st.why}.`);
   }
+}
+
+/** «Перекладка крыла» (XFA-27): Speed сразу v без сваливания и Strain, до конца раунда Evasion +1 при любой Speed. */
+export async function sweepTo(actor, v, { why = "" } = {}) {
+  const c = game.combat;
+  await markMove(actor);
+  await actor.update({ "system.speed": v, [`flags.${SYSTEM_ID}.sweep`]: { combat: c?.id ?? "", round: c?.round ?? 0 } }, { tbFree: true });
+  return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="tb-card tb-card-move"><header class="tb-card-head"><span class="tb-card-who">${esc(actor.token?.name ?? actor.name)}</span><span class="tb-card-what">${esc(TB.planeMoves.sweep.name)}</span></header><div class="tb-note">${why ? `${esc(why)} ` : ""}Speed ${v} без сваливания и Strain, действие не тратится. До конца раунда Evasion +1 при любой Speed.</div></div>` });
+}
+
+/** Ас на автопилоте с «Перекладкой крыла»: на захвате — Speed до Max; цель захвата рядом (до 1 зоны) — Speed до 1 перед пуском. */
+export async function autoSweep(actor, token) {
+  if (!moveReady(actor, "sweep") || !game.combat?.started) return null;
+  const s = actor.system, max = s.maxSpeed ?? 1;
+  const locked = (canvas?.tokens?.placeables ?? []).some(t => t.actor && t.actor !== actor && t.actor.system?.lockUuid === actor.uuid);
+  if (locked && s.speed < max) { await sweepTo(actor, max, { why: "На хвосте захват: крыло сложено." }); return max; }
+  const tgt = s.lockUuid ? tokenOf(fromUuidSync(s.lockUuid)) : null;
+  const d = tgt && token ? zoneDistance(token, tgt) : null;
+  if (!locked && d !== null && d <= 1 && s.speed > 1) { await sweepTo(actor, 1, { why: "Цель рядом: крыло раскрыто перед пуском." }); return 1; }
+  return null;
 }
 
 /** «Нашлемный прицел» (МиГ-35): Lock On! и Fox Two! по цели в своей зоне одним действием. */
@@ -249,7 +280,8 @@ export function hudPlane(actor) {
   const s = actor.system, tok = tokenOf(actor), alt = tok ? altOf(tok, actor) : s.alt;
   const lamps = [];
   const lamp = (text, on, title) => lamps.push({ text, on: !!on, title });
-  if (hasProp(actor, "swing")) lamp("КРЫЛО +1", s.speed >= s.maxSpeed, "Крыло изменяемой стреловидности: на Max Speed Evasion +1");
+  const swept = sweepActive(actor);
+  if (hasProp(actor, "swing") || swept) lamp("КРЫЛО +1", s.speed >= s.maxSpeed || swept, swept ? "Перекладка крыла: до конца раунда Evasion +1 при любой Speed" : "Крыло изменяемой стреловидности: на Max Speed Evasion +1");
   if (hasProp(actor, "terrain")) lamp("РЕЛЬЕФ +1", alt === "low", "Огибание рельефа: на Низкой Evasion +1");
   const fast = (hasProp(actor, "highspeed") || hasProp(actor, "supercruise")) ? twoZones(actor) : null;
   if (hasProp(actor, "highspeed") || hasProp(actor, "supercruise"))

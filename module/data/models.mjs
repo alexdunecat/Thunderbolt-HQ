@@ -108,6 +108,12 @@ function airDefense(sys, ev) {
   return evasion + sys.speed;
 }
 
+/** «Перекладка крыла» (приём XFA-27) в этом раунде: Evasion +1 при любой Speed, как сложенное крыло. */
+export function sweepActive(actor) {
+  const f = actor?.getFlag?.(SYSTEM_ID, "sweep"), c = globalThis.game?.combat;
+  return !!f && !!c && f.combat === c.id && f.round === c.round;
+}
+
 /** Angle of Attack Limiter включён в этот ход этой машины (флаг aoa: бой, раунд, боец). */
 function aoaActive(actor) {
   const f = actor?.getFlag?.(SYSTEM_ID, "aoa"), c = globalThis.game?.combat;
@@ -234,7 +240,7 @@ export class PilotData extends foundry.abstract.TypeDataModel {
     this.hp.max = Math.max(1, ps.hp + sum("hpMax"));
     this.strain.max = this.off.has("fl") ? 0 : Math.max(0, (ps.str ?? 0) + sum("strainMax"));
     let ev = ps.ev + sum("evasion") - thin;
-    if (propKeys.has("swing") && this.speed >= this.maxSpeed) ev += 1;
+    if ((propKeys.has("swing") && this.speed >= this.maxSpeed) || sweepActive(actor)) ev += 1;
     if (propKeys.has("terrain") && this.alt === "low") ev += 1;
     // Angle of Attack Limiter: до конца своего хода +1 к Evasion и Air-to-Air (навыки — в skillParts выше)
     if (this.aoa) ev += 1;
@@ -306,7 +312,7 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       // «Бортовые орудия»: ганшип кружит над целью, Max Speed в бою не выше 2
       if (pk.has("gunship")) this.maxSpeed = Math.min(this.maxSpeed, 2);
       this.aoa = pk.has("aoa") && aoaActive(this.parent);
-      this.evasion = this.stats.ev - thin + (pk.has("swing") && this.speed >= this.maxSpeed ? 1 : 0) + (pk.has("terrain") && this.alt === "low" ? 1 : 0) + (this.aoa ? 1 : 0);
+      this.evasion = this.stats.ev - thin + ((pk.has("swing") && this.speed >= this.maxSpeed) || sweepActive(this.parent) ? 1 : 0) + (pk.has("terrain") && this.alt === "low" ? 1 : 0) + (this.aoa ? 1 : 0);
       this.defense = airDefense(this, this.evasion);
       this.aa = this.stats.aa === null ? null : this.stats.aa + (this.aoa ? 1 : 0); this.ag = this.stats.ag; this.gun = this.stats.gun;
       if (this.aoa) for (const k of ["aim", "dodge", "push"]) this.skillTotal[k] += 1;

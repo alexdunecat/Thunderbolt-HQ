@@ -188,3 +188,23 @@ console.log("ковёр:", cc?.dmg, JSON.stringify(cc?.line.map(r => [r.name, r.
   cS.getFlag = () => ({ round: 2, used: 0, list: [] });
   console.log("разведчик:", JSON.stringify(near), JSON.stringify(Sy.reconState(sy, near.length)), "· без контактов:", Sy.reconState(sy, 0).why, "· у другой машины:", Sy.reconState(su35, 1));
 }
+
+// XFA-27: «Перекладка крыла» (Speed любая без действия, Evasion +1 до конца раунда), ас на автопилоте
+{
+  const M = await import(R + "/module/data/models.mjs");
+  const zc = { id: "C10", round: 4, started: true, combatants: [], getFlag: () => null };
+  game.combat = zc;
+  const xf = pilot("Феникс", "xfa27", 40, 0, "med", { speed: 2, maxSpeed: 5 });
+  const up = xf.update; xf.update = async (u, o) => { for (const [k, v] of Object.entries(u)) if (k.startsWith("flags.")) setp(xf, k, v); return up.call(xf, u, o); };
+  console.log("XFA-27:", roleOf(xf), moveOf(xf), "· кнопка:", JSON.stringify(PR.moveState(xf)), "· лампа до:", JSON.stringify(PR.hudPlane(xf)?.lamps.find(l => l.text === "КРЫЛО +1")?.on ?? null));
+  log.length = 0;
+  await PR.sweepTo(xf, 1);
+  console.log("перекладка:", xf.system.speed, "· раунд:", M.sweepActive(xf), "· приём потрачен:", !moveReady(xf), "· лампа:", PR.hudPlane(xf)?.lamps.find(l => l.text === "КРЫЛО +1")?.on, "·", log.filter(l => l.startsWith("CHAT")).join(" "));
+  zc.round = 5;
+  console.log("следующий раунд:", M.sweepActive(xf));
+  const ax = mk("XFA-ас", 42, 0, "med", { key: "xfa27", tier: "ace", speed: 2, maxSpeed: 5 });
+  ax.flags["thunderbolt-shtab"] = {};
+  const hunter = mk("Охотник", 42, 1, "med", { lockUuid: ax.uuid });
+  const axTok = docs.find(d => d.actor === ax).object;
+  console.log("ас на захвате:", await PR.autoSweep(ax, axTok), "· второй раз:", await PR.autoSweep(ax, axTok));
+}

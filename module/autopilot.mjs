@@ -451,6 +451,8 @@ export async function runAutopilot(actor, token = null) {
     acts = 3;
     log.push(TB.planeMoves.zoe.name);
   }
+  // «Перекладка крыла» (приём XFA-27 у аса): Speed без действия — до Max на захвате, до 1 перед пуском по цели рядом
+  try { const v = await (await import("./plane-roles.mjs")).autoSweep(actor, token); if (v !== null) log.push(`${TB.planeMoves.sweep.name}: Speed ${v}`); } catch (err) { console.warn(`${SYSTEM_ID} | перекладка крыла`, err); }
   for (let i = 0; i < acts; i++) {
     state.left = acts - i;
     // маршрут: дошёл до точки — следующая
