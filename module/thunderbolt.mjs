@@ -90,6 +90,7 @@ import { registerBallistic } from "./ballistic.mjs";
 import { registerSpecialWeapons } from "./special-weapons.mjs";
 import { registerPlaneRoles } from "./plane-roles.mjs";
 import { registerSylph } from "./sylph.mjs";
+import { registerScout } from "./scout.mjs";
 import { registerAcePlay } from "./ace-play.mjs";
 
 // триггер выключен или машина сменилась: Max Speed мог упасть
@@ -241,6 +242,7 @@ Hooks.once("init", () => {
   registerSpecialWeapons();
   registerPlaneRoles();
   registerSylph();
+  registerScout();
   registerAcePlay();
   registerMedals();
   registerUndo();

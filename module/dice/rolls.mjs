@@ -1,5 +1,5 @@
 /* Броски и чат-карточки: проверки, ракеты, пушка, Break!, Strain, урон, сваливание. */
-import { SYSTEM_ID, TB, sysOff, offWhy, roleOf, moveReady, sortieMark, hasProp } from "../config.mjs";
+import { SYSTEM_ID, TB, sysOff, offWhy, roleOf, moveReady, sortieMark, hasProp, zoomActive } from "../config.mjs";
 import { esc, resolveActor } from "../utils.mjs";
 import { sameZoneLock, tokenOf, altOf, weatherAt, weatherParts, defenseWithWeather, reachProblems, confirmReach, canFireAt, stratLift, isAirTarget, inNarrowTunnel, wallBonus, zoneDistance, rangeLabel, isFlying, struckBy, gunVs, sysGunReach, sysStrafe, gunSys, hasRule, escortCover, radarCue, awacsCue, revealAmbush, boosterOn } from "../scene.mjs";
 import { alarmRows, raiseAlarm, surprise, quietAA, markVolley } from "../stealth.mjs";
@@ -376,7 +376,7 @@ export function practicedReady(actor) {
  * Кубики хода. «Отточенное мастерство»: 10 и 4 без броска, раз за вылет (триггер отмечается использованным),
  * и это не тратит единственную проверку хода. Обычный бросок, когда проверка хода уже была, — null.
  */
-async function rollDice(actor, practiced, { turnRoll = true, follow = null } = {}) {
+async function rollDice(actor, practiced, { turnRoll = true, follow = null, force10 = false } = {}) {
   // «За мной!»: тот же бросок, что у ведущего манёвра; бросок хода всё равно тратится
   const fo = follow ? followOffer(actor, follow) : null;
   if (fo) {
@@ -393,6 +393,8 @@ async function rollDice(actor, practiced, { turnRoll = true, follow = null } = {
     ui.notifications.warn("«Отточенное мастерство» в этом вылете уже использовано: бросаю кубики.");
   }
   if (turnRoll && !allowRoll(actor)) return null;
+  // «Мысленное наведение» («Файрфокс»): d10 как 10, d4 бросается
+  if (force10) { const r4 = await roll("1d4"); return { d10: 10, d4: r4.total, rolls: [r4], force10: true }; }
   // «Z.O.E.» (приём Super Sylph): первая проверка хода без броска d10, как 10; d4 бросается как обычно
   const zoe = turnRoll ? zoeOf(actor) : null;
   if (zoe && !zoe.rolled && (zoe.auto || game.combat?.combatant?.id === zoe.turn)) {
@@ -757,6 +759,7 @@ export async function lockOn(actor, { free = false, phoenix = false, maxDist = n
   if (!tok) return;
   if (tok.actor.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) return ui.notifications.warn(`«${tok.name}» уже сбит.`);
   if (!canFireAt(actor, tok.actor)) return ui.notifications.warn(`«${tok.name}» на вашей стороне: захват берётся только на противника или нейтрала (сторона NPC — во вкладке «Заметки AWACS»).`);
+  if (zoomActive(tok.actor)) return ui.notifications.warn(`Lock On! невозможен: «${TB.planeMoves.zoom.name}», до конца раунда «${tok.name}» не захватить.`);
   const t = describeTarget(tok.actor, tok.name, tok);
   const kind = targetKind(t);
   if (!strikeMeans(actor, kind).length)
@@ -988,10 +991,10 @@ export function foxPanel(actor, t, tk, { preMove = "", src = {} } = {}) {
   const oc = stations.some(x => x.w) ? practicedOvercharge(actor) : null;
   const occ = t?.kind === "ship" ? Object.fromEntries((t.actor.system.systems ?? []).map((y, i) => [i, y.occ])) : null;
   const struck = struckBy(actor);
-  const lockOk = !t || s.lockUuid === t.uuid || (t && seaTarget(t) && stations.some(x => x.asm)) || (t && landTarget(t) && stations.some(x => x.crs));
+  const lockOk = !t || s.lockUuid === t.uuid || (preMove === "mind" && moveReady(actor, "mind")) || (t && seaTarget(t) && stations.some(x => x.asm)) || (t && landTarget(t) && stations.some(x => x.crs));
   // фирменные приёмы при пуске (раз за вылет): «Удар из ниоткуда», «Ракетный шквал»
   const moveBox = (key, hint) => moveReady(actor, key) ? `<label title="${esc(TB.planeMoves[key].text)}"><input type="checkbox" name="${key}" ${preMove === key ? "checked" : ""}><span>${esc(TB.planeMoves[key].name.toUpperCase())}</span><em>${esc(hint)}</em></label>` : "";
-  const moves = moveBox("ghost", "без предупреждения, без Break!") + moveBox("salvo", "две ракеты, −2 Ammo");
+  const moves = moveBox("ghost", "без предупреждения, без Break!") + moveBox("salvo", "две ракеты, −2 Ammo") + moveBox("mind", "без захвата, d10 = 10");
   const pr = !!practicedReady(actor);
   // первые значения на кнопках сразу в разметке: окно не мигает пустыми табло
   const k0 = first?.fits.includes(kinds[0]) ? kinds[0] : first?.fits[0] ?? kinds[0];
@@ -1169,7 +1172,7 @@ function gunPanel(actor, { list, pre, podItems, sys, pod = "" }) {
 }
 
 /** Fox Two!: ракета или спецоружие. Без броска: AA/AG + мод оружия − Speed. Improved: d10 + Aim/Deploy + мод − Speed. */
-export async function fireMissile(actor, { weapon = null, preMove = "", useMark = false } = {}) {
+export async function fireMissile(actor, { weapon = null, preMove = "", useMark = false, mindUuid = "" } = {}) {
   const s = actor.system;
   // станция EMRG или ESM на HUD: сразу своё окно, без пульта Fox Two!
   const direct = weapon ? actor.items.get(weapon) : null;
@@ -1177,8 +1180,10 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
   // цель — захват этой машины; метка T (общая на все машины ведущего) — только без захвата или по выбору на пульте
   const locked = lockedTarget(actor), marked = currentTarget();
   const other = locked && marked && marked.uuid !== locked.uuid ? marked : null;
-  const t = useMark && other ? other : locked ?? marked;
-  const src = { from: t === locked ? "lock" : t ? "mark" : "", alt: useMark && other ? locked : other };
+  // «Мысленное наведение»: цель выбрана щелчком, без захвата
+  const mindTok = mindUuid ? fromUuidSync(mindUuid)?.object ?? null : null;
+  const t = mindTok?.actor ? describeTarget(mindTok.actor, mindTok.name, mindTok) : useMark && other ? other : locked ?? marked;
+  const src = mindTok ? { from: "mark", alt: null } : { from: t === locked ? "lock" : t ? "mark" : "", alt: useMark && other ? locked : other };
   if (t && !canFireAt(actor, t.actor)) return ui.notifications.warn(`Fox Two!: «${t.name}» на вашей стороне.`);
   // цель известна: в списке только то, что бьёт по её виду, и вид цели не меняется
   const tk = t ? targetKind(t) : null;
@@ -1190,7 +1195,10 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
   const data = await foxPanel(actor, t, tk, { preMove, src });
   if (!data) return;
   if (data.pick === "swap") return fireMissile(actor, { weapon, preMove, useMark: !useMark });
-  data.improved = data.pick === "improved";
+  const mind = !!data.mind && moveReady(actor, "mind");
+  if (mind && (!t || targetKind(t) !== "air")) return ui.notifications.warn(`«${TB.planeMoves.mind.name}»: только по воздушной цели (кнопка ПРИЁМ на HUD даёт выбрать её щелчком).`);
+  if (mind && t?.token && zoneDistance(tokenOf(actor), t.token) > 1) return ui.notifications.warn(`«${TB.planeMoves.mind.name}»: цель только в своей или соседней зоне.`);
+  data.improved = data.pick === "improved" || mind;
   if (data.practiced) data.improved = true;   // максимум на кубиках бывает только у действия с броском
   if (!data.improved && struckBy(actor)) {
     data.improved = true;
@@ -1240,7 +1248,7 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
     // «Прицельный комплекс» бомбардировщика: с Высокой по земле ракетами и GPB (strike), но не UGB
     const { problems } = reachProblems(actor, t, ugb ? 0 : asm || crs ? TB.range.operation : ws?.reach ?? TB.range.missile, { strike: !ugb });
     if (ugb && !["low", "med"].includes(altOf(tokenOf(actor), actor))) problems.unshift("UGB сбрасывают только с Низкой или Средней высоты.");
-    if (!ugb && !asm && !crs && s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
+    if (!ugb && !asm && !crs && !mind && s.lockUuid !== t.uuid) problems.unshift(`Нет захвата цели «${t.name}»: сначала Lock On!`);
     if (aim) problems.push(...aim.problems);
     problems.push(...nem.problems, ...ct.problems);
     if (!(await confirmReach(problems, "Fox Two!"))) return;
@@ -1252,7 +1260,7 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
   const parts = [];
   let dice = { d10: null, d4: null, rolls: [] };
   if (data.improved) {
-    dice = await rollDice(actor, data.practiced);
+    dice = await rollDice(actor, data.practiced, { force10: mind && !data.practiced });
     if (!dice) return;
     parts.push(...skillParts(actor, skill));
     const m = air ? ws?.aim : ws?.dep;
@@ -1293,6 +1301,7 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
   if (asm) notes.push("<b>Противокорабельная ракета.</b> По морской цели в любой точке зоны операции, без захвата, урон 12.");
   if (crs) notes.push("<b>Крылатые ракеты.</b> По наземной цели в любой точке зоны операции, без захвата, урон 7.");
   if (data.improved && skill !== (air ? "aim" : "deploy")) notes.push(`<b>Универсал.</b> Improved Fox Two! с ${esc(TB.skills[skill].en)}: он больше.`);
+  if (mind) notes.push(`<b>${esc(TB.planeMoves.mind.name)}.</b> Без захвата, Improved Fox Two!, на d10 как 10.`);
   if (ghostMove) notes.push(`<b>${esc(TB.planeMoves.ghost.name)}.</b> Цель не получает предупреждения о ракете и не может сделать Break! против неё.`);
   if (sun) notes.push(`<b>${esc(TB.squadTactics.sun.name)}.</b> Цель не получает предупреждения о ракете и не может сделать Break! против неё.`);
   if (shkval) notes.push(`<b>${esc(TB.planeMoves.salvo.name)}.</b> Две ракеты по цели: вторая даёт +1 к атаке или свой урон.`);
@@ -1323,7 +1332,7 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
   if (oc) notes.push(`«${esc(oc.name)}»: +2 к атаке и урону. ${esc(w.name)} больше не работает до конца вылета.`);
 
   if (w && !ws.unlimited) await w.update({ "system.ammo.value": Math.max(0, (ws.ammo.value ?? 0) - (shkval ? 2 : 1)) });
-  if (ghostMove || shkval) await actor.setFlag(SYSTEM_ID, "sortie", { ...(actor.getFlag(SYSTEM_ID, "sortie") ?? {}), move: sortieMark(actor) });
+  if (ghostMove || shkval || mind) await actor.setFlag(SYSTEM_ID, "sortie", { ...(actor.getFlag(SYSTEM_ID, "sortie") ?? {}), move: sortieMark(actor) });
   if (oc) { await oc.update({ "system.used": true }); await w.setFlag(SYSTEM_ID, "off", true); }
 
   const card = {
@@ -1331,7 +1340,7 @@ export async function fireMissile(actor, { weapon = null, preMove = "", useMark 
     d10: dice.d10, d4: dice.d4, parts, strain: 0, ...shipDc(t, aim, defVs(actor, t, w, ghost), ws?.key === "GPB" ? 2 : 0),
     wkey: asm ? ASM.id : crs ? CRS.id : ws?.key ?? "", close, ghost, shotKey: key, salvo: salvo?.list.length ? salvo.list.map(({ uuid, name, dc, sys }) => ({ uuid, name, dc, sys })) : null,
     strainable: !!data.improved && canStrain(actor), forceHit: nem.forceHit || ct.forceHit,
-    practiced: !!dice.practiced, followOf: dice.follow ?? "", dmg, delayed: atTurn || !(hv || tBroken), atTurn, combatKey: hv || tBroken ? (atTurn ? key : "") : key,
+    practiced: !!dice.practiced, zoe: !!dice.force10, followOf: dice.follow ?? "", dmg, delayed: atTurn || !(hv || tBroken), atTurn, combatKey: hv || tBroken ? (atTurn ? key : "") : key,
     targetUuid: t?.uuid ?? null, targetName: t?.name ?? "", notes, maws: !ghost && mawsOn(t), tkind: air ? "air" : "ground", bomb: ["UGB", "GPB"].includes(ws?.key),
     ...thresholds(actor, skill, data.storm)
   };
@@ -1780,6 +1789,7 @@ export function nextRoundKey() {
 export async function autoLock(actor, tok) {
   if (!tok?.actor || tok.actor.statuses?.has(CONFIG.specialStatusEffects.DEFEATED)) return "цель сбита";
   if (!canFireAt(actor, tok.actor)) return "своя сторона";
+  if (zoomActive(tok.actor)) return `«${TB.planeMoves.zoom.name}»: до конца раунда не захватить`;
   const t = describeTarget(tok.actor, tok.name, tok), kind = targetKind(t);
   if (!strikeMeans(actor, kind).length) return "нечем бить";
   const { range } = lockRangeOf(actor, kind);

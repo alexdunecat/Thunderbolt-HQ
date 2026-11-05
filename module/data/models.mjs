@@ -1,5 +1,5 @@
 /* Модели данных (TypeDataModel) для пилота, NPC, самолёта, спецоружия и триггера. */
-import { SYSTEM_ID, TB, DT } from "../config.mjs";
+import { SYSTEM_ID, TB, DT, sweepActive } from "../config.mjs";
 import { squadLayout, squadPoints } from "../squadrons.mjs";
 import { acePlaneStrain, ACE_STRAIN_EXTRA } from "../ace-kit.mjs";
 
@@ -106,12 +106,6 @@ export function isProto(plane, edges = []) {
 function airDefense(sys, ev) {
   const evasion = Math.max(ev, sys.breakEv ?? -Infinity);
   return evasion + sys.speed;
-}
-
-/** «Перекладка крыла» (приём XFA-27) в этом раунде: Evasion +1 при любой Speed, как сложенное крыло. */
-export function sweepActive(actor) {
-  const f = actor?.getFlag?.(SYSTEM_ID, "sweep"), c = globalThis.game?.combat;
-  return !!f && !!c && f.combat === c.id && f.round === c.round;
 }
 
 /** Angle of Attack Limiter включён в этот ход этой машины (флаг aoa: бой, раунд, боец). */

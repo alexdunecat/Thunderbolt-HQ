@@ -191,7 +191,7 @@ console.log("ковёр:", cc?.dmg, JSON.stringify(cc?.line.map(r => [r.name, r.
 
 // XFA-27: «Перекладка крыла» (Speed любая без действия, Evasion +1 до конца раунда), ас на автопилоте
 {
-  const M = await import(R + "/module/data/models.mjs");
+  const M = await import(R + "/module/config.mjs");
   const zc = { id: "C10", round: 4, started: true, combatants: [], getFlag: () => null };
   game.combat = zc;
   const xf = pilot("Феникс", "xfa27", 40, 0, "med", { speed: 2, maxSpeed: 5 });
@@ -207,4 +207,31 @@ console.log("ковёр:", cc?.dmg, JSON.stringify(cc?.line.map(r => [r.name, r.
   const hunter = mk("Охотник", 42, 1, "med", { lockUuid: ax.uuid });
   const axTok = docs.find(d => d.actor === ax).object;
   console.log("ас на захвате:", await PR.autoSweep(ax, axTok), "· второй раз:", await PR.autoSweep(ax, axTok));
+}
+
+// вторая партия: «Мысленное наведение» («Файрфокс»), «Свечка» (Mave), «Фоторазведка» (U-2S, SR-71), потолки
+{
+  const M = await import(R + "/module/config.mjs");
+  const Sc = await import(R + "/module/scout.mjs");
+  const zc = { id: "C11", round: 2, started: true, combatants: [], getFlag: () => null };
+  game.combat = zc;
+  const ff = pilot("Ганц", "firefox", 50, 0, "med");
+  const mv = pilot("Сова", "mave", 52, 0, "high", { speed: 1 });
+  mv.flags["thunderbolt-shtab"] = {};
+  const up = mv.update; mv.update = async (u, o) => { for (const [k, v] of Object.entries(u)) if (k.startsWith("flags.")) setp(mv, k, v); return up.call(mv, u, o); };
+  const near = mk("Близкий", 51, 0, "med"), far = mk("Дальний", 53, 0, "med"), tankX = mk("Танк-X", 50, 0, "ground", { kind: "ground", grp: "armor" });
+  const tk = a => docs.find(d => d.actor === a).object;
+  console.log("Файрфокс:", roleOf(ff), moveOf(ff), "· Mave:", roleOf(mv), moveOf(mv));
+  console.log("мысленное наведение:", JSON.stringify([near, far, tankX].map(a => PR.mindProblem(ff, tk(a)) || "можно")));
+  log.length = 0;
+  await PR.zoomClimb(mv, "strat");
+  console.log("свечка:", mv.system.alt ?? "—", "· не захватить:", M.zoomActive(mv), "· приём потрачен:", !moveReady(mv), "·", log.filter(l => l.startsWith("CHAT")).join(" "));
+  zc.round = 3;
+  console.log("следующий раунд:", M.zoomActive(mv));
+  console.log("потолки:", ["sylph", "xfa27", "pakda", "firefox", "mave", "vva14", "u2", "sr71"].map(k => `${k}=${TB.maxAlt[k]}`).join(" "));
+  const u2 = mk("U-2S", 60, 3, "strat", { props: [{ key: "scout" }] }), sr = mk("SR-71", 61, 3, "high", { props: [{ key: "scout" }, { key: "highspeed" }] });
+  const shot = mk("Сбитый разведчик", 62, 3, "high", { props: [{ key: "scout" }] }); shot.statuses.add("dead");
+  const aloft = Sc.scoutsAloft([u2, sr, shot, near].map(tk), a => a.system.kind === "air");
+  console.log("фоторазведка:", aloft.map(t => t.name).join(", "), "·", Sc.scoutLine(aloft.map(t => t.name)).replace(/<[^>]+>/g, ""));
+  console.log("к краю:", JSON.stringify(Sc.edgeCell([3, 5], { c0: 0, r0: 0, c1: 9, r1: 7 })), JSON.stringify(Sc.edgeCell([8, 3], { c0: 0, r0: 0, c1: 9, r1: 7 })));
 }

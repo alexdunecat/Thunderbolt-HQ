@@ -440,6 +440,13 @@ export async function runAutopilot(actor, token = null) {
   let order = orderOf(actor);
   if (!order || !token || token.document.hidden || gone(actor) || !canvas?.ready) return [];
   const state = { broke: false, used: new Set(), side: 1, moved: false, left: 0 }, failed = new Set(), log = [];
+  // «Фоторазведка»: разведчик не стреляет, на Max Speed уходит к ближайшему краю сцены
+  if (hasProp(actor, "scout")) {
+    const { scoutRun } = await import("./scout.mjs");
+    const log = await scoutRun(actor, token, order.acts ? Math.max(1, Math.min(3, order.acts)) : 3, { move, bounds, stepToward, cellLabel });
+    await summary(actor, token, order, log);
+    return log;
+  }
   let acts = order.acts ? Math.max(1, Math.min(3, order.acts)) : await adviceActs(actor, token, order);
   // «Z.O.E.» (приём Super Sylph у аса): HP мало или он на захвате — ИИ берёт ручку, три действия, первая проверка как 10
   const Z = await import("./sylph.mjs");

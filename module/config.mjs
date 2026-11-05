@@ -43,7 +43,7 @@ export const TB = {
     tu160: "high", b1b: "high", b2a: "high", b52h: "high", vulcan: "high", ac130: "med", a50: "high", e767: "high", il76: "high", an124: "high",
     c130: "high", c5: "high", nimrod: "high", ah64a: "med", ch47: "med", mh60: "med", uh60: "med", mi24: "med", mi28: "med", mi8: "med", ka52: "med",
     uav: "high", airliner: "high", widebody: "high", bizjet: "high", an2: "med", cargojet: "high", bookbomber: "high", booktransport: "high",
-    bookpatrol: "high"
+    bookpatrol: "high", sylph: "strat", xfa27: "strat", pakda: "high", firefox: "strat", mave: "strat", vva14: "med", u2: "strat", sr71: "strat"
   },
   // высота токена: 1 = Низкая, 2 = Средняя, 3 = Высокая, 4 = стратосфера
   altElevation: { low: 1, med: 2, high: 3, strat: 4 },
@@ -119,7 +119,7 @@ export const TB = {
     heavy: "su27 su33 su35 su37 f15c f14a f22 tornadof3 fb", light: "mig21bis mig21-93 mig29a mig23 yak141 f5e f20a f16c mirage2000 typhoon fa",
     icpt: "mig25 mig31 mig31m f4x f14d hsi", multi: "mig29m mig29k mig35 su30 fa18c fa18e f16b60 f16xl rafalem rafaleb f35c f2a jas39c f4e mra mrd",
     attack: "su25 su22 mig27 yak38 a10a ya10b hawk f4g tornadoecr ga", bomber: "su24 su32 f15e tornadogr1 tornadogr4 mirage2000d a6e f117a",
-    proto: "su47 mig144 x29a f15smtd yf23 falken wyvern adler sylph xfa27 prt", ew: "ea18g ea6b"
+    proto: "su47 mig144 x29a f15smtd yf23 falken wyvern adler sylph xfa27 firefox mave prt", ew: "ea18g ea6b"
   }).flatMap(([r, keys]) => keys.split(" ").map(k => [k, r]))),
   /* Фирменные приёмы (Стрэйнджриал 8.6): раз за вылет, не тратят действие и проверку хода, если не сказано иное. */
   planeMoves: {
@@ -134,7 +134,9 @@ export const TB = {
     g12: { name: "Перегрузка 12g", planes: "falken", text: "Break! без броска, как будто на d10 выпало 10. Не тратит проверку хода, и Speed после него не падает." },
     salvo: { name: "Ракетный шквал", planes: "wyvern", text: "Fox Two! пускает две ракеты по захваченной цели: две обычных или две одного спецоружия (на 2 Ammo). Вторая даёт +1 к атаке или добавляет свой урон." },
     zoe: { name: "Z.O.E.", planes: "sylph", text: "Объяви при заявке: бой ведёт ИИ Z.O.E. Заяви 3 действия, но ходи как с заявкой 1; проверка хода без броска, как будто на d10 выпало 10. В конце хода Strain падает до 0, у WSO тоже." },
-    sweep: { name: "Перекладка крыла", planes: "xfa27", text: "В свой ход, не тратя действие: Speed сразу любая от 1 до Max Speed, без сваливания и Strain. До конца раунда Evasion +1 при любой Speed." }
+    sweep: { name: "Перекладка крыла", planes: "xfa27", text: "В свой ход, не тратя действие: Speed сразу любая от 1 до Max Speed, без сваливания и Strain. До конца раунда Evasion +1 при любой Speed." },
+    mind: { name: "Мысленное наведение", planes: "firefox", text: "При Fox Two!: захват не нужен, любая воздушная цель в своей или соседней зоне, даже позади. Пуск как Improved Fox Two!, на d10 будто 10." },
+    zoom: { name: "Свечка", planes: "mave", text: "Одним действием подъём на любую высоту вплоть до стратосферы, даже при Speed ниже 3. Все захваты на тебя срываются, до конца раунда тебя нельзя захватить." }
   },
   rangeOptions: { "": "по умолчанию для этого оружия", 0: "своя зона", 1: "своя и соседние", 2: "до двух зон", 99: "вся зона операции" },
 
@@ -449,3 +451,15 @@ export function airDuelist(a) {
   return !keys.includes("aerialship") && !keys.includes("boss");
 }
 export const inCampaign = a => a?.type === "pilot" && a.system?.service?.status !== "retired";
+
+/** «Перекладка крыла» (приём XFA-27) в этом раунде: Evasion +1 при любой Speed, как сложенное крыло. */
+export function sweepActive(actor) {
+  const f = actor?.getFlag?.(SYSTEM_ID, "sweep"), c = globalThis.game?.combat;
+  return !!f && !!c && f.combat === c.id && f.round === c.round;
+}
+
+/** «Свечка» (приём FRX-00 Mave) в этом раунде: машину нельзя захватить. */
+export function zoomActive(actor) {
+  const f = actor?.getFlag?.(SYSTEM_ID, "zoom"), c = globalThis.game?.combat;
+  return !!f && !!c && f.combat === c.id && f.round === c.round;
+}

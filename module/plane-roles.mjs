@@ -2,13 +2,12 @@
    Черты ролей и свойства встроены туда, где они срабатывают: броски и залп (dice/rolls.mjs), Move (actions.mjs),
    захват и защита (scene.mjs), урон (documents/actor.mjs). Здесь кнопки «ПРИЁМ» и Angle of Attack Limiter,
    «Кобра» через ведущего (чужие захваты), строка «МАШИНА» в HUD и уборка отметок хода. */
-import { SYSTEM_ID, TB, sysOff, roleOf, moveOf, moveReady, hasProp, sortieMark, sortieUsed } from "./config.mjs";
+import { SYSTEM_ID, TB, sysOff, roleOf, moveOf, moveReady, hasProp, sortieMark, sortieUsed, sweepActive } from "./config.mjs";
 import { esc } from "./utils.mjs";
-import { tokenOf, altOf, ecmCover, firedThisRound, zoneDistance, canFireAt, hasRule } from "./scene.mjs";
+import { tokenOf, altOf, ecmCover, firedThisRound, zoneDistance, canFireAt, hasRule, ALT_ORDER, ceilingOf } from "./scene.mjs";
 import { sysCount, unitFlag } from "./scales.mjs";
 import { combatantOf, actionProblem, allowAction, spendAction, turnKey, twoZones, zoeOf } from "./actions.mjs";
 import { reconState, reconTargets } from "./sylph.mjs";
-import { sweepActive } from "./data/models.mjs";
 
 const CHANNEL = `system.${SYSTEM_ID}`;
 const isLead = () => !!game.user?.isGM && (game.users?.activeGM?.isSelf ?? true);
@@ -51,6 +50,8 @@ export function moveState(actor) {
     case "g12": out.why = actionProblem(actor, "break") ?? ""; break;
     case "tank": out.passive = true; out.why = "срабатывает сам: кнопка в окне метки урона"; break;
     case "sweep": if (inCombat && !turn) out.why = "только в свой ход"; break;
+    case "mind": out.why = inCombat && !turn ? "только в свой ход" : actionProblem(actor, "missile") ?? ""; break;
+    case "zoom": out.why = inCombat && !turn ? "только в свой ход" : actionProblem(actor, "climb") ?? ""; break;
     case "zoe": out.passive = true; out.why = zoeOf(actor) ? "включён в этом раунде" : "объявляется при заявке: плитка Z.O.E. в окне заявки"; break;
     case "ace104": out.passive = true; out.why = "срабатывает сам: кнопка на промахе ракеты на 1–2"; break;
     case "ghost": case "salvo": out.why = actionProblem(actor, "missile") ?? ""; break;
@@ -84,6 +85,8 @@ export async function useMove(actor) {
       return say("Бросок на рубеж: перетащите токен до 3 зон одним Move. Speed станет равной Max Speed, потом бесплатный Lock On! по цели в зоне прибытия или соседней.");
     }
     case "hmd": return hmdStrike(actor);
+    case "mind": return mindStrike(actor);
+    case "zoom": return zoomClimb(actor);
     case "sweep": {
       const max = Math.max(1, actor.system.maxSpeed ?? 1), cur = actor.system.speed ?? 0;
       const { formDialog } = await import("./dice/rolls.mjs");
@@ -97,6 +100,52 @@ export async function useMove(actor) {
     case "ghost": case "salvo": return runAction(actor, "missile", { opts: { preMove: st.key } });
     default: return ui.notifications.info(`«${st.name}»: ${st.why}.`);
   }
+}
+
+/** «Мысленное наведение» («Файрфокс»): цель щелчком (воздушная, своя или соседняя зона), без захвата, Fox Two! как Improved с d10 = 10. */
+async function mindStrike(actor) {
+  const { pickTargetToken } = await import("./pick.mjs");
+  const tok = await pickTargetToken(actor, { title: TB.planeMoves.mind.name, hint: "Щёлкните по воздушной цели в своей или соседней зоне: захват не нужен, можно и позади." });
+  if (!tok) return;
+  const problem = mindProblem(actor, tok);
+  if (problem) return ui.notifications.warn(`«${TB.planeMoves.mind.name}»: ${problem}.`);
+  const { runAction } = await import("./macros.mjs");
+  return runAction(actor, "missile", { opts: { preMove: "mind", mindUuid: tok.document.uuid } });
+}
+
+/** Почему по этому токену нельзя «Мысленным наведением» ("" — можно). */
+export function mindProblem(actor, tok) {
+  const a = tok?.actor;
+  if (!a) return "нужна цель";
+  if (a.statuses?.has?.(CONFIG.specialStatusEffects.DEFEATED)) return `«${tok.name}» уже сбит`;
+  if (!canFireAt(actor, a)) return `«${tok.name}» на вашей стороне`;
+  if (!(a.type === "pilot" || a.system?.kind === "air")) return "только воздушная цель";
+  const d = zoneDistance(tokenOf(actor), tok);
+  if (d === null || d > 1) return "цель только в своей или соседней зоне";
+  return "";
+}
+
+/** «Свечка» (FRX-00 Mave): одним действием на любую высоту до потолка, захваты на машину срываются, до конца раунда её не захватить. */
+export async function zoomClimb(actor, to = null) {
+  if (!allowAction(actor, "climb")) return;
+  const tok = tokenOf(actor), cur = altOf(tok, actor) ?? actor.system.alt ?? "low";
+  const ceil = ceilingOf(actor) ?? "strat";
+  const list = ALT_ORDER.slice(Math.max(0, ALT_ORDER.indexOf(cur)), ALT_ORDER.indexOf(ceil) + 1);
+  if (!list.length) return ui.notifications.warn(`«${TB.planeMoves.zoom.name}»: выше потолка не подняться.`);
+  if (!to) {
+    const { formDialog } = await import("./dice/rolls.mjs");
+    const opts = list.map((k, i) => `<option value="${k}" ${i === list.length - 1 ? "selected" : ""}>${esc(TB.altitudes[k])}${k === cur ? " (остаться, только сорвать захваты)" : ""}</option>`).join("");
+    const d = await formDialog(`${TB.planeMoves.zoom.name}: высота`, `<p class="tb-hint">${esc(TB.planeMoves.zoom.text)}</p><div class="form-group"><label>Высота</label><select name="alt">${opts}</select></div>`, { ok: "Свечка" });
+    if (!d) return;
+    to = list.includes(d.alt) ? d.alt : list.at(-1);
+  }
+  const c = game.combat;
+  await markMove(actor);
+  await actor.update({ "system.alt": to, [`flags.${SYSTEM_ID}.zoom`]: { combat: c?.id ?? "", round: c?.round ?? 0 } }, { tbFree: true });
+  await toGm("zoom", { uuid: actor.uuid });
+  if (combatantOf(actor)) await spendAction(actor, "climb");
+  return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="tb-card tb-card-move"><header class="tb-card-head"><span class="tb-card-who">${esc(actor.token?.name ?? actor.name)}</span><span class="tb-card-what">${esc(TB.planeMoves.zoom.name)}</span></header><div class="tb-note">${to === cur ? "Машина остаётся" : "Машина теперь"} ${esc(TB.altOn[to])}. Все захваты на неё сорваны, до конца раунда её не захватить.</div></div>` });
 }
 
 /** «Перекладка крыла» (XFA-27): Speed сразу v без сваливания и Strain, до конца раунда Evasion +1 при любой Speed. */
@@ -178,7 +227,7 @@ async function run(op, d) {
     if (ship) await ship.update({ [`flags.${SYSTEM_ID}.unit.deck`]: Math.max(0, unitFlag(ship, "deck", 0) + d.delta) });
     return;
   }
-  if (op !== "cobra") return;
+  if (op !== "cobra" && op !== "zoom") return;
   const names = [];
   for (const tok of canvas?.tokens?.placeables ?? []) {
     const a = tok.actor;
@@ -193,7 +242,7 @@ async function run(op, d) {
     names.push(tok.name);
   }
   if (names.length) await ChatMessage.create({ speaker: { alias: "AWACS" },
-    content: `<div class="tb-card tb-card-lock"><div class="tb-note">Кобра: захват сорван у ${names.map(n => `<b>${esc(n)}</b>`).join(", ")}.</div></div>` });
+    content: `<div class="tb-card tb-card-lock"><div class="tb-note">${op === "zoom" ? "Свечка" : "Кобра"}: захват сорван у ${names.map(n => `<b>${esc(n)}</b>`).join(", ")}.</div></div>` });
 }
 
 /** Кого ганшип навёл Targeting Booster в этом раунде: { uuid, name } или null. */
