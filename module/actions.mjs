@@ -35,7 +35,15 @@ export function declaredOf(c) {
   if (typeof v !== "number") return null;
   if (v === PASS) return 0;
   if (v >= AUTO) return 3;
-  return (v > PASS ? v - PASS : v) + (wsoActive(c.actor) ? 1 : 0);
+  const n = v > PASS ? v - PASS : v;
+  // «Z.O.E.» (приём Super Sylph): заявлено 3 действия, а место в очереди как у 1
+  return (n === 1 && zoeOf(c.actor, c.parent) ? 3 : n) + (wsoActive(c.actor) ? 1 : 0);
+}
+
+/** «Z.O.E.» в этом раунде: { combat, round, turn, started, rolled, auto } или null. */
+export function zoeOf(actor, combat = globalThis.game?.combat) {
+  const f = actor?.getFlag?.(SYSTEM_ID, "zoe");
+  return f && combat && f.combat === combat.id && f.round === combat.round ? f : null;
 }
 
 /**

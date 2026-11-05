@@ -21,6 +21,7 @@ import { aceRowHtml, aceClick } from "./ace-play.mjs";
 import { justEmptied } from "./winchester.mjs";
 import { wingmenOf, wingOrderOf, wingSpwOf, giveWingOrder, WING_ORDERS, WING_SPW } from "./autopilot.mjs";
 import { isUnknown } from "./ident.mjs";
+import { useRecon } from "./sylph.mjs";
 import { uiScale } from "./ui-scale.mjs";
 import { hudRep, repRowHtml, paintHud, honorWord } from "./reputation.mjs";
 import { pilotChutes, pilotShootChute, rescueCall } from "./parachute.mjs";
@@ -766,6 +767,7 @@ async function onClick(ev) {
   if (d.hudRep === "chute") return pilotShootChute(actor);
   if (d.hudRep === "rescue") return rescueCall(actor);
   if (d.hudMove !== undefined) return useMove(actor);
+  if (d.hudRecon !== undefined) return useRecon(actor);
   if (d.hudAoa !== undefined) return useAoa(actor);
   if (d.hudBooster !== undefined) return pickBooster(actor);
   if (d.hudDeck !== undefined) return useDeck(actor);

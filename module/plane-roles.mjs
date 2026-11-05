@@ -6,7 +6,8 @@ import { SYSTEM_ID, TB, sysOff, roleOf, moveOf, moveReady, hasProp, sortieMark, 
 import { esc } from "./utils.mjs";
 import { tokenOf, altOf, ecmCover, firedThisRound, zoneDistance, canFireAt, hasRule } from "./scene.mjs";
 import { sysCount, unitFlag } from "./scales.mjs";
-import { combatantOf, actionProblem, allowAction, spendAction, turnKey, twoZones } from "./actions.mjs";
+import { combatantOf, actionProblem, allowAction, spendAction, turnKey, twoZones, zoeOf } from "./actions.mjs";
+import { reconState, reconTargets } from "./sylph.mjs";
 
 const CHANNEL = `system.${SYSTEM_ID}`;
 const isLead = () => !!game.user?.isGM && (game.users?.activeGM?.isSelf ?? true);
@@ -48,6 +49,7 @@ export function moveState(actor) {
     case "phoenix": out.why = actionProblem(actor, "lock") ?? ""; break;
     case "g12": out.why = actionProblem(actor, "break") ?? ""; break;
     case "tank": out.passive = true; out.why = "срабатывает сам: кнопка в окне метки урона"; break;
+    case "zoe": out.passive = true; out.why = zoeOf(actor) ? "включён в этом раунде" : "объявляется при заявке: плитка Z.O.E. в окне заявки"; break;
     case "ace104": out.passive = true; out.why = "срабатывает сам: кнопка на промахе ракеты на 1–2"; break;
     case "ghost": case "salvo": out.why = actionProblem(actor, "missile") ?? ""; break;
   }
@@ -269,8 +271,9 @@ export function hudPlane(actor) {
   ].filter(Boolean) : [];
   if (hasProp(actor, "cruise")) lamp("CRS", true, "Крылатые ракеты: станция CRS на пульте Fox Two!, по наземной цели в любой точке зоны операции, урон 7");
   if (hasProp(actor, "tailgun")) lamp("КОРМА", true, "Кормовая пушка: Guns только по преследователю в своей зоне");
-  if (!role?.trait && !lamps.length && !aoa && !move && !booster && !deck && !attacks.length) return null;
-  return { role, lamps, aoa, move, booster, deck, attacks };
+  const recon = reconState(actor, hasProp(actor, "recon") ? reconTargets(actor).length : 0);
+  if (!role?.trait && !lamps.length && !aoa && !move && !booster && !deck && !attacks.length && !recon) return null;
+  return { role, lamps, aoa, move, booster, deck, attacks, recon };
 }
 
 /** Разметка строки «МАШИНА» для HUD. */
@@ -285,7 +288,8 @@ export function planeRowHtml(p) {
   const bst = p.booster ? `<button type="button" class="tb-hud-aoa ${p.booster.name ? "on" : ""}" data-hud-booster title="Targeting Booster: в начале раунда выберите союзника в своей или соседней зоне, ему +1 к A-A, A-G, Aim и Deploy">BOOST${p.booster.name ? ` · ${esc(p.booster.name)}` : ""}</button>` : "";
   const deck = p.deck ? `<button type="button" class="tb-hud-aoa ${p.deck.on ? "on" : ""}" data-hud-deck ${p.deck.can ? "" : "disabled"} title="${esc(p.deck.title)}">${p.deck.on ? "ВЗЛЁТ" : "ПОСАДКА"}</button>` : "";
   const atk = (p.attacks ?? []).map(x => `<button type="button" class="tb-hud-aoa" data-hud-act="${x.act}" title="${esc(x.title)}">${esc(x.code)}</button>`).join("");
-  return `<div class="tb-hud-btns tb-hud-plane"><small title="Роль, свойства и фирменный приём машины">МАШИНА</small>${role}${lamps}${aoa}${bst}${deck}${atk}${move}</div>`;
+  const rcn = p.recon ? `<button type="button" class="tb-hud-aoa ${p.recon.can ? "on" : ""}" data-hud-recon ${p.recon.can ? "" : "disabled"} title="Тактический разведчик: в начале своего хода опознать один контакт «?» не дальше 2 зон, без проверки Aim${p.recon.why ? `\nСейчас: ${esc(p.recon.why)}` : ""}">РАЗВЕДКА</button>` : "";
+  return `<div class="tb-hud-btns tb-hud-plane"><small title="Роль, свойства и фирменный приём машины">МАШИНА</small>${role}${lamps}${aoa}${bst}${deck}${atk}${rcn}${move}</div>`;
 }
 
 /** Для листа: роль и приём машины. */

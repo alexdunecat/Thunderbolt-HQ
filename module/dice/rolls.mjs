@@ -9,7 +9,7 @@ import { triggerAttack, triggerDefense, triggerBreak, trashComp, coverPart, mill
 import { pickTargetToken, selectTarget } from "../pick.mjs";
 import { targetMarks } from "../target-marks.mjs";
 import { aceReady, aceUsedPatch } from "../ace-kit.mjs";
-import { allowRoll } from "../actions.mjs";
+import { allowRoll, zoeOf } from "../actions.mjs";
 import { aimedWeapon } from "../range.mjs";
 import { renderGround, renderBreakdown, resolveButton, groundAction, checkBreakdown, practiceFor } from "../downtime.mjs";
 import { strikeShip } from "../strikes.mjs";
@@ -188,7 +188,7 @@ export function renderCard(card) {
   const rows = [];
   const parts = c.parts.map(([l, v]) => `<span class="tb-part">${esc(l)} ${sign(v)}</span>`).join(" ");
   if (c.rolled) {
-    rows.push(`<div class="tb-dice"><span class="tb-die d10${c.practiced ? " max" : ""}">${c.d10}</span>${parts}${c.strain ? `<span class="tb-part strain">Strain +${c.strain}</span>` : ""}</div>`);
+    rows.push(`<div class="tb-dice"><span class="tb-die d10${c.practiced || c.zoe ? " max" : ""}">${c.d10}</span>${parts}${c.strain ? `<span class="tb-part strain">Strain +${c.strain}</span>` : ""}</div>`);
   } else rows.push(`<div class="tb-dice">${parts}<span class="tb-part muted">без броска</span></div>`);
 
   let verdict = "";
@@ -306,6 +306,10 @@ export function renderCard(card) {
 }
 
 export async function postCard(actor, card, rolls = [], { author } = {}) {
+  if (card.rolled && zoeNote.delete(actor.uuid)) {
+    card.zoe = true;
+    card.notes = [...(card.notes ?? []), `<b>${esc(TB.planeMoves.zoe?.name ?? "Z.O.E.")}</b> Проверка хода без броска d10, как 10: машину ведёт ИИ.`];
+  }
   card.actorUuid = actor.uuid;
   card.actorName = actor.name;
   const msg = await ChatMessage.create({
@@ -389,9 +393,19 @@ async function rollDice(actor, practiced, { turnRoll = true, follow = null } = {
     ui.notifications.warn("«Отточенное мастерство» в этом вылете уже использовано: бросаю кубики.");
   }
   if (turnRoll && !allowRoll(actor)) return null;
+  // «Z.O.E.» (приём Super Sylph): первая проверка хода без броска d10, как 10; d4 бросается как обычно
+  const zoe = turnRoll ? zoeOf(actor) : null;
+  if (zoe && !zoe.rolled && (zoe.auto || game.combat?.combatant?.id === zoe.turn)) {
+    await actor.setFlag(SYSTEM_ID, "zoe", { ...zoe, rolled: true });
+    zoeNote.add(actor.uuid);
+    const r4 = await roll("1d4");
+    return { d10: 10, d4: r4.total, rolls: [r4], zoe: true };
+  }
   const r10 = await roll("1d10"), r4 = await roll("1d4");
   return { d10: r10.total, d4: r4.total, rolls: [r10, r4] };
 }
+/** Кто только что бросил под «Z.O.E.»: карточка получит отметку (postCard). */
+const zoeNote = new Set();
 
 function commonFields(actor, skill) {
   const pr = !!practicedReady(actor);

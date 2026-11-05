@@ -6,8 +6,8 @@
 import { SYSTEM_ID } from "./config.mjs";
 import { esc } from "./utils.mjs";
 
-/** Значения как в combat.mjs: PASS пропуск, AUTO автопилот. */
-const PASS = 10, AUTO = 20;
+/** Значения как в combat.mjs: PASS пропуск, AUTO автопилот; ZOE — плитка «Z.O.E.» Super Sylph (как в sylph.mjs). */
+const PASS = 10, AUTO = 20, ZOE = 9;
 const plural = (n, one, few, many) => {
   const a = Math.abs(n) % 100, b = a % 10;
   return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many;
@@ -41,6 +41,8 @@ export function declarePickHtml(d) {
     : `<span class="tb-dp-none">врага в заявке нет</span>`;
   const mates = d.mates.length ? `<div class="tb-dp-strip mates"><small>ЗВЕНО</small>${d.mates.map(m => `<span class="tb-dp-chip mate"><i></i>${esc(m.name)}<b>${chipVal(m.v)}</b></span>`).join("")}</div>` : "";
   const tile = (row, n) => {
+    if (n === ZOE) return `<button type="button" class="tb-dp-tile zoe" data-row="${row.id}" data-n="${ZOE}" title="Приём Super Sylph, раз за вылет: ИИ ведёт бой. 3 действия, ход как с заявкой 1, проверка хода как d10 = 10. В конце хода Strain пилота и WSO до 0. Клавиша Z">
+      <span class="tb-dp-pips">${[1, 2, 3].map(() => `<i class="on"></i>`).join("")}</span><b>Z.O.E.</b><span>3 действия</span><em>${esc(orderLine(1, d.foes))}</em></button>`;
     const pass = n === PASS;
     const pips = pass ? `<span class="tb-dp-pips pass"><i></i><i></i><i></i></span>` : `<span class="tb-dp-pips">${[1, 2, 3].map(k => `<i class="${k <= n ? "on" : ""}"></i>`).join("")}</span>`;
     return `<button type="button" class="tb-dp-tile${pass ? " pass" : ""}" data-row="${row.id}" data-n="${n}" title="клавиша ${pass ? "0" : n}">
@@ -49,7 +51,7 @@ export function declarePickHtml(d) {
   const rows = d.rows.map(r => `<section class="tb-dp-row" data-row="${r.id}">
       <header><b>${esc(r.name)}</b>${r.plane ? `<span>${esc(r.plane)}</span>` : ""}${r.wso ? `<em class="wso" title="WSO во второй кабине: ещё одно действие сверх заявки, место в очереди по заявке пилота; у экипажа две проверки за ход">+1 WSO</em>` : ""}
         <small>${Number.isFinite(r.hp) ? `HP ${r.hp}/${r.hpMax}` : ""}${Number.isFinite(r.strain) ? ` · Strain ${r.strain}${r.strainMax ? `/${r.strainMax}` : ""}` : ""}</small></header>
-      <div class="tb-dp-tiles">${[1, 2, 3, PASS].map(n => tile(r, n)).join("")}</div></section>`).join("");
+      <div class="tb-dp-tiles">${[1, 2, 3, ...(r.zoe ? [ZOE] : []), PASS].map(n => tile(r, n)).join("")}</div></section>`).join("");
   return `<div class="tb-dp-glass">
     <div class="tb-dp-top"><span class="tb-dp-ch"><i class="fas fa-satellite-dish"></i> РАУНД ${d.round} · ЗАЯВКА</span>
       <span class="tb-dp-rule">Меньше действий — ходите раньше. Равно с врагом — вы первыми.</span></div>
@@ -57,19 +59,19 @@ export function declarePickHtml(d) {
     ${mates}
     ${rows}
     <div class="tb-dp-foot">${many ? `<button type="button" class="tb-dp-go" data-go disabled>ЗАЯВИТЬ</button>` : ""}
-      <button type="button" class="tb-dp-later" data-later>Позже</button><small>${many ? "1/2/3 или 0 — для первой машины без выбора, Enter — заявить" : "Клавиши 1, 2, 3 или 0 (пас). Esc — позже: кнопка ЗАЯВКА на HUD откроет снова"}</small></div>
+      <button type="button" class="tb-dp-later" data-later>Позже</button><small>${many ? "1/2/3 или 0 — для первой машины без выбора, Enter — заявить" : `Клавиши 1, 2, 3 или 0 (пас)${d.rows.some(r => r.zoe) ? ", Z — Z.O.E." : ""}. Esc — позже: кнопка ЗАЯВКА на HUD откроет снова`}</small></div>
   </div>`;
 }
 
 /** Данные для стекла из боя (только то, что игрок и так видит в трекере). */
-export function declareData(combat, list, { npcSide, declared, passive, isOut, hasWso }) {
+export function declareData(combat, list, { npcSide, declared, passive, isOut, hasWso, zoe = () => false }) {
   const seen = c => !c.hidden && !c.token?.hidden && !passive(c.actor) && !isOut(c) && declared(c);
   const plane = a => a?.system?.plane?.name ?? "";
   return {
     round: combat.round,
     rows: list.map(c => {
       const s = c.actor?.system ?? {};
-      return { id: c.id, name: c.name, plane: plane(c.actor), wso: hasWso(c),
+      return { id: c.id, name: c.name, plane: plane(c.actor), wso: hasWso(c), zoe: !!zoe(c),
         hp: Number(s.hp?.value), hpMax: Number(s.hp?.max), strain: Number(s.strain?.value), strainMax: Number(s.strain?.max) };
     }),
     foes: combat.combatants.filter(c => npcSide(c) && seen(c)).map(c => ({ name: c.name, v: Number(c.initiative), unknown: !!(c.token?.getFlag?.(SYSTEM_ID, "unknown") ?? c.actor?.getFlag?.(SYSTEM_ID, "unknown")) })),
@@ -125,9 +127,10 @@ export function declarePick(data) {
       if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); return finish(null); }
       if (ev.key === "Enter" && many && go && !go.disabled) { ev.preventDefault(); return finish({ ...picked }); }
       const k = ev.code?.replace(/^(Digit|Numpad)/, "");
-      const n = k === "0" ? PASS : ["1", "2", "3"].includes(k) ? Number(k) : 0;
+      const n = k === "0" ? PASS : ["1", "2", "3"].includes(k) ? Number(k) : ev.code === "KeyZ" ? ZOE : 0;
       if (!n) return;
       const row = data.rows.find(r => !picked[r.id]) ?? data.rows[data.rows.length - 1];
+      if (n === ZOE && !row.zoe) return;
       ev.preventDefault(); ev.stopPropagation();
       choose(row.id, n);
     };

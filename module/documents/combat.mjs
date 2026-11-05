@@ -14,6 +14,7 @@ import { advanceScales } from "../scales.mjs";
 import { esc } from "../utils.mjs";
 import { autopilotOn, runAutopilot, pace } from "../autopilot.mjs";
 import { releaseArrivals, waiting, arriveOf } from "../reinforce.mjs";
+import { ZOE, zoeOffer, declareZoe, dropZoe, zoeDeclareText } from "../sylph.mjs";
 
 /** Значение инициативы: 1–3 заявлено действий, PASS пропуск, PASS + n отложил ход с n действиями. */
 export const PASS = 10;
@@ -63,7 +64,11 @@ export class TBCombat extends Combat {
     const data = await declareDialog(this, list);
     if (!data) return this;
     const currentId = this.combatant?.id;
-    await this.updateEmbeddedDocuments("Combatant", list.map(c => ({ _id: c.id, initiative: Number(data[c.id]) || 2 })));
+    // «Z.O.E.» (Super Sylph): в инициативе 1, а действий 3 (флаг раунда, declaredOf)
+    const zoe = list.filter(c => Number(data[c.id]) === ZOE && zoeOffer(c));
+    for (const c of list) if (Number(data[c.id]) === ZOE && !zoe.includes(c)) data[c.id] = 3;
+    await this.updateEmbeddedDocuments("Combatant", list.map(c => ({ _id: c.id, initiative: zoe.includes(c) ? 1 : Number(data[c.id]) || 2 })));
+    for (const c of list) await (zoe.includes(c) ? declareZoe(c) : dropZoe(c));
     await ChatMessage.create({
       speaker: { alias: "Заявка" },
       content: `<div class="tb-card tb-card-declare"><header class="tb-card-head"><span class="tb-card-what">Заявка действий</span></header>
@@ -80,7 +85,7 @@ export class TBCombat extends Combat {
   }
 }
 
-const declareText = v => (isPass(v) ? "пропуск" : `${v} ${v === 1 ? "действие" : "действия"}`);
+const declareText = v => (isPass(v) ? "пропуск" : v === ZOE ? zoeDeclareText : `${v} ${v === 1 ? "действие" : "действия"}`);
 
 /** Форма заявки. Игроки видят, что заявили NPC. */
 async function declareDialog(combat, list) {
@@ -97,11 +102,11 @@ async function declareDialog(combat, list) {
   // игроку — стекло кабины над картой (declare-pick.mjs); undefined — обычная форма ниже
   if (!game.user.isGM) {
     const DP = await import("../declare-pick.mjs");
-    const got = await DP.declarePick(DP.declareData(combat, list, { npcSide, declared, passive, isOut, hasWso: wsoOf }));
+    const got = await DP.declarePick(DP.declareData(combat, list, { npcSide, declared, passive, isOut, hasWso: wsoOf, zoe: zoeOffer }));
     if (got !== undefined) return got;
   }
   const rows = list.map(c => `<div class="form-group"><label>${esc(c.name)}${wsoOf(c) ? ` <small title="WSO во второй кабине: ещё одно действие сверх заявки, место в очереди по заявке пилота; у экипажа две проверки за ход">+1 WSO</small>` : ""}</label>
-    <select name="${c.id}">${[1, 2, 3].map(n => `<option value="${n}" ${(advice[c.id] ?? 2) === n ? "selected" : ""}>${n} ${n === 1 ? "действие" : "действия"}${advice[c.id] === n ? " · совет" : ""}</option>`).join("")}<option value="${PASS}">Пропуск</option></select></div>`).join("");
+    <select name="${c.id}">${[1, 2, 3].map(n => `<option value="${n}" ${(advice[c.id] ?? 2) === n ? "selected" : ""}>${n} ${n === 1 ? "действие" : "действия"}${advice[c.id] === n ? " · совет" : ""}</option>`).join("")}${zoeOffer(c) ? `<option value="${ZOE}">Z.O.E.: 3 действия, ход как с 1</option>` : ""}<option value="${PASS}">Пропуск</option></select></div>`).join("");
   return formDialog(`Заявка действий: раунд ${combat.round}`,
     `<p class="tb-hint">Меньше действий: ходите раньше. Пропуск уходит в конец очереди.</p>${seen}${rows}`, { ok: "Заявить" });
 }

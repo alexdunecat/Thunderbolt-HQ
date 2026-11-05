@@ -119,7 +119,7 @@ export const TB = {
     heavy: "su27 su33 su35 su37 f15c f14a f22 tornadof3 fb", light: "mig21bis mig21-93 mig29a mig23 yak141 f5e f20a f16c mirage2000 typhoon fa",
     icpt: "mig25 mig31 mig31m f4x f14d hsi", multi: "mig29m mig29k mig35 su30 fa18c fa18e f16b60 f16xl rafalem rafaleb f35c f2a jas39c f4e mra mrd",
     attack: "su25 su22 mig27 yak38 a10a ya10b hawk f4g tornadoecr ga", bomber: "su24 su32 f15e tornadogr1 tornadogr4 mirage2000d a6e f117a",
-    proto: "su47 mig144 x29a f15smtd yf23 falken wyvern adler prt", ew: "ea18g ea6b"
+    proto: "su47 mig144 x29a f15smtd yf23 falken wyvern adler sylph prt", ew: "ea18g ea6b"
   }).flatMap(([r, keys]) => keys.split(" ").map(k => [k, r]))),
   /* Фирменные приёмы (Стрэйнджриал 8.6): раз за вылет, не тратят действие и проверку хода, если не сказано иное. */
   planeMoves: {
@@ -132,7 +132,8 @@ export const TB = {
     ace104: { name: "104:0", planes: "f15c", text: "Твоя ракета по воздушной цели промахнулась на 1 или 2: она всё равно попадает. Объявляется после сравнения атаки с защитой." },
     ghost: { name: "Удар из ниоткуда", planes: "f22 f117a", text: "Объяви при пуске: цель не получает предупреждения о ракете и не может сделать Break! против неё." },
     g12: { name: "Перегрузка 12g", planes: "falken", text: "Break! без броска, как будто на d10 выпало 10. Не тратит проверку хода, и Speed после него не падает." },
-    salvo: { name: "Ракетный шквал", planes: "wyvern", text: "Fox Two! пускает две ракеты по захваченной цели: две обычных или две одного спецоружия (на 2 Ammo). Вторая даёт +1 к атаке или добавляет свой урон." }
+    salvo: { name: "Ракетный шквал", planes: "wyvern", text: "Fox Two! пускает две ракеты по захваченной цели: две обычных или две одного спецоружия (на 2 Ammo). Вторая даёт +1 к атаке или добавляет свой урон." },
+    zoe: { name: "Z.O.E.", planes: "sylph", text: "Объяви при заявке: бой ведёт ИИ Z.O.E. Заяви 3 действия, но ходи как с заявкой 1; проверка хода без броска, как будто на d10 выпало 10. В конце хода Strain падает до 0, у WSO тоже." }
   },
   rangeOptions: { "": "по умолчанию для этого оружия", 0: "своя зона", 1: "своя и соседние", 2: "до двух зон", 99: "вся зона операции" },
 

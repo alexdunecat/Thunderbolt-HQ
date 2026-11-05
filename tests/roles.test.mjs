@@ -155,3 +155,36 @@ ChatMessage.create = async d => Object.assign(await create0(d), { canUserModify:
 const cm = await Rm.fireCarpet(b52);
 const cc = cm?.flags?.["thunderbolt-shtab"]?.card;
 console.log("ковёр:", cc?.dmg, JSON.stringify(cc?.line.map(r => [r.name, r.vs, r.applied ?? false])));
+
+// FFR-31MR/D Super Sylph: «Z.O.E.» (заявка 3 действия с местом 1, проверка как 10, Strain экипажа до 0) и «Тактический разведчик»
+{
+  const Sy = await import(R + "/module/sylph.mjs");
+  const DP = await import(R + "/module/declare-pick.mjs");
+  const sy = pilot("Сильф", "sylph", 20, 0, "med", { propKeys: ["wso", "supercruise", "recon"], wso: "Штурман", strain: { value: 6, max: 10 } });
+  const nav = pilot("Штурман", "sylph", 30, 9, "med", { strain: { value: 4, max: 10 } });
+  for (const a of [sy, nav]) {
+    a.unsetFlag = async (s, k) => { delete a.flags[s][k]; log.push(`UNSET ${a.name} ${k}`); };
+    const up = a.update; a.update = async u => { for (const [k, v] of Object.entries(u)) if (k.startsWith("flags.")) setp(a, k, v); return up.call(a, u); };
+  }
+  game.actors = [sy, nav];
+  const cS = { id: "cS", name: "Сильф", actor: sy, initiative: 1, tokenId: null, getFlag: () => null };
+  const zc = { id: "C9", round: 2, started: true, combatants: [cS], getFlag: () => 2, combatant: cS };
+  cS.parent = zc; game.combat = zc;
+  console.log("Сильф:", roleOf(sy), moveOf(sy), "· плитка Z.O.E.:", Sy.zoeOffer(cS), "· заявлено до:", A.declaredOf(cS));
+  const html = DP.declarePickHtml({ round: 2, rows: [{ id: "cS", name: "Сильф", plane: "Super Sylph", wso: true, zoe: true }], foes: [{ name: "Бандит", v: 1 }], mates: [] });
+  console.log("стекло:", (html.match(/data-n="\d+"/g) ?? []).join(" "), "·", html.includes("Z.O.E.") ? "плитка есть" : "плитки нет");
+  log.length = 0;
+  await Sy.declareZoe(cS);
+  console.log("после заявки:", A.declaredOf(cS), "действий · приём потрачен:", !moveReady(sy), "·", log.filter(l => l.startsWith("CHAT")).join(" "));
+  log.length = 0;
+  await Sy.finishZoe(sy);
+  console.log("конец хода:", sy.system.strain.value, nav.system.strain.value, "·", log.filter(l => /^CHAT|^UNSET/.test(l)).join(" | "));
+  const aceS = mk("Сильф-ас", 21, 0, "med", { key: "sylph", tier: "ace", hp: { value: 3, max: 3 } });
+  console.log("ас включает:", Sy.zoeWanted(aceS), Sy.zoeWanted(aceS, { locked: true }), Sy.zoeWanted(mk("Сильф-ас-2", 21, 0, "med", { key: "sylph", tier: "ace", hp: { value: 1, max: 3 } })));
+  // разведчик: контакты «?» не дальше 2 зон, в начале своего хода
+  const unk = (name, col) => { const a = mk(name, col, 0, "med"); const d = docs.at(-1); d.flags = { "thunderbolt-shtab": { unknown: { n: col } } }; d.getFlag = (s, k) => d.flags[s]?.[k]; return a; };
+  unk("Контакт 22", 22); unk("Контакт 25", 25);
+  const near = Sy.reconTargets(sy).map(t => t.name);
+  cS.getFlag = () => ({ round: 2, used: 0, list: [] });
+  console.log("разведчик:", JSON.stringify(near), JSON.stringify(Sy.reconState(sy, near.length)), "· без контактов:", Sy.reconState(sy, 0).why, "· у другой машины:", Sy.reconState(su35, 1));
+}

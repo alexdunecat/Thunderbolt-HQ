@@ -2270,6 +2270,12 @@ body.tb-combat-screen #navigation, body.tb-combat-screen #players, body.tb-comba
 #tb-declare-pick .tb-dp-pips i.on { background: #a4ffcb; box-shadow: 0 0 6px #a4ffcb; }
 #tb-declare-pick .tb-dp-tile.pass { background: linear-gradient(#17140a, #0b0905); border-color: rgba(242, 193, 78, .35); border-bottom-color: rgba(242, 193, 78, .6); }
 #tb-declare-pick .tb-dp-tile.pass b { font-size: 26px; letter-spacing: .14em; color: #f2c14e; text-shadow: 0 0 10px rgba(242, 193, 78, .4); padding: 6px 0 5px; }
+/* «Z.O.E.» (Super Sylph): пятая плитка, холодный цвет ИИ */
+#tb-declare-pick .tb-dp-tiles:has(.zoe) { grid-template-columns: repeat(4, 1fr) .85fr; }
+@media (max-width: 600px) { #tb-declare-pick .tb-dp-tiles:has(.zoe) { grid-template-columns: 1fr 1fr; } }
+#tb-declare-pick .tb-dp-tile.zoe { background: linear-gradient(#0c1724, #060c14); border-color: rgba(120, 200, 255, .35); border-bottom-color: rgba(120, 200, 255, .6); }
+#tb-declare-pick .tb-dp-tile.zoe b { font-size: 24px; letter-spacing: .1em; color: #8fd4ff; text-shadow: 0 0 10px rgba(120, 200, 255, .45); padding: 7px 0 6px; }
+#tb-declare-pick .tb-dp-tile.zoe .tb-dp-pips i.on { background: #8fd4ff; box-shadow: 0 0 6px rgba(120, 200, 255, .6); }
 #tb-declare-pick .tb-dp-tile.pass em { color: #c9b98a; }
 #tb-declare-pick .tb-dp-pips.pass i { border-color: rgba(242, 193, 78, .3); background: transparent; }
 #tb-declare-pick .tb-dp-tile:hover, #tb-declare-pick .tb-dp-tile:focus-visible { transform: translateY(-2px); background: linear-gradient(#173328, #0a1a14); box-shadow: 0 0 16px rgba(164, 255, 203, .35); }

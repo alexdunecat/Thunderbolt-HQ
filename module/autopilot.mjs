@@ -440,7 +440,17 @@ export async function runAutopilot(actor, token = null) {
   let order = orderOf(actor);
   if (!order || !token || token.document.hidden || gone(actor) || !canvas?.ready) return [];
   const state = { broke: false, used: new Set(), side: 1, moved: false, left: 0 }, failed = new Set(), log = [];
-  const acts = order.acts ? Math.max(1, Math.min(3, order.acts)) : await adviceActs(actor, token, order);
+  let acts = order.acts ? Math.max(1, Math.min(3, order.acts)) : await adviceActs(actor, token, order);
+  // «Z.O.E.» (приём Super Sylph у аса): HP мало или он на захвате — ИИ берёт ручку, три действия, первая проверка как 10
+  const Z = await import("./sylph.mjs");
+  const locked = canvas.tokens.placeables.some(t => t.actor && t.actor !== actor && t.actor.system?.lockUuid === actor.uuid);
+  const zoe = !!game.combat?.started && Z.zoeWanted(actor, { locked, incoming: incoming(actor) });
+  if (zoe) {
+    const cb = game.combat.combatants.find(x => x.tokenId === token.id) ?? null;
+    await Z.declareZoe({ actor, parent: game.combat, id: cb?.id ?? "" }, { auto: true });
+    acts = 3;
+    log.push(TB.planeMoves.zoe.name);
+  }
   for (let i = 0; i < acts; i++) {
     state.left = acts - i;
     // маршрут: дошёл до точки — следующая
@@ -501,6 +511,7 @@ export async function runAutopilot(actor, token = null) {
     log.push(`${what}${name ? ` «${name}»` : step.cell ? ` → ${cellLabel(cellKey(step.cell))}` : ""}`);
     await wait(step.act === "move" ? 750 : step.act === "fire" ? 1000 : 550);
   }
+  if (zoe) await Z.finishZoe(actor);
   await summary(actor, token, order, log);
   return log;
 }
