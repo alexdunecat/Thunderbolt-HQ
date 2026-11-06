@@ -305,6 +305,8 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       const pk = new Set(this.props.map(p => p.key));
       // «Бортовые орудия»: ганшип кружит над целью, Max Speed в бою не выше 2
       if (pk.has("gunship")) this.maxSpeed = Math.min(this.maxSpeed, 2);
+      // «Экраноплан»: над самой водой, Speed в бою не выше 3
+      if (pk.has("wig")) this.maxSpeed = Math.min(this.maxSpeed, 3);
       this.aoa = pk.has("aoa") && aoaActive(this.parent);
       this.evasion = this.stats.ev - thin + ((pk.has("swing") && this.speed >= this.maxSpeed) || sweepActive(this.parent) ? 1 : 0) + (pk.has("terrain") && this.alt === "low" ? 1 : 0) + (this.aoa ? 1 : 0);
       this.defense = airDefense(this, this.evasion);

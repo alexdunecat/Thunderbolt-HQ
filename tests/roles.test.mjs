@@ -235,3 +235,15 @@ console.log("ковёр:", cc?.dmg, JSON.stringify(cc?.line.map(r => [r.name, r.
   console.log("фоторазведка:", aloft.map(t => t.name).join(", "), "·", Sc.scoutLine(aloft.map(t => t.name)).replace(/<[^>]+>/g, ""));
   console.log("к краю:", JSON.stringify(Sc.edgeCell([3, 5], { c0: 0, r0: 0, c1: 9, r1: 7 })), JSON.stringify(Sc.edgeCell([8, 3], { c0: 0, r0: 0, c1: 9, r1: 7 })));
 }
+
+// третья партия: Т-50 со «Сверхманёвренностью», «Лунь» (экраноплан: 2×2, потолок Низкая, ПКР кораблей по нему), «Ульяновск»
+{
+  const C = await import(R + "/module/config.mjs");
+  const t50 = pilot("Беркут-2", "t50", 70, 0, "med");
+  console.log("Т-50:", roleOf(t50), moveOf(t50), "· потолки:", ["t50", "m50", "lun"].map(k => `${k}=${TB.maxAlt[k]}`).join(" "));
+  console.log("жетоны:", JSON.stringify(C.footprintOf({ kind: "air", key: "lun", grp: "heavy", cls: "Ракетный экраноплан" })), JSON.stringify(C.footprintOf({ kind: "air", key: "m50", grp: "heavy", cls: "Сверхзвуковой стратегический бомбардировщик" })), JSON.stringify(C.footprintOf({ kind: "ship", key: "ulyanovsk", grp: "sea" })));
+  const lun = mk("Лунь", 72, 0, "low", { props: [{ key: "wig" }, { key: "antiship" }] });
+  const jet = mk("Обычный", 72, 0, "low");
+  const ship = mk("Эсминец", 72, 1, "ground", { kind: "ship", side: "player", systems: [{ name: "ПКР", value: 3, ga: null, gg: 6 }] });
+  console.log("ПКР корабля:", JSON.stringify(Rm.strikeMeans(ship, "air", lun)), JSON.stringify(Rm.strikeMeans(ship, "air", jet)));
+}

@@ -1,5 +1,5 @@
 роли: heavy cobra · heavy phoenix · — — · книга fa: light gs: —
-приёмов: 14 машин с приёмом: 20 · ролей у машин: 75
+приёмов: 14 машин с приёмом: 21 · ролей у машин: 76
 2 зоны: {"label":"High Speed","speed":5} {"label":"сверхзвуковой режим","speed":null} null
 Improved по воздуху: deploy aim
 Штурмовой заход: true false false
@@ -30,3 +30,6 @@ XFA-27: proto sweep · кнопка: {"key":"sweep","name":"Перекладка
 потолки: sylph=strat xfa27=strat pakda=high firefox=strat mave=strat vva14=med u2=strat sr71=strat
 фоторазведка: U-2S, SR-71 · Фоторазведка. «U-2S», «SR-71» ещё в воздухе к концу 4-го раунда: снимки ушли к своим. Решите, что это меняет: засада на следующем вылете, удар по аэродрому, сорванная внезапность.
 к краю: [3,7] [9,3]
+Т-50: proto supermano · потолки: t50=strat m50=high lun=low
+жетоны: [2,2] [2,2] [1,2]
+ПКР корабля: ["ПКР по экраноплану"] []

@@ -43,7 +43,7 @@ export const TB = {
     tu160: "high", b1b: "high", b2a: "high", b52h: "high", vulcan: "high", ac130: "med", a50: "high", e767: "high", il76: "high", an124: "high",
     c130: "high", c5: "high", nimrod: "high", ah64a: "med", ch47: "med", mh60: "med", uh60: "med", mi24: "med", mi28: "med", mi8: "med", ka52: "med",
     uav: "high", airliner: "high", widebody: "high", bizjet: "high", an2: "med", cargojet: "high", bookbomber: "high", booktransport: "high",
-    bookpatrol: "high", sylph: "strat", xfa27: "strat", pakda: "high", firefox: "strat", mave: "strat", vva14: "med", u2: "strat", sr71: "strat"
+    bookpatrol: "high", sylph: "strat", xfa27: "strat", pakda: "high", firefox: "strat", mave: "strat", vva14: "med", u2: "strat", sr71: "strat", t50: "strat", m50: "high", lun: "low"
   },
   // высота токена: 1 = Низкая, 2 = Средняя, 3 = Высокая, 4 = стратосфера
   altElevation: { low: 1, med: 2, high: 3, strat: 4 },
@@ -119,12 +119,12 @@ export const TB = {
     heavy: "su27 su33 su35 su37 f15c f14a f22 tornadof3 fb", light: "mig21bis mig21-93 mig29a mig23 yak141 f5e f20a f16c mirage2000 typhoon fa",
     icpt: "mig25 mig31 mig31m f4x f14d hsi", multi: "mig29m mig29k mig35 su30 fa18c fa18e f16b60 f16xl rafalem rafaleb f35c f2a jas39c f4e mra mrd",
     attack: "su25 su22 mig27 yak38 a10a ya10b hawk f4g tornadoecr ga", bomber: "su24 su32 f15e tornadogr1 tornadogr4 mirage2000d a6e f117a",
-    proto: "su47 mig144 x29a f15smtd yf23 falken wyvern adler sylph xfa27 firefox mave prt", ew: "ea18g ea6b"
+    proto: "su47 mig144 x29a f15smtd yf23 falken wyvern adler sylph xfa27 firefox mave t50 prt", ew: "ea18g ea6b"
   }).flatMap(([r, keys]) => keys.split(" ").map(k => [k, r]))),
   /* Фирменные приёмы (Стрэйнджриал 8.6): раз за вылет, не тратят действие и проверку хода, если не сказано иное. */
   planeMoves: {
     cobra: { name: "Кобра Пугачёва", planes: "su35 su37", text: "Когда по тебе пущена ракета, даже не в свой ход: все ракеты в тебя в этом раунде промахиваются, все захваты на тебя срываются, Speed сразу 1 без сваливания. Нужен рабочий MAWS." },
-    supermano: { name: "Сверхманёвренность", planes: "su47 adler", text: "В этот ход можно сделать вторую проверку с броском." },
+    supermano: { name: "Сверхманёвренность", planes: "su47 adler t50", text: "В этот ход можно сделать вторую проверку с броском." },
     dash: { name: "Бросок на рубеж", planes: "mig31m mig144", text: "Одним действием Move до 3 зон, Speed сразу равна Max Speed. В конце броска бесплатный Lock On! по цели в зоне прибытия или соседней." },
     hmd: { name: "Нашлемный прицел", planes: "mig35", text: "Lock On! и Fox Two! по цели в своей зоне одним действием." },
     tank: { name: "Летающий танк", planes: "su25 a10a", text: "Когда должен получить метку урона, не получай её: HP просто восстанавливается до максимума." },
@@ -284,7 +284,7 @@ export function footprintOf(sys) {
   if (sys.key === "arkbird" || sys.key === "solg") return TB.footprints.arkbird;
   if (/стратегическ/i.test(sys.cls ?? "") || sys.key === "b2a") return TB.footprints.strategic;
   // крупные самолёты: транспорт, ДРЛО, патрульные и AC-130
-  if (sys.kind === "air" && (sys.grp === "support" || ["ac130", "widebody", "cargojet"].includes(sys.key))) return TB.footprints.large;
+  if (sys.kind === "air" && (sys.grp === "support" || ["ac130", "widebody", "cargojet", "lun"].includes(sys.key))) return TB.footprints.large;
   // «Анура» и «Арсион» компактнее остальных летающих крейсеров
   if (["anura", "arcion"].includes(sys.key)) return TB.footprints.large;
   if (props.includes("aerialship")) return TB.footprints.aerialCruiser;

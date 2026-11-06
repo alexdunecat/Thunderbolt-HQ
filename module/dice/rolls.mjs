@@ -698,8 +698,10 @@ function stdMissile(actor, kind) {
 }
 
 /** Чем стрелок может атаковать цель этого вида ракетами: стандартная ракета, спецоружие, ЗРК и ракетные системы корабля. */
-export function strikeMeans(actor, kind) {
+export function strikeMeans(actor, kind, target = null) {
   const s = actor.system, air = kind === "air", out = [];
+  // «Экраноплан»: корабельные ПКР (G-G) бьют и по нему
+  if (air && actor.type === "npc" && s.kind === "ship" && hasProp(target, "wig") && s.systems.some(y => y.value > 0 && has(y.gg))) out.push("ПКР по экраноплану");
   if (stdMissile(actor, kind)) out.push("Стандартная ракета");
   if (actor.type === "npc" && s.kind === "ground" && has(air ? s.ground.ga : s.ground.gg)) out.push(air ? "ЗРК" : "G-G");
   if (actor.type === "npc" && s.kind === "ship" && s.systems.some(y => y.value > 0 && has(air ? y.ga : y.gg))) out.push("ракетная система");
@@ -762,7 +764,7 @@ export async function lockOn(actor, { free = false, phoenix = false, maxDist = n
   if (zoomActive(tok.actor)) return ui.notifications.warn(`Lock On! невозможен: «${TB.planeMoves.zoom.name}», до конца раунда «${tok.name}» не захватить.`);
   const t = describeTarget(tok.actor, tok.name, tok);
   const kind = targetKind(t);
-  if (!strikeMeans(actor, kind).length)
+  if (!strikeMeans(actor, kind, tok.actor).length)
     return ui.notifications.warn(`Lock On! невозможен: у «${actor.name}» нечем бить по ${kind === "air" ? "воздушным" : "наземным и морским"} целям.`);
   let { range, longRange, radar } = lockRangeOf(actor, kind);
   const fenix = phoenix && kind === "air";
@@ -1720,7 +1722,9 @@ export async function fireSam(actor, sysIndex, { target = null, free = false, ta
   if (t && !canFireAt(actor, t.actor)) return ui.notifications.warn(`Пуск: «${t.name}» на вашей стороне.`);
   // по воздуху G-A (ЗРК), по земле и морю G-G; без цели — чем система стреляет
   const air = t ? isAirTarget(t) : !!src?.ga;
-  const ga = air ? src?.ga : src?.gg;
+  // «Экраноплан» над водой: корабельная ПКР (G-G без G-A) бьёт по нему как по кораблю
+  const wigGG = air && s.kind === "ship" && !has(src?.ga) && has(src?.gg) && hasProp(t?.actor, "wig");
+  const ga = air && !wigGG ? src?.ga : src?.gg;
   // как рисовать выстрел: танк и БМП — снаряд, артиллерия и главный калибр корабля — навесом, остальное — ракета
   const fx = s.kind === "ship" ? (/калибр|артуст|оруди|cannon/i.test(src?.name ?? "") ? "arty" : "")
     : s.kind === "ground" && !air && s.key !== "tel" ? (s.grp === "art" ? "arty" : s.grp === "ad" ? "" : "shell") : "";
@@ -1741,7 +1745,7 @@ export async function fireSam(actor, sysIndex, { target = null, free = false, ta
     if (auto && problems.length) return null;
     if (!(await confirmReach(problems, label))) return;
   }
-  const parts = [[air ? "G-A" : "G-G", ga ?? 0]];
+  const parts = [[air && !wigGG ? "G-A" : "G-G", ga ?? 0]];
   // тактики эскадрильи и триггеры аса — как у самолётов (без броска)
   const bonus = t ? attackBonus(actor, t.actor, { rolled: false }) : null;
   if (bonus) parts.push(...bonus.parts);
@@ -1791,7 +1795,7 @@ export async function autoLock(actor, tok) {
   if (!canFireAt(actor, tok.actor)) return "своя сторона";
   if (zoomActive(tok.actor)) return `«${TB.planeMoves.zoom.name}»: до конца раунда не захватить`;
   const t = describeTarget(tok.actor, tok.name, tok), kind = targetKind(t);
-  if (!strikeMeans(actor, kind).length) return "нечем бить";
+  if (!strikeMeans(actor, kind, tok.actor).length) return "нечем бить";
   const { range } = lockRangeOf(actor, kind);
   const { dist, problems } = reachProblems(actor, t, range, { strike: true });
   if (problems.length) return problems[0];
